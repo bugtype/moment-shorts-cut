@@ -33,7 +33,8 @@ function element(key=''){
  elements.set(key,e);return e;
 }
 let canvasCount=0,rafCounter=0;const pendingFrames=new Map();
-const doc={querySelector:element,querySelectorAll:()=>[],addEventListener(){},body:element('body'),fonts:{ready:Promise.resolve()},createElement:()=>element('canvas-'+(++canvasCount))};
+const documentEvents=new Map();
+const doc={querySelector:element,querySelectorAll:()=>[],addEventListener(name,handler){documentEvents.set(name,handler);},body:element('body'),fonts:{ready:Promise.resolve()},createElement:()=>element('canvas-'+(++canvasCount))};
 const context=vm.createContext({document:doc,window:{addEventListener(){}},Image:class{complete=false;},localStorage:{getItem:()=>null,setItem(){}},requestAnimationFrame(callback){pendingFrames.set(++rafCounter,callback);return rafCounter;},cancelAnimationFrame(id){pendingFrames.delete(id);},setTimeout(){},clearTimeout(){},setInterval(){},clearInterval(){},console,URL,Blob,performance,Number,Math,Promise,structuredClone,...projectModule,prepareCommand,CommandError,createEditorService,...captionModule,...effectsModule,...templateModule,mountTemplateGallery,mountEffectsPanel,...typographyModule,createProjectStore,mountDesignPanel});
 vm.runInContext(source.replace(/^import .*;$/gm,'').replace(/init\(\);\s*$/,'globalThis.ready=init();'),context);
 await context.ready;
@@ -55,6 +56,31 @@ assert.deepEqual(evaluate('state.clips'),[{start:0,end:5},{start:5,end:12}]);
 vm.runInContext('undo();',context);
 assert.deepEqual(evaluate('state.clips'),[{start:0,end:12}]);
 console.log('PASS: DOM IDs, all panel initializations, trim mapping, split/undo, caption clipping, speed-adjusted SRT, SRT parsing.');
+
+// Context changes reveal the relevant controls without editing the project.
+const inspectorState=evaluate('state'),inspectorHistory=evaluate('history.length');
+function assertInspector(section){
+ for(const name of ['frame','clip','caption'])assert.equal(element('#'+name+'Settings').open,name===section);
+}
+vm.runInContext("switchPanel('captions')",context);assertInspector('caption');
+vm.runInContext("switchPanel('settings')",context);assertInspector('frame');
+element('#videoTrack').onclick({clientX:135,target:{closest:()=>({dataset:{clip:'0'},getBoundingClientRect:()=>({left:0,width:540})})}});
+assertInspector('clip');
+assert.equal(element('#trimEnd').value,'12.0');
+assert.deepEqual(evaluate('state'),inspectorState);
+assert.equal(evaluate('history.length'),inspectorHistory,'Opening properties must not add undo entries');
+let preventedDisclosure=false;
+documentEvents.get('keydown')({target:{tagName:'SUMMARY'},code:'Space',key:' ',preventDefault(){preventedDisclosure=true;}});
+assert.equal(preventedDisclosure,false,'Space must retain native disclosure behavior');
+assert.equal(evaluate('playing'),false,'Space on a disclosure must not start playback');
+vm.runInContext("switchPanel('settings');current=5;split()",context);assertInspector('clip');
+assert.equal(element('#clipIndex').textContent,'클립 2');
+assert.equal(element('#trimStart').value,'5.0');
+vm.runInContext('undo()',context);
+element('#captionTrack').onclick();assertInspector('caption');
+vm.runInContext("textLayer='caption';switchPanel('text')",context);assertInspector('caption');
+vm.runInContext("textLayer='title';switchPanel('settings')",context);
+console.log('PASS: selection-aware inspector, split selection, unchanged project/history and caption navigation.');
 
 
 // Old saved projects retain their full-frame composition and original overlay.

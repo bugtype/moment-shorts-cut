@@ -109,11 +109,36 @@ clickCaptionBlock(3);assert.equal(evaluate('current'),3);assert.equal(evaluate('
 vm.runInContext('record=null;exporting=true',context);clickCaptionBlock(3);assert.equal(evaluate('current'),3);
 vm.runInContext('exporting=false',context);
 let preventedCaption=false;
-documentEvents.get('keydown')({target:{tagName:'BUTTON',matches:s=>s==='[data-caption-index]'},code:'Space',key:' ',preventDefault(){preventedCaption=true;}});
+documentEvents.get('keydown')({target:{tagName:'BUTTON'},code:'Space',key:' ',preventDefault(){preventedCaption=true;}});
 assert.equal(preventedCaption,false,'Space on a caption must use native button activation');
 assert.equal(evaluate('playing'),false);
 vm.runInContext('state=initial();timelineCache=null;current=0;changed()',context);
 console.log('PASS: caption occurrence navigation, duplicate text, trim/repeat/narration/speed, deletion/undo, focus and busy guards.');
+
+// Space belongs to focused controls; global playback still works elsewhere.
+function keydown(tagName,key,extra={}){
+ let prevented=false;
+ documentEvents.get('keydown')({target:{tagName},key,code:key===' '?'Space':key,preventDefault(){prevented=true;},...extra});
+ return prevented;
+}
+const keyboardState=evaluate('state'),keyboardHistory=evaluate('history.length');
+for(const playing of [false,true]){
+ vm.runInContext(`playing=${playing}`,context);
+ for(const tag of ['BUTTON','INPUT','TEXTAREA','SELECT','SUMMARY']){
+  assert.equal(keydown(tag,' '),false,`Space must retain native ${tag} behavior`);
+  assert.equal(evaluate('playing'),playing,'Focused controls must not toggle playback');
+ }
+}
+assert.equal(keydown('BODY',' '),true);assert.equal(evaluate('playing'),false,'Space outside a control pauses playback');
+assert.deepEqual(evaluate('state'),keyboardState);assert.equal(evaluate('history.length'),keyboardHistory);
+vm.runInContext('current=3',context);
+keydown('BUTTON','ArrowRight');assert.equal(evaluate('current'),4,'Button focus must not disable timeline arrow shortcuts');
+keydown('TEXTAREA','ArrowLeft');assert.equal(evaluate('current'),4,'Text cursor arrows must not seek');
+keydown('BUTTON','ArrowLeft');assert.equal(evaluate('current'),3);
+vm.runInContext("edit(()=>state.name='Keyboard regression')",context);
+assert.equal(keydown('BUTTON','z',{ctrlKey:true}),true);assert.equal(evaluate('state.name'),keyboardState.name,'Undo remains available from buttons');
+vm.runInContext('current=0;changed()',context);
+console.log('PASS: native Space activation boundary, form controls, global playback, arrow keys and undo.');
 
 
 // Old saved projects retain their full-frame composition and original overlay.

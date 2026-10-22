@@ -3,6 +3,8 @@ import { prepareCommand } from './dist/core/commands.mjs';
 import { CommandError } from './dist/core/validation.mjs';
 import { createEditorService } from './dist/integration/editor-service.mjs';
 import * as captionModule from './dist/captions.mjs';
+import { renderCaptionTrack, updateTimelineMarkup } from './dist/timeline-view.mjs';
+import { createTrack } from './tests/fixtures/timeline-dom.mjs';
 import * as effectsModule from './dist/effects.mjs';
 import * as templateModule from './dist/template-catalog.mjs';
 import { mountTemplateGallery } from './dist/template-gallery.mjs';
@@ -33,9 +35,10 @@ function element(key=''){
  elements.set(key,e);return e;
 }
 let canvasCount=0,rafCounter=0;const pendingFrames=new Map();
+Object.assign(element('#captionTrack'),createTrack());
 const documentEvents=new Map();
 const doc={querySelector:element,querySelectorAll:()=>[],addEventListener(name,handler){documentEvents.set(name,handler);},body:element('body'),fonts:{ready:Promise.resolve()},createElement:()=>element('canvas-'+(++canvasCount))};
-const context=vm.createContext({document:doc,window:{addEventListener(){}},Image:class{complete=false;},localStorage:{getItem:()=>null,setItem(){}},requestAnimationFrame(callback){pendingFrames.set(++rafCounter,callback);return rafCounter;},cancelAnimationFrame(id){pendingFrames.delete(id);},setTimeout(){},clearTimeout(){},setInterval(){},clearInterval(){},console,URL,Blob,performance,Number,Math,Promise,structuredClone,...projectModule,prepareCommand,CommandError,createEditorService,...captionModule,...effectsModule,...templateModule,mountTemplateGallery,mountEffectsPanel,...typographyModule,createProjectStore,mountDesignPanel});
+const context=vm.createContext({document:doc,window:{addEventListener(){}},Image:class{complete=false;},localStorage:{getItem:()=>null,setItem(){}},requestAnimationFrame(callback){pendingFrames.set(++rafCounter,callback);return rafCounter;},cancelAnimationFrame(id){pendingFrames.delete(id);},setTimeout(){},clearTimeout(){},setInterval(){},clearInterval(){},console,URL,Blob,performance,Number,Math,Promise,structuredClone,...projectModule,prepareCommand,CommandError,createEditorService,...captionModule,renderCaptionTrack,updateTimelineMarkup,...effectsModule,...templateModule,mountTemplateGallery,mountEffectsPanel,...typographyModule,createProjectStore,mountDesignPanel});
 vm.runInContext(source.replace(/^import .*;$/gm,'').replace(/init\(\);\s*$/,'globalThis.ready=init();'),context);
 await context.ready;
 for(const [id,cb] of pendingFrames){pendingFrames.delete(id);cb(performance.now());}
@@ -87,15 +90,15 @@ vm.runInContext(`state=initial();state.clips=[{start:8,end:12},{start:2,end:5},{
  state.captions=[{start:1,end:3,text:'same'},{start:9,end:11,text:'same'},{start:0,end:2,text:'same',basis:'timeline'}];changed();`,context);
 const navigationState=evaluate('state'),navigationHistory=evaluate('history.length');
 function clickCaptionBlock(index){
- const blocks=[...element('#captionTrack').innerHTML.matchAll(/data-caption-index="(\d+)" data-caption-time="([\d.]+)"/g)];
+ const blocks=element('#captionTrack').children;
  const block=blocks[index];assert.ok(block,'Expected a rendered caption occurrence');
- element('#captionTrack').onclick({target:{closest:()=>({dataset:{captionIndex:block[1],captionTime:block[2]}})}});
- return +block[1];
+ element('#captionTrack').onclick({target:{closest:()=>block}});
+ return +block.dataset.captionIndex;
 }
 assert.equal(clickCaptionBlock(3),1);
 assert.equal(evaluate('current'),8,'Repeated source caption seeks to its clicked edited occurrence before speed');
 assert.equal(doc.activeElement,element('[data-caption-text="1"]'));
-assert.match(element('#captionTrack').innerHTML,/aria-label="자막 2, 4.0초: same"/);
+assert.equal(element('#captionTrack').children[3].attributes['aria-label'],'자막 2, 4.0초: same');
 assert.equal(clickCaptionBlock(2),0);assert.equal(evaluate('current'),4,'Trimmed caption seeks to its visible start');
 assert.equal(clickCaptionBlock(0),2);assert.equal(evaluate('current'),0,'Narration uses the edited clock');
 assert.equal(doc.activeElement,element('[data-caption-text="2"]'));

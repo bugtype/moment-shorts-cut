@@ -11,11 +11,11 @@ export function findCaption(captions, sourceTime, timelineTime) {
 }
 export function captionOccurrences(captions, clips, speed = 1) {
   const out = []; let offset = 0;
-  for (const clip of clips) {
+  for (const [clipIndex, clip] of clips.entries()) {
     for (const [captionIndex, cap] of captions.entries()) {
       if (cap.basis === 'timeline') continue;
       const start = Math.max(clip.start, cap.start), end = Math.min(clip.end, cap.end);
-      if (end > start) out.push({start:(offset+start-clip.start)/speed,end:(offset+end-clip.start)/speed,text:cap.text,captionIndex});
+      if (end > start) out.push({start:(offset+start-clip.start)/speed,end:(offset+end-clip.start)/speed,text:cap.text,captionIndex,clipIndex});
     }
     offset += clip.end - clip.start;
   }

@@ -29,7 +29,7 @@ const context2d=new Proxy({}, {get:(target,key)=>key==='createRadialGradient'?()
 function element(key=''){
  if(elements.has(key))return elements.get(key);
  const e={value:'',innerHTML:'',textContent:'',hidden:false,style:{},dataset:{},clientWidth:700,clientHeight:500,width:540,height:960,currentTime:0,duration:12,readyState:4,videoWidth:1920,videoHeight:1080,
- classList:{add(){},remove(){},toggle(){}},setAttribute(){},setPointerCapture(){},removeAttribute(){},addEventListener(){},removeEventListener(){},insertAdjacentHTML(){},getContext(){return context2d;},querySelector(selector){return selector==='.icon'?null:element(key+' '+selector);},querySelectorAll(){return [];},pause(){},play(){return Promise.resolve();},getBoundingClientRect(){return {left:0,top:0,width:540,height:960};},showModal(){this.open=true;},close(){this.open=false;}};
+ classList:{add(){},remove(){},toggle(){}},setAttribute(){},setPointerCapture(){},removeAttribute(){},addEventListener(){},removeEventListener(){},insertAdjacentHTML(){},getContext(){return context2d;},querySelector(selector){return selector==='.icon'?null:element(key+' '+selector);},querySelectorAll(){return [];},focus(){doc.activeElement=this;},pause(){},play(){return Promise.resolve();},getBoundingClientRect(){return {left:0,top:0,width:540,height:960};},showModal(){this.open=true;},close(){this.open=false;}};
  elements.set(key,e);return e;
 }
 let canvasCount=0,rafCounter=0;const pendingFrames=new Map();
@@ -218,6 +218,55 @@ vm.runInContext('undo(true);',context);assert.equal(evaluate('duration()'),6);
 vm.runInContext('state=initial();timelineCache=null;current=12;switchPanel("captions");',context);element('#addCaption').onclick();
 assert.ok(evaluate('state.captions.at(-1).end>state.captions.at(-1).start'),'adding a caption at the end must not create a zero-length caption');
 console.log('PASS: narration versus source clocks, repeated/reordered clips, cache invalidation, undo/redo and caption creation at the final frame.');
+
+// Existing captions lead the workspace; setup is disclosed for empty/running states.
+vm.runInContext('state=initial();timelineCache=null;current=0;switchPanel("captions")',context);
+const captionMarkup=()=>element('#panelContent').innerHTML;
+const createIsOpen=()=>/id="captionCreate" open/.test(captionMarkup());
+assert.ok(captionMarkup().indexOf('id="captionRows"')<captionMarkup().indexOf('id="captionCreate"'));
+assert.equal(createIsOpen(),false);
+assert.ok(captionMarkup().includes('role="region" aria-label="자막 목록" tabindex="0"'));
+vm.runInContext('state.captions=[];renderPanel()',context);assert.equal(createIsOpen(),true);
+element('#addCaption').onclick();assert.equal(evaluate('state.captions.length'),1);
+assert.equal(doc.activeElement,element('[data-caption-text="0"]'));
+assert.equal(createIsOpen(),false);
+const captionDelete={dataset:{deleteCaption:'0'}};
+doc.querySelectorAll=selector=>selector==='[data-delete-caption]'?[captionDelete]:[];
+vm.runInContext('renderPanel()',context);captionDelete.onclick();
+doc.querySelectorAll=()=>[];
+assert.equal(evaluate('state.captions.length'),0);assert.equal(createIsOpen(),true);
+assert.equal(doc.activeElement,element('#addCaption'));
+await vm.runInContext('importSrt({size:50,text:async()=>"1\\n00:00:00,000 --> 00:00:02,000\\nImported caption"})',context);
+assert.equal(evaluate('state.captions[0].text'),'Imported caption');assert.equal(createIsOpen(),false);
+assert.equal(doc.activeElement,element('[data-caption-text="0"]'));
+vm.runInContext('state.captions[0].timing="estimated";state.captions[0].basis="timeline";renderPanel()',context);
+assert.ok(captionMarkup().includes('시간 추정 · 음성과 확인 필요'));
+assert.ok(captionMarkup().includes('추가 오디오 · 편집 타임라인'));
+
+// Hold audio decoding to exercise running/cancelled UI without loading a model.
+let releaseCaptionAudio;
+context.captionTestFile={arrayBuffer:()=>new Promise(resolve=>releaseCaptionAudio=resolve)};
+context.AudioContext=class {async decodeAudioData(){return {duration:1};}async close(){}};
+context.OfflineAudioContext=class {createBufferSource(){return {connect(){},start(){}};}async startRendering(){return {getChannelData:()=>new Float32Array([.1])};}};
+vm.runInContext('videoFile=captionTestFile;renderPanel()',context);
+element('#captionSource').value='video';element('#language').value='korean';
+const beforeCaptionGeneration=evaluate('state.captions');
+const pendingCaptionGeneration=vm.runInContext('generateCaptions()',context);
+assert.equal(evaluate('transcribing'),true);
+vm.runInContext('switchPanel("text");switchPanel("captions")',context);
+assert.equal(createIsOpen(),true);
+assert.ok(captionMarkup().includes('인식 중 · 취소'));
+assert.ok(captionMarkup().includes('오디오를 읽고 있습니다…'));
+assert.ok(captionMarkup().includes('인터넷 연결이 필요하며'));
+assert.ok(captionMarkup().includes('최대 3분의 원본'));
+element('#generateCaptions').id='generateCaptions';element('#generateCaptions').focus();
+await element('#generateCaptions').onclick();releaseCaptionAudio(new ArrayBuffer(0));await pendingCaptionGeneration;
+assert.equal(evaluate('transcribing'),false);assert.equal(createIsOpen(),false);
+assert.deepEqual(evaluate('state.captions'),beforeCaptionGeneration);
+assert.equal(doc.activeElement,element('#captionCreate summary'));
+vm.runInContext('videoFile=null;state=initial();timelineCache=null;renderPanel()',context);
+delete context.captionTestFile;delete context.AudioContext;delete context.OfflineAudioContext;
+console.log('PASS: captions-first layout, empty/add/delete/import focus, timing notices and running/cancelled generation without a model download.');
 
 // Panel controls are exercised with supplied DOM controls (not a browser layout test).
 function control(type,dataset,value){return {type,dataset,value,checked:false,setCustomValidity(message){this.error=message;},reportValidity(){this.reported=true;}};}

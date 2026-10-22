@@ -1,0 +1,10 @@
+{
+  "name": "moment-shorts-studio",
+  "private": true,
+  "type": "module",
+  "engines": { "node": ">=20" },
+  "scripts": {
+    "test": "node verify.mjs && node --test tests/integration.test.mjs",
+    "moment": "node cli/moment.mjs"
+  }
+}

@@ -2,3 +2,10 @@ node_modules/
 .moment-test-*/
 .moment-*.tmp
 .DS_Store
+
+# Local deployment settings and environment secrets
+/.openai/
+.env
+.env.*
+!.env.example
+!.env.sample

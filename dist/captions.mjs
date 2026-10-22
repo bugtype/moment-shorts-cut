@@ -9,21 +9,24 @@ export function findCaption(captions, sourceTime, timelineTime) {
     return time >= caption.start && time < caption.end;
   });
 }
-export function editedCaptions(captions, clips, speed = 1) {
+export function captionOccurrences(captions, clips, speed = 1) {
   const out = []; let offset = 0;
   for (const clip of clips) {
-    for (const cap of captions) {
+    for (const [captionIndex, cap] of captions.entries()) {
       if (cap.basis === 'timeline') continue;
       const start = Math.max(clip.start, cap.start), end = Math.min(clip.end, cap.end);
-      if (end > start) out.push({start:(offset+start-clip.start)/speed,end:(offset+end-clip.start)/speed,text:cap.text});
+      if (end > start) out.push({start:(offset+start-clip.start)/speed,end:(offset+end-clip.start)/speed,text:cap.text,captionIndex});
     }
     offset += clip.end - clip.start;
   }
-  for (const cap of captions) if (cap.basis === 'timeline') {
+  for (const [captionIndex, cap] of captions.entries()) if (cap.basis === 'timeline') {
     const start = Math.max(0, cap.start), end = Math.min(offset, cap.end);
-    if (end > start) out.push({start:start/speed,end:end/speed,text:cap.text});
+    if (end > start) out.push({start:start/speed,end:end/speed,text:cap.text,captionIndex});
   }
   return out.sort((a,b) => a.start-b.start);
+}
+export function editedCaptions(captions, clips, speed = 1) {
+  return captionOccurrences(captions, clips, speed).map(({start,end,text}) => ({start,end,text}));
 }
 export function mapAudioCaptions(captions, offset, total) {
   return captions.map(cap => ({...cap,basis:'timeline',start:Math.max(0,cap.start+offset),end:Math.min(total,cap.end+offset)}))

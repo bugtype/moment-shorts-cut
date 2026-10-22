@@ -82,6 +82,39 @@ vm.runInContext("textLayer='caption';switchPanel('text')",context);assertInspect
 vm.runInContext("textLayer='title';switchPanel('settings')",context);
 console.log('PASS: selection-aware inspector, split selection, unchanged project/history and caption navigation.');
 
+// Timeline navigation uses the clicked occurrence, never text or source-time matching.
+vm.runInContext(`state=initial();state.clips=[{start:8,end:12},{start:2,end:5},{start:8,end:10}];state.speed=2;
+ state.captions=[{start:1,end:3,text:'same'},{start:9,end:11,text:'same'},{start:0,end:2,text:'same',basis:'timeline'}];changed();`,context);
+const navigationState=evaluate('state'),navigationHistory=evaluate('history.length');
+function clickCaptionBlock(index){
+ const blocks=[...element('#captionTrack').innerHTML.matchAll(/data-caption-index="(\d+)" data-caption-time="([\d.]+)"/g)];
+ const block=blocks[index];assert.ok(block,'Expected a rendered caption occurrence');
+ element('#captionTrack').onclick({target:{closest:()=>({dataset:{captionIndex:block[1],captionTime:block[2]}})}});
+ return +block[1];
+}
+assert.equal(clickCaptionBlock(3),1);
+assert.equal(evaluate('current'),8,'Repeated source caption seeks to its clicked edited occurrence before speed');
+assert.equal(doc.activeElement,element('[data-caption-text="1"]'));
+assert.match(element('#captionTrack').innerHTML,/aria-label="자막 2, 4.0초: same"/);
+assert.equal(clickCaptionBlock(2),0);assert.equal(evaluate('current'),4,'Trimmed caption seeks to its visible start');
+assert.equal(clickCaptionBlock(0),2);assert.equal(evaluate('current'),0,'Narration uses the edited clock');
+assert.equal(doc.activeElement,element('[data-caption-text="2"]'));
+assert.deepEqual(evaluate('state'),navigationState);assert.equal(evaluate('history.length'),navigationHistory);
+vm.runInContext("edit(()=>state.captions.splice(0,1),true)",context);
+assert.equal(clickCaptionBlock(2),0,'Deletion rebuilds references to the surviving row');
+assert.equal(doc.activeElement,element('[data-caption-text="0"]'));
+vm.runInContext('undo()',context);assert.equal(clickCaptionBlock(3),1,'Undo restores row mapping');
+vm.runInContext("switchPanel('audio');record={state:'recording'};current=3",context);
+clickCaptionBlock(3);assert.equal(evaluate('current'),3);assert.equal(evaluate('panel'),'audio');
+vm.runInContext('record=null;exporting=true',context);clickCaptionBlock(3);assert.equal(evaluate('current'),3);
+vm.runInContext('exporting=false',context);
+let preventedCaption=false;
+documentEvents.get('keydown')({target:{tagName:'BUTTON',matches:s=>s==='[data-caption-index]'},code:'Space',key:' ',preventDefault(){preventedCaption=true;}});
+assert.equal(preventedCaption,false,'Space on a caption must use native button activation');
+assert.equal(evaluate('playing'),false);
+vm.runInContext('state=initial();timelineCache=null;current=0;changed()',context);
+console.log('PASS: caption occurrence navigation, duplicate text, trim/repeat/narration/speed, deletion/undo, focus and busy guards.');
+
 
 // Old saved projects retain their full-frame composition and original overlay.
 const defaults=evaluate('initial()');

@@ -350,3 +350,42 @@ const imported=projectModule.createProjectDocument(apiOriginal);imported.project
 assert.equal((await context.window.moment.execute('project.import',{document:imported})).error.code,'MEDIA_RELINK_REQUIRED');
 assert.deepEqual(evaluate('state'),apiOriginal);
 console.log('PASS: browser command API initialization, shared template editing, undo, export-busy guard and media relink checks.');
+
+// Subtitle import failures must preserve the project and reset the file picker.
+vm.runInContext('state=initial();timelineCache=null;',context);
+const subtitleOriginal=evaluate('state');
+let readOversized=false;
+context.largeSubtitle={size:captionModule.MAX_SUBTITLE_BYTES+1,text:async()=>{readOversized=true;return '';}};
+await vm.runInContext('importSrt(largeSubtitle)',context);
+assert.equal(readOversized,false,'oversized subtitles are rejected before reading');
+assert.deepEqual(evaluate('state'),subtitleOriginal);
+context.failedSubtitle={text:async()=>{throw new Error('read failed');}};
+await vm.runInContext('importSrt(failedSubtitle)',context);
+assert.deepEqual(evaluate('state'),subtitleOriginal);
+vm.runInContext('exporting=true;',context);
+await vm.runInContext('importSrt({text:async()=>"00:01.000 --> 00:02.000\\nMust not replace during export"})',context);
+assert.deepEqual(evaluate('state'),subtitleOriginal);
+vm.runInContext('exporting=false;',context);
+await vm.runInContext('importSrt({text:async()=>"00:01.000 --> 00:02.000\\nSafe replacement"})',context);
+assert.equal(evaluate('state.captions[0].text'),'Safe replacement');
+vm.runInContext('undo();',context);
+assert.deepEqual(evaluate('state'),subtitleOriginal);
+assert.equal(element('#srtInput').value,'');
+console.log('PASS: bounded subtitle imports, read failure recovery, export guard and undo.');
+
+// A 60 Hz display must not turn a 30 fps target into ~20 fps through rounding drift.
+vm.runInContext('globalThis.savedDraw=draw;globalThis.frameCount=0;draw=()=>frameCount++;state=initial();timelineCache=null;current=0;lastTick=0;lastDrawTime=-Infinity;playing=true;',context);
+for(let i=1;i<=120;i++)vm.runInContext(`tick(${i*1000/60})`,context);
+const cadenceFrames=evaluate('frameCount');
+vm.runInContext('draw=savedDraw;pause();',context);
+assert.ok(cadenceFrames>=59&&cadenceFrames<=61,`30 fps target over 2 seconds: got ${cadenceFrames}`);
+console.log('PASS: frame cadence preserves elapsed time at 60 Hz.');
+
+const originalGetItem=context.localStorage.getItem;
+const corruptSaved=projectModule.createDemoProject();corruptSaved.design=null;
+context.localStorage.getItem=key=>key==='moment-state-v1'?JSON.stringify(corruptSaved):null;
+await vm.runInContext('init()',context);
+assert.doesNotThrow(()=>projectModule.validateProject(evaluate('state')));
+assert.match(element('#saveStatus').innerHTML,/불러오지 못함/);
+context.localStorage.getItem=originalGetItem;
+console.log('PASS: corrupt browser storage is rejected before rendering.');

@@ -71,7 +71,10 @@ export function readProjectDocument(document){
   assertJson(document);
   if(document?.format!==FORMAT||document.formatVersion!==FORMAT_VERSION)throw new CommandError('UNSUPPORTED_VERSION','지원하는 moment-project 파일이 아닙니다.');
   if(!document.project||!Number.isInteger(document.project.schemaVersion)||document.project.schemaVersion<1||document.project.schemaVersion>DESIGN_VERSION)throw new CommandError('UNSUPPORTED_VERSION','지원하지 않는 프로젝트 버전입니다.');
-  return validateProject(migrateProject(structuredClone(document.project),createDemoProject()));
+  // Only legacy versions need defaults. Repairing a malformed current document
+  // would silently replace the user's authored settings during import.
+  const project=structuredClone(document.project);
+  return validateProject(project.schemaVersion===DESIGN_VERSION?project:migrateProject(project,createDemoProject()));
 }
 export function srtTimestamp(t){const ms=Math.round(t*1000);return `${String(Math.floor(ms/3600000)).padStart(2,'0')}:${String(Math.floor(ms/60000)%60).padStart(2,'0')}:${String(Math.floor(ms/1000)%60).padStart(2,'0')},${String(ms%1000).padStart(3,'0')}`;}
 export function projectSrt(p){return editedCaptions(p.captions,p.clips,p.speed).map((c,i)=>`${i+1}\n${srtTimestamp(c.start)} --> ${srtTimestamp(c.end)}\n${c.text}\n`).join('\n');}

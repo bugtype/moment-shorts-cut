@@ -2,9 +2,19 @@
   "name": "moment-shorts-studio",
   "private": true,
   "type": "module",
-  "engines": { "node": ">=20" },
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
-    "test": "node verify.mjs && node --test tests/integration.test.mjs",
+    "start": "node scripts/serve.mjs",
+    "check": "node --check dist/app.js && node --check dist/transcribe-worker.js && node --check cli/moment.mjs",
+    "test": "npm run check && node verify.mjs && node --test",
     "moment": "node cli/moment.mjs"
+  },
+  "description": "Browser-local Korean shorts editor with reusable editing commands, CLI and MCP adapter",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/bugtype/moment-shorts-cut.git"
   }
 }

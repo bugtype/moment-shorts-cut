@@ -1,5 +1,5 @@
 import { commandDefinitions } from '../core/commands.mjs';
-import { CommandError } from '../core/validation.mjs';
+import { CommandError, assertJson, validate } from '../core/validation.mjs';
 import { errorResult } from './editor-service.mjs';
 
 // Tool mapping only. The host supplies transport, discovery, authentication and storage.
@@ -17,7 +17,10 @@ export function createMcpToolAdapter({resolveService}){
       let result;
       try{
         if(!args||typeof args.projectId!=='string'||!args.projectId.trim()||args.projectId.length>200)throw new CommandError('INVALID_ARGUMENT','projectId가 필요합니다.');
-        const {projectId,...input}=args;
+        assertJson(args);
+        // Capture nested input before the resolver yields to authentication/storage.
+        const {projectId,...input}=structuredClone(args);
+        validate(command.inputSchema,input);
         const service=await resolveService(projectId,context);
         if(!service)throw new CommandError('NOT_FOUND','접근 가능한 프로젝트를 찾을 수 없습니다.');
         result=await service.execute(command.name,input);

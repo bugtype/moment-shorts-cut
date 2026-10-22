@@ -88,7 +88,7 @@ test('MCP resolves each project with caller context and maps successes, input er
  const denied=await adapter.callTool('moment_project_update',args,{user:'other'});assert.equal(denied.isError,true);assert.equal(f.commits,0);
  const success=await adapter.callTool('moment_project_update',args,{user:'owner'});assert.equal(success.isError,false);assert.equal(f.state.name,'MCP에서 변경');
  const invalid=await adapter.callTool('moment_project_update',{projectId:'project-1',patch:{speed:-1}},{user:'owner'});assert.equal(invalid.isError,true);assert.equal(invalid.structuredContent.error.code,'INVALID_ARGUMENT');
- await assert.rejects(adapter.callTool('unknown',{},{}),e=>e.code==='UNKNOWN_TOOL');assert.equal(seen.length,3);
+ await assert.rejects(adapter.callTool('unknown',{},{}),e=>e.code==='UNKNOWN_TOOL');assert.equal(seen.length,2);
 });
 test('CLI writes real documents/SRT, refuses accidental overwrite, and leaves failed input untouched',async()=>{
  const root=path.dirname(path.dirname(fileURLToPath(import.meta.url))),directory=await fs.mkdtemp(path.join(root,'.moment-test-'));

@@ -61,6 +61,10 @@ test('preview serves modules with correct MIME types and never serves repository
     assert.equal(response.headers.get('x-content-type-options'), 'nosniff');
     assert.ok((await response.text()).trim().length > 0);
   }
+  const responsive = await (await fetch(`${origin}/styles/responsive.css`)).text();
+  // Phones trade the wordmark for the project name so it stays editable.
+  assert.match(responsive, /\.brand>span:last-child \{\s*display:none\s*\}/);
+  assert.match(responsive, /\.project-title \{\s*display:flex;\s*flex:1 1 auto;\s*min-width:0\s*\}/);
   for (const pathname of ['/package.json', '/.git/config', '/%2e%2e/package.json', '/..%2fpackage.json', '/missing.js']) {
     assert.equal((await fetch(origin + pathname)).status, 404, pathname);
   }

@@ -83,8 +83,23 @@
     width:28px;
     height:29px
   }
+  /* The mark alone identifies the app on phones; the freed space belongs to the
+     project name so it stays editable instead of disappearing from the header. */
   .project-title {
-    display:none
+    display:flex;
+    flex:1 1 auto;
+    min-width:0
+  }
+  /* Keep the name visually separate from the brand now that both share the bar. */
+  .header-divider {
+    display:block;
+    margin-left:0
+  }
+  .project-title input {
+    width:100%;
+    min-width:0;
+    font-size:12px;
+    text-overflow:ellipsis
   }
   .header-actions {
     gap:7px
@@ -191,6 +206,12 @@
   }
   .library-panel:has(.settings-mirror) {
     max-height:none
+  }
+}
+@media(max-width:480px) {
+  /* At phone widths the wordmark gives its space to the project name. */
+  .brand>span:last-child {
+    display:none
   }
 }
 @media(prefers-reduced-motion:reduce) {

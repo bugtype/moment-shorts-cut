@@ -1,3 +1,4 @@
+import { createAudioRecording } from './audio-recording.mjs';
 import { createTranscriptionClient } from './transcription-client.mjs';
 import { icon, esc, fmt } from './ui-format.mjs';
 import { captionsPanelMarkup, mediaPanelMarkup, audioPanelMarkup, settingsPanelMarkup } from './panel-markup.mjs';
@@ -31,10 +32,10 @@ function clamp(v, a, b) {
 function initial() {
     return createDemoProject();
 }
-let state = initial(), current = 0, selected = 0, playing = false, panel = 'templates', textLayer = 'title', videoFile = null, audioFile = null, sourceURL = '', audioURL = '', thumbnail = '', history = [], future = [], exporting = false, muted = false, record = null, transcriptionCancelled = false, transcribing = false, transcriptionStatus = '', saveTimer, recordTimer, pendingSave = Promise.resolve();
+let state = initial(), current = 0, selected = 0, playing = false, panel = 'templates', textLayer = 'title', videoFile = null, audioFile = null, sourceURL = '', audioURL = '', thumbnail = '', history = [], future = [], exporting = false, muted = false, transcriptionCancelled = false, transcribing = false, transcriptionStatus = '', saveTimer, pendingSave = Promise.resolve();
 const video = $('#sourceVideo'), audio = $('#sourceAudio'), canvas = $('#preview'), ctx = canvas.getContext('2d'), sample = new Image(), modal = $('#modal');
 let audioCtx, videoNode, audioNode, videoGain, audioGain, destination, exportRecorder, exportStream, exportCanvas, exportContext, exportChunks = [], exportCancelled = false, exportRequest = 0, lastTick = 0;
-let sampleRaster = null, lastSaveStatus = '', effectTab = 'cards', selectedCard = null, templatePreviewFrame = 0, cardPlaybackEnd = null, requestingMic = false;
+let sampleRaster = null, lastSaveStatus = '', effectTab = 'cards', selectedCard = null, templatePreviewFrame = 0, cardPlaybackEnd = null;
 const galleryUI = { query: '', category: '전체' };
 let savedTemplates = [], favoriteTemplates = [], templateLibraryError = '';
 try {
@@ -48,6 +49,24 @@ catch {
 const composition = createCompositionRenderer(() => document.createElement('canvas'));
 const projectStore = createProjectStore();
 const transcription = createTranscriptionClient(() => new Worker('./transcribe-worker.js', { type: 'module' }));
+const audioRecording = createAudioRecording({
+    prepare: () => pause(),
+    onReady: (file, recorder) => loadAudio(file, recorder),
+    onError: message => toast(message),
+    onIdle: () => {
+        if (panel === 'audio')
+            renderPanel();
+    },
+    onProgress: seconds => {
+        const button = $('#recordButton');
+        if (seconds === 0) {
+            button.classList.add('recording');
+            button.innerHTML = icon('mic') + ' 녹음 완료 · 00:00';
+        }
+        else if (button)
+            button.innerHTML = icon('mic') + ` 녹음 완료 · ${fmt(seconds)}`;
+    },
+});
 // Session-only protection: never overwrite a project whose restore is incomplete.
 let restorePhase = 'restoring', restoreMessage = '프로젝트를 불러오는 중…', recoveryValid = false, recoveryBaseline = '';
 function recoveryBlocked(show = true) {
@@ -138,7 +157,7 @@ const editorReadyPromise = new Promise(resolve => {
     resolveEditorReady = resolve;
 });
 function commitCommandProject(next, { command } = {}) {
-    if (!editorReady || exporting || loadingMedia || transcribing || requestingMic || record)
+    if (!editorReady || exporting || loadingMedia || transcribing || audioRecording.requesting || audioRecording.current)
         throw new CommandError('BUSY', '진행 중인 로드·녹음·인식·내보내기를 먼저 완료하세요.');
     if (command === 'project.import' && (next.kind !== state.kind || (next.kind === 'video' && (next.fileName !== state.fileName || Math.abs(next.duration - state.duration) > .05)) || next.audioName !== state.audioName))
         throw new CommandError('MEDIA_RELINK_REQUIRED', '설정에 사용된 원본 영상과 오디오를 먼저 같은 이름으로 연결하세요.');
@@ -811,7 +830,7 @@ function renderPanel() {
         $('#recordButton').onclick = toggleRecording;
         if (audioFile) {
             $('#removeAudio').onclick = () => {
-                if (recoveryBlocked() || record || requestingMic || loadingMedia)
+                if (recoveryBlocked() || audioRecording.current || audioRecording.requesting || loadingMedia)
                     return;
                 pause();
                 audioFile = null;
@@ -861,7 +880,7 @@ function renderPanel() {
     updateLayerGuide();
 }
 function switchPanel(next) {
-    if (record && next !== 'audio') {
+    if (audioRecording.current && next !== 'audio') {
         toast('녹음을 먼저 완료해 주세요.');
         return;
     }
@@ -1114,7 +1133,7 @@ function visualSettings() {
 async function loadVideo(file) {
     if (recoveryBlocked())
         return;
-    if (loadingMedia || exporting || transcribing || requestingMic || record) {
+    if (loadingMedia || exporting || transcribing || audioRecording.requesting || audioRecording.current) {
         toast('진행 중인 작업을 먼저 완료해 주세요.');
         return;
     }
@@ -1184,7 +1203,7 @@ async function loadVideo(file) {
 async function loadAudio(file, recording = null) {
     if (recoveryBlocked())
         return;
-    if (loadingMedia || exporting || transcribing || requestingMic || (record && record !== recording))
+    if (loadingMedia || exporting || transcribing || audioRecording.requesting || (audioRecording.current && audioRecording.current !== recording))
         return;
     if (file.size > 100 * 1024 * 1024) {
         toast('100 MB 이하의 오디오를 선택해 주세요.');
@@ -1197,7 +1216,7 @@ async function loadAudio(file, recording = null) {
         const loaded = waitForMedia(probe, 'loadedmetadata', '지원하지 않는 오디오 형식입니다.');
         probe.src = nextURL;
         await loaded;
-        if (recoveryBlocked() || (recording && record !== recording)) {
+        if (recoveryBlocked() || (recording && audioRecording.current !== recording)) {
             URL.revokeObjectURL(nextURL);
             return;
         }
@@ -1228,115 +1247,14 @@ async function loadAudio(file, recording = null) {
 async function toggleRecording() {
     if (recoveryBlocked())
         return;
-    if (record?.state === 'recording') {
-        try {
-            record.stop();
-            clearInterval(recordTimer);
-        }
-        catch {
-            record.onerror?.();
-        }
+    if (audioRecording.current?.state === 'recording') {
+        audioRecording.stop();
         return;
     }
-    if (record || loadingMedia || exporting || transcribing || requestingMic)
+    if (audioRecording.current || loadingMedia || exporting || transcribing || audioRecording.requesting)
         return;
-    requestingMic = true;
     const project = state;
-    let stream, recorder, timer, finished = false, released = false;
-    const release = () => {
-        if (released)
-            return;
-        released = true;
-        clearInterval(timer);
-        stream?.getTracks().forEach(t => t.stop());
-        if (recorder)
-            recorder.ondataavailable = recorder.onerror = recorder.onstop = null;
-    };
-    const failRecording = message => {
-        if (finished || (recorder && record !== recorder))
-            return;
-        finished = true;
-        release();
-        if (record === recorder)
-            record = null;
-        try {
-            if (recorder && recorder.state !== 'inactive')
-                recorder.stop();
-        }
-        catch {
-        }
-        if (panel === 'audio')
-            renderPanel();
-        toast(message);
-    };
-    try {
-        pause();
-        stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        if (restorePhase !== 'ready' || state !== project || panel !== 'audio' || loadingMedia || exporting || transcribing) {
-            release();
-            return;
-        }
-        recorder = new MediaRecorder(stream);
-        record = recorder;
-        const chunks = [];
-        let seconds = 0;
-        recorder.ondataavailable = e => {
-            if (!finished && record === recorder && e.data.size)
-                chunks.push(e.data);
-        };
-        recorder.onerror = () => failRecording('녹음 중 오류가 발생했습니다. 마이크와 브라우저 설정을 확인하세요.');
-        recorder.onstop = async () => {
-            if (finished || record !== recorder)
-                return;
-            finished = true;
-            release();
-            try {
-                if (!chunks.length) {
-                    toast('녹음된 소리가 없습니다. 다시 녹음해 주세요.');
-                    return;
-                }
-                const mime = recorder.mimeType;
-                await loadAudio(new File(chunks, `내 목소리.${mime.includes('mp4') ? 'm4a' : 'webm'}`, { type: mime }), recorder);
-            }
-            catch {
-                toast('녹음된 오디오를 연결하지 못했습니다. 다시 시도해 주세요.');
-            }
-            finally {
-                if (record === recorder) {
-                    record = null;
-                    if (panel === 'audio')
-                        renderPanel();
-                }
-            }
-        };
-        recorder.start();
-        const button = $('#recordButton');
-        button.classList.add('recording');
-        button.innerHTML = icon('mic') + ' 녹음 완료 · 00:00';
-        recordTimer = timer = setInterval(() => {
-            if (finished || record !== recorder || recorder.state !== 'recording')
-                return;
-            seconds++;
-            const b = $('#recordButton');
-            if (b)
-                b.innerHTML = icon('mic') + ` 녹음 완료 · ${fmt(seconds)}`;
-            if (seconds >= 180) {
-                clearInterval(timer);
-                try {
-                    recorder.stop();
-                }
-                catch {
-                    recorder.onerror?.();
-                }
-            }
-        }, 1000);
-    }
-    catch (e) {
-        failRecording('마이크를 사용할 수 없습니다. 브라우저에서 마이크 권한을 허용해 주세요.');
-    }
-    finally {
-        requestingMic = false;
-    }
+    await audioRecording.start(() => restorePhase === 'ready' && state === project && panel === 'audio' && !loadingMedia && !exporting && !transcribing);
 }
 function trim(start, end) {
     if (!Number.isFinite(start) || !Number.isFinite(end) || start < 0 || end > state.duration || end - start < .1) {
@@ -1398,14 +1316,14 @@ function modalOpen(title, body, footer = '') {
 function confirmReset() {
     if (recoveryBlocked())
         return;
-    if (transcribing || requestingMic || record) {
+    if (transcribing || audioRecording.requesting || audioRecording.current) {
         toast('진행 중인 작업을 먼저 완료해 주세요.');
         return;
     }
     modalOpen('새로운 순간을 시작할까요?', '<p class="modal-copy">이 브라우저에 저장된 현재 프로젝트가 샘플 프로젝트로 교체됩니다. 필요한 영상은 먼저 내보내 주세요.</p>', '<div class="modal-foot"><button class="button" id="cancelReset">취소</button><button class="button primary" id="confirmReset">새 작업 시작</button></div>');
     $('#cancelReset').onclick = () => modal.close();
     $('#confirmReset').onclick = () => {
-        if (recoveryBlocked() || record || requestingMic)
+        if (recoveryBlocked() || audioRecording.current || audioRecording.requesting)
             return;
         pause();
         state = initial();
@@ -1503,7 +1421,7 @@ async function generateCaptions() {
         transcription.cancel();
         return;
     }
-    if (record || requestingMic || loadingMedia || exporting) {
+    if (audioRecording.current || audioRecording.requesting || loadingMedia || exporting) {
         toast('진행 중인 작업을 먼저 완료해 주세요.');
         return;
     }
@@ -1594,7 +1512,7 @@ function supportedTypes() {
 function exportDialog() {
     if (recoveryBlocked() || exporting)
         return;
-    if (requestingMic || loadingMedia || record || transcribing) {
+    if (audioRecording.requesting || loadingMedia || audioRecording.current || transcribing) {
         toast('파일 로드, 녹음 또는 자막 인식을 먼저 완료해 주세요.');
         return;
     }
@@ -1609,7 +1527,7 @@ function exportDialog() {
     $('#startExport').onclick = () => startExport(types[+$('#exportFormat').value], +$('#exportQuality').value);
 }
 async function startExport(type, quality) {
-    if (recoveryBlocked() || exporting || record || requestingMic || loadingMedia || transcribing)
+    if (recoveryBlocked() || exporting || audioRecording.current || audioRecording.requesting || loadingMedia || transcribing)
         return;
     pause();
     const request = ++exportRequest;
@@ -1952,7 +1870,7 @@ function bind() {
         }
     });
     window.addEventListener('beforeunload', e => {
-        if (exporting || record || (restorePhase === 'failed' && JSON.stringify(state) !== recoveryBaseline)) {
+        if (exporting || audioRecording.current || (restorePhase === 'failed' && JSON.stringify(state) !== recoveryBaseline)) {
             e.preventDefault();
             e.returnValue = true;
         }

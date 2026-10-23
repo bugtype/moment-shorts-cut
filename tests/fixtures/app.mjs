@@ -1,3 +1,4 @@
+import { createAudioRecording } from '../../dist/audio-recording.mjs';
 import { createTranscriptionClient } from '../../dist/transcription-client.mjs';
 import * as panelMarkup from '../../dist/panel-markup.mjs';
 import { icon, esc, fmt } from '../../dist/ui-format.mjs';
@@ -97,7 +98,14 @@ export async function createAppFixture() {
     renderCaptionTrack, renderCaptionTrackError, updateTimelineMarkup, createInputHistory,
     ...effectsModule, ...templateModule, readTemplateLibrary, validateTemplateLibrary,
     mountTemplateGallery, mountEffectsPanel, ...typographyModule, createCompositionRenderer,
-    createProjectStore, createTranscriptionClient, mountDesignPanel, ...panelMarkup, icon, esc, fmt,
+    createProjectStore, createTranscriptionClient,
+    createAudioRecording: callbacks => createAudioRecording(callbacks, {
+      acquireStream: () => context.navigator.mediaDevices.getUserMedia({ audio: true }),
+      createRecorder: stream => new context.MediaRecorder(stream),
+      createFile: (chunks, name, options) => new context.File(chunks, name, options),
+      setTimer: (callback, delay) => context.setInterval(callback, delay),
+      clearTimer: timer => context.clearInterval(timer),
+    }), mountDesignPanel, ...panelMarkup, icon, esc, fmt,
   });
   vm.runInContext(source.replace(/^import .*;$/gm,'').replace(/init\(\);\s*$/,'globalThis.ready=init();'),context);
   await context.ready;

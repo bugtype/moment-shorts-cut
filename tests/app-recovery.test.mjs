@@ -1,3 +1,4 @@
+import { createAudioRecording } from '../dist/audio-recording.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
@@ -23,6 +24,13 @@ test('restore protection and isolated template library failures', async () => {
    const f={raw,media:structuredClone(media),jsonWrites:0,mediaWrites:0,reads:0,downloads:[],events:new Map(),timers:[],micCalls:0,libraryWrites:[],library:{'moment-templates-v1':templateRaw,'moment-favorites-v1':favoritesRaw}};
    const audioEvents=new Map(),fixtureAudio={duration:audioDuration,paused:true,pause(){this.paused=true;},removeAttribute(){},addEventListener(name,handler){audioEvents.set(name,handler);},removeEventListener(name){audioEvents.delete(name);},set src(value){queueMicrotask(()=>audioEvents.get(audioResult)?.());}};
    const app=vm.createContext({...context,
+    createAudioRecording: callbacks => createAudioRecording(callbacks, {
+      acquireStream: () => app.navigator.mediaDevices.getUserMedia({audio:true}),
+      createRecorder: stream => new app.MediaRecorder(stream),
+      createFile: (chunks,name,options) => new app.File(chunks,name,options),
+      setTimer: (callback,delay) => app.setInterval(callback,delay),
+      clearTimer: timer => app.clearInterval(timer),
+    }),
     document:{...context.document,querySelector:selector=>selector==='#sourceAudio'?fixtureAudio:context.document.querySelector(selector)},
     window:{addEventListener:(name,handler)=>f.events.set(name,handler)},
     localStorage:{getItem(key){if(key in f.library){if(libraryReadError)throw libraryReadError;return f.library[key];}if(key!=='moment-state-v1')return null;if(readError)throw readError;return f.raw;},setItem(key,value){if(key in f.library){if(libraryWriteError)throw libraryWriteError;f.libraryWrites.push(key);f.library[key]=value;return;}assert.equal(key,'moment-state-v1');f.jsonWrites++;f.raw=value;}},

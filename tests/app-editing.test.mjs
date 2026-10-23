@@ -101,9 +101,15 @@ test('app editing, selection, input history and keyboard boundaries', async () =
   assert.equal(clickCaptionBlock(2),0,'Deletion rebuilds references to the surviving row');
   assertCaptionVisibleTarget(element('[data-caption-text="0"]'));
   vm.runInContext('undo()',context);assert.equal(clickCaptionBlock(3),1,'Undo restores row mapping');
-  vm.runInContext("switchPanel('audio');record={state:'recording'};current=3",context);
+  context.navigator={mediaDevices:{getUserMedia:async()=>({getTracks:()=>[{stop(){}}]})}};
+  context.MediaRecorder=class {start(){this.state='recording';}stop(){this.state='inactive';}};
+  vm.runInContext("switchPanel('audio');current=3",context);
+  await vm.runInContext('toggleRecording()',context);
   clickCaptionBlock(3);assert.equal(evaluate('current'),3);assert.equal(evaluate('panel'),'audio');
-  vm.runInContext('record=null;exporting=true',context);clickCaptionBlock(3);assert.equal(evaluate('current'),3);
+  await vm.runInContext('toggleRecording()',context);
+  await vm.runInContext('audioRecording.current.onstop()',context);
+  delete context.navigator;delete context.MediaRecorder;
+  vm.runInContext('exporting=true',context);clickCaptionBlock(3);assert.equal(evaluate('current'),3);
   vm.runInContext('exporting=false',context);
   let preventedCaption=false;
   documentEvents.get('keydown')({target:{tagName:'BUTTON'},code:'Space',key:' ',preventDefault(){preventedCaption=true;}});

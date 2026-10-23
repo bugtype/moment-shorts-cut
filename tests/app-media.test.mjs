@@ -88,7 +88,7 @@ test('media persistence, recording and export ownership', async () => {
   context.navigator={mediaDevices:{getUserMedia:async()=>({getTracks:()=>[{stop(){releasedTracks++;}}]})}};
   context.MediaRecorder=class {constructor(){throw new Error('encoder unavailable');}};
   vm.runInContext('switchPanel("audio")',context);await vm.runInContext('toggleRecording()',context);
-  assert.equal(releasedTracks,1,'release microphone if recorder construction fails');assert.equal(evaluate('record'),null);assert.equal(evaluate('requestingMic'),false);
+  assert.equal(releasedTracks,1,'release microphone if recorder construction fails');assert.equal(evaluate('audioRecording.current'),null);assert.equal(evaluate('audioRecording.requesting'),false);
   let finishPermission;
   context.navigator.mediaDevices.getUserMedia=()=>new Promise(resolve=>finishPermission=resolve);
   const waitingMic=vm.runInContext('toggleRecording()',context);
@@ -103,7 +103,7 @@ test('media persistence, recording and export ownership', async () => {
   vm.runInContext("switchPanel('audio')",context);await vm.runInContext('toggleRecording()',context);
   await vm.runInContext('toggleRecording();toggleRecording()',context);
   assert.equal(pendingRecorders.length,1,'Do not replace an inactive recorder awaiting final data/stop');
-  await pendingRecorders[0].onstop();assert.equal(evaluate('record'),null);
+  await pendingRecorders[0].onstop();assert.equal(evaluate('audioRecording.current'),null);
   await vm.runInContext('toggleRecording()',context);assert.equal(pendingRecorders.length,2);
   await vm.runInContext('toggleRecording()',context);await pendingRecorders[1].onstop();
   
@@ -125,19 +125,19 @@ test('media persistence, recording and export ownership', async () => {
   for(const outcome of ['resolve','reject']){
    await vm.runInContext('toggleRecording()',context);const recorder=sessions.at(-1),events={data:recorder.ondataavailable,error:recorder.onerror,stop:recorder.onstop},timer=recordTimers.get(timerId);
    const acquisitions=micRequests;await vm.runInContext('toggleRecording();toggleRecording()',context);
-   assert.equal(micRequests,acquisitions);assert.equal(recorder.stopCalls,1);assert.equal(vm.runInContext('record',context),recorder);
+   assert.equal(micRequests,acquisitions);assert.equal(recorder.stopCalls,1);assert.equal(vm.runInContext('audioRecording.current',context),recorder);
    events.data({data:new Blob(['recorded bytes'])});const finishing=events.stop();
-   assert.equal(recorder.stream.track.stops,1);assert.equal(recordTimers.size,0);assert.equal(vm.runInContext('record',context),recorder);
+   assert.equal(recorder.stream.track.stops,1);assert.equal(recordTimers.size,0);assert.equal(vm.runInContext('audioRecording.current',context),recorder);
    await vm.runInContext('toggleRecording()',context);assert.equal(micRequests,acquisitions,'Audio handoff remains single-flight');
    assert.equal((await context.window.moment.execute('project.update',{patch:{zoom:1.5}})).error.code,'BUSY');
    const before=evaluate('state');await vm.runInContext('loadVideo({});startExport({},720);generateCaptions();confirmReset();switchPanel("templates");',context);
    assert.deepEqual(evaluate('state'),before);assert.equal(evaluate('panel'),'audio');
    timer();assert.equal(recorder.stopCalls,1);events.error();events.data({data:new Blob(['late'])});await events.stop();
    if(outcome==='reject')failAudio(new Error('audio decode failed'));else completeAudio();await finishing;
-   assert.equal(evaluate('record'),null);assert.equal(recorder.stream.track.stops,1);
+   assert.equal(evaluate('audioRecording.current'),null);assert.equal(recorder.stream.track.stops,1);
    await vm.runInContext('toggleRecording()',context);const newest=sessions.at(-1),newTimer=timerId;
    const text=element('#recordButton').innerHTML;events.error();await events.stop();events.data({data:new Blob(['stale'])});timer();
-   assert.equal(vm.runInContext('record',context),newest);assert.ok(recordTimers.has(newTimer));assert.equal(newest.stream.track.stops,0);assert.equal(element('#recordButton').innerHTML,text);
+   assert.equal(vm.runInContext('audioRecording.current',context),newest);assert.ok(recordTimers.has(newTimer));assert.equal(newest.stream.track.stops,0);assert.equal(element('#recordButton').innerHTML,text);
    const end=newest.onstop;await vm.runInContext('toggleRecording()',context);await end();assert.equal(newest.stream.track.stops,1);
   }
   assert.equal(audioHandoffs,2);
@@ -145,7 +145,7 @@ test('media persistence, recording and export ownership', async () => {
    recordFailure=failure;const handoffs=audioHandoffs;await vm.runInContext('toggleRecording()',context);
    if(failure==='stop')await vm.runInContext('toggleRecording()',context);
    if(failure==='event'){const recorder=sessions.at(-1),error=recorder.onerror,stop=recorder.onstop;error();error();await stop();}
-   assert.equal(evaluate('record'),null);assert.equal(evaluate('requestingMic'),false);assert.equal(recordStreams.at(-1).track.stops,1);assert.equal(recordTimers.size,0);assert.equal(audioHandoffs,handoffs);
+   assert.equal(evaluate('audioRecording.current'),null);assert.equal(evaluate('audioRecording.requesting'),false);assert.equal(recordStreams.at(-1).track.stops,1);assert.equal(recordTimers.size,0);assert.equal(audioHandoffs,handoffs);
   }
   recordFailure='';await vm.runInContext('toggleRecording()',context);
   const timedRecorder=sessions.at(-1),timedTick=recordTimers.get(timerId),timedStop=timedRecorder.onstop;
@@ -164,7 +164,7 @@ test('media persistence, recording and export ownership', async () => {
    const completing=recorder.onstop();assert.equal(evaluate('loadingMedia'),true);
    const before=evaluate('state');element('#removeAudio').onclick();assert.deepEqual(evaluate('state'),before);
    if(outcome==='reject')rejectMetadata(new Error('synthetic decode failure'));else settleMetadata();await completing;
-   assert.equal(evaluate('record'),null);assert.equal(evaluate('loadingMedia'),false);
+   assert.equal(evaluate('audioRecording.current'),null);assert.equal(evaluate('loadingMedia'),false);
    assert.equal(evaluate('state.audioName'),outcome==='resolve'?'내 목소리.webm':'original.wav');
    assert.equal(evaluate('audioFile.name'),outcome==='resolve'?'내 목소리.webm':'original.wav');
    assert.equal(evaluate('recordingWrites'),outcome==='resolve'?2:0);
@@ -177,7 +177,7 @@ test('media persistence, recording and export ownership', async () => {
   await vm.runInContext('loadAudio({});loadVideo({});confirmReset();',context);
   assert.equal(evaluate('loadingMedia'),false);vm.runInContext('state=initial();',context);
   const lateTrack={stops:0,stop(){this.stops++;}};finishPermission({getTracks:()=>[lateTrack]});await pendingAcquisition;
-  assert.equal(lateTrack.stops,1);assert.equal(sessions.length,recordersBefore);assert.equal(evaluate('requestingMic'),false);
+  assert.equal(lateTrack.stops,1);assert.equal(sessions.length,recordersBefore);assert.equal(evaluate('audioRecording.requesting'),false);
   console.log('PASS: recording finalization/audio handoff is single-flight; stale callbacks/timers, failures and 180s stop preserve ownership and release own tracks once.');
   
   const mediaNode=()=>({connect(){},gain:{value:1}});

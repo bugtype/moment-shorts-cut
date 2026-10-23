@@ -1,3 +1,4 @@
+import { createTextFileWorkflow } from './text-file-workflow.mjs';
 import { createMediaSources } from './media-sources.mjs';
 import { createProjectPersistence } from './project-persistence.mjs';
 import { createCaptionPanel } from './caption-panel.mjs';
@@ -10,11 +11,11 @@ import { createAudioRecording } from './audio-recording.mjs';
 import { createTranscriptionClient } from './transcription-client.mjs';
 import { icon, esc, fmt } from './ui-format.mjs';
 import { mediaPanelMarkup, audioPanelMarkup, settingsPanelMarkup } from './panel-markup.mjs';
-import { createDemoProject, createProjectDocument, srtTimestamp, projectSrt, MAX_CLIPS } from './core/project.mjs';
+import { createDemoProject, srtTimestamp, MAX_CLIPS } from './core/project.mjs';
 import { prepareCommand } from './core/commands.mjs';
 import { CommandError } from './core/validation.mjs';
 import { createEditorService } from './integration/editor-service.mjs';
-import { editedCaptions, parseSubtitles, MAX_SUBTITLE_BYTES } from './captions.mjs';
+import { editedCaptions } from './captions.mjs';
 import { createTimelineView } from './timeline-view.mjs';
 import { createInputHistory } from './input-history.mjs';
 import { defaultEnhancements, newCard, retimeOutputLayers, activeSceneLayers, sceneBounds } from './effects.mjs';
@@ -246,48 +247,16 @@ const editorService = createEditorService({
     },
     commitProject: commitCommandProject,
 });
-async function readUtf8File(file) {
-    const bytes = await file.arrayBuffer();
-    try {
-        return new TextDecoder('utf-8', { fatal: true }).decode(bytes);
-    }
-    catch {
-        throw new Error('파일을 올바른 UTF-8로 저장한 뒤 다시 불러오세요.');
-    }
-}
-let textImportRequest = 0;
-function guardTextImport() {
-    const request = ++textImportRequest, original = state, contents = JSON.stringify(state);
-    return () => {
-        if (request !== textImportRequest || state !== original || JSON.stringify(state) !== contents)
-            throw new CommandError('CONFLICT', '프로젝트가 변경되었거나 다른 가져오기를 선택했습니다. 파일을 다시 선택하세요.');
-    };
-}
-async function importProjectSettings(file) {
-    try {
-        const beforeCommit = guardTextImport();
-        if (file.size > 10 * 1024 * 1024)
-            throw new Error('편집 설정 JSON은 10 MB 이하만 불러올 수 있습니다.');
-        const result = await editorService.execute('project.import', { document: JSON.parse(await readUtf8File(file)) }, beforeCommit);
-        if (!result.ok)
-            throw new Error(result.error.message);
-        modal.close();
-        toast('편집 설정을 적용했습니다. 실행 취소할 수 있습니다.');
-        return result;
-    }
-    catch (error) {
-        toast(error.message || '설정 파일을 확인하세요.');
-        return { ok: false, error: { code: 'IMPORT_FAILED', message: error.message } };
-    }
-    finally {
-        $('#projectInput').value = '';
-    }
-}
-function downloadProjectSettings() {
-    if (settingsUnavailable())
-        return;
-    download(new Blob([JSON.stringify(createProjectDocument(state), null, 2)], { type: 'application/json' }), `${state.name || 'moment'}.moment.json`);
-}
+const { importProjectSettings, downloadProjectSettings, importSrt, downloadSrt } = createTextFileWorkflow({
+    getProject: () => state,
+    execute: (...args) => editorService.execute(...args),
+    query: $,
+    closeModal: () => modal.close(),
+    focusImportedCaption: () => { if (panel === 'captions') focusCaption(0); },
+    settingsUnavailable: () => settingsUnavailable(),
+    download: (blob, name) => download(blob, name),
+    toast: message => toast(message),
+});
 function showHelp() {
     modalOpen('짧게 담고, 오래 기억되게.', `<ol class="guide-steps"><li>영상을 올리고 화면 비율과 구도를 맞추세요.</li><li>템플릿, 타이틀, 대사 자막을 편집하세요.</li><li>필요한 음성을 연결하고 완성된 영상을 내보내세요.</li></ol><p class="modal-copy"><span class="keyboard-key">Space</span> 재생 / 정지 &nbsp; <span class="keyboard-key">Ctrl Z</span> 실행 취소</p><div class="notice">편집 설정 파일에는 제목·자막·클립 구간이 담깁니다. 영상·오디오 파일은 포함하지 않습니다. 다른 브라우저에서 불러올 때는 같은 원본 파일을 먼저 연결하세요.</div>`, '<div class="modal-foot"><button class="button" id="importProjectSettingsButton">편집 설정 불러오기</button><button class="button primary" id="downloadProjectSettingsButton">편집 설정 저장</button></div>');
     $('#importProjectSettingsButton').onclick = () => $('#projectInput').click();
@@ -1031,42 +1000,6 @@ function srtTime(t) {
 }
 function outputCaptions() {
     return editedCaptions(state.captions, state.clips, state.speed);
-}
-function downloadSrt() {
-    if (settingsUnavailable())
-        return;
-    try {
-        const srt = projectSrt(state, { bom: true });
-        if (!srt) {
-            toast('저장할 자막이 없습니다.');
-            return;
-        }
-        download(new Blob([srt], { type: 'text/plain;charset=utf-8' }), state.name + '.srt');
-    }
-    catch (error) {
-        toast(error.message || '자막을 저장하지 못했습니다.');
-    }
-}
-async function importSrt(file) {
-    try {
-        const beforeCommit = guardTextImport();
-        if (file.size > MAX_SUBTITLE_BYTES)
-            throw new Error('자막 파일은 2 MB 이하만 지원합니다.');
-        const text = await readUtf8File(file);
-        const captions = parseSubtitles(text, state.duration);
-        const result = await editorService.execute('captions.replace', { captions }, beforeCommit);
-        if (!result.ok)
-            throw new Error(result.error.message);
-        if (panel === 'captions')
-            focusCaption(0);
-        toast(`${captions.length}개의 자막을 불러왔습니다.`);
-    }
-    catch (error) {
-        toast(error.message || '자막 파일을 읽지 못했습니다.');
-    }
-    finally {
-        $('#srtInput').value = '';
-    }
 }
 async function generateCaptions() {
     if (recoveryBlocked())

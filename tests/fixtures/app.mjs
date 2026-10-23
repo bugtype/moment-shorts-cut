@@ -145,6 +145,9 @@ export async function createAppFixture() {
   // Keep the existing split-helper fault injection in this VM without a production test hook.
   const captionPanelSource=fs.readFileSync(new URL('../../dist/caption-panel.mjs',import.meta.url),'utf8');
   context.createCaptionPanel=vm.runInContext('(()=>{'+captionPanelSource.replace(/^import .*;$/gm,'').replace('export function','function')+';return createCaptionPanel;})()',context);
+  // Preserve the parser fault injection without adding a production-only dependency hook.
+  const textWorkflowSource=fs.readFileSync(new URL('../../dist/text-file-workflow.mjs',import.meta.url),'utf8');
+  context.createTextFileWorkflow=vm.runInContext('(()=>{'+textWorkflowSource.replace(/^import .*;$/gm,'').replace('export function','function')+';return createTextFileWorkflow;})()',context);
   vm.runInContext(source.replace(/^import .*;$/gm,'').replace(/init\(\);\s*$/,'globalThis.ready=init();'),context);
   await context.ready;
   for(const [id,cb] of pendingFrames){pendingFrames.delete(id);cb(performance.now());}

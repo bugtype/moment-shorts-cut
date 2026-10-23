@@ -46,6 +46,22 @@ test('subtitle input and cue limits fail explicitly without truncating authored 
   assert.throws(() => parseSubtitles(('00:01.000 --> 00:02.000\nx\n\n').repeat(10001), 12), /10,000/);
 });
 
+test('shared subtitle parser counts UTF-8 bytes before BOM and line-ending normalization',()=>{
+  for(const token of ['a','가','🌊','e\u0301'])for(const bom of ['', '\ufeff'])for(const newline of ['\n','\r\n','\r']){
+    const payload=token.repeat(500),cue=['00:00:00,000 --> 00:00:01,000',payload,'',''].join(newline);
+    const count=Math.floor((MAX_SUBTITLE_BYTES-Buffer.byteLength(bom))/Buffer.byteLength(cue));
+    const content=bom+cue.repeat(count),atLimit=content+' '.repeat(MAX_SUBTITLE_BYTES-Buffer.byteLength(content));
+    assert.equal(Buffer.byteLength(atLimit),MAX_SUBTITLE_BYTES);
+    const captions=parseSubtitles(atLimit,12);
+    assert.equal(captions.length,count);assert.ok(captions.every(c=>c.start===0&&c.end===1&&c.text===payload));
+    assert.throws(()=>parseSubtitles(atLimit+' ',12),/2 MB/,'one extra UTF-8 byte must fail');
+  }
+  const multibyte=('00:00:00,000 --> 00:00:01,000\n'+'가'.repeat(1000)+'\n\n').repeat(1000);
+  assert.ok(multibyte.length<MAX_SUBTITLE_BYTES);assert.ok(Buffer.byteLength(multibyte)>MAX_SUBTITLE_BYTES);
+  assert.throws(()=>parseSubtitles(multibyte,12),/2 MB/);
+  for(const value of [null,undefined,{},42])assert.throws(()=>parseSubtitles(value,12),/2 MB/);
+});
+
 test('subtitle references decode once after markup removal, preserving literal tags and unknown references', () => {
   const payload = '<v Speaker><b>Tom &amp; Jerry</b></v>\n&lt;b&gt;한글 🌊&lt;/b&gt; &amp;lt; &unknown; &amp &AMP;';
   const expected = 'Tom & Jerry\n<b>한글 🌊</b> &lt; &unknown; &amp &AMP;';

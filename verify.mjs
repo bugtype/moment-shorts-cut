@@ -1105,6 +1105,12 @@ for(const entry of utf8Imports){
  await vm.runInContext(`${entry.handler}(utf8File)`,context);assert.equal(reads,0);unchanged();
  context.utf8File={size:1,arrayBuffer:async()=>{throw new Error('synthetic read failure');}};
  await vm.runInContext(`${entry.handler}(utf8File)`,context);assert.match(element('#toast').textContent,/synthetic read failure/);unchanged();
+ if(entry.handler==='importSrt'){
+  // Underreported size models a direct caller; ordinary File imports already check real bytes.
+  const oversized=('00:00:00,000 --> 00:00:01,000\n'+'가'.repeat(1000)+'\n\n').repeat(1000);
+  context.utf8File={size:1,arrayBuffer:()=>new Blob([oversized]).arrayBuffer()};
+  await vm.runInContext('importSrt(utf8File)',context);assert.match(element('#toast').textContent,/2 MB/);unchanged();
+ }
  const authored='한글 🌊 e\u0301 앞\ufeff뒤 �';
  const text=entry.text.replace('MARKER',authored),validBytes=Buffer.from('\ufeff'+text);
  let finish;

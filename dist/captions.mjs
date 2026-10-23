@@ -56,7 +56,7 @@ export function mapAudioCaptions(captions, offset, total) {
 // File size is checked before reading in the UI; keep the parser bounded for callers too.
 const subtitleReferences = {amp:'&',lt:'<',gt:'>',lrm:'\u200e',rlm:'\u200f',nbsp:'\u00a0'};
 export function parseSubtitles(text, duration) {
-  if (typeof text !== 'string' || text.length > MAX_SUBTITLE_BYTES) throw new Error('자막 파일은 2 MB 이하만 지원합니다.');
+  if (typeof text !== 'string' || text.length > MAX_SUBTITLE_BYTES || encoder.encode(text).byteLength > MAX_SUBTITLE_BYTES) throw new Error('자막 파일은 2 MB 이하만 지원합니다.');
   if (!Number.isFinite(duration) || duration <= 0) throw new Error('영상 길이를 확인하세요.');
   const normalized = text.replace(/^\uFEFF/, '').replace(/\r\n?/g, '\n');
   // An empty first payload line ends the cue; never absorb the next cue's timing.

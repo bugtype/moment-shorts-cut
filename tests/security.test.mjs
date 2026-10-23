@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createDemoProject, createProjectDocument, readProjectDocument } from '../dist/core/project.mjs';
+import { commandDefinition, commandDefinitions, prepareCommand } from '../dist/core/commands.mjs';
 import { createEditorService } from '../dist/integration/editor-service.mjs';
 import { createMcpToolAdapter } from '../dist/integration/mcp-adapter.mjs';
 
@@ -9,6 +10,27 @@ const fixture = () => {
   const service = createEditorService({getProject: () => state, commitProject: next => { state = next; }});
   return {service, get state() { return state; }};
 };
+
+test('single-command metadata cannot mutate shared discovery or execution rules', async () => {
+  const original=commandDefinitions(),f=fixture(),before=structuredClone(f.state);
+  const definition=commandDefinition('project.update');
+  definition.inputSchema.properties.patch.properties.name.maxLength=1;
+  definition.inputSchema.properties.patch.properties.speed.minimum=0;
+  definition.inputSchema.required.length=0;
+  definition.name='renamed';definition.mutates=false;
+  assert.deepEqual(commandDefinitions(),original);
+  assert.deepEqual(commandDefinition('project.update'),original.find(c=>c.name==='project.update'));
+  assert.deepEqual(f.service.describe(),original);
+  for(const args of [{patch:{speed:0}},{}]){
+    assert.throws(()=>prepareCommand(before,'project.update',args),error=>error.code==='INVALID_ARGUMENT');
+    assert.equal((await f.service.execute('project.update',args)).error.code,'INVALID_ARGUMENT');
+  }
+  assert.deepEqual(f.state,before);
+  assert.equal(prepareCommand(before,'project.update',{patch:{name:'Valid name'}}).project.name,'Valid name');
+  assert.equal((await f.service.execute('project.update',{patch:{name:'Valid name'}})).ok,true);
+  assert.equal(f.state.name,'Valid name');assert.deepEqual(before,createDemoProject());
+  assert.throws(()=>commandDefinition('renamed'),error=>error.code==='UNKNOWN_COMMAND');
+});
 
 test('current-format imports reject broken fields instead of silently replacing authored settings', async () => {
   const f = fixture();

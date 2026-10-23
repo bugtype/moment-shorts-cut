@@ -21,7 +21,7 @@ const definitions=[
   command('render.plan','렌더러가 사용할 프로젝트 스냅샷과 출력 설정을 반환합니다. 영상을 생성하지 않습니다.',object({quality:choice(720,1080),format:choice('mp4','webm')})),
 ];
 export function commandDefinitions(){return structuredClone(definitions);}
-export function commandDefinition(name){const value=definitions.find(c=>c.name===name);if(!value)throw new CommandError('UNKNOWN_COMMAND','지원하지 않는 명령입니다.');return value;}
+export function commandDefinition(name){const value=definitions.find(c=>c.name===name);if(!value)throw new CommandError('UNKNOWN_COMMAND','지원하지 않는 명령입니다.');return structuredClone(value);}
 export function prepareCommand(project,name,args={}){
   const definition=commandDefinition(name);assertJson(args);validate(definition.inputSchema,args);
   if(name==='templates.list')return {data:TEMPLATES.map(({id,name,category,description})=>({id,name,category,description}))};

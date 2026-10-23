@@ -847,6 +847,40 @@ assert.equal((await context.window.moment.execute('project.import',{document:imp
 assert.deepEqual(evaluate('state'),apiOriginal);
 console.log('PASS: browser command API initialization, shared template editing, undo, export-busy guard and media relink checks.');
 
+// A synchronous command must not overwrite a direct input in its former await gap.
+const concurrencySetItem=context.localStorage.setItem;
+for(const timing of ['before-snapshot','former-await-gap','after-commit']){
+ vm.runInContext('state=initial();state.clips=[{start:0,end:6},{start:6,end:12}];timelineCache=null;history=[];future=[];inputHistory.reset();selected=1;current=8;renderInspector()',context);
+ const pending=context.window.moment.execute('project.update',{patch:{name:'atomic command'}});
+ if(timing==='former-await-gap')await Promise.resolve();
+ if(timing==='after-commit')await pending;
+ const control=element('#zoom');control.value='1.5';control.oninput();
+ assert.equal((await pending).ok,true);
+ assert.equal(evaluate('state.zoom'),1.5,timing);assert.equal(evaluate('state.name'),'atomic command');
+ assert.equal(evaluate('selected'),1);assert.equal(evaluate('current'),8);
+ const finalState=evaluate('state');let saved;
+ context.localStorage.setItem=(key,value)=>{if(key==='moment-state-v1')saved=JSON.parse(value);};
+ await vm.runInContext('saveProject()',context);assert.deepEqual(saved,finalState);
+ assert.equal(evaluate('history.length'),2);
+ vm.runInContext('undo()',context);
+ assert.equal(evaluate('state.zoom'),timing==='before-snapshot'?1.5:1);
+ assert.equal(evaluate('state.name'),timing==='before-snapshot'?projectModule.createDemoProject().name:'atomic command');
+ vm.runInContext('undo(true)',context);assert.deepEqual(evaluate('state'),finalState);
+ const groups=evaluate('history.length');control.value='1.6';control.oninput();control.value='1.7';control.oninput();
+ assert.equal(evaluate('history.length'),groups+1);assert.equal(evaluate('state.zoom'),1.7);
+ control.onblur();control.value='1.8';control.oninput();assert.equal(evaluate('history.length'),groups+2);
+}
+context.localStorage.setItem=concurrencySetItem;
+vm.runInContext('state=initial();history=[];future=[];inputHistory.reset();timelineCache=null;selected=0;current=0;',context);
+const pendingTimeline=context.window.moment.execute('timeline.replace',{clips:[{start:0,end:6}]});
+await Promise.resolve();vm.runInContext('edit(()=>state.captions[0].text="direct caption edit")',context);
+assert.equal((await pendingTimeline).ok,true);
+assert.deepEqual(evaluate('state.clips'),[{start:0,end:6}]);assert.equal(evaluate('state.captions[0].text'),'direct caption edit');
+const pendingName=context.window.moment.execute('project.update',{patch:{name:'undo this command'}});
+await Promise.resolve();vm.runInContext('undo()',context);assert.equal((await pendingName).ok,true);
+assert.notEqual(evaluate('state.name'),'undo this command');assert.equal(evaluate('state.captions[0].text'),'direct caption edit');
+console.log('PASS: command/direct-input ordering preserves model, saves, selection, undo/redo and continuous input grouping without replay.');
+
 // Subtitle import failures must preserve the project and reset the file picker.
 vm.runInContext('state=initial();timelineCache=null;',context);
 const subtitleOriginal=evaluate('state');

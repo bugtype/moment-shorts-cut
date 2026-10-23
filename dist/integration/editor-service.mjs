@@ -14,6 +14,8 @@ export function errorResult(command,error){
 /**
  * Storage, UI and media runtimes are injected. No DOM, fetch, file I/O or credentials.
  * commitProject must atomically persist/replace the supplied project or throw.
+ * Async stores with external writers must check previous atomically at commit;
+ * this instance's queue does not coordinate other writers or retry conflicts.
  * A job provider must implement submit/get/cancel and return JSON job records.
  * Submission is not completion: providers own asset access, progress and artifacts.
  */
@@ -40,7 +42,10 @@ export function createEditorService({getProject,commitProject,jobs}={}){
         assertJson(data);
         if(!data||typeof data.id!=='string'||!data.id||!['queued','running','succeeded','failed','cancelled'].includes(data.status))throw new CommandError('INVALID_PROVIDER_RESULT','작업 제공자가 유효한 작업 상태를 반환하지 않았습니다.');
       }else{
-        const before=await getProject();
+        // Keep synchronous snapshots and local commits in one uninterrupted job.
+        // Read then once: custom thenable accessors can throw or have side effects.
+        const value=getProject(),then=value?.then;
+        const before=typeof then==='function'?await {then:(resolve,reject)=>then.call(value,resolve,reject)}:value;
         const prepared=prepareCommand(before,name,args);
         if(prepared.project)await commitProject(prepared.project,{command:name,previous:before});
         data=prepared.data;

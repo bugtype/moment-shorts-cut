@@ -855,6 +855,41 @@ fxInputs[0].oninput();fxInputs[1].onchange();fxInputs[2].onchange();
 assert.equal(panelProject.effects.brightness,1.25);assert.equal(panelProject.effects.motion,'out');assert.equal(panelProject.effects.progress,true);
 console.log('PASS: actual panel event handlers, invalid timing rejection and correction, speaker/global keyword edits and motion/color controls.');
 
+// Primary controls precede composition presets; moving markup keeps existing actions intact.
+const panelActions=[];
+for(const layer of ['title','caption','credit','frame']){
+ const layerButtons=['title','caption','credit','frame'].map(textLayer=>({dataset:{textLayer}}));
+ const presetButtons=['reference','punch','clean'].map(layoutPreset=>({dataset:{layoutPreset}}));
+ const links=Object.fromEntries(['#openTemplateGallery','#openCaptionEditor','#openScreenEditor'].map(id=>[id,{}]));
+ const root=panelRoot({'[data-text-layer]':layerButtons,'[data-layout-preset]':presetButtons},links);
+ mountDesignPanel(root,{state:panelProject,layer,total:12,select(value){panelActions.push(['layer',value]);},preset(value){panelActions.push(['preset',value]);},navigate(value){panelActions.push(['navigate',value]);}});
+ assert.match(root.innerHTML,/<h1 class="panel-heading">타이틀 · 디자인<\/h1>/);
+ assert.ok(root.innerHTML.indexOf('class="layer-tabs"')<root.innerHTML.indexOf('class="layer-controls"'));
+ assert.ok(root.innerHTML.indexOf('class="layer-controls"')<root.innerHTML.indexOf('class="design-presets"'));
+ assert.ok(!root.innerHTML.includes('SHORTS TYPOGRAPHY'));assert.ok(!root.innerHTML.includes('각각의 역할에 맞게 디자인하세요'));
+ assert.match(root.innerHTML,new RegExp(`aria-selected="true" data-text-layer="${layer}"`));
+ assert.equal((root.innerHTML.match(/aria-selected="true"/g)||[]).length,1);
+ assert.ok(root.innerHTML.includes('출력 시 해상도에 맞춰 확대됩니다.'));
+ if(layer==='title'||layer==='credit')assert.ok(root.innerHTML.includes('끝을 비워두면 영상 끝까지 표시합니다.'));
+ if(layer==='caption')assert.ok(root.innerHTML.includes('쉼표로 구분합니다.'));
+ layerButtons.find(button=>button.dataset.textLayer===layer).onclick();
+ if(layer==='title'){presetButtons.forEach(button=>button.onclick());links['#openTemplateGallery'].onclick();}
+ if(layer==='caption')links['#openCaptionEditor'].onclick();
+ if(layer==='frame')links['#openScreenEditor'].onclick();
+}
+assert.deepEqual(panelActions,[['layer','title'],['preset','reference'],['preset','punch'],['preset','clean'],['navigate','templates'],['layer','caption'],['navigate','captions'],['layer','credit'],['layer','frame'],['navigate','settings']]);
+for(const tab of ['cards','motion']){
+ const tabs=['cards','motion'].map(effectTab=>({dataset:{effectTab}})),selected=[];
+ const root=panelRoot({'[data-effect-tab]':tabs},{'#effectControls':tab==='cards'?cardRoot:panelRoot({},{'#resetEffects':{}})});
+ mountEffectsPanel(root,{state:panelProject,total:12,tab,selected:testCard.id,input:panelRanges.bind,changeTab(value){selected.push(value);}});
+ assert.match(root.innerHTML,/<h1 class="panel-heading">연출<\/h1><div class="layer-tabs" role="tablist" aria-label="연출 도구">/);
+ assert.match(root.innerHTML,new RegExp(`data-effect-tab="${tab}" role="tab" aria-selected="true"`));
+ assert.equal((root.innerHTML.match(/aria-selected="true"/g)||[]).length,1);assert.ok(!root.innerHTML.includes('STORY & MOTION'));
+ tabs.forEach(button=>button.onclick());assert.deepEqual(selected,['cards','motion']);
+}
+console.log('PASS: design/effects control-first hierarchy retains selected tabs, preset/navigation actions and essential timing/input instructions.');
+
+
 // Gallery hierarchy, accessible filter groups and existing actions remain connected.
 const search={},grid={innerHTML:''},count={},saveButton={};
 const categories=['전체','리뷰','정보','라이프','대화','참여','즐겨찾기','내 템플릿'].map(category=>({dataset:{category},classList:{toggle(){}},setAttribute(name,value){this[name]=value;}}));

@@ -50,12 +50,11 @@ export function mountDesignPanel(root, api) {
     ${range('영상 끝 위치', 'design.bottom', Math.round(d.bottom * 100), 65, 91, 1, '%')}
     <div class="notice">상하 여백을 사용하면 타이틀이 영상의 중요한 장면을 가리지 않습니다. 화면 비율과 확대는 ‘화면’ 탭에서 조절하세요.</div>
     <button class="button full subtle" id="openScreenEditor">영상 크기 · 비율 조절</button>`;
-  root.innerHTML = `<div class="design-heading"><span class="eyebrow">SHORTS TYPOGRAPHY</span><h1 class="panel-heading">한 화면으로 완성하는 이야기</h1><p class="panel-intro">타이틀부터 대사, 크레딧까지.<br>각각의 역할에 맞게 디자인하세요.</p></div>
-    <div class="section-label">빠른 구성 <button class="text-button" id="openTemplateGallery">전체 템플릿 →</button></div>
-    <div class="layout-presets"><button data-layout-preset="reference" title="참고 이미지처럼 검은 여백, 흰색·형광 타이틀"><span class="preset-art reference"><b>하루의 한 장면</b><b>기억에 남는 순간</b><i></i><em>오늘의 이야기</em><small>my moment</small></span><strong>리뷰형</strong></button><button data-layout-preset="punch" title="전체 영상과 굵은 노란색 타이틀"><span class="preset-art punch"><b>지금 이 순간</b><b>놓치면 아쉬운</b><i></i><em>오늘의 이야기</em></span><strong>임팩트</strong></button><button data-layout-preset="clean" title="담백한 타이틀과 하단 자막"><span class="preset-art clean"><b>나의 작은 기록</b><i></i><em>오늘의 이야기</em></span><strong>브이로그</strong></button></div>
+  root.innerHTML = `<h1 class="panel-heading">타이틀 · 디자인</h1>
     <div class="layer-tabs" role="tablist" aria-label="텍스트 레이어">${[['title','타이틀'],['caption','대사'],['credit','크레딧'],['frame','여백']].map(([value,label]) => `<button role="tab" aria-selected="${layer === value}" data-text-layer="${value}" class="${layer === value ? 'active' : ''}">${label}</button>`).join('')}</div>
     <div class="layer-controls">${controls}</div>
-    <p class="tiny-note design-footnote">글자 크기는 세로 미리보기 기준입니다. 출력 시 해상도에 맞춰 확대됩니다.</p>`;
+    <p class="tiny-note design-footnote">글자 크기는 세로 미리보기 기준입니다. 출력 시 해상도에 맞춰 확대됩니다.</p>
+    <div class="design-presets"><div class="section-label">빠른 구성 <button class="text-button" id="openTemplateGallery">전체 템플릿 →</button></div><div class="layout-presets"><button data-layout-preset="reference" title="참고 이미지처럼 검은 여백, 흰색·형광 타이틀"><span class="preset-art reference"><b>하루의 한 장면</b><b>기억에 남는 순간</b><i></i><em>오늘의 이야기</em><small>my moment</small></span><strong>리뷰형</strong></button><button data-layout-preset="punch" title="전체 영상과 굵은 노란색 타이틀"><span class="preset-art punch"><b>지금 이 순간</b><b>놓치면 아쉬운</b><i></i><em>오늘의 이야기</em></span><strong>임팩트</strong></button><button data-layout-preset="clean" title="담백한 타이틀과 하단 자막"><span class="preset-art clean"><b>나의 작은 기록</b><i></i><em>오늘의 이야기</em></span><strong>브이로그</strong></button></div></div>`;
   root.querySelectorAll('[data-layout-preset]').forEach(button => button.onclick = () => api.preset(button.dataset.layoutPreset));
   root.querySelectorAll('[data-text-layer]').forEach(button => button.onclick = () => api.select(button.dataset.textLayer));
   root.querySelectorAll('[data-caption-preset]').forEach(button => button.onclick = () => api.captionStyle(button.dataset.captionPreset));

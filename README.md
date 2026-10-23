@@ -13,7 +13,7 @@ The editor also exposes a shared command core, a project JSON/SRT CLI, and an MC
 
 ![Moment editor with a template gallery, vertical video preview, and editing timeline](docs/editor-desktop.png)
 
-[Quick start](#quick-start) · [Features](#features) · [CLI and integrations](#cli-and-integrations) · [Privacy and limits](#privacy-and-limits) · [Development](#development)
+[Quick start](#quick-start) · [Features](#features) · [Examples](#example-results) · [CLI and integrations](#cli-and-integrations) · [Privacy and limits](#privacy-and-limits) · [Development](#development)
 
 ## Quick start
 
@@ -51,6 +51,39 @@ Use **사용 가이드 (Help) → 편집 설정 저장 (Save editing settings)**
 - **Local projects and export:** browser storage, project JSON import/export, and Canvas/Web Audio composition recorded through MediaRecorder.
 
 The built-in templates cover review stories, bold opening lines, vlogs, explainers, interviews, recipes, rankings, product reviews, quizzes, and cinematic moments. Preview each with its animated sample. Quiz choices and countdowns are video graphics, not interactive polls.
+
+## Example results
+
+Four 1080×1920 vertical shorts made with Moment's Canvas composition engine and built-in templates. Select a thumbnail to open the MP4.
+
+<table>
+<tr>
+<td width="50%" align="center">
+<a href="docs/examples/cinema-sunset.mp4"><img src="docs/examples/cinema-sunset-thumb.jpg" width="260" alt="In front of the sunset — cinematic moment example video"></a><br>
+<strong>In front of the sunset</strong><br>
+<sub>Cinematic moment · 11.5s</sub>
+</td>
+<td width="50%" align="center">
+<a href="docs/examples/city-night.mp4"><img src="docs/examples/city-night-thumb.jpg" width="260" alt="City night — bold opening line example video"></a><br>
+<strong>City night</strong><br>
+<sub>Bold opening line · 10.3s</sub>
+</td>
+</tr>
+<tr>
+<td width="50%" align="center">
+<a href="docs/examples/coffee-recipe.mp4"><img src="docs/examples/coffee-recipe-thumb.jpg" width="260" alt="One cup for today — recipe example video"></a><br>
+<strong>One cup for today</strong><br>
+<sub>Recipe at a glance · 11.5s</sub>
+</td>
+<td width="50%" align="center">
+<a href="docs/examples/forest-top3.mp4"><img src="docs/examples/forest-top3-thumb.jpg" width="260" alt="Three things a rushed day needs — top 3 example video"></a><br>
+<strong>Three things a rushed day needs</strong><br>
+<sub>TOP 3 list · 10.9s</sub>
+</td>
+</tr>
+</table>
+
+The app's **Export** button records the same composition in real time with MediaRecorder. These examples were rendered frame by frame through the same renderer and encoded at 30fps H.264 for higher final quality. Sources, music credits, and production notes are in [docs/examples/README.md](docs/examples/README.md).
 
 ## CLI and integrations
 

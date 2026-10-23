@@ -13,7 +13,7 @@ Moment는 한국어 UI를 제공하는 로컬 중심 영상 편집기입니다. 
 
 ![모먼트 편집기: 템플릿 갤러리, 세로 영상 미리보기, 편집 타임라인](docs/editor-desktop.png)
 
-[빠른 시작](#빠른-시작) · [주요 기능](#주요-기능) · [CLI와 외부 연동](#cli와-외부-연동) · [개인정보와 제한사항](#개인정보와-제한사항) · [개발과 기여](#개발과-기여)
+[빠른 시작](#빠른-시작) · [주요 기능](#주요-기능) · [예시 결과](#예시-결과) · [CLI와 외부 연동](#cli와-외부-연동) · [개인정보와 제한사항](#개인정보와-제한사항) · [개발과 기여](#개발과-기여)
 
 ## 빠른 시작
 
@@ -49,6 +49,39 @@ npm start
 - **로컬 저장과 출력:** 브라우저 저장소, 프로젝트 JSON 가져오기·내보내기, Canvas와 Web Audio로 합성한 결과의 MediaRecorder 출력.
 
 기본 템플릿은 리뷰 스토리, 강한 첫 문장, 브이로그, 설명, 인터뷰, 레시피, 랭킹, 제품 리뷰, 퀴즈, 시네마틱 구성을 제공합니다. 각 템플릿은 움직이는 샘플로 미리 볼 수 있습니다. 퀴즈 선택지와 카운트다운은 영상에 포함되는 그래픽이며 클릭형 투표가 아닙니다.
+
+## 예시 결과
+
+Moment의 Canvas 합성 엔진과 기본 템플릿으로 만든 1080×1920 세로 영상입니다. 썸네일을 누르면 MP4가 열립니다.
+
+<table>
+<tr>
+<td width="50%" align="center">
+<a href="docs/examples/cinema-sunset.mp4"><img src="docs/examples/cinema-sunset-thumb.jpg" width="260" alt="노을 앞에서 — 시네마틱 모먼트 예시 영상"></a><br>
+<strong>노을 앞에서</strong><br>
+<sub>시네마틱 모먼트 · 11.5초</sub>
+</td>
+<td width="50%" align="center">
+<a href="docs/examples/city-night.mp4"><img src="docs/examples/city-night-thumb.jpg" width="260" alt="도시의 밤 — 강한 첫 문장 예시 영상"></a><br>
+<strong>도시의 밤</strong><br>
+<sub>강한 첫 문장 · 10.3초</sub>
+</td>
+</tr>
+<tr>
+<td width="50%" align="center">
+<a href="docs/examples/coffee-recipe.mp4"><img src="docs/examples/coffee-recipe-thumb.jpg" width="260" alt="오늘은 이 한 잔 — 레시피 예시 영상"></a><br>
+<strong>오늘은 이 한 잔</strong><br>
+<sub>한눈에 보는 레시피 · 11.5초</sub>
+</td>
+<td width="50%" align="center">
+<a href="docs/examples/forest-top3.mp4"><img src="docs/examples/forest-top3-thumb.jpg" width="260" alt="서두르는 하루에 필요한 세 가지 — TOP 3 예시 영상"></a><br>
+<strong>서두르는 하루에 필요한 세 가지</strong><br>
+<sub>TOP 3 리스트 · 10.9초</sub>
+</td>
+</tr>
+</table>
+
+앱의 **내보내기**는 같은 구성을 실시간 MediaRecorder로 인코딩합니다. 위 예시는 결과 화질을 높이기 위해 동일한 렌더러로 프레임을 한 장씩 결정적으로 그린 뒤 30fps H.264로 인코딩했습니다. 사용한 영상·음악의 출처와 제작 방식은 [docs/examples/README.md](docs/examples/README.md)에 정리했습니다.
 
 ## CLI와 외부 연동
 

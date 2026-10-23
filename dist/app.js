@@ -232,6 +232,7 @@ function splitLongCaptions(){
    captions.push(...parts);
   }
  }catch(error){toast(error.message);return;}
+ if(captions.length===state.captions.length&&captions.every((caption,i)=>caption===state.captions[i]||JSON.stringify(caption)===JSON.stringify(state.captions[i]))){toast('나눌 긴 자막이 없습니다.');return;}
  edit(()=>state.captions=captions,true);$('#splitLongCaptions').focus();
  toast('긴 자막을 나눴습니다. 시간은 글자 수 기준으로 배분했으니 음성과 확인해 주세요.');
 }

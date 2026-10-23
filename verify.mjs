@@ -556,6 +556,40 @@ function assertCaptionCountRejected(button){
  assert.match(element('#toast').textContent,/10,000/);
  assert.deepEqual(projectModule.readProjectDocument(projectModule.createProjectDocument(evaluate('state'))),before.state);
 }
+// A split that changes nothing must not consume redo or schedule a save.
+function assertSplitNoop(){
+ const before=evaluate('({state,history,future})'),timer=vm.runInContext('saveTimer',context);
+ const original=vm.runInContext('state.captions',context);element('#splitLongCaptions').focus();const events=focusEvents.length;
+ element('#splitLongCaptions').onclick();
+ assert.deepEqual(evaluate('({state,history,future})'),before);assert.equal(vm.runInContext('state.captions',context),original);
+ assert.equal(vm.runInContext('saveTimer',context),timer);assert.equal(focusEvents.length,events);
+ assert.equal(doc.activeElement,element('#splitLongCaptions'));assert.match(element('#toast').textContent,/나눌 긴 자막이 없습니다/);
+}
+for(const captions of [[],[{start:0,end:2,text:'짧은 자막'}],[{start:0,end:2,text:'  short  '}],[{start:0,end:2,text:' \t\n '}],[{start:0,end:2,text:'a'+'\u0301'.repeat(1999),basis:'timeline'}]]){
+ setCaptionLimitFixture(captions);assertSplitNoop();vm.runInContext('undo(true)',context);assert.equal(evaluate('state.name'),'redo target');
+}
+// Compare values too: equivalent cloned output is unchanged, same-count content changes are edits.
+setCaptionLimitFixture([{start:0,end:2,text:' short ',basis:'timeline'}]);
+context.splitCaptionText=caption=>[structuredClone(caption)];assertSplitNoop();
+for(const patch of [{text:'short'},{start:.5},{timing:'estimated'}]){
+ setCaptionLimitFixture([{start:0,end:2,text:' short ',basis:'timeline'}]);const before=evaluate('state');
+ context.splitCaptionText=caption=>[{...caption,...patch}];element('#splitLongCaptions').onclick();
+ const after=evaluate('state');assert.notDeepEqual(after,before);assert.equal(evaluate('history.length'),1);assert.equal(evaluate('future.length'),0);
+ vm.runInContext('undo()',context);assert.deepEqual(evaluate('state'),before);vm.runInContext('undo(true)',context);assert.deepEqual(evaluate('state'),after);
+}
+context.splitCaptionText=effectsModule.splitCaptionText;
+for(const basis of ['source','timeline']){
+ setCaptionLimitFixture([{start:0,end:2,text:'short',basis},{start:2,end:8,text:'  alpha   beta gamma delta  ',basis,speaker:'1'}]);
+ const before=evaluate('state');element('#splitLongCaptions').onclick();const after=evaluate('state');
+ assert.notDeepEqual(after,before);assert.equal(evaluate('history.length'),1);assert.equal(evaluate('future.length'),0);
+ assert.equal(after.captions.slice(1).map(c=>c.text).join('').replace(/\s/g,''),'alphabetagammadelta');
+ vm.runInContext('edit(()=>state.zoom=1.5);undo();saveTimer={pending:true};',context);assertSplitNoop();
+ vm.runInContext('undo(true)',context);assert.equal(evaluate('state.zoom'),1.5);
+ vm.runInContext('undo();undo()',context);assert.deepEqual(evaluate('state'),before);
+ vm.runInContext('undo(true)',context);assert.deepEqual(evaluate('state'),after);
+ assert.deepEqual(projectModule.readProjectDocument(projectModule.createProjectDocument(after)),after);
+}
+console.log('PASS: no-op/repeated caption splits preserve redo, save and focus; actual text/timing/metadata and mixed splits remain undoable.');
 // Older/custom runtimes must leave the whole operation untouched, including redo/focus.
 const unsupportedSplit=vm.runInNewContext(fs.readFileSync('dist/effects.mjs','utf8').replaceAll('export ','')+';splitCaptionText',{Intl:{}});
 setCaptionLimitFixture([{start:0,end:4,text:'e\u0301'.repeat(25)}]);

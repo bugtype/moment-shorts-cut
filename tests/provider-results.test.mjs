@@ -93,3 +93,24 @@ test('provider failure after submission leaves the model unchanged and does not 
   assert.equal((await following).ok,true);assert.equal(f.calls.length,1);assert.equal(f.commits,0);
   assert.deepEqual(f.state,before);
 });
+
+test('get and cancel reject records for another job without exposing artifacts or retrying',async()=>{
+  const f=fixture(),before=structuredClone(f.state);
+  for(const command of ['jobs.get','jobs.cancel']){
+    for(const [jobId,id] of [['job-1','job-2'],['Job-1','job-1'],[' job-1 ','job-1'],['é','e\u0301']]){
+      const count=f.calls.length;
+      f.respond=async()=>({id,status:'succeeded',artifacts:[{name:'wrong-job-artifact'}]});
+      const result=await f.service.execute(command,{jobId});
+      assert.equal(result.ok,false);assert.equal(result.error.code,'INVALID_PROVIDER_RESULT');
+      assert.equal(result.data,undefined);assert.doesNotMatch(JSON.stringify(result),/wrong-job-artifact/);
+      assert.equal(f.calls.length,count+1);assert.equal(f.calls.at(-1).arg,jobId);
+      assert.deepEqual(f.state,before);assert.equal(f.commits,0);
+      f.respond=()=>({id:jobId,status:'running'});
+      const retry=await f.service.execute(command,{jobId});
+      assert.equal(retry.ok,true);assert.equal(retry.data.id,jobId);assert.equal(retry.data.status,'running');
+    }
+  }
+  f.respond=()=>({id:'new-provider-id',status:'queued'});
+  assert.equal((await f.service.execute('jobs.submit',{operation:'video.render'})).ok,true,'submit allocates a new ID');
+  assert.equal((await f.service.execute('project.get')).ok,true);
+});

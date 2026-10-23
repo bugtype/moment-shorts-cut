@@ -46,6 +46,7 @@ export function createEditorService({getProject,commitProject,jobs}={}){
         try{
           assertJson(data);validate(jobResultSchema,data);
           if(!data.id.trim())fail('작업 ID가 비어 있습니다.');
+          if(name!=='jobs.submit'&&data.id!==args.jobId)fail('요청한 작업 ID와 반환된 작업 ID가 다릅니다.');
         }catch{
           throw new CommandError('INVALID_PROVIDER_RESULT','작업 제공자가 유효한 작업 상태를 반환하지 않았습니다.');
         }

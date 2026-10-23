@@ -78,10 +78,15 @@ const editorService=createEditorService({
  getProject(){if(!editorReady)throw new CommandError('BUSY','편집기를 불러오는 중입니다.');if(restorePhase==='failed'&&!recoveryValid)throw new CommandError('RECOVERY_REQUIRED',restoreMessage);return structuredClone(state);},
  commitProject:commitCommandProject,
 });
+async function readUtf8File(file){
+ const bytes=await file.arrayBuffer();
+ try{return new TextDecoder('utf-8',{fatal:true}).decode(bytes);}
+ catch{throw new Error('파일을 올바른 UTF-8로 저장한 뒤 다시 불러오세요.');}
+}
 async function importProjectSettings(file){
  try{
   if(file.size>10*1024*1024)throw new Error('편집 설정 JSON은 10 MB 이하만 불러올 수 있습니다.');
-  const result=await editorService.execute('project.import',{document:JSON.parse(await file.text())});
+  const result=await editorService.execute('project.import',{document:JSON.parse(await readUtf8File(file))});
   if(!result.ok)throw new Error(result.error.message);modal.close();toast('편집 설정을 적용했습니다. 실행 취소할 수 있습니다.');return result;
  }catch(error){toast(error.message||'설정 파일을 확인하세요.');return {ok:false,error:{code:'IMPORT_FAILED',message:error.message}};}
  finally{$('#projectInput').value='';}
@@ -395,7 +400,7 @@ async function importSrt(file){
  try{
   if(file.size>MAX_SUBTITLE_BYTES)throw new Error('자막 파일은 2 MB 이하만 지원합니다.');
   const original=state;
-  const text=await file.text();
+  const text=await readUtf8File(file);
   if(state!==original)throw new Error('프로젝트가 변경되었습니다. 자막 파일을 다시 선택하세요.');
   const captions=parseSubtitles(text,state.duration);
   const result=await editorService.execute('captions.replace',{captions});

@@ -46,7 +46,7 @@ for(const id of ['trimStart','trimEnd','panelTrimStart','panelTrimEnd']){
 }
 const documentEvents=new Map();
 const doc={querySelector:element,querySelectorAll:()=>[],addEventListener(name,handler){documentEvents.set(name,handler);},body:element('body'),fonts:{ready:Promise.resolve()},createElement:()=>element('canvas-'+(++canvasCount))};
-const context=vm.createContext({document:doc,window:{addEventListener(){}},Image:class{complete=false;},localStorage:{getItem:()=>null,setItem(){}},requestAnimationFrame(callback){pendingFrames.set(++rafCounter,callback);return rafCounter;},cancelAnimationFrame(id){pendingFrames.delete(id);},setTimeout(){},clearTimeout(){},setInterval(){},clearInterval(){},console,URL,Blob,performance,Number,Math,Promise,structuredClone,...projectModule,prepareCommand,CommandError,createEditorService,...captionModule,renderCaptionTrack,renderCaptionTrackError,updateTimelineMarkup,createInputHistory,...effectsModule,...templateModule,mountTemplateGallery,mountEffectsPanel,...typographyModule,createProjectStore,mountDesignPanel});
+const context=vm.createContext({document:doc,window:{addEventListener(){}},Image:class{complete=false;},localStorage:{getItem:()=>null,setItem(){}},requestAnimationFrame(callback){pendingFrames.set(++rafCounter,callback);return rafCounter;},cancelAnimationFrame(id){pendingFrames.delete(id);},setTimeout(){},clearTimeout(){},setInterval(){},clearInterval(){},console,URL,Blob,TextDecoder,performance,Number,Math,Promise,structuredClone,...projectModule,prepareCommand,CommandError,createEditorService,...captionModule,renderCaptionTrack,renderCaptionTrackError,updateTimelineMarkup,createInputHistory,...effectsModule,...templateModule,mountTemplateGallery,mountEffectsPanel,...typographyModule,createProjectStore,mountDesignPanel});
 vm.runInContext(source.replace(/^import .*;$/gm,'').replace(/init\(\);\s*$/,'globalThis.ready=init();'),context);
 await context.ready;
 for(const [id,cb] of pendingFrames){pendingFrames.delete(id);cb(performance.now());}
@@ -60,7 +60,7 @@ assert.equal(evaluate('duration()'),7);
 assert.deepEqual(evaluate('locate(4)'),{index:1,source:9,offset:3});
 assert.deepEqual(evaluate('outputCaptions()'),[{start:0,end:1,text:'A'},{start:2,end:3,text:'B'}]);
 assert.equal(evaluate('srtTime(3661.125)'),'01:01:01,125');
-await vm.runInContext('importSrt({text:async()=>"1\\n00:00:01,250 --> 00:00:03,500\\n테스트 자막\\n\\n2\\n00:00:10,000 --> 00:00:14,000\\n끝 자막"})',context);
+await vm.runInContext('importSrt(new Blob(["1\\n00:00:01,250 --> 00:00:03,500\\n테스트 자막\\n\\n2\\n00:00:10,000 --> 00:00:14,000\\n끝 자막"]))',context);
 assert.deepEqual(evaluate('state.captions'),[{start:1.25,end:3.5,text:'테스트 자막'},{start:10,end:12,text:'끝 자막'}]);
 vm.runInContext('state=initial();timelineCache=null;current=5;split();',context);
 assert.deepEqual(evaluate('state.clips'),[{start:0,end:5},{start:5,end:12}]);
@@ -484,7 +484,7 @@ vm.runInContext('renderPanel()',context);captionDelete.onclick();
 doc.querySelectorAll=()=>[];
 assert.equal(evaluate('state.captions.length'),0);assert.equal(createIsOpen(),true);
 assertCaptionVisibleTarget(element('#addCaption'));
-await vm.runInContext('importSrt({size:50,text:async()=>"1\\n00:00:00,000 --> 00:00:02,000\\nImported caption"})',context);
+await vm.runInContext('importSrt(new Blob(["1\\n00:00:00,000 --> 00:00:02,000\\nImported caption"]))',context);
 assert.equal(evaluate('state.captions[0].text'),'Imported caption');assert.equal(createIsOpen(),false);
 assertCaptionVisibleTarget(element('[data-caption-text="0"]'));
 vm.runInContext('state.captions[0].timing="estimated";state.captions[0].basis="timeline";renderPanel()',context);
@@ -785,7 +785,7 @@ console.log('PASS: export start/double-click guard/cancel/restart/completion, ou
 console.log('LIMIT: no actual browser layout, microphone capture, AI inference or encoded MP4/WebM playback was tested.');
 
 vm.runInContext('state=initial();timelineCache=null;selected=0;',context);
-await vm.runInContext('importSrt({text:async()=>"WEBVTT\\n\\n00:01.000 --> 00:02.500\\nVTT 자막\\n\\n00:03.000 --> 00:04.000\\n둘째 문장"})',context);
+await vm.runInContext('importSrt(new Blob(["WEBVTT\\n\\n00:01.000 --> 00:02.500\\nVTT 자막\\n\\n00:03.000 --> 00:04.000\\n둘째 문장"]))',context);
 assert.deepEqual(evaluate('state.captions'),[{start:1,end:2.5,text:'VTT 자막'},{start:3,end:4,text:'둘째 문장'}]);
 vm.runInContext('state.clips=[{start:0,end:3},{start:5,end:7},{start:9,end:12}];timelineCache=null;selected=1;',context);
 element('#moveLeft').onclick();assert.deepEqual(evaluate('state.clips'),[{start:5,end:7},{start:0,end:3},{start:9,end:12}]);
@@ -885,18 +885,18 @@ console.log('PASS: command/direct-input ordering preserves model, saves, selecti
 vm.runInContext('state=initial();timelineCache=null;',context);
 const subtitleOriginal=evaluate('state');
 let readOversized=false;
-context.largeSubtitle={size:captionModule.MAX_SUBTITLE_BYTES+1,text:async()=>{readOversized=true;return '';}};
+context.largeSubtitle={size:captionModule.MAX_SUBTITLE_BYTES+1,arrayBuffer:async()=>{readOversized=true;return '';}};
 await vm.runInContext('importSrt(largeSubtitle)',context);
 assert.equal(readOversized,false,'oversized subtitles are rejected before reading');
 assert.deepEqual(evaluate('state'),subtitleOriginal);
-context.failedSubtitle={text:async()=>{throw new Error('read failed');}};
+context.failedSubtitle={arrayBuffer:async()=>{throw new Error('read failed');}};
 await vm.runInContext('importSrt(failedSubtitle)',context);
 assert.deepEqual(evaluate('state'),subtitleOriginal);
 vm.runInContext('exporting=true;',context);
-await vm.runInContext('importSrt({text:async()=>"00:01.000 --> 00:02.000\\nMust not replace during export"})',context);
+await vm.runInContext('importSrt(new Blob(["00:01.000 --> 00:02.000\\nMust not replace during export"]))',context);
 assert.deepEqual(evaluate('state'),subtitleOriginal);
 vm.runInContext('exporting=false;',context);
-await vm.runInContext('importSrt({text:async()=>"00:01.000 --> 00:02.000\\n&lt;b&gt;한글 🌊&lt;/b&gt; &amp; &amp;lt;"})',context);
+await vm.runInContext('importSrt(new Blob(["00:01.000 --> 00:02.000\\n&lt;b&gt;한글 🌊&lt;/b&gt; &amp; &amp;lt;"]))',context);
 assert.equal(evaluate('state.captions[0].text'),'<b>한글 🌊</b> & &lt;');
 const escapedExport=await context.window.moment.execute('captions.export');
 assert.equal(escapedExport.ok,true);
@@ -906,6 +906,68 @@ vm.runInContext('undo();',context);
 assert.deepEqual(evaluate('state'),subtitleOriginal);
 assert.equal(element('#srtInput').value,'');
 console.log('PASS: bounded subtitle imports, escaped text export/reimport, read failure recovery, export guard and undo.');
+
+// Actual app import handlers, with byte fixtures and native decoding in the VM.
+vm.runInContext('globalThis.utf8ScheduleSave=scheduleSave;globalThis.utf8Saves=0;scheduleSave=()=>utf8Saves++;state=initial();timelineCache=null;history=[JSON.stringify(state)];future=[JSON.stringify(state)];current=2;selected=0;',context);
+const utf8Before=evaluate('[state,history,future,current,selected]');
+const utf8Document=projectModule.createProjectDocument(evaluate('state'));utf8Document.project.name='MARKER';
+const utf8Imports=[
+ {handler:'importProjectSettings',picker:'#projectInput',limit:10*1024*1024,text:JSON.stringify(utf8Document)},
+ {handler:'importSrt',picker:'#srtInput',limit:captionModule.MAX_SUBTITLE_BYTES,text:'1\n00:00:00,000 --> 00:00:02,000\nMARKER'},
+];
+for(const entry of utf8Imports){
+ const unchanged=()=>{assert.deepEqual(evaluate('[state,history,future,current,selected]'),utf8Before);assert.equal(context.utf8Saves,0);assert.equal(element(entry.picker).value,'');};
+ for(const bytes of [[0xff],[0x80],[0xc0,0xaf],[0xe2,0x82],[0xed,0xa0,0x80],[0xf4,0x90,0x80,0x80]]){
+  for(const bom of ['', '\ufeff']){
+   const index=entry.text.indexOf('MARKER');
+   context.utf8File=new Blob([bom+entry.text.slice(0,index),new Uint8Array(bytes),entry.text.slice(index+6)]);
+   element(entry.picker).value='synthetic input';
+   await vm.runInContext(`${entry.handler}(utf8File)`,context);
+   assert.match(element('#toast').textContent,/UTF-8/);unchanged();
+  }
+ }
+ for(const text of entry.handler==='importProjectSettings'?['\ufeff\ufeff'+entry.text,'\ufeff{"project":}']:['1\ninvalid timing\ncaption']){
+  context.utf8File=new Blob([text]);await vm.runInContext(`${entry.handler}(utf8File)`,context);unchanged();
+ }
+ let reads=0;
+ context.utf8File={size:entry.limit+1,arrayBuffer:async()=>{reads++;throw new Error('must not read');}};
+ await vm.runInContext(`${entry.handler}(utf8File)`,context);assert.equal(reads,0);unchanged();
+ context.utf8File={size:1,arrayBuffer:async()=>{throw new Error('synthetic read failure');}};
+ await vm.runInContext(`${entry.handler}(utf8File)`,context);assert.match(element('#toast').textContent,/synthetic read failure/);unchanged();
+ const authored='한글 🌊 e\u0301 앞\ufeff뒤 �';
+ const text=entry.text.replace('MARKER',authored),validBytes=Buffer.from('\ufeff'+text);
+ let finish;
+ context.utf8File={size:validBytes.length,arrayBuffer:()=>new Promise(resolve=>{finish=resolve;})};
+ const pending=vm.runInContext(`${entry.handler}(utf8File)`,context);
+ vm.runInContext('exporting=true',context);finish(await new Blob([validBytes]).arrayBuffer());
+ await pending;unchanged();vm.runInContext('exporting=false',context);
+ // A failed protected restore must remain protected after decoding valid bytes.
+ context.utf8File=new Blob([validBytes]);
+ vm.runInContext('restorePhase="failed";recoveryValid=false;',context);
+ await vm.runInContext(`${entry.handler}(utf8File)`,context);unchanged();
+ vm.runInContext('restorePhase="ready";',context);
+ // Exact limits include the BOM; trailing JSON/subtitle whitespace is valid.
+ const atLimit=Buffer.alloc(entry.limit,0x20);validBytes.copy(atLimit);
+ context.utf8File=new Blob([atLimit]);
+ await vm.runInContext(`${entry.handler}(utf8File)`,context);
+ assert.equal(evaluate(entry.handler==='importSrt'?'state.captions[0].text':'state.name'),authored);
+ assert.equal(evaluate('history.length'),utf8Before[1].length+1);assert.equal(evaluate('future.length'),0);assert.equal(context.utf8Saves,1);
+ const accepted=evaluate('state');
+ assert.deepEqual(projectModule.readProjectDocument(JSON.parse(JSON.stringify(projectModule.createProjectDocument(accepted)))),accepted);
+ vm.runInContext('undo()',context);assert.deepEqual(evaluate('state'),utf8Before[0]);
+ vm.runInContext('undo(true)',context);assert.deepEqual(evaluate('state'),accepted);
+ context.utf8Original=utf8Before;
+ vm.runInContext('[state,history,future,current,selected]=structuredClone(utf8Original);timelineCache=null;utf8Saves=0;',context);
+}
+const subtitleDelayedBytes=Buffer.from('00:00.000 --> 00:01.000\nlate captions');let finishSubtitleRead;
+context.utf8File={size:subtitleDelayedBytes.length,arrayBuffer:()=>new Promise(resolve=>{finishSubtitleRead=resolve;})};
+const pendingSubtitleImport=vm.runInContext('importSrt(utf8File)',context);
+vm.runInContext('state={...state,name:"replacement project"}',context);
+const replacedDuringRead=evaluate('[state,history,future]');finishSubtitleRead(await new Blob([subtitleDelayedBytes]).arrayBuffer());await pendingSubtitleImport;
+assert.deepEqual(evaluate('[state,history,future]'),replacedDuringRead);assert.equal(context.utf8Saves,0);
+assert.match(element('#toast').textContent,/프로젝트가 변경/);
+vm.runInContext('state=initial();timelineCache=null;history=[];future=[];current=0;scheduleSave=utf8ScheduleSave;',context);
+console.log('PASS: app JSON/SRT byte imports reject malformed UTF-8 without state/history/redo/save loss; Unicode/BOM, exact size limits, read failures, busy/recovery guards, delayed subtitles and undo/redo pass in the VM.');
 
 // Invalid SRT text stays editable and must never produce a partial download.
 context.blankLineCaption='first\n\nsecond';

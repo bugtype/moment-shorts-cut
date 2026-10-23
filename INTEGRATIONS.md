@@ -60,6 +60,8 @@ node cli/moment.mjs exec render.plan --project titled.json --json '{"quality":10
 
 `exec --dry-run`은 결과를 JSON으로 출력하고 파일을 쓰지 않습니다. `init`은 `--out`과 `--overwrite`만 지원하며, `--dry-run` 등 지원하지 않는 옵션은 파일 접근 전에 거부합니다. 기존 출력 파일은 기본적으로 거부하며, 교체하려면 `--overwrite`를 지정합니다. 성공은 종료 코드 0과 stdout JSON, 실패는 종료 코드 1과 stderr JSON입니다. JSON 파일은 10 MB까지 읽습니다. 임시 파일에 먼저 쓴 뒤 최종 경로로 반영합니다.
 
+`--project`와 `--args-file`은 UTF-8 JSON 파일을 읽으며, 파일 시작의 BOM 하나는 허용합니다. 본문의 문자는 그대로 보존하고 출력 JSON에는 BOM을 붙이지 않습니다. UTF-16 파일은 지원하지 않으므로 UTF-8로 저장하세요. `--json` 인수에는 BOM 없는 JSON 문자열을 전달합니다.
+
 `captions.export`는 편집 후 자막 10,000개, 반복분을 포함한 원문 UTF-8 2 MiB, 완성된 SRT 2 MiB를 각각 제한합니다. SRT 크기는 이스케이프·시간·구분자를 포함하며 CLI/서비스는 BOM을 출력하지 않습니다(브라우저는 BOM 3바이트도 계산합니다). 초과 시 `CAPTION_OUTPUT_LIMIT`로 전체 출력을 거절하고 CLI는 기존 출력 파일을 보존합니다. 원본 프로젝트 검증·JSON·편집·`render.plan`에는 이 파생 출력 제한을 적용하지 않습니다. 반복 클립이나 자막을 줄여 재시도할 수 있습니다.
 
 CLI는 편집 메타데이터와 SRT를 다룹니다. MP4 파일을 생성하거나 브라우저 IndexedDB의 원본 파일을 직접 가져오지 않습니다.

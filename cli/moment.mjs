@@ -28,7 +28,7 @@ function parse(argv){
 }
 async function jsonFile(file){
   const info=await fs.stat(file);if(info.size>10*1024*1024)throw new CommandError('FILE_TOO_LARGE','JSON 파일은 10 MB 이하만 지원합니다.');
-  return JSON.parse(await fs.readFile(file,'utf8'));
+  return JSON.parse((await fs.readFile(file,'utf8')).replace(/^\uFEFF/,''));
 }
 async function writeOutput(file,text,overwrite){
   const absolute=path.resolve(file),temporary=path.join(path.dirname(absolute),`.moment-${randomUUID()}.tmp`);

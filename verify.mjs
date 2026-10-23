@@ -945,6 +945,64 @@ assert.notDeepEqual(evaluate('[state.overlays[0].x,state.overlays[0].y]'),origin
 assert.equal(element('#layerSelection').dataset.label,'구간별 타이틀');
 console.log('PASS: dragging the visible timed headline edits the correct layer and its selection guide.');
 
+// Preview gestures use actual clamped coordinate changes, not pointer activation, as history boundaries.
+const preview=element('#preview'),pointer=(x=250,y=160)=>({clientX:x,clientY:y,pointerId:1});
+vm.runInContext('globalThis.originalDragSave=scheduleSave;globalThis.dragSaves=0;scheduleSave=()=>dragSaves++;',context);
+for(const mode of ['video','title','credit','caption','scene']){
+ const setup=mode==='video'?"panel='settings'":mode==='scene'?"panel='effects';effectTab='cards';state.overlays=[newCard(12)];selectedCard=state.overlays[0].id":"panel='text';textLayer="+JSON.stringify(mode);
+ const target=mode==='scene'?'state.overlays[0]':mode==='title'||mode==='credit'?'state.design.'+mode:'state';
+ const xKey=mode==='video'?'panX':mode==='caption'?'captionX':'x',yKey=mode==='video'?'panY':mode==='caption'?'captionY':'y';
+ const seed=(x=.5,y=.5)=>vm.runInContext(`state=initial();current=1;selectedCard=null;history=[];future=[];${setup};${target}.${xKey}=${x};${target}.${yKey}=${y};edit(()=>state.zoom=1.5);undo();dragSaves=0;`,context);
+ const position=()=>evaluate(`[${target}.${xKey},${target}.${yKey}]`);
+ for(const end of ['onpointerup','onpointercancel']){
+  seed();const before=evaluate('({state,history,future})');
+  preview.onpointerdown(pointer());preview[end]();
+  assert.deepEqual(evaluate('({state,history,future})'),before,mode+' no-motion '+end+' preserves redo');
+  assert.equal(evaluate('dragSaves'),0);
+  seed();preview.onpointerdown(pointer());preview.onpointermove(pointer());preview[end]();
+  assert.equal(evaluate('future.length'),1,mode+' same coordinates preserve redo');assert.equal(evaluate('dragSaves'),0);
+  const xmax=mode==='video'?1:.9,ymax=mode==='video'?1:mode==='scene'?.8:mode==='caption'?.9:.93;
+  seed(xmax,ymax);preview.onpointerdown(pointer());preview.onpointermove(pointer(350,260));preview[end]();
+  assert.deepEqual(position(),[xmax,ymax]);assert.equal(evaluate('history.length'),0);assert.equal(evaluate('future.length'),1);assert.equal(evaluate('dragSaves'),0);
+  const xmin=mode==='video'?-1:.1,ymin=mode==='video'?-1:mode==='scene'?.08:mode==='caption'?.1:.06;
+  seed(xmin,ymin);preview.onpointerdown(pointer());preview.onpointermove(pointer(150,60));preview[end]();
+  assert.deepEqual(position(),[xmin,ymin]);assert.equal(evaluate('history.length'),0);assert.equal(evaluate('future.length'),1);assert.equal(evaluate('dragSaves'),0);
+  seed();const original=evaluate('state');preview.onpointerdown(pointer());
+  preview.onpointermove(pointer(260,180));preview.onpointermove(pointer(270,200));
+  assert.equal(evaluate('history.length'),1,mode+' coalesces real moves');assert.equal(evaluate('future.length'),0);
+  const moved=evaluate('state');assert.notDeepEqual(moved,original);preview[end]();
+  assert.deepEqual(position(),[.5+20/540,.5+40/960],mode+' retains existing coordinate conversion');
+  assert.equal(evaluate('dragSaves'),1,mode+' saves one changed gesture');
+  preview.onpointermove(pointer(300,300));preview[end]();assert.deepEqual(evaluate('state'),moved);assert.equal(evaluate('dragSaves'),1);
+  vm.runInContext('undo()',context);assert.deepEqual(evaluate('state'),original);
+  vm.runInContext('undo(true)',context);assert.deepEqual(evaluate('state'),moved);
+  preview.onpointerdown(pointer());preview.onpointermove(pointer(280,210));preview[end]();
+  assert.equal(evaluate('history.length'),2,mode+' starts a new undo group for the next gesture');
+  vm.runInContext('undo()',context);assert.deepEqual(evaluate('state'),moved);
+ }
+}
+for(const layer of ['title','credit']){
+ vm.runInContext(`state=initial();panel='text';textLayer='${layer}';state.design.${layer}.enabled=false;history=[];future=['retained'];dragSaves=0;`,context);
+ const before=evaluate('state');preview.onpointerdown(pointer());preview.onpointermove(pointer(300,300));preview.onpointerup();
+ assert.deepEqual(evaluate('state'),before);assert.deepEqual(evaluate('future'),['retained']);assert.equal(evaluate('history.length'),0);assert.equal(evaluate('dragSaves'),0);
+}
+for(const moved of [false,true]){
+ vm.runInContext("state=initial();panel='settings';history=[];future=[];dragSaves=0;",context);
+ preview.onpointerdown(pointer());if(moved)preview.onpointermove(pointer(270,200));
+ vm.runInContext(moved?'undo()':'state=initial();state.zoom=2;',context);
+ const replacement=evaluate('({state,history,future,dragSaves})');
+ preview.onpointermove(pointer(300,300));preview.onpointerup();
+ assert.deepEqual(evaluate('({state,history,future,dragSaves})'),replacement,'A stale gesture cannot mutate a replaced/undone project');
+}
+for(const flag of ["exporting=true","restorePhase='restoring'"]){
+ vm.runInContext(`state=initial();panel='settings';history=[];future=['retained'];dragSaves=0;${flag};`,context);
+ const before=evaluate('({state,history,future})');preview.onpointerdown(pointer());preview.onpointermove(pointer(300,300));preview.onpointercancel();
+ assert.deepEqual(evaluate('({state,history,future})'),before);assert.equal(evaluate('dragSaves'),0);
+ vm.runInContext("exporting=false;restorePhase='ready';",context);
+}
+vm.runInContext('scheduleSave=originalDragSave;delete globalThis.originalDragSave;delete globalThis.dragSaves;state=initial();history=[];future=[];',context);
+console.log('PASS: preview no-op/cancel/boundary gestures preserve redo, actual drags group history, all layer targets undo/redo.');
+
 // The installed browser API uses the real commit path, including undo and busy guards.
 await context.window.moment.ready;
 vm.runInContext('state=initial();timelineCache=null;history=[];future=[];exporting=false;current=0;selected=0;',context);

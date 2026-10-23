@@ -156,6 +156,11 @@ export function createTimelineView($, clock = () => performance.now()) {
             marks.push(count * step);
         if (!marks.length)
             marks.push(0);
+        // Minor ticks subdivide each label by a whole-number factor so they mark
+        // real times instead of an arbitrary grid, and thin out when space is tight.
+        const spacing = total > 0 ? width * step / total : 0;
+        const subdivisions = [10, 5, 4, 2].find(n => spacing / n >= 24) || 1;
+        $('#ruler').style.setProperty('--ruler-tick', `${total > 0 ? step / subdivisions / total * 100 : 100}%`);
         $('#ruler').innerHTML = marks.map(at =>
             `<span style="left:${total > 0 ? Number((at / total * 100).toFixed(4)) : 0}%">${rulerLabel(at)}</span>`
         ).join('');

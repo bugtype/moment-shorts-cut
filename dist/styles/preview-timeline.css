@@ -320,7 +320,7 @@ input[type=range] {
   font-size:8px;
   color:#adb2a4;
   cursor:pointer;
-  background:repeating-linear-gradient(90deg,#e9ede1 0,#e9ede1 1px,transparent 1px,transparent 2.5%) bottom/100% 5px no-repeat
+  background:repeating-linear-gradient(90deg,#e9ede1 0,#e9ede1 1px,transparent 1px,transparent var(--ruler-tick,2.5%)) bottom/100% 5px no-repeat
 }
 .ruler span {
   position:absolute;

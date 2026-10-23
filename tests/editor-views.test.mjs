@@ -92,6 +92,7 @@ test('ruler labels land on round intervals without repeating', () => {
   const lefts = () => [...query('#ruler').innerHTML.matchAll(/left:([\d.]+)%/g)].map(match => match[1]);
   assert.deepEqual(labels(), ['00:00', '00:01', '00:02', '00:03', '00:04']);
   assert.deepEqual(lefts(), ['0', '25', '50', '75', '100']);
+  assert.equal(query('#ruler').style['--ruler-tick'], '5%');
 
   state.clips = [{ start: 0, end: 12 }];
   state.speed = 2;
@@ -115,10 +116,12 @@ test('ruler labels land on round intervals without repeating', () => {
   view.render(state, .8, { selected: 0, thumbnail: '', hasAudio: false });
   assert.deepEqual(labels(), ['00:00', '00:00.2', '00:00.4', '00:00.6', '00:00.8']);
   assert.deepEqual(lefts(), ['0', '25', '50', '75', '100']);
+  assert.equal(query('#ruler').style['--ruler-tick'], '5%');
   query('#tracksArea').clientWidth = 2400;
   view.render(state, .8, { selected: 0, thumbnail: '', hasAudio: false });
   assert.equal(labels().length, 9);
   assert.equal(labels()[1], '00:00.1');
+  assert.equal(query('#ruler').style['--ruler-tick'], '1.25%');
 
   // A project that ends between marks keeps every label on a round time.
   state.clips = [{ start: 0, end: 12.5 }];
@@ -126,6 +129,7 @@ test('ruler labels land on round intervals without repeating', () => {
   view.render(state, 12.5, { selected: 0, thumbnail: '', hasAudio: false });
   assert.deepEqual(labels(), ['00:00', '00:02', '00:04', '00:06', '00:08', '00:10']);
   assert.deepEqual(lefts(), ['0', '16', '32', '48', '64', '80']);
+  assert.equal(query('#ruler').style['--ruler-tick'], '4%');
 });
 
 test('timeline presentation retains occurrence nodes and edits only display state', () => {

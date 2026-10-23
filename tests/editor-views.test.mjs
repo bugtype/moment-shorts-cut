@@ -63,6 +63,7 @@ test('timeline zoom cycles readable levels and follows the playhead', () => {
   const button = query('#timelineZoom'), label = query('#timelineZoomLabel');
   const body = query('#timelineBody'), area = query('#tracksArea');
   assert.equal(view.getZoom(), 1);
+  assert.deepEqual(view.zoomLevels(), [1, 2, 4, 8]);
 
   assert.equal(view.cycleZoom(), 2);
   assert.equal(label.textContent, '2×');

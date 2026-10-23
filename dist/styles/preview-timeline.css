@@ -247,6 +247,7 @@ input[type=range] {
   overflow-x:auto;
   overflow-y:hidden;
   overscroll-behavior-x:contain;
+  touch-action:pan-x pan-y;
   scrollbar-width:thin
 }
 .track-labels {

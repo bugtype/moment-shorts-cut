@@ -192,5 +192,5 @@ export function createTimelineView($, clock = () => performance.now()) {
                 label.textContent = progress + '%';
         }
     }
-    return { render, renderLayers, updateTime, setCollapsed, isCollapsed: () => collapsed, setZoom, cycleZoom, getZoom: () => zoom };
+    return { render, renderLayers, updateTime, setCollapsed, isCollapsed: () => collapsed, setZoom, cycleZoom, getZoom: () => zoom, zoomLevels: () => [...ZOOM_LEVELS] };
 }

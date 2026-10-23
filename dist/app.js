@@ -2,15 +2,16 @@ import { createDemoProject, createProjectDocument, srtTimestamp, projectSrt, rea
 import { prepareCommand } from './core/commands.mjs';
 import { CommandError } from './core/validation.mjs';
 import { createEditorService } from './integration/editor-service.mjs';
-import { captionClock, findCaption, captionOccurrences, editedCaptions, mapAudioCaptions, parseSubtitles, MAX_SUBTITLE_BYTES, MAX_CAPTIONS } from './captions.mjs';
+import { captionOccurrences, editedCaptions, mapAudioCaptions, parseSubtitles, MAX_SUBTITLE_BYTES, MAX_CAPTIONS } from './captions.mjs';
 import { renderCaptionTrack, renderCaptionTrackError, updateTimelineMarkup } from './timeline-view.mjs';
 import { createInputHistory } from './input-history.mjs';
-import { defaultEnhancements, clipEffects, newCard, drawSceneCards, splitCaptionText, retimeOutputLayers, activeSceneLayers, sceneBounds } from './effects.mjs';
+import { defaultEnhancements, newCard, splitCaptionText, retimeOutputLayers, activeSceneLayers, sceneBounds } from './effects.mjs';
 import { TEMPLATES, REFERENCE_SOURCES, applyTemplate, visualPreset, saveCustomTemplate } from './template-catalog.mjs';
 import { readTemplateLibrary, validateTemplateLibrary } from './template-library.mjs';
 import { mountTemplateGallery } from './template-gallery.mjs';
 import { mountEffectsPanel } from './effects-panel.mjs';
-import { defaultDesign, migrateProject, applyDesignPreset, videoFrame, createTypographyRenderer } from './typography.mjs';
+import { migrateProject } from './typography.mjs';
+import { createCompositionRenderer } from './composition-renderer.mjs';
 import { createProjectStore } from './project-store.mjs';
 import { mountDesignPanel } from './design-panel.mjs';
 const $ = (s, r = document) => r.querySelector(s);
@@ -32,7 +33,7 @@ const galleryUI={query:'',category:'전체'};
 let savedTemplates=[],favoriteTemplates=[],templateLibraryError='';
 try{const library=readTemplateLibrary(localStorage.getItem('moment-templates-v1'),localStorage.getItem('moment-favorites-v1'));savedTemplates=library.templates;favoriteTemplates=library.favorites;}
 catch{templateLibraryError='저장된 템플릿·즐겨찾기를 읽을 수 없습니다. 원본 저장값은 유지되며 이번 세션의 템플릿 저장·삭제·즐겨찾기 변경은 차단됩니다. 기본 템플릿과 프로젝트 편집은 사용할 수 있습니다. 새로고침은 읽기를 다시 시도합니다.';}
-const typography=createTypographyRenderer(()=>document.createElement('canvas'));
+const composition=createCompositionRenderer(()=>document.createElement('canvas'));
 const projectStore=createProjectStore();
 // Session-only protection: never overwrite a project whose restore is incomplete.
 let restorePhase='restoring',restoreMessage='프로젝트를 불러오는 중…',recoveryValid=false,recoveryBaseline='';
@@ -190,7 +191,7 @@ const templateDemos=new WeakMap();
 function templateProject(template){if(templateDemos.has(template))return templateDemos.get(template);const p=initial();applyTemplate(p,template,true);p.globalKeywords=p.globalKeywords||'순간, 속도';if(template.id==='interview')p.captions.forEach((cap,i)=>cap.speaker=String(i%2));templateDemos.set(template,p);return p;}
 function renderTemplateCanvas(target,template,fraction=.4){
  const p=templateProject(template),t=clamp(fraction,0,.999)*12;
- paintComposition(target.getContext('2d'),target.width,target.height,p,{source:sampleRaster||sample,sw:540,sh:960,ready:sample.complete,sourceTime:t,time:t,total:12,elapsed:t,remaining:12-t,progress:t/12});
+ composition.draw(target.getContext('2d'),target.width,target.height,p,{source:sampleRaster||sample,sw:540,sh:960,ready:sample.complete,sourceTime:t,time:t,total:12,elapsed:t,remaining:12-t,progress:t/12});
 }
 function renderGallery(target){
  mountTemplateGallery(target,{ui:galleryUI,active:state.templateId,custom:savedTemplates,favorites:favoriteTemplates,error:templateLibraryError,thumbnail:renderTemplateCanvas,preview:openTemplatePreview,save:saveTemplateDialog,
@@ -283,25 +284,9 @@ function renderPanel(){const target=$('#panelContent');if(panel==='templates'){r
  icons(target);updateLayerGuide();
 }
 function switchPanel(next){if(record&&next!=='audio'){toast('녹음을 먼저 완료해 주세요.');return;}panel=next;if(next==='settings')openInspector('frame');else if(next==='captions'||(next==='text'&&textLayer==='caption'))openInspector('caption');$$('[data-panel]').forEach(b=>{b.classList.toggle('active',b.dataset.panel===panel);b.setAttribute('aria-pressed',b.dataset.panel===panel);});renderPanel();}
-function paintComposition(c,w,h,p,media){
- const frame=videoFrame(p.design,w,h),fx=clipEffects(p.effects,media.elapsed,media.remaining,media.progress);
- c.fillStyle=p.design.background;c.fillRect(0,0,w,h);
- if(media.ready&&media.sw&&media.sh){
-  const scale=(p.fit==='cover'?Math.max(frame.w/media.sw,frame.h/media.sh):Math.min(frame.w/media.sw,frame.h/media.sh))*p.zoom*fx.zoom;
-  const dw=media.sw*scale,dh=media.sh*scale,x=frame.x+(frame.w-dw)/2+p.panX*frame.w,y=frame.y+(frame.h-dh)/2+p.panY*frame.h;
-  c.save();c.beginPath();c.rect(frame.x,frame.y,frame.w,frame.h);c.clip();
-  c.filter=`brightness(${p.effects.brightness}) contrast(${p.effects.contrast}) saturate(${p.effects.saturation})`;
-  c.drawImage(media.source,x,y,dw,dh);c.restore();
-  if(p.effects.vignette>0){const gradient=c.createRadialGradient(w*.5,h*.5,w*.15,w*.5,h*.5,h*.7);gradient.addColorStop(0,'#00000000');gradient.addColorStop(1,`rgba(0,0,0,${p.effects.vignette})`);c.fillStyle=gradient;c.fillRect(0,0,w,h);}
- }
- const cap=findCaption(p.captions,media.sourceTime,media.time*p.speed);
- typography.draw(c,w,h,p,cap?captionClock(cap,media.sourceTime,media.time*p.speed):media.sourceTime,media.time,cap);
- drawSceneCards(c,w,h,p,media.time,media.total,typography);
- if(fx.opacity>0){c.save();c.globalAlpha=fx.opacity*(p.effects.transition==='flash'?.75:1);c.fillStyle=p.effects.transition==='flash'?'#ffffff':'#000000';c.fillRect(0,0,w,h);c.restore();}
-}
 function paint(c,w,h){
  const pos=locate(current),clip=state.clips[pos.index];
- paintComposition(c,w,h,state,{source:state.kind==='demo'?(sampleRaster||sample):video,sw:state.kind==='demo'?540:video.videoWidth,sh:state.kind==='demo'?960:video.videoHeight,ready:state.kind==='demo'?sample.complete:restorePhase==='ready'&&video.readyState>=2,sourceTime:pos.source,time:current/state.speed,total:duration()/state.speed,elapsed:(pos.source-clip.start)/state.speed,remaining:(clip.end-pos.source)/state.speed,progress:(pos.source-clip.start)/(clip.end-clip.start)});
+ composition.draw(c,w,h,state,{source:state.kind==='demo'?(sampleRaster||sample):video,sw:state.kind==='demo'?540:video.videoWidth,sh:state.kind==='demo'?960:video.videoHeight,ready:state.kind==='demo'?sample.complete:restorePhase==='ready'&&video.readyState>=2,sourceTime:pos.source,time:current/state.speed,total:duration()/state.speed,elapsed:(pos.source-clip.start)/state.speed,remaining:(clip.end-pos.source)/state.speed,progress:(pos.source-clip.start)/(clip.end-clip.start)});
 }
 function draw(){
  if(exporting&&exportContext){paint(exportContext,exportCanvas.width,exportCanvas.height);ctx.drawImage(exportCanvas,0,0,canvas.width,canvas.height);}
@@ -587,7 +572,7 @@ async function init(){
   recoveryBaseline=JSON.stringify(state);clearTimeout(saveTimer);pause();recoveryBlocked();
  }
  document.body.classList.toggle('restore-failed',restorePhase==='failed');
- renderPanel();renderInspector();renderTimeline();resizePreview();switchPanel(panel);document.fonts.ready.then(()=>{typography.clear();requestDraw();if(panel==='templates')renderPanel();});editorReady=true;resolveEditorReady();
+ renderPanel();renderInspector();renderTimeline();resizePreview();switchPanel(panel);document.fonts.ready.then(()=>{composition.clear();requestDraw();if(panel==='templates')renderPanel();});editorReady=true;resolveEditorReady();
 }
 window.moment=Object.freeze({apiVersion:1,ready:editorReadyPromise,execute:editorService.execute,describe:editorService.describe,capabilities:editorService.capabilities,downloadProject:downloadProjectSettings,importProject:importProjectSettings});
 init();

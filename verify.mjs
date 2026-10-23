@@ -12,6 +12,7 @@ import {readTemplateLibrary,validateTemplateLibrary} from './dist/template-libra
 import { mountTemplateGallery } from './dist/template-gallery.mjs';
 import { mountEffectsPanel } from './dist/effects-panel.mjs';
 import * as typographyModule from './dist/typography.mjs';
+import { createCompositionRenderer } from './dist/composition-renderer.mjs';
 import { createProjectStore } from './dist/project-store.mjs';
 import { createMediaStorageFixture } from './tests/fixtures/media-storage.mjs';
 import { mountDesignPanel } from './dist/design-panel.mjs';
@@ -47,7 +48,7 @@ for(const id of ['trimStart','trimEnd','panelTrimStart','panelTrimEnd']){
 }
 const documentEvents=new Map();
 const doc={querySelector:element,querySelectorAll:()=>[],addEventListener(name,handler){documentEvents.set(name,handler);},body:element('body'),fonts:{ready:Promise.resolve()},createElement:()=>element('canvas-'+(++canvasCount))};
-const context=vm.createContext({document:doc,window:{addEventListener(){}},Image:class{complete=false;},localStorage:{getItem:()=>null,setItem(){}},requestAnimationFrame(callback){pendingFrames.set(++rafCounter,callback);return rafCounter;},cancelAnimationFrame(id){pendingFrames.delete(id);},setTimeout(){},clearTimeout(){},setInterval(){},clearInterval(){},console,URL,Blob,TextDecoder,performance,Number,Math,Promise,structuredClone,...projectModule,prepareCommand,CommandError,createEditorService,...captionModule,renderCaptionTrack,renderCaptionTrackError,updateTimelineMarkup,createInputHistory,...effectsModule,...templateModule,readTemplateLibrary,validateTemplateLibrary,mountTemplateGallery,mountEffectsPanel,...typographyModule,createProjectStore,mountDesignPanel});
+const context=vm.createContext({document:doc,window:{addEventListener(){}},Image:class{complete=false;},localStorage:{getItem:()=>null,setItem(){}},requestAnimationFrame(callback){pendingFrames.set(++rafCounter,callback);return rafCounter;},cancelAnimationFrame(id){pendingFrames.delete(id);},setTimeout(){},clearTimeout(){},setInterval(){},clearInterval(){},console,URL,Blob,TextDecoder,performance,Number,Math,Promise,structuredClone,...projectModule,prepareCommand,CommandError,createEditorService,...captionModule,renderCaptionTrack,renderCaptionTrackError,updateTimelineMarkup,createInputHistory,...effectsModule,...templateModule,readTemplateLibrary,validateTemplateLibrary,mountTemplateGallery,mountEffectsPanel,...typographyModule,createCompositionRenderer,createProjectStore,mountDesignPanel});
 vm.runInContext(source.replace(/^import .*;$/gm,'').replace(/init\(\);\s*$/,'globalThis.ready=init();'),context);
 await context.ready;
 for(const [id,cb] of pendingFrames){pendingFrames.delete(id);cb(performance.now());}
@@ -429,7 +430,7 @@ for(const template of templateModule.TEMPLATES){
  const frameProject=JSON.stringify(project);
  // Exercise real shared compositor branches at both preview and output dimensions.
  for(const fraction of [0,.1,.4,.71,.99])for(const [width,height] of [[540,960],[1080,1920]]){
-  vm.runInContext(`paintComposition(ctx,${width},${height},${frameProject},{source:sample,sw:540,sh:960,ready:true,sourceTime:${12*fraction},time:${12*fraction},total:12,elapsed:${12*fraction},remaining:${12*(1-fraction)},progress:${fraction}})`,context);
+  vm.runInContext(`composition.draw(ctx,${width},${height},${frameProject},{source:sample,sw:540,sh:960,ready:true,sourceTime:${12*fraction},time:${12*fraction},total:12,elapsed:${12*fraction},remaining:${12*(1-fraction)},progress:${fraction}})`,context);
  }
  templateNames.push(template.id);
 }

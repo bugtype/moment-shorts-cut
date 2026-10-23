@@ -787,6 +787,15 @@ console.log('LIMIT: no actual browser layout, microphone capture, AI inference o
 vm.runInContext('state=initial();timelineCache=null;selected=0;',context);
 await vm.runInContext('importSrt(new Blob(["WEBVTT\\n\\n00:01.000 --> 00:02.500\\nVTT 자막\\n\\n00:03.000 --> 00:04.000\\n둘째 문장"]))',context);
 assert.deepEqual(evaluate('state.captions'),[{start:1,end:2.5,text:'VTT 자막'},{start:3,end:4,text:'둘째 문장'}]);
+context.lineOriginal=evaluate('[state,history,future]');
+for(const text of ['\ufeffWEBVTT\r\r00:00.000 --> 00:01.000\r첫째\r둘째 🌊','WEBVTT\n\n00:00.000 --> 00:01.000\r첫째\r\n둘째 🌊']){
+ context.lineFile=new Blob([text]);await vm.runInContext('importSrt(lineFile)',context);
+ assert.deepEqual(evaluate('state.captions'),[{start:0,end:1,text:'첫째\n둘째 🌊'}]);
+ const exported=await context.window.moment.execute('captions.export');assert.equal(exported.ok,true);
+ assert.deepEqual(captionModule.parseSubtitles(exported.data.text,12),evaluate('state.captions'));
+ vm.runInContext('undo()',context);assert.deepEqual(evaluate('state'),context.lineOriginal[0]);
+ vm.runInContext('[state,history,future]=structuredClone(lineOriginal);timelineCache=null;',context);
+}
 vm.runInContext('state.clips=[{start:0,end:3},{start:5,end:7},{start:9,end:12}];timelineCache=null;selected=1;',context);
 element('#moveLeft').onclick();assert.deepEqual(evaluate('state.clips'),[{start:5,end:7},{start:0,end:3},{start:9,end:12}]);
 element('#moveRight').onclick();assert.deepEqual(evaluate('state.clips'),[{start:0,end:3},{start:5,end:7},{start:9,end:12}]);

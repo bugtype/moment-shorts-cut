@@ -1,12 +1,33 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {parseSubtitles, MAX_SUBTITLE_BYTES} from '../dist/captions.mjs';
-import {createDemoProject, projectSrt} from '../dist/core/project.mjs';
+import {createDemoProject, createProjectDocument, readProjectDocument, projectSrt} from '../dist/core/project.mjs';
 import {CommandError} from '../dist/core/validation.mjs';
 
 test('SRT/VTT imports support CRLF, cue IDs, settings, multiline text and end clipping', () => {
   assert.deepEqual(parseSubtitles('1\r\n00:00:01,250 --> 00:00:03,000\r\n첫째\r\n둘째\r\n', 2), [{start:1.25,end:2,text:'첫째\n둘째'}]);
   assert.deepEqual(parseSubtitles('WEBVTT\n\ncue-id\n00:01.000 --> 00:03.000 align:start\n<b>안녕</b> 🌊\n', 12), [{start:1,end:3,text:'안녕 🌊'}]);
+});
+
+test('LF, CRLF, CR and mixed subtitle terminators preserve cue boundaries and payload lines', () => {
+  for(const header of ['', '\ufeffWEBVTT\n\n'])for(const ending of ['\n','\r\n','\r','mixed']){
+    const lf=header+'cue-one\n00:00.000 --> 00:01.000 align:start\n첫째 &amp;\n둘째 🌊 e\u0301\n\ncue-two\n00:01.000 --> 00:03.000\n다음 자막\n';
+    const text=ending==='mixed'?lf.replace('align:start\n','align:start\r').replace('첫째 &amp;\n','첫째 &amp;\r\n'):lf.replaceAll('\n',ending);
+    const expected=[{start:0,end:1,text:'첫째 &\n둘째 🌊 e\u0301'},{start:1,end:2,text:'다음 자막'}];
+    const captions=parseSubtitles(text,2);assert.deepEqual(captions,expected);
+    const project=createDemoProject();project.captions=captions;
+    const document=createProjectDocument(project);
+    assert.deepEqual(readProjectDocument(JSON.parse(JSON.stringify(document))).captions,expected);
+    assert.deepEqual(parseSubtitles(projectSrt(project),12),expected);
+    assert.equal(project.captions,captions,'export does not replace the authored captions');
+  }
+});
+
+test('standalone CR counts as a payload newline and does not repair malformed timing',()=>{
+  const cue='WEBVTT\r\r00:00.000 --> 00:01.000\r';
+  assert.equal(parseSubtitles(cue+'a'.repeat(999)+'\r'+'b'.repeat(1000),12)[0].text.length,2000);
+  assert.throws(()=>parseSubtitles(cue+'a'.repeat(1000)+'\r'+'b'.repeat(1000),12),/2,000/);
+  for(const content of ['00:99.000 --> 01:40.000\rbad','00:02.000 --> 00:01.000\rbad','00:01.000 --> 00:02.000\r\r'])assert.throws(()=>parseSubtitles(content,12));
 });
 
 test('invalid timestamp fields, reversed intervals, empty and out-of-range cues are rejected', () => {
@@ -83,10 +104,11 @@ test('ordinary multiline SRT retains numeric and timestamp-looking text without 
 });
 
 test('empty and malformed imported cues never consume the following valid cue', () => {
-  for (const newline of ['\n','\r\n']) {
+  for (const newline of ['\n','\r\n','\r','mixed']) {
     for (const blank of ['', ' \t']) {
-      const content=['1','00:00:00,000 --> 00:00:01,000',blank,'2','00:00:02,000 --> 00:00:03,000','Keep me','','','3','00:99:00,000 --> 00:99:01,000','invalid','','4','00:00:04,000 --> 00:00:05,000','123','00:00:06,000 --> 00:00:07,000','literal text'].join(newline);
-      assert.deepEqual(parseSubtitles(content,12),[{start:2,end:3,text:'Keep me'},{start:4,end:5,text:'123\n00:00:06,000 --> 00:00:07,000\nliteral text'}]);
+      const content=['1','00:00:00,000 --> 00:00:01,000',blank,'2','00:00:02,000 --> 00:00:03,000','Keep me','','','3','00:99:00,000 --> 00:99:01,000','invalid','','4','00:00:04,000 --> 00:00:05,000','123','00:00:06,000 --> 00:00:07,000','literal text'].join(newline==='mixed'?'\n':newline);
+      const text=newline==='mixed'?content.replace(/([^\n])\n(?=[^\n])/g,(match,char,index)=>char+(index%2?'\r':'\r\n')):content;
+      assert.deepEqual(parseSubtitles(text,12),[{start:2,end:3,text:'Keep me'},{start:4,end:5,text:'123\n00:00:06,000 --> 00:00:07,000\nliteral text'}]);
     }
   }
 });

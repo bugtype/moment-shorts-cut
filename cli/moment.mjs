@@ -2,6 +2,7 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { randomUUID } from 'node:crypto';
+import { isUtf8 } from 'node:buffer';
 import { createDemoProject, createProjectDocument, readProjectDocument } from '../dist/core/project.mjs';
 import { createEditorService, errorResult } from '../dist/integration/editor-service.mjs';
 import { CommandError } from '../dist/core/validation.mjs';
@@ -28,7 +29,9 @@ function parse(argv){
 }
 async function jsonFile(file){
   const info=await fs.stat(file);if(info.size>10*1024*1024)throw new CommandError('FILE_TOO_LARGE','JSON 파일은 10 MB 이하만 지원합니다.');
-  return JSON.parse((await fs.readFile(file,'utf8')).replace(/^\uFEFF/,''));
+  const bytes=await fs.readFile(file);
+  if(!isUtf8(bytes))throw new CommandError('INVALID_JSON','JSON 파일을 올바른 UTF-8로 저장하세요.');
+  return JSON.parse(bytes.toString('utf8').replace(/^\uFEFF/,''));
 }
 async function writeOutput(file,text,overwrite){
   const absolute=path.resolve(file),temporary=path.join(path.dirname(absolute),`.moment-${randomUUID()}.tmp`);

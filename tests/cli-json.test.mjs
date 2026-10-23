@@ -15,7 +15,7 @@ test('CLI accepts a single UTF-8 file BOM while preserving authored Unicode and 
   try{
     const project=path.join(directory,'project.json'),args=path.join(directory,'args.json'),output=path.join(directory,'output.json');
     const document=createProjectDocument(createDemoProject());
-    document.project.name='\ufeff한국어 😀 e\u0301';document.project.design.title.lines=['앞\ufeff뒤','\ufeff둘째 줄'];
+    document.project.name='\ufeff한국어 😀 e\u0301 �';document.project.design.title.lines=['앞\ufeff뒤','\ufeff둘째 줄'];
     for(const prefix of ['', '\ufeff']){
       const input=Buffer.from(prefix+JSON.stringify(document));await fs.writeFile(project,input);
       const read=run('exec','project.get','--project',project);
@@ -69,5 +69,39 @@ test('JSON file byte limit includes the UTF-8 BOM',async()=>{
     await fs.appendFile(args,' ');
     const result=run('exec','templates.list','--args-file',args);
     assert.equal(result.status,1);assert.equal(JSON.parse(result.stderr).error.code,'FILE_TOO_LARGE');
+  }finally{await fs.rm(directory,{recursive:true,force:true});}
+});
+
+test('malformed UTF-8 inside JSON strings cannot be silently repaired and overwrite authored files',async()=>{
+  const directory=await fs.mkdtemp(path.join(tmpdir(),'moment-json-utf8-'));
+  try{
+    const project=path.join(directory,'project.json'),damaged=path.join(directory,'damaged.json'),args=path.join(directory,'args.json'),missing=path.join(directory,'missing.json');
+    const original=JSON.stringify(createProjectDocument(createDemoProject()));await fs.writeFile(project,original);
+    const document=JSON.parse(original);document.project.name='MARKER';
+    const damagedText=JSON.stringify(document),argumentText=JSON.stringify({patch:{name:'MARKER'}});
+    const insert=(text,bytes,prefix)=>{
+      const offset=text.indexOf('MARKER');
+      return Buffer.concat([Buffer.from(prefix+text.slice(0,offset)),Buffer.from(bytes),Buffer.from(text.slice(offset+6))]);
+    };
+    for(const bytes of [[0xff],[0x80],[0xc0,0xaf],[0xe2,0x82],[0xed,0xa0,0x80],[0xf4,0x90,0x80,0x80]]){
+      for(const prefix of ['', '\ufeff']){
+        const damagedBytes=insert(damagedText,bytes,prefix),argBytes=insert(argumentText,bytes,prefix);
+        await fs.writeFile(damaged,damagedBytes);await fs.writeFile(args,argBytes);
+        for(const command of [
+          ['exec','project.update','--project',damaged,'--json','{"patch":{"zoom":1.5}}','--out',damaged],
+          ['exec','project.update','--project',project,'--args-file',args,'--out',project],
+          ['exec','project.update','--project',project,'--args-file',args,'--out',missing],
+        ]){
+          const result=run(...command,'--overwrite');
+          assert.equal(result.status,1);assert.equal(result.stdout,'');
+          const error=JSON.parse(result.stderr).error;
+          assert.equal(error.code,'INVALID_JSON');assert.match(error.message,/UTF-8/);
+          assert.deepEqual(await fs.readFile(damaged),damagedBytes);
+          assert.deepEqual(await fs.readFile(args),argBytes);
+          assert.equal(await fs.readFile(project,'utf8'),original);
+          assert.deepEqual((await fs.readdir(directory)).sort(),['args.json','damaged.json','project.json']);
+        }
+      }
+    }
   }finally{await fs.rm(directory,{recursive:true,force:true});}
 });

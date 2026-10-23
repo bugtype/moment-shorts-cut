@@ -79,6 +79,12 @@ test('preview serves modules with correct MIME types and never serves repository
   // hands them the height above the fixed rail instead of scrolling the page.
   assert.match(compactShell, /\.editor-area:has\(\.timeline:not\(\.collapsed\)\) \.stage \{\s*display:none\s*\}/);
   assert.match(compactShell, /\.editor-area:has\(\.timeline:not\(\.collapsed\)\) \.timeline-body \{\s*flex:1;\s*min-height:0;\s*overflow-y:auto;/);
+  // Compact screens grow tap targets inside the same 45px tool row, and phones
+  // wrap the player so the scrubber spans the full width.
+  assert.match(compactShell, /\.player-bar \.icon-button,\.player-bar \.play-button \{\s*width:38px;\s*height:38px/);
+  assert.match(compactShell, /\.timeline-tools \.icon-button \{\s*width:36px;\s*height:36px/);
+  assert.match(compactShell, /@media \(max-width:430px\) \{\s*\.player-bar \{\s*flex-wrap:wrap/);
+  assert.match(compactShell, /\.player-bar input\[type=range\] \{\s*order:10;\s*flex:1 0 100%/);
   for (const pathname of ['/package.json', '/.git/config', '/%2e%2e/package.json', '/..%2fpackage.json', '/missing.js']) {
     assert.equal((await fetch(origin + pathname)).status, 404, pathname);
   }

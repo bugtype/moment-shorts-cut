@@ -201,3 +201,60 @@
     overscroll-behavior:contain
   }
 }
+
+/* Compact touch screens: every control gets a forgiving tap size without
+   growing the 45px tool row. The hint yields its space to the targets. */
+@media (max-width:700px), (max-height:560px) and (orientation: landscape) {
+  .player-bar .icon-button,.player-bar .play-button {
+    width:38px;
+    height:38px
+  }
+  .player-bar input[type=range] {
+    height:28px
+  }
+  .player-bar select {
+    height:28px
+  }
+  .timeline-tools {
+    padding:0 8px;
+    gap:1px
+  }
+  .timeline-tools .icon-button {
+    width:36px;
+    height:36px
+  }
+  .timeline-tools .text-button {
+    min-height:36px;
+    padding:0 8px
+  }
+  .timeline-tools .thin-divider {
+    margin:0 3px
+  }
+  .timeline-hint {
+    display:none
+  }
+}
+
+/* Phones get a full-width scrubber: the player wraps to two rows so seeking is
+   not squeezed between the transport buttons and the speed menu. */
+@media (max-width:430px) {
+  .player-bar {
+    flex-wrap:wrap;
+    height:auto;
+    min-height:84px;
+    padding:7px 10px 9px;
+    gap:6px;
+    row-gap:5px;
+    align-content:center
+  }
+  .player-bar input[type=range] {
+    order:10;
+    flex:1 0 100%;
+    max-width:none;
+    margin:0
+  }
+  .player-bar #timeDisplay {
+    flex:1;
+    min-width:0
+  }
+}

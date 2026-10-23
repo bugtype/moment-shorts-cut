@@ -124,7 +124,8 @@
     display:none
   }
   .timeline {
-    height:210px
+    height:auto;
+    flex:0 0 auto
   }
   .timeline-body {
     overflow-y:auto;

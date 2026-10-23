@@ -886,6 +886,62 @@ assert.deepEqual(evaluate('[exportCanvas.width,exportCanvas.height]'),[1080,1920
 vm.runInContext('current=duration();stopExport(false);',context);
 assert.equal(downloads,1);assert.equal(evaluate('exporting'),false);assert.equal(stoppedExportTracks,4);
 console.log('PASS: export start/double-click guard/cancel/restart/completion, output dimensions and media-track cleanup with mocked codecs.');
+
+// Deferred media promises exercise request ownership, not browser playback timing.
+vm.runInContext('globalThis.savedPlayback={ensureAudio,seekVideo,play:video.play,pause:video.pause};globalThis.mediaPauses=0;video.pause=()=>mediaPauses++;',context);
+for(const stage of ['audio','seek','play'])for(const outcome of ['resolve','reject'])for(const next of ['paused','pending','playing']){
+ vm.runInContext("pause();state=initial();state.kind='video';current=1;video.currentTime=0;exporting=false;history=[];future=[];",context);
+ let finish,fail;const deferred=new Promise((resolve,reject)=>{finish=resolve;fail=reject;});
+ context.mediaDeferred=()=>deferred;
+ vm.runInContext(`ensureAudio=${stage==='audio'?'mediaDeferred':'async()=>{}'};seekVideo=${stage==='seek'?'mediaDeferred':'async()=>{}'};video.play=${stage==='play'?'mediaDeferred':'async()=>{}'};`,context);
+ const oldPlay=vm.runInContext('play()',context);await Promise.resolve();await Promise.resolve();await Promise.resolve();
+ vm.runInContext('pause();ensureAudio=async()=>{};seekVideo=async()=>{};video.play=async()=>{};',context);
+ let finishNext,newPlay;
+ if(next==='pending'){
+  context.newMediaDeferred=()=>new Promise(resolve=>{finishNext=resolve;});vm.runInContext('ensureAudio=newMediaDeferred',context);
+  newPlay=vm.runInContext('play()',context);
+ }else if(next==='playing')await vm.runInContext('play()',context);
+ element('#toast').textContent='unchanged';const before=evaluate('({state,history,future,playing,frameHandle,mediaPauses})');
+ if(outcome==='reject')fail(new Error('old media request'));else finish();await oldPlay;
+ assert.deepEqual(evaluate('({state,history,future,playing,frameHandle,mediaPauses})'),before,`${stage} ${outcome} cannot disturb ${next}`);
+ assert.equal(element('#toast').textContent,'unchanged');
+ if(newPlay){finishNext();await newPlay;assert.equal(evaluate('playing'),true);}
+}
+for(const stage of ['audio','seek','play']){
+ vm.runInContext("pause();state=initial();state.kind='video';current=1;video.currentTime=0;exporting=false;history=[];future=[];",context);
+ context.currentMediaFailure=async()=>{throw new Error('current media failure');};
+ vm.runInContext(`ensureAudio=${stage==='audio'?'currentMediaFailure':'async()=>{}'};seekVideo=${stage==='seek'?'currentMediaFailure':'async()=>{}'};video.play=${stage==='play'?'currentMediaFailure':'async()=>{}'};`,context);
+ await vm.runInContext('play()',context);assert.match(element('#toast').textContent,/재생할 수 없습니다/);assert.equal(evaluate('playing'),false);
+ assert.equal(evaluate('history.length'),0);assert.equal(evaluate('future.length'),0);
+}
+for(const phase of ['preparing','recording'])for(const outcome of ['resolve','reject']){
+ vm.runInContext("pause();state=initial();state.kind='video';current=0;video.currentTime=0;exporting=false;ensureAudio=async()=>{};seekVideo=async()=>{};",context);
+ let finishOld,failOld;
+ context.oldExportPlay=()=>new Promise((resolve,reject)=>{finishOld=resolve;failOld=reject;});
+ vm.runInContext('video.play=oldExportPlay',context);
+ const oldPlay=vm.runInContext('play()',context);await Promise.resolve();await Promise.resolve();assert.equal(typeof finishOld,'function');
+ let readyExport;const preparation=new Promise(resolve=>{readyExport=resolve;});context.exportPreparation=()=>preparation;
+ vm.runInContext('video.play=async()=>{};ensureAudio=exportPreparation;',context);
+ const exportingNow=vm.runInContext('startExport({mime:"video/webm;codecs=vp8,opus",ext:"webm"},720)',context);
+ if(phase==='recording'){readyExport();await exportingNow;}
+ element('#toast').textContent='new export';
+ const before=evaluate('({exporting,exportCancelled,playing,frameHandle,mediaPauses})'),beforeStops=stoppedExportTracks,beforeDownloads=downloads;
+ assert.equal(before.exporting,true);
+ if(outcome==='reject')failOld(new Error('old preview failure'));else finishOld();await oldPlay;
+ assert.deepEqual(evaluate('({exporting,exportCancelled,playing,frameHandle,mediaPauses})'),before,`${outcome} cannot affect ${phase} export`);
+ assert.equal(stoppedExportTracks,beforeStops);assert.equal(downloads,beforeDownloads);assert.equal(element('#toast').textContent,'new export');
+ if(phase==='preparing'){readyExport();await exportingNow;}
+ assert.equal(evaluate('playing'),true);assert.equal(evaluate('exportRecorder.state'),'recording');
+ vm.runInContext('stopExport(true)',context);assert.equal(evaluate('exporting'),false);assert.equal(downloads,beforeDownloads);
+}
+vm.runInContext("state=initial();state.kind='video';current=0;video.currentTime=0;ensureAudio=async()=>{};seekVideo=async()=>{};video.play=currentMediaFailure;",context);
+const beforeFailedExportDownloads=downloads,beforeFailedExportStops=stoppedExportTracks;
+await vm.runInContext('startExport({mime:"video/webm;codecs=vp8,opus",ext:"webm"},720)',context);
+assert.equal(evaluate('exporting'),false);assert.equal(evaluate('playing'),false);assert.equal(evaluate('exportCancelled'),true);
+assert.equal(stoppedExportTracks,beforeFailedExportStops+2);assert.equal(downloads,beforeFailedExportDownloads);
+vm.runInContext('ensureAudio=savedPlayback.ensureAudio;seekVideo=savedPlayback.seekVideo;video.play=savedPlayback.play;video.pause=savedPlayback.pause;delete globalThis.savedPlayback;delete globalThis.mediaPauses;pause();state=initial();',context);
+console.log('PASS: superseded audio/seek/play fulfillment and rejection preserve current playback; current failures still report.');
+console.log('PASS: stale preview completion cannot cancel preparing/running export; current export playback failure releases tracks without download.');
 console.log('LIMIT: no actual browser layout, microphone capture, AI inference or encoded MP4/WebM playback was tested.');
 
 vm.runInContext('state=initial();timelineCache=null;selected=0;',context);

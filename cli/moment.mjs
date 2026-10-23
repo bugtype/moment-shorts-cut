@@ -8,7 +8,7 @@ import { CommandError } from '../dist/core/validation.mjs';
 
 const usage=`Moment CLI · Node.js 20+
   node cli/moment.mjs commands
-  node cli/moment.mjs init --out project.json
+  node cli/moment.mjs init --out project.json [--overwrite]
   node cli/moment.mjs exec <command> --project project.json [--json '{}'] [--args-file args.json] [--out result.json] [--overwrite] [--dry-run]
 
 명령과 입력 규격: commands
@@ -17,8 +17,9 @@ const usage=`Moment CLI · Node.js 20+
 `;
 function parse(argv){
   const [mode,...tail]=argv,opts={},command=mode==='exec'?tail.shift():undefined;
+  const allowed=mode==='exec'?['--project','--json','--args-file','--out','--overwrite','--dry-run']:mode==='init'?['--out','--overwrite']:[];
   for(let i=0;i<tail.length;i++){
-    const key=tail[i];if(!['--project','--json','--args-file','--out','--overwrite','--dry-run'].includes(key)||Object.hasOwn(opts,key))throw new CommandError('CLI_USAGE','알 수 없거나 중복된 옵션입니다.');
+    const key=tail[i];if(!allowed.includes(key)||Object.hasOwn(opts,key))throw new CommandError('CLI_USAGE','이 명령에서 지원하지 않거나 중복된 옵션입니다.');
     if(['--overwrite','--dry-run'].includes(key))opts[key]=true;
     else {if(!tail[i+1]||tail[i+1].startsWith('--'))throw new CommandError('CLI_USAGE','옵션 값이 없습니다.');opts[key]=tail[++i];}
   }

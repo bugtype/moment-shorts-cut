@@ -1,3 +1,4 @@
+import { createTemplateWorkspace } from '../../dist/template-workspace.mjs';
 import { createMediaSources } from '../../dist/media-sources.mjs';
 import { createProjectPersistence } from '../../dist/project-persistence.mjs';
 import { createCaptionGeneration } from '../../dist/caption-generation.mjs';
@@ -33,7 +34,7 @@ import assert from 'node:assert/strict';
 // Synthetic DOM/media only. Each call owns a separate VM, controls and event queues.
 export async function createAppFixture() {
   const source=fs.readFileSync(new URL('../../dist/app.js',import.meta.url),'utf8');
-  const panelSource=['design-panel.mjs','effects-panel.mjs','template-gallery.mjs','panel-markup.mjs','template-preview.mjs','inspector-view.mjs','timeline-view.mjs','caption-panel.mjs'].map(f=>fs.readFileSync(new URL('../../dist/'+f,import.meta.url),'utf8')).join('\n');
+  const panelSource=['design-panel.mjs','effects-panel.mjs','template-gallery.mjs','template-workspace.mjs','panel-markup.mjs','template-preview.mjs','inspector-view.mjs','timeline-view.mjs','caption-panel.mjs'].map(f=>fs.readFileSync(new URL('../../dist/'+f,import.meta.url),'utf8')).join('\n');
   const html=fs.readFileSync(new URL('../../dist/index.html',import.meta.url),'utf8');
   const ids=new Set([...`${html}\n${source}\n${panelSource}`.matchAll(/id="([\w-]+)"/g)].map(m=>m[1]));
   const selectors=[...source.matchAll(/\$\('#([\w-]+)'\)/g)].map(m=>m[1]);
@@ -105,6 +106,11 @@ export async function createAppFixture() {
     renderCaptionTrack, renderCaptionTrackError, updateTimelineMarkup, createTimelineView, createInspectorView, createInputHistory,
     ...effectsModule, ...templateModule, readTemplateLibrary, validateTemplateLibrary,
     mountTemplateGallery, mountEffectsPanel, ...typographyModule, createCompositionRenderer,
+    createTemplateWorkspace: options => createTemplateWorkspace(options, {
+      readStorage: key => context.localStorage.getItem(key),
+      writeStorage: (key, value) => context.localStorage.setItem(key, value),
+      mount: (root, options) => context.mountTemplateGallery(root, options),
+    }),
     createProjectStore, createTranscriptionClient, createVideoExport, bindPreviewDrag, bindEditorKeyboard,
     createMediaSources: options => createMediaSources(options, {
       createURL: file => context.URL.createObjectURL(file),

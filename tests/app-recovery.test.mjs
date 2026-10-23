@@ -1,3 +1,4 @@
+import { createTemplateWorkspace } from '../dist/template-workspace.mjs';
 import { createMediaSources } from '../dist/media-sources.mjs';
 import { createProjectPersistence } from '../dist/project-persistence.mjs';
 import { createCaptionGeneration } from '../dist/caption-generation.mjs';
@@ -28,6 +29,11 @@ test('restore protection and isolated template library failures', async () => {
    const f={raw,media:structuredClone(media),jsonWrites:0,mediaWrites:0,reads:0,downloads:[],events:new Map(),timers:[],micCalls:0,libraryWrites:[],library:{'moment-templates-v1':templateRaw,'moment-favorites-v1':favoritesRaw}};
    const audioEvents=new Map(),fixtureAudio={duration:audioDuration,paused:true,pause(){this.paused=true;},removeAttribute(){},addEventListener(name,handler){audioEvents.set(name,handler);},removeEventListener(name){audioEvents.delete(name);},set src(value){queueMicrotask(()=>audioEvents.get(audioResult)?.());}};
    const app=vm.createContext({...context,
+    createTemplateWorkspace: options => createTemplateWorkspace(options, {
+      readStorage: key => app.localStorage.getItem(key),
+      writeStorage: (key, value) => app.localStorage.setItem(key, value),
+      mount: (root, options) => app.mountTemplateGallery(root, options),
+    }),
     createMediaSources: options => createMediaSources(options, {
       createURL: file => app.URL.createObjectURL(file),
       revokeURL: url => app.URL.revokeObjectURL(url),
@@ -162,10 +168,10 @@ test('restore protection and isolated template library failures', async () => {
    const r=recoveryApp({...options,raw:JSON.stringify({...projectModule.createDemoProject(),name:'preserved project'})});let api;
    r.app.mountTemplateGallery=(root,value)=>{api=value;mountTemplateGallery(root,value);};
    await r.init();assert.equal(r.value('editorReady'),true);assert.equal(r.value('persistence.restorePhase'),'ready');assert.equal(r.value('state.name'),'preserved project');
-   assert.match(r.value('templateLibraryError'),/원본 저장값은 유지/);assert.ok(element('#panelContent').innerHTML.includes('role="alert"'));
-   const stored=structuredClone(r.f.library),before=r.value('({savedTemplates,favoriteTemplates,state,history,future})');
-   api.favorite('reference');api.remove('unknown');r.run('saveTemplateDialog();persistTemplateLibrary();');
-   assert.deepEqual(r.value('({savedTemplates,favoriteTemplates,state,history,future})'),before);
+   assert.match(api.error,/원본 저장값은 유지/);assert.ok(element('#panelContent').innerHTML.includes('role="alert"'));
+   const stored=structuredClone(r.f.library),before={custom:structuredClone(api.custom),favorites:structuredClone(api.favorites),project:r.value('({state,history,future})')};
+   api.favorite('reference');api.remove('unknown');api.save();
+   assert.deepEqual({custom:api.custom,favorites:api.favorites,project:r.value('({state,history,future})')},before);
    assert.deepEqual(r.f.library,stored);assert.equal(r.f.libraryWrites.length,0);assert.equal(r.f.jsonWrites,0);assert.equal(r.f.mediaWrites,0);
    assert.equal((await r.app.window.moment.execute('template.apply',{templateId:'clean'})).ok,true);
    assert.equal((await r.app.window.moment.execute('project.update',{patch:{name:'still editable'}})).ok,true);
@@ -174,15 +180,15 @@ test('restore protection and isolated template library failures', async () => {
   for(const writeFailure of [false,true]){
    const r=recoveryApp({templateRaw:JSON.stringify([validLibraryTemplate]),favoritesRaw:'["reference"]',libraryWriteError:writeFailure?new Error('synthetic quota'):null});let api;
    r.app.mountTemplateGallery=(root,value)=>{api=value;mountTemplateGallery(root,value);};
-   await r.init();assert.equal(r.value('templateLibraryError'),'');assert.equal(r.value('savedTemplates.length'),1);
-   r.run('templatePreview.draw(document.createElement("canvas"),savedTemplates[0])'); // synthetic canvas only
-   api.favorite('clean');assert.equal(r.value('favoriteTemplates.includes("clean")'),!writeFailure);
+   await r.init();assert.equal(api.error,'');assert.equal(api.custom.length,1);
+   api.thumbnail(r.app.document.createElement('canvas'),api.custom[0]); // synthetic canvas only
+   api.favorite('clean');assert.equal(api.favorites.includes('clean'),!writeFailure);
    if(!writeFailure){assert.equal(JSON.parse(r.f.library['moment-favorites-v1']).includes('clean'),true);}
-   else {assert.equal(r.f.libraryWrites.length,0);assert.deepEqual(r.value('favoriteTemplates'),['reference']);}
-   r.run('saveTemplateDialog()');element('#customTemplateName').value='Second fixture';element('#saveCustomTemplate').onclick();
-   assert.equal(r.value('savedTemplates.length'),writeFailure?1:2);
+   else {assert.equal(r.f.libraryWrites.length,0);assert.deepEqual(api.favorites,['reference']);}
+   api.save();element('#customTemplateName').value='Second fixture';element('#saveCustomTemplate').onclick();
+   assert.equal(api.custom.length,writeFailure?1:2);
    api.remove(validLibraryTemplate.id);element('#confirmRemoveTemplate').onclick();
-   assert.equal(r.value('savedTemplates.length'),1);assert.equal(r.value('savedTemplates[0].id')===validLibraryTemplate.id,writeFailure);
+   assert.equal(api.custom.length,1);assert.equal(api.custom[0].id===validLibraryTemplate.id,writeFailure);
    if(writeFailure)assert.equal(r.f.libraryWrites.length,0);
    else assert.equal(JSON.parse(r.f.library['moment-templates-v1']).length,1);
   }

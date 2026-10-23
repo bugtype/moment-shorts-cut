@@ -35,6 +35,7 @@ export function mapAudioCaptions(captions, offset, total) {
 
 // File size is checked before reading in the UI; keep the parser bounded for callers too.
 export const MAX_SUBTITLE_BYTES = 2 * 1024 * 1024;
+const subtitleReferences = {amp:'&',lt:'<',gt:'>',lrm:'\u200e',rlm:'\u200f',nbsp:'\u00a0'};
 export function parseSubtitles(text, duration) {
   if (typeof text !== 'string' || text.length > MAX_SUBTITLE_BYTES) throw new Error('자막 파일은 2 MB 이하만 지원합니다.');
   if (!Number.isFinite(duration) || duration <= 0) throw new Error('영상 길이를 확인하세요.');
@@ -44,7 +45,9 @@ export function parseSubtitles(text, duration) {
   for (const match of normalized.matchAll(pattern)) {
     const start = (+match[1] || 0) * 3600 + (+match[2]) * 60 + (+match[3]) + (+match[4]) / 1000;
     const end = Math.min((+match[5] || 0) * 3600 + (+match[6]) * 60 + (+match[7]) + (+match[8]) / 1000, duration);
-    const text = match[9].replace(/<[^>]*>/g, '').trim();
+    // Decode once after removing markup, so escaped literal tags remain text.
+    const text = match[9].replace(/<[^>]*>/g, '').trim()
+      .replace(/&(amp|lt|gt|lrm|rlm|nbsp);/g, (_, name) => subtitleReferences[name]);
     if (!text || end <= start) continue;
     if (text.length > 2000) throw new Error('자막 한 구간은 2,000자 이하만 지원합니다.');
     if (captions.length >= 10000) throw new Error('자막은 10,000개 이하만 지원합니다.');

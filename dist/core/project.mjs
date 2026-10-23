@@ -77,4 +77,9 @@ export function readProjectDocument(document){
   return validateProject(project.schemaVersion===DESIGN_VERSION?project:migrateProject(project,createDemoProject()));
 }
 export function srtTimestamp(t){const ms=Math.round(t*1000);return `${String(Math.floor(ms/3600000)).padStart(2,'0')}:${String(Math.floor(ms/60000)%60).padStart(2,'0')}:${String(Math.floor(ms/1000)%60).padStart(2,'0')},${String(ms%1000).padStart(3,'0')}`;}
-export function projectSrt(p){return editedCaptions(p.captions,p.clips,p.speed).map((c,i)=>`${i+1}\n${srtTimestamp(c.start)} --> ${srtTimestamp(c.end)}\n${c.text}\n`).join('\n');}
+export function projectSrt(p){
+  return editedCaptions(p.captions,p.clips,p.speed).map((c,i)=>{
+    const text=c.text.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\u00a0/g,'&nbsp;');
+    return `${i+1}\n${srtTimestamp(c.start)} --> ${srtTimestamp(c.end)}\n${text}\n`;
+  }).join('\n');
+}

@@ -556,12 +556,16 @@ vm.runInContext('exporting=true;',context);
 await vm.runInContext('importSrt({text:async()=>"00:01.000 --> 00:02.000\\nMust not replace during export"})',context);
 assert.deepEqual(evaluate('state'),subtitleOriginal);
 vm.runInContext('exporting=false;',context);
-await vm.runInContext('importSrt({text:async()=>"00:01.000 --> 00:02.000\\nSafe replacement"})',context);
-assert.equal(evaluate('state.captions[0].text'),'Safe replacement');
+await vm.runInContext('importSrt({text:async()=>"00:01.000 --> 00:02.000\\n&lt;b&gt;한글 🌊&lt;/b&gt; &amp; &amp;lt;"})',context);
+assert.equal(evaluate('state.captions[0].text'),'<b>한글 🌊</b> & &lt;');
+const escapedExport=await context.window.moment.execute('captions.export');
+assert.equal(escapedExport.ok,true);
+assert.ok(escapedExport.data.text.includes('&lt;b&gt;한글 🌊&lt;/b&gt; &amp; &amp;lt;'));
+assert.deepEqual(captionModule.parseSubtitles(escapedExport.data.text,12),evaluate('state.captions'));
 vm.runInContext('undo();',context);
 assert.deepEqual(evaluate('state'),subtitleOriginal);
 assert.equal(element('#srtInput').value,'');
-console.log('PASS: bounded subtitle imports, read failure recovery, export guard and undo.');
+console.log('PASS: bounded subtitle imports, escaped text export/reimport, read failure recovery, export guard and undo.');
 
 // A 60 Hz display must not turn a 30 fps target into ~20 fps through rounding drift.
 vm.runInContext('globalThis.savedDraw=draw;globalThis.frameCount=0;draw=()=>frameCount++;state=initial();timelineCache=null;current=0;lastTick=0;lastDrawTime=-Infinity;playing=true;',context);

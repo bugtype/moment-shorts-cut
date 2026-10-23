@@ -46,3 +46,9 @@
 .caption-disclosure-body{padding:6px 0 12px}
 .caption-disclosure .caption-split-tool{margin-top:0}
 #asrStatus{font-size:11px;line-height:1.7;color:var(--ink)}
+/* Keep essential recovery status visible even when normal header details collapse. */
+body.restore-failed .topbar{height:auto;min-height:78px;flex-wrap:wrap;padding-top:12px;padding-bottom:12px;row-gap:8px}
+body.restore-failed .project-title{display:contents}
+body.restore-failed #saveStatus{display:flex;order:1;flex-basis:100%;font-size:11px;line-height:1.5;color:#874d32}
+body.restore-failed #saveStatus i{flex-shrink:0}
+@media(max-width:760px){body.restore-failed .project-title input{display:none}}

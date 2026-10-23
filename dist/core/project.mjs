@@ -1,6 +1,6 @@
 import { defaultEnhancements } from '../effects.mjs';
 import { defaultDesign, migrateProject, DESIGN_VERSION } from '../typography.mjs';
-import { editedCaptions, MAX_CAPTIONS } from '../captions.mjs';
+import { editedCaptions, MAX_CAPTIONS, MAX_SUBTITLE_BYTES, captionOutputLimit } from '../captions.mjs';
 import { assertJson, validate, object, string, number, choice, array, fail, CommandError } from './validation.mjs';
 
 export function createDemoProject(){return {...defaultEnhancements(),name:'나의 첫 번째 쇼츠',kind:'demo',fileName:'느리게 걷는 하루 · 샘플',duration:12,clips:[{start:0,end:12}],ratio:'9:16',fit:'cover',zoom:1,panX:0,panY:0,volume:1,speed:1,schemaVersion:4,design:defaultDesign(),style:'impact',captionSize:36,captionY:.55,captionX:.47,captionColor:'#ffffff',captionAccent:'#b5ff00',captionStroke:3,captionItalic:true,captionAnimation:'pop',captions:[{start:0,end:4,text:'잠깐, 쉬어가도 괜찮아'},{start:4,end:8,text:'나만의 속도로 걷는 하루'},{start:8,end:12,text:'오늘의 순간을 기록해요'}],audioName:'',audioOffset:0,audioVolume:.7};}
@@ -77,13 +77,18 @@ export function readProjectDocument(document){
   return validateProject(project.schemaVersion===DESIGN_VERSION?project:migrateProject(project,createDemoProject()));
 }
 export function srtTimestamp(t){const ms=Math.round(t*1000);return `${String(Math.floor(ms/3600000)).padStart(2,'0')}:${String(Math.floor(ms/60000)%60).padStart(2,'0')}:${String(Math.floor(ms/1000)%60).padStart(2,'0')},${String(ms%1000).padStart(3,'0')}`;}
-export function projectSrt(p){
-  return editedCaptions(p.captions,p.clips,p.speed).map((c,i)=>{
+export function projectSrt(p,{bom=false}={}){
+  const chunks=[],encoder=new TextEncoder();let bytes=bom?3:0;
+  for(const [i,c] of editedCaptions(p.captions,p.clips,p.speed).entries()){
     const start=srtTimestamp(c.start),end=srtTimestamp(c.end);
     if(start===end)fail(`SRT 출력 ${i+1}번째 자막의 시작과 끝이 밀리초 단위에서 같습니다. 자막 구간이나 배속을 조정한 뒤 다시 저장하세요.`);
     const lines=c.text.replace(/\r\n?/g,'\n');
     if(/^[ \t]*$/m.test(lines))fail(`SRT 출력 ${i+1}번째 자막에 빈 줄이 있습니다. 빈 줄을 제거한 뒤 다시 저장하세요.`);
     const text=lines.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\u00a0/g,'&nbsp;');
-    return `${i+1}\n${start} --> ${end}\n${text}\n`;
-  }).join('\n');
+    const chunk=`${i+1}\n${start} --> ${end}\n${text}\n`;
+    bytes+=encoder.encode(chunk).byteLength+(i?1:0);
+    if(bytes>MAX_SUBTITLE_BYTES)captionOutputLimit('SRT 파일은 UTF-8 2 MiB까지 저장할 수 있습니다. 반복 클립이나 자막을 줄여 주세요.');
+    chunks.push(chunk);
+  }
+  return chunks.length?(bom?'\ufeff':'')+chunks.join('\n'):'';
 }

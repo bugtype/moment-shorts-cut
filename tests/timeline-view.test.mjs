@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { captionOccurrences } from '../dist/captions.mjs';
-import { renderCaptionTrack, updateTimelineMarkup } from '../dist/timeline-view.mjs';
+import { renderCaptionTrack, renderCaptionTrackError, updateTimelineMarkup } from '../dist/timeline-view.mjs';
 import { createTrack } from './fixtures/timeline-dom.mjs';
 
 test('caption edits preserve every occurrence button and refresh text, timing and accessible names',()=>{
@@ -49,4 +49,21 @@ test('unchanged video/title markup does not remove its current interaction targe
   assert.equal(track.writes,1);
   updateTimelineMarkup(track,'<button>Changed</button>');
   assert.equal(track.writes,2);
+});
+
+test('limit error removes every stale target, preserves outside focus, and recovers the complete lane',()=>{
+ const track=createTrack(),occurrences=captionOccurrences([{start:0,end:1,text:'A'}],[{start:0,end:1},{start:0,end:1}]);
+ renderCaptionTrack(track,occurrences,2,1);
+ const outside={};track.ownerDocument.activeElement=outside;
+ renderCaptionTrackError(track,'limit');
+ assert.equal(track.children.length,1);assert.equal(track.children[0].attributes.role,'status');
+ assert.equal(track.children[0].dataset.captionIndex,undefined);
+ assert.equal(track.ownerDocument.activeElement,outside);
+ renderCaptionTrack(track,occurrences,2,1);
+ assert.equal(track.children.length,2);assert.ok(track.children.every(node=>node.dataset.captionIndex==='0'));
+ track.ownerDocument.activeElement=track.children[1];
+ renderCaptionTrackError(track,'limit');
+ assert.equal(track.ownerDocument.activeElement,track);assert.equal(track.attributes.tabindex,'-1');
+ renderCaptionTrackError(track,'limit again');assert.equal(track.children.length,1);
+ renderCaptionTrack(track,[],2,1);assert.equal(track.children.length,0);
 });

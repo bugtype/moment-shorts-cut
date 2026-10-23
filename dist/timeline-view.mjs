@@ -24,3 +24,18 @@ export function renderCaptionTrack(track, occurrences, duration, speed) {
   });
   for (const button of previous.values()) button.remove();
 }
+
+// Replace all occurrence targets on failure; never leave a partial or stale lane.
+export function renderCaptionTrackError(track, message) {
+  const focused = [...track.children].includes(track.ownerDocument.activeElement);
+  for (const node of [...track.children]) node.remove();
+  const error = track.ownerDocument.createElement('span');
+  error.className = 'caption-track-error';
+  error.setAttribute('role', 'status');
+  error.textContent = message;
+  track.insertBefore(error, null);
+  if (focused) {
+    track.setAttribute('tabindex', '-1');
+    track.focus({preventScroll:true});
+  }
+}

@@ -52,3 +52,5 @@ body.restore-failed .project-title{display:contents}
 body.restore-failed #saveStatus{display:flex;order:1;flex-basis:100%;font-size:11px;line-height:1.5;color:#874d32}
 body.restore-failed #saveStatus i{flex-shrink:0}
 @media(max-width:760px){body.restore-failed .project-title input{display:none}}
+
+.caption-track-error{display:block;height:100%;overflow:auto;padding:4px 6px;font-size:10px;line-height:20px;color:#874d32}

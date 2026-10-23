@@ -98,6 +98,23 @@ test('rounded SRT timing errors preserve service/MCP state and recover after cor
  await f.service.execute('project.update',{patch:{speed:1}});
  assert.equal((await f.service.execute('captions.export')).ok,true);
 });
+test('derived output limits preserve editing, JSON, render plans and MCP error details',async()=>{
+ const f=fixture();
+ await f.service.execute('captions.replace',{captions:Array.from({length:101},()=>({start:0,end:1,text:'caption'}))});
+ await f.service.execute('timeline.replace',{clips:Array.from({length:100},()=>({start:0,end:1}))});
+ const before=structuredClone(f.state),commits=f.commits;
+ const result=await f.service.execute('captions.export');
+ assert.equal(result.ok,false);assert.equal(result.error.code,'CAPTION_OUTPUT_LIMIT');assert.equal(result.data,undefined);
+ const adapter=createMcpToolAdapter({resolveService:async()=>f.service});
+ assert.deepEqual((await adapter.callTool('moment_captions_export',{projectId:'fixture'})).structuredContent,result);
+ assert.deepEqual(readProjectDocument((await f.service.execute('project.get')).data),before);
+ assert.equal((await f.service.execute('render.plan',{quality:720,format:'webm'})).ok,true);
+ assert.deepEqual(f.state,before);assert.equal(f.commits,commits);
+ assert.equal((await f.service.execute('project.import',{document:createProjectDocument(before)})).ok,true);
+ assert.equal((await f.service.execute('project.update',{patch:{name:'still editable'}})).ok,true);
+ assert.equal((await f.service.execute('timeline.replace',{clips:[{start:0,end:1}]})).ok,true);
+ assert.equal((await f.service.execute('captions.export')).ok,true);
+});
 test('unconfigured media jobs fail explicitly; provider submission/status/cancellation share the contract',async()=>{
  const empty=fixture();assert.equal(empty.service.capabilities().mediaJobs,false);
  assert.equal(empty.service.describe().some(c=>c.name.startsWith('jobs.')),false);
@@ -156,5 +173,24 @@ test('CLI writes real documents/SRT, refuses accidental overwrite, and leaves fa
   assert.equal(await fs.readFile(captions,'utf8'),savedSrt);
   assert.equal(await fs.readFile(invalidFile,'utf8'),preciseProject);
   await assert.rejects(fs.stat(missingOutput),error=>error.code==='ENOENT');
+  for(const captionsInput of [
+   Array.from({length:101},()=>({start:0,end:1,text:'caption'})),
+   Array.from({length:3},()=>({start:0,end:1,text:'&'.repeat(1600)})),
+  ]){
+   invalid.project.speed=1;invalid.project.clips=Array.from({length:100},()=>({start:0,end:1}));invalid.project.captions=captionsInput;
+   const overBudget=JSON.stringify(invalid);await fs.writeFile(invalidFile,overBudget);
+   for(const output of [captions,missingOutput]){
+    const failed=run('exec','captions.export','--project',invalidFile,'--out',output,'--overwrite');
+    assert.equal(failed.status,1);assert.equal(JSON.parse(failed.stderr).error.code,'CAPTION_OUTPUT_LIMIT');
+   }
+   assert.equal(await fs.readFile(captions,'utf8'),savedSrt);
+   assert.equal(await fs.readFile(invalidFile,'utf8'),overBudget);
+   await assert.rejects(fs.stat(missingOutput),error=>error.code==='ENOENT');
+  }
+  invalid.project.clips=[{start:0,end:1}];await fs.writeFile(invalidFile,JSON.stringify(invalid));
+  assert.equal(run('exec','captions.export','--project',invalidFile,'--out',captions,'--overwrite').status,0);
+  const output=await fs.readFile(captions);
+  assert.ok(output.byteLength<=2*1024*1024);assert.notEqual(output.toString('utf8')[0],'\ufeff');
+  assert.match(output.toString('utf8'),/&amp;/);
  }finally{await fs.rm(directory,{recursive:true,force:true});}
 });

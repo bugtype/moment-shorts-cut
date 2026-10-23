@@ -1,6 +1,8 @@
 // Minimal DOM fixture for node identity and track updates; browser QA checks native events.
 export function createTrack() {
-  const track = {children: [], writes: 0, html: ''};
+  const track = {children: [], writes: 0, html: '', attributes: {}};
+  track.setAttribute = (name, value) => { track.attributes[name] = value; };
+  track.focus = () => { track.ownerDocument.activeElement = track; };
   Object.defineProperty(track, 'innerHTML', {
     get() { return this.html; },
     set(value) { this.writes++; this.html = value; },

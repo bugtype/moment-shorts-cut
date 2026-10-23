@@ -3,7 +3,7 @@ import { prepareCommand } from './dist/core/commands.mjs';
 import { CommandError } from './dist/core/validation.mjs';
 import { createEditorService } from './dist/integration/editor-service.mjs';
 import * as captionModule from './dist/captions.mjs';
-import { renderCaptionTrack, updateTimelineMarkup } from './dist/timeline-view.mjs';
+import { renderCaptionTrack, renderCaptionTrackError, updateTimelineMarkup } from './dist/timeline-view.mjs';
 import { createInputHistory } from './dist/input-history.mjs';
 import { createTrack } from './tests/fixtures/timeline-dom.mjs';
 import * as effectsModule from './dist/effects.mjs';
@@ -46,7 +46,7 @@ for(const id of ['trimStart','trimEnd','panelTrimStart','panelTrimEnd']){
 }
 const documentEvents=new Map();
 const doc={querySelector:element,querySelectorAll:()=>[],addEventListener(name,handler){documentEvents.set(name,handler);},body:element('body'),fonts:{ready:Promise.resolve()},createElement:()=>element('canvas-'+(++canvasCount))};
-const context=vm.createContext({document:doc,window:{addEventListener(){}},Image:class{complete=false;},localStorage:{getItem:()=>null,setItem(){}},requestAnimationFrame(callback){pendingFrames.set(++rafCounter,callback);return rafCounter;},cancelAnimationFrame(id){pendingFrames.delete(id);},setTimeout(){},clearTimeout(){},setInterval(){},clearInterval(){},console,URL,Blob,performance,Number,Math,Promise,structuredClone,...projectModule,prepareCommand,CommandError,createEditorService,...captionModule,renderCaptionTrack,updateTimelineMarkup,createInputHistory,...effectsModule,...templateModule,mountTemplateGallery,mountEffectsPanel,...typographyModule,createProjectStore,mountDesignPanel});
+const context=vm.createContext({document:doc,window:{addEventListener(){}},Image:class{complete=false;},localStorage:{getItem:()=>null,setItem(){}},requestAnimationFrame(callback){pendingFrames.set(++rafCounter,callback);return rafCounter;},cancelAnimationFrame(id){pendingFrames.delete(id);},setTimeout(){},clearTimeout(){},setInterval(){},clearInterval(){},console,URL,Blob,performance,Number,Math,Promise,structuredClone,...projectModule,prepareCommand,CommandError,createEditorService,...captionModule,renderCaptionTrack,renderCaptionTrackError,updateTimelineMarkup,createInputHistory,...effectsModule,...templateModule,mountTemplateGallery,mountEffectsPanel,...typographyModule,createProjectStore,mountDesignPanel});
 vm.runInContext(source.replace(/^import .*;$/gm,'').replace(/init\(\);\s*$/,'globalThis.ready=init();'),context);
 await context.ready;
 for(const [id,cb] of pendingFrames){pendingFrames.delete(id);cb(performance.now());}
@@ -839,6 +839,45 @@ assert.equal(downloads,beforePrecisionDownloads+1);
 vm.runInContext('undo();downloadSrt();',context);
 assert.equal(evaluate('state.speed'),4);assert.equal(downloads,beforePrecisionDownloads+1);
 console.log('PASS: SRT precision failure preserves state/history and prevents download; speed correction and undo recover.');
+
+// Output failure is local to the caption lane/action, never a project validity failure.
+vm.runInContext('state=initial();state.captions=Array.from({length:101},()=>({start:0,end:1,text:"caption"}));state.clips=Array.from({length:100},()=>({start:0,end:1}));timelineCache=null;history=[];future=[];current=0;renderTimeline();',context);
+assert.equal(element('#captionTrack').children.length,1);
+assert.equal(element('#captionTrack').children[0].attributes.role,'status');
+assert.ok(element('#captionTrack').children.every(node=>!node.dataset.captionIndex));
+const overflowBefore=evaluate('[state,history,future]'),overflowDownloads=downloads;
+vm.runInContext('downloadSrt();',context);
+assert.equal(downloads,overflowDownloads);assert.match(element('#toast').textContent,/10,000/);
+assert.deepEqual(evaluate('[state,history,future]'),overflowBefore);
+assert.equal((await context.window.moment.execute('project.get')).ok,true);
+assert.equal((await context.window.moment.execute('render.plan',{quality:720,format:'webm'})).ok,true);
+assert.equal((await context.window.moment.execute('project.update',{patch:{name:'still editable'}})).ok,true);
+vm.runInContext('downloadProjectSettings();play();pause();',context);
+assert.equal(downloads,overflowDownloads+1);
+let overflowWrites=0;const beforeOverflowSet=context.localStorage.setItem;
+context.localStorage.setItem=()=>overflowWrites++;
+await vm.runInContext('saveProject(true)',context);context.localStorage.setItem=beforeOverflowSet;
+assert.equal(overflowWrites,1,'output limits do not block project JSON persistence');
+assert.equal((await context.window.moment.execute('timeline.replace',{clips:[{start:0,end:1}]})).ok,true);
+assert.equal(element('#captionTrack').children.length,101);
+assert.ok(element('#captionTrack').children.every(node=>node.dataset.captionIndex!==undefined));
+vm.runInContext('undo();',context);assert.equal(element('#captionTrack').children.length,1);
+vm.runInContext('undo(true);downloadSrt();',context);assert.equal(downloads,overflowDownloads+2);
+assert.equal(element('#captionTrack').children.length,101);
+vm.runInContext('state.captions=Array.from({length:300},()=>({start:0,end:1,text:"&".repeat(1600)}));renderTimeline();downloadSrt();',context);
+assert.equal(element('#captionTrack').children.length,300,'serialization-only overflow keeps the valid occurrence lane');
+assert.equal(downloads,overflowDownloads+2);assert.match(element('#toast').textContent,/SRT.*2 MiB/);
+vm.runInContext('state.captions=Array.from({length:500},()=>({start:0,end:1,text:"한".repeat(1600)}));renderTimeline();downloadSrt();',context);
+assert.equal(element('#captionTrack').children.length,1);assert.equal(downloads,overflowDownloads+2);
+assert.match(element('#toast').textContent,/원문.*2 MiB/);
+const reducedDocument=projectModule.createProjectDocument(evaluate('state'));reducedDocument.project.captions.splice(1);
+assert.equal((await context.window.moment.execute('project.import',{document:reducedDocument})).ok,true);
+assert.equal(element('#captionTrack').children.length,1);assert.equal(element('#captionTrack').children[0].dataset.captionIndex,'0');
+vm.runInContext('globalThis.outputBudgetDownload=download;globalThis.outputBudgetBlob=null;download=blob=>outputBudgetBlob=blob;downloadSrt();download=outputBudgetDownload;',context);
+const emittedBytes=new Uint8Array(await context.outputBudgetBlob.arrayBuffer());
+assert.deepEqual([...emittedBytes.slice(0,3)],[239,187,191]);
+assert.equal(emittedBytes.byteLength,Buffer.byteLength(projectModule.projectSrt(evaluate('state'),{bom:true})));
+console.log('PASS: derived limits preserve editing, JSON/storage, playback eligibility and undo; lane/SRT recover completely.');
 
 // A 60 Hz display must not turn a 30 fps target into ~20 fps through rounding drift.
 vm.runInContext('globalThis.savedDraw=draw;globalThis.frameCount=0;draw=()=>frameCount++;state=initial();timelineCache=null;current=0;lastTick=0;lastDrawTime=-Infinity;playing=true;',context);

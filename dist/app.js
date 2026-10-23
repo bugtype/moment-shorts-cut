@@ -3,7 +3,7 @@ import { prepareCommand } from './core/commands.mjs';
 import { CommandError } from './core/validation.mjs';
 import { createEditorService } from './integration/editor-service.mjs';
 import { captionClock, findCaption, captionOccurrences, editedCaptions, mapAudioCaptions, parseSubtitles, MAX_SUBTITLE_BYTES, MAX_CAPTIONS } from './captions.mjs';
-import { renderCaptionTrack, updateTimelineMarkup } from './timeline-view.mjs';
+import { renderCaptionTrack, renderCaptionTrackError, updateTimelineMarkup } from './timeline-view.mjs';
 import { createInputHistory } from './input-history.mjs';
 import { defaultEnhancements, clipEffects, newCard, drawSceneCards, splitCaptionText, retimeOutputLayers, activeSceneLayers, sceneBounds } from './effects.mjs';
 import { TEMPLATES, REFERENCE_SOURCES, applyTemplate, visualPreset, saveCustomTemplate } from './template-catalog.mjs';
@@ -120,7 +120,11 @@ function renderInspector(){
   inspectorTrimContext={clip:c,index:selected,start:c.start,end:c.end};
  }
  $('#projectName').value=state.name;$('#ratioLabel').textContent=state.ratio;$('#previewSize').textContent=state.ratio==='9:16'?'1080 × 1920':state.ratio==='1:1'?'1080 × 1080':'1920 × 1080';$$('[data-ratio]').forEach(b=>b.classList.toggle('active',b.dataset.ratio===state.ratio));$$('[data-fit]').forEach(b=>b.classList.toggle('active',b.dataset.fit===state.fit));$$('[data-style]').forEach(b=>b.classList.toggle('active',b.dataset.style===state.style));$('#zoom').value=state.zoom;$('#zoomValue').textContent=`${Math.round(state.zoom*100)}%`;$('#volume').value=state.volume;$('#volumeValue').textContent=`${Math.round(state.volume*100)}%`;$('#speed').value=state.speed;$('#clipIndex').textContent=`클립 ${selected+1}`;$('#undoButton').disabled=!history.length;$('#redoButton').disabled=!future.length;$('#deleteButton').disabled=state.clips.length<=1;$('#moveLeft').disabled=selected<=0;$('#moveRight').disabled=selected>=state.clips.length-1;$('#sampleBadge').hidden=state.kind!=='demo';if(videoGain){videoGain.gain.value=muted?0:state.volume;audioGain.gain.value=muted?0:state.audioVolume;}video.playbackRate=state.speed;audio.playbackRate=state.speed;}
-function renderTimeline(){renderLayerTrack();const len=duration();$('#seek').max=len;updateTimelineMarkup($('#videoTrack'),state.clips.map((c,i)=>`<button class="clip ${i===selected?'active':''}" data-clip="${i}" style="flex:${c.end-c.start};${thumbnail?`background-image:url('${thumbnail}');background-size:auto 100%;`:''}" title="클립 ${i+1}: ${fmt(c.start)}–${fmt(c.end)}"><span>${i===0?esc(state.fileName):'클립 '+(i+1)}</span></button>`).join(''));renderCaptionTrack($('#captionTrack'),captionOccurrences(state.captions,state.clips),len,state.speed);$('#ruler').innerHTML=Array.from({length:6},(_,i)=>`<span>${fmt(len*i/5/state.speed)}</span>`).join('');$('#audioTrack').classList.toggle('has-audio',!!audioFile);$('#audioTrack').textContent=audioFile?`♫ ${state.audioName} · ${(state.audioOffset/state.speed).toFixed(1)}초부터`:'+ 오디오를 추가해 보세요';updateTime();}
+function renderTimelineCaptions(len){
+ try{renderCaptionTrack($('#captionTrack'),captionOccurrences(state.captions,state.clips),len,state.speed);}
+ catch(error){if(error.code!=='CAPTION_OUTPUT_LIMIT')throw error;renderCaptionTrackError($('#captionTrack'),error.message);}
+}
+function renderTimeline(){renderLayerTrack();const len=duration();$('#seek').max=len;updateTimelineMarkup($('#videoTrack'),state.clips.map((c,i)=>`<button class="clip ${i===selected?'active':''}" data-clip="${i}" style="flex:${c.end-c.start};${thumbnail?`background-image:url('${thumbnail}');background-size:auto 100%;`:''}" title="클립 ${i+1}: ${fmt(c.start)}–${fmt(c.end)}"><span>${i===0?esc(state.fileName):'클립 '+(i+1)}</span></button>`).join(''));renderTimelineCaptions(len);$('#ruler').innerHTML=Array.from({length:6},(_,i)=>`<span>${fmt(len*i/5/state.speed)}</span>`).join('');$('#audioTrack').classList.toggle('has-audio',!!audioFile);$('#audioTrack').textContent=audioFile?`♫ ${state.audioName} · ${(state.audioOffset/state.speed).toFixed(1)}초부터`:'+ 오디오를 추가해 보세요';updateTime();}
 function updateTime(force=true){
  const now=performance.now();if(!force&&now-lastUiTime<100)return;lastUiTime=now;
  const len=duration(),label=`${fmt(current/state.speed)} <span>/ ${fmt(len/state.speed)}</span>`;
@@ -384,8 +388,7 @@ function srtTime(t){return srtTimestamp(t);}
 function outputCaptions(){return editedCaptions(state.captions,state.clips,state.speed);}
 function downloadSrt(){
  if(settingsUnavailable())return;
- const out=outputCaptions();if(!out.length){toast('저장할 자막이 없습니다.');return;}
- try{const srt=projectSrt(state);download(new Blob(['\ufeff'+srt],{type:'text/plain;charset=utf-8'}),state.name+'.srt');}
+ try{const srt=projectSrt(state,{bom:true});if(!srt){toast('저장할 자막이 없습니다.');return;}download(new Blob([srt],{type:'text/plain;charset=utf-8'}),state.name+'.srt');}
  catch(error){toast(error.message||'자막을 저장하지 못했습니다.');}
 }
 async function importSrt(file){

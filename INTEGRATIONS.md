@@ -34,7 +34,7 @@
 
 모든 결과는 `{ok, apiVersion: 1, command, data}` 또는 `{ok:false, apiVersion:1, command, error:{code,message,path?}}`입니다. 잘못된 숫자·시간·색상·알 수 없는 필드는 변경 전에 거부합니다. 변경은 복사본에서 준비하며, 저장 포트가 성공한 뒤 완료를 반환합니다.
 
-주요 오류: `INVALID_ARGUMENT`, `UNKNOWN_COMMAND`, `NOT_FOUND`, `UNSUPPORTED_VERSION`, `BUSY`, `MEDIA_RELINK_REQUIRED`, `NOT_CONFIGURED`, `INVALID_PROVIDER_RESULT`. 예상하지 못한 내부 오류는 `INTERNAL_ERROR`로 반환하며 스택이나 내부 인증 정보를 반환하지 않습니다.
+주요 오류: `INVALID_ARGUMENT`, `UNKNOWN_COMMAND`, `NOT_FOUND`, `UNSUPPORTED_VERSION`, `BUSY`, `MEDIA_RELINK_REQUIRED`, `NOT_CONFIGURED`, `INVALID_PROVIDER_RESULT`, `CAPTION_OUTPUT_LIMIT`. 예상하지 못한 내부 오류는 `INTERNAL_ERROR`로 반환하며 스택이나 내부 인증 정보를 반환하지 않습니다.
 
 시간 기준을 유지해야 합니다.
 
@@ -57,6 +57,8 @@ node cli/moment.mjs exec render.plan --project titled.json --json '{"quality":10
 ```
 
 `--dry-run`은 수정 결과를 JSON으로 출력하고 파일을 쓰지 않습니다. 기존 출력 파일은 기본적으로 거부하며, 교체하려면 `--overwrite`를 지정합니다. 성공은 종료 코드 0과 stdout JSON, 실패는 종료 코드 1과 stderr JSON입니다. JSON 파일은 10 MB까지 읽습니다. 임시 파일에 먼저 쓴 뒤 최종 경로로 반영합니다.
+
+`captions.export`는 편집 후 자막 10,000개, 반복분을 포함한 원문 UTF-8 2 MiB, 완성된 SRT 2 MiB를 각각 제한합니다. SRT 크기는 이스케이프·시간·구분자를 포함하며 CLI/서비스는 BOM을 출력하지 않습니다(브라우저는 BOM 3바이트도 계산합니다). 초과 시 `CAPTION_OUTPUT_LIMIT`로 전체 출력을 거절하고 CLI는 기존 출력 파일을 보존합니다. 원본 프로젝트 검증·JSON·편집·`render.plan`에는 이 파생 출력 제한을 적용하지 않습니다. 반복 클립이나 자막을 줄여 재시도할 수 있습니다.
 
 CLI는 편집 메타데이터와 SRT를 다룹니다. MP4 파일을 생성하거나 브라우저 IndexedDB의 원본 파일을 직접 가져오지 않습니다.
 

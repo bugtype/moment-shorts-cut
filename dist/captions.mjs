@@ -1,4 +1,11 @@
+import { CommandError } from './core/validation.mjs';
+
 export const MAX_CAPTIONS = 10000;
+export const MAX_SUBTITLE_BYTES = 2 * 1024 * 1024;
+const encoder = new TextEncoder();
+export function captionOutputLimit(message) {
+  throw new CommandError('CAPTION_OUTPUT_LIMIT', message, 'project.captions');
+}
 
 // Source speech follows clips; added narration follows the edited audio timeline.
 // Both clocks are stored before playback speed, so retiming stays reversible.
@@ -12,18 +19,29 @@ export function findCaption(captions, sourceTime, timelineTime) {
   });
 }
 export function captionOccurrences(captions, clips, speed = 1) {
-  const out = []; let offset = 0;
+  const out = []; let offset = 0, bytes = 0;
+  const textBytes = new Map();
+  function append(cap, captionIndex, start, end, clipIndex) {
+    if (out.length >= MAX_CAPTIONS) captionOutputLimit('편집 후 자막은 10,000개까지 표시·SRT 저장할 수 있습니다. 반복 클립이나 자막을 줄여 주세요.');
+    if (!textBytes.has(captionIndex)) {
+      if (cap.text.length > MAX_SUBTITLE_BYTES) captionOutputLimit('편집 후 자막 원문은 UTF-8 2 MiB까지 지원합니다. 반복 클립이나 자막을 줄여 주세요.');
+      textBytes.set(captionIndex, encoder.encode(cap.text).byteLength);
+    }
+    bytes += textBytes.get(captionIndex);
+    if (bytes > MAX_SUBTITLE_BYTES) captionOutputLimit('편집 후 자막 원문은 UTF-8 2 MiB까지 지원합니다. 반복 클립이나 자막을 줄여 주세요.');
+    out.push({start:start/speed,end:end/speed,text:cap.text,captionIndex,...(clipIndex === undefined ? {} : {clipIndex})});
+  }
   const sourceCaptions = [...captions.entries()].filter(([, cap]) => cap.basis !== 'timeline');
   for (const [clipIndex, clip] of clips.entries()) {
     for (const [captionIndex, cap] of sourceCaptions) {
       const start = Math.max(clip.start, cap.start), end = Math.min(clip.end, cap.end);
-      if (end > start) out.push({start:(offset+start-clip.start)/speed,end:(offset+end-clip.start)/speed,text:cap.text,captionIndex,clipIndex});
+      if (end > start) append(cap,captionIndex,offset+start-clip.start,offset+end-clip.start,clipIndex);
     }
     offset += clip.end - clip.start;
   }
   for (const [captionIndex, cap] of captions.entries()) if (cap.basis === 'timeline') {
     const start = Math.max(0, cap.start), end = Math.min(offset, cap.end);
-    if (end > start) out.push({start:start/speed,end:end/speed,text:cap.text,captionIndex});
+    if (end > start) append(cap,captionIndex,start,end);
   }
   return out.sort((a,b) => a.start-b.start);
 }
@@ -36,7 +54,6 @@ export function mapAudioCaptions(captions, offset, total) {
 }
 
 // File size is checked before reading in the UI; keep the parser bounded for callers too.
-export const MAX_SUBTITLE_BYTES = 2 * 1024 * 1024;
 const subtitleReferences = {amp:'&',lt:'<',gt:'>',lrm:'\u200e',rlm:'\u200f',nbsp:'\u00a0'};
 export function parseSubtitles(text, duration) {
   if (typeof text !== 'string' || text.length > MAX_SUBTITLE_BYTES) throw new Error('자막 파일은 2 MB 이하만 지원합니다.');

@@ -1,3 +1,5 @@
+export const MAX_CAPTIONS = 10000;
+
 // Source speech follows clips; added narration follows the edited audio timeline.
 // Both clocks are stored before playback speed, so retiming stays reversible.
 export function captionClock(caption, sourceTime, timelineTime) {
@@ -51,7 +53,7 @@ export function parseSubtitles(text, duration) {
       .replace(/&(amp|lt|gt|lrm|rlm|nbsp);/g, (_, name) => subtitleReferences[name]);
     if (!text || end <= start) continue;
     if (text.length > 2000) throw new Error('자막 한 구간은 2,000자 이하만 지원합니다.');
-    if (captions.length >= 10000) throw new Error('자막은 10,000개 이하만 지원합니다.');
+    if (captions.length >= MAX_CAPTIONS) throw new Error('자막은 10,000개 이하만 지원합니다.');
     captions.push({start, end, text});
   }
   if (!captions.length) throw new Error('유효한 SRT 또는 VTT 자막을 찾지 못했습니다.');

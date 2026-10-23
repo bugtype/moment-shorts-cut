@@ -516,6 +516,83 @@ vm.runInContext('videoFile=null;state=initial();timelineCache=null;renderPanel()
 delete context.captionTestFile;delete context.AudioContext;delete context.OfflineAudioContext;
 console.log('PASS: captions-first layout, empty/add/delete/import focus, timing notices and running/cancelled generation without a model download.');
 
+// Count failures happen before edit(): preserve history, redo, pending save and focus.
+function setCaptionLimitFixture(captions){
+ context.captionLimitFixture=captions;
+ vm.runInContext('state=initial();state.captions=structuredClone(captionLimitFixture);timelineCache=null;history=[];future=[];edit(()=>state.name="redo target");undo();switchPanel("captions");saveTimer={pending:true};',context);
+ projectModule.createProjectDocument(evaluate('state'));
+ element('#captionChunkSize').value='12';
+}
+function assertCaptionCountRejected(button){
+ const before=evaluate('({state,history,future})'),timer=vm.runInContext('saveTimer',context);
+ button.focus();const focused=doc.activeElement,events=focusEvents.length;
+ button.onclick();
+ assert.deepEqual(evaluate('({state,history,future})'),before);
+ assert.equal(vm.runInContext('saveTimer',context),timer);
+ assert.equal(doc.activeElement,focused);assert.equal(focusEvents.length,events);
+ assert.match(element('#toast').textContent,/10,000/);
+ assert.deepEqual(projectModule.readProjectDocument(projectModule.createProjectDocument(evaluate('state'))),before.state);
+}
+const shortLimitCaption={start:0,end:1,text:'짧게 🎬',basis:'timeline',speaker:'1',keywords:'🎬'};
+setCaptionLimitFixture(Array.from({length:102},()=>({...shortLimitCaption,text:'가'.repeat(1200)})));
+let countedSplits=0;
+context.splitCaptionText=(...args)=>{countedSplits++;return effectsModule.splitCaptionText(...args);};
+assertCaptionCountRejected(element('#splitLongCaptions'));
+assert.equal(countedSplits,101,'stop expansion at the first overflow, before processing remaining captions');
+context.splitCaptionText=effectsModule.splitCaptionText;
+const twoParts={start:2,end:4,text:'가🎬'.repeat(12),basis:'source',speaker:'0',keywords:'가'};
+setCaptionLimitFixture([...Array.from({length:captionModule.MAX_CAPTIONS-1},()=>({...shortLimitCaption})),twoParts]);
+assertCaptionCountRejected(element('#splitLongCaptions'));
+for(const basis of ['source','timeline']){
+ setCaptionLimitFixture([...Array.from({length:captionModule.MAX_CAPTIONS-2},()=>({...shortLimitCaption})),{...twoParts,basis}]);
+ const before=evaluate('state');element('#splitLongCaptions').onclick();
+ const after=evaluate('state');assert.equal(after.captions.length,captionModule.MAX_CAPTIONS);
+ const parts=after.captions.slice(-2);
+ assert.equal(parts.map(c=>c.text).join(''),twoParts.text);assert.equal(parts[0].start,2);assert.equal(parts[1].end,4);
+ assert.equal(parts[0].end,parts[1].start);
+ parts.forEach(c=>{assert.equal(c.basis,basis);assert.equal(c.speaker,'0');assert.equal(c.keywords,'가');assert.equal(c.timing,'estimated');});
+ assert.deepEqual(projectModule.readProjectDocument(projectModule.createProjectDocument(after)),after);
+ assert.equal(captionModule.parseSubtitles(projectModule.projectSrt(after),12).length,captionModule.MAX_CAPTIONS);
+ vm.runInContext('undo()',context);assert.deepEqual(evaluate('state'),before);
+ vm.runInContext('undo(true)',context);assert.deepEqual(evaluate('state'),after);
+}
+setCaptionLimitFixture(Array.from({length:captionModule.MAX_CAPTIONS},()=>({...shortLimitCaption})));
+assertCaptionCountRejected(element('#addCaption'));
+setCaptionLimitFixture(Array.from({length:captionModule.MAX_CAPTIONS-1},()=>({...shortLimitCaption})));
+const beforeLastCaption=evaluate('state');element('#addCaption').onclick();const withLastCaption=evaluate('state');
+assert.equal(withLastCaption.captions.length,captionModule.MAX_CAPTIONS);
+assert.deepEqual(projectModule.readProjectDocument(projectModule.createProjectDocument(withLastCaption)),withLastCaption);
+assertCaptionVisibleTarget(element('[data-caption-text="9999"]'));
+vm.runInContext('undo()',context);assert.deepEqual(evaluate('state'),beforeLastCaption);
+vm.runInContext('undo(true)',context);assert.deepEqual(evaluate('state'),withLastCaption);
+
+// Synthetic worker results check the same boundary without any model/network work.
+context.AudioContext=class {async decodeAudioData(){return {duration:1};}async close(){}};
+context.OfflineAudioContext=class {createBufferSource(){return {connect(){},start(){}};}async startRendering(){return {getChannelData:()=>new Float32Array([.1])};}};
+context.captionTestFile={arrayBuffer:async()=>new ArrayBuffer(0)};
+context.Worker=class {postMessage(){queueMicrotask(()=>this.onmessage({data:{type:'result',result:{chunks:context.captionTestChunks}}}));}};
+for(const source of ['video','audio'])for(const count of [captionModule.MAX_CAPTIONS,captionModule.MAX_CAPTIONS+1]){
+ setCaptionLimitFixture([shortLimitCaption]);
+ vm.runInContext('videoFile=captionTestFile;audioFile=captionTestFile;recognitionWorker=null',context);
+ element('#captionSource').value=source;
+ context.captionTestChunks=Array.from({length:count},()=>({timestamp:[0,1],text:'인식된 자막'}));
+ const before=evaluate('({state,history,future})'),timer=vm.runInContext('saveTimer',context);
+ await vm.runInContext('generateCaptions()',context);
+ if(count>captionModule.MAX_CAPTIONS){
+  assert.deepEqual(evaluate('({state,history,future})'),before);
+  assert.equal(vm.runInContext('saveTimer',context),timer);assert.match(element('#toast').textContent,/10,000/);
+ }else{
+  const result=evaluate('state');assert.equal(result.captions.length,count);
+  assert.equal(result.captions[0].basis,source==='audio'?'timeline':undefined);
+  assert.deepEqual(projectModule.readProjectDocument(projectModule.createProjectDocument(result)),result);
+ }
+}
+vm.runInContext('videoFile=null;audioFile=null;recognitionWorker=null',context);
+delete context.AudioContext;delete context.OfflineAudioContext;delete context.Worker;delete context.captionTestFile;delete context.captionTestChunks;
+vm.runInContext('state=initial();timelineCache=null;history=[];future=[];renderPanel()',context);
+delete context.captionLimitFixture;
+console.log('PASS: split/add/ASR count boundaries, early rejection without mutation/redo/save/focus loss, Unicode and time-base metadata, exact-boundary JSON/SRT export and undo/redo.');
+
 // Panel controls are exercised with supplied DOM controls (not a browser layout test).
 function control(type,dataset,value){return {type,dataset,value,checked:false,setCustomValidity(message){this.error=message;},reportValidity(){this.reported=true;}};}
 function panelRoot(lists={},byId={}){return {innerHTML:'',querySelectorAll(selector){return lists[selector]||[];},querySelector(selector){return byId[selector]||null;}};}

@@ -1,6 +1,6 @@
 import { defaultEnhancements } from '../effects.mjs';
 import { defaultDesign, migrateProject, DESIGN_VERSION } from '../typography.mjs';
-import { editedCaptions } from '../captions.mjs';
+import { editedCaptions, MAX_CAPTIONS } from '../captions.mjs';
 import { assertJson, validate, object, string, number, choice, array, fail, CommandError } from './validation.mjs';
 
 export function createDemoProject(){return {...defaultEnhancements(),name:'나의 첫 번째 쇼츠',kind:'demo',fileName:'느리게 걷는 하루 · 샘플',duration:12,clips:[{start:0,end:12}],ratio:'9:16',fit:'cover',zoom:1,panX:0,panY:0,volume:1,speed:1,schemaVersion:4,design:defaultDesign(),style:'impact',captionSize:36,captionY:.55,captionX:.47,captionColor:'#ffffff',captionAccent:'#b5ff00',captionStroke:3,captionItalic:true,captionAnimation:'pop',captions:[{start:0,end:4,text:'잠깐, 쉬어가도 괜찮아'},{start:4,end:8,text:'나만의 속도로 걷는 하루'},{start:8,end:12,text:'오늘의 순간을 기록해요'}],audioName:'',audioOffset:0,audioVolume:.7};}
@@ -40,7 +40,7 @@ export function validateProject(project){
   for(const [key,[min,max]] of Object.entries({strength:[0,.4],transitionDuration:[.05,.7],brightness:[.7,1.3],contrast:[.7,1.5],saturation:[0,1.6],vignette:[0,.6]}))validate(number(min,max),p.effects[key],`project.effects.${key}`);
   validate(number(.15,.4),p.design.top,'project.design.top');validate(number(.4,.91),p.design.bottom,'project.design.bottom');
   validate(number(0,20),p.design.title.stroke,'project.design.title.stroke');
-  validate(array(captionSchema,10000),p.captions,'project.captions');
+  validate(array(captionSchema,MAX_CAPTIONS),p.captions,'project.captions');
   for(const [i,c] of p.captions.entries())if(c.end<=c.start)fail('자막 끝은 시작보다 늦어야 합니다.',`project.captions[${i}]`);
   for(const [key,l] of Object.entries({title:p.design.title,credit:p.design.credit})){
     for(const axis of ['x','y'])validate(number(0,1),l[axis],`project.design.${key}.${axis}`);

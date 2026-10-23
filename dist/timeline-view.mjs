@@ -45,8 +45,18 @@ export function renderCaptionTrackError(track, message) {
 
 // The app owns editing and playback; this view only caches and updates DOM presentation.
 export function createTimelineView($, clock = () => performance.now()) {
-    let lastUiTime = 0, lastTimeLabel = '';
+    let lastUiTime = 0, lastTimeLabel = '', collapsed = false;
     const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
+    // Collapsing hands the timeline's height back to the preview. The state lives
+    // here so the control, its accessible name and the layout stay in sync.
+    function setCollapsed(next) {
+        collapsed = !!next;
+        $('#timeline').classList.toggle('collapsed', collapsed);
+        const toggle = $('#timelineToggle'), label = collapsed ? '타임라인 펼치기' : '타임라인 접기';
+        toggle.setAttribute('aria-expanded', String(!collapsed));
+        toggle.setAttribute('aria-label', label);
+        toggle.title = label;
+    }
     function renderCaptions(state, len) {
         try {
             renderCaptionTrack($('#captionTrack'), captionOccurrences(state.captions, state.clips), len, state.speed);
@@ -114,5 +124,5 @@ export function createTimelineView($, clock = () => performance.now()) {
                 label.textContent = progress + '%';
         }
     }
-    return { render, renderLayers, updateTime };
+    return { render, renderLayers, updateTime, setCollapsed, isCollapsed: () => collapsed };
 }

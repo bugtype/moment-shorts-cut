@@ -67,6 +67,14 @@ export function bindUi(app) {
     });
     $('#trimButton').onclick = () => app.trim($('#trimStart').valueAsNumber, $('#trimEnd').valueAsNumber);
     $('#splitButton').onclick = app.split;
+    $('#timelineToggle').onclick = () => {
+        app.timelineView.setCollapsed(!app.timelineView.isCollapsed());
+        app.resizePreview();
+    };
+    // Landscape phones cannot fit the preview, player and tracks together; start
+    // with the canvas in view and leave the expanded timeline one tap away.
+    if (app.window.matchMedia?.('(max-height: 560px) and (orientation: landscape)')?.matches)
+        app.timelineView.setCollapsed(true);
     $('#deleteButton').onclick = () => {
         if (app.state.clips.length <= 1)
             return;

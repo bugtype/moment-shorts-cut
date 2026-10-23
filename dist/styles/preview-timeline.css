@@ -202,6 +202,21 @@ input[type=range] {
   background:#fff;
   overflow:hidden
 }
+.timeline.collapsed {
+  height:45px
+}
+.timeline.collapsed .timeline-body {
+  display:none
+}
+.timeline.collapsed .timeline-tools {
+  border-bottom:0
+}
+#timelineToggle .icon {
+  transition:transform .16s
+}
+.timeline.collapsed #timelineToggle .icon {
+  transform:rotate(180deg)
+}
 .timeline-tools {
   height:45px;
   display:flex;

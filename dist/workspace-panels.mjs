@@ -10,7 +10,7 @@ export function createWorkspacePanels(app) {
 
     // Compact layouts keep the preview visible and turn the side panel into a
     // sheet above the bottom tool rail. Desktop keeps the panel permanently docked.
-    const isCompact = () => app.window.matchMedia?.('(max-width: 700px)').matches === true;
+    const isCompact = () => app.window.matchMedia?.('(max-width:700px), (max-height:560px) and (orientation:landscape)').matches === true;
 
     function syncSheet() {
         const library = $('#libraryPanel');

@@ -4,9 +4,14 @@
   display:none
 }
 
-@media(max-width:700px) {
+@media (max-width:700px), (max-height:560px) and (orientation:landscape) {
   body {
     overflow:hidden
+  }
+  .topbar {
+    height:66px;
+    padding:0 14px;
+    gap:10px
   }
   .workspace {
     display:block;
@@ -139,7 +144,7 @@
 
 /* Short phones keep a usable preview and let the editor scroll instead of
    squeezing the canvas to a thumbnail. */
-@media(max-width:700px) and (max-height:720px) {
+@media (max-width:700px) and (max-height:720px), (max-height:560px) and (orientation:landscape) {
   body {
     overflow-y:auto
   }
@@ -165,5 +170,15 @@
   }
   .library-panel:has(.template-grid),.library-panel:has(.settings-mirror) {
     max-height:none
+  }
+}
+
+/* Landscape phones have no vertical room for a content-sized stage: give it the
+   exact height left by the chrome, player and collapsed timeline row. */
+@media (max-height:560px) and (orientation:landscape) {
+  .stage {
+    flex:0 0 auto;
+    height:calc(100dvh - 66px - 58px - 56px - 45px - env(safe-area-inset-bottom));
+    min-height:0
   }
 }

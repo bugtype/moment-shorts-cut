@@ -39,6 +39,24 @@ test('inspector owns trim draft identity while unrelated values and controls syn
   assert.equal(query('#clipSettings').open, false);
 });
 
+test('timeline collapse hands space to the preview and updates its toggle', () => {
+  const { query } = controls(), view = createTimelineView(query);
+  const toggle = query('#timelineToggle');
+  assert.equal(view.isCollapsed(), false);
+  assert.equal(toggle.attributes['aria-expanded'], undefined);
+
+  view.setCollapsed(true);
+  assert.equal(view.isCollapsed(), true);
+  assert.equal(toggle.attributes['aria-expanded'], 'false');
+  assert.equal(toggle.attributes['aria-label'], '타임라인 펼치기');
+  assert.equal(toggle.title, '타임라인 펼치기');
+
+  view.setCollapsed(false);
+  assert.equal(view.isCollapsed(), false);
+  assert.equal(toggle.attributes['aria-expanded'], 'true');
+  assert.equal(toggle.attributes['aria-label'], '타임라인 접기');
+});
+
 test('timeline presentation retains occurrence nodes and edits only display state', () => {
   const { query } = controls(), view = createTimelineView(query), state = createDemoProject();
   state.clips = [{ start: 0, end: 4 }, { start: 0, end: 4 }];state.fileName = '<source>';

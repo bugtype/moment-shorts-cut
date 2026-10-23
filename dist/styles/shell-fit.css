@@ -5,3 +5,11 @@
     min-height:0
   }
 }
+
+/* One explicit row keeps every column inside the workspace height instead of
+   letting a tall editor or panel push the shell past the viewport. */
+@media(min-width:701px) {
+  .workspace {
+    grid-template-rows:minmax(0,1fr)
+  }
+}

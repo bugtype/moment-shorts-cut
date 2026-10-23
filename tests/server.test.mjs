@@ -83,8 +83,11 @@ test('preview serves modules with correct MIME types and never serves repository
   // wrap the player so the scrubber spans the full width.
   assert.match(compactShell, /\.player-bar \.icon-button,\.player-bar \.play-button \{\s*width:38px;\s*height:38px/);
   assert.match(compactShell, /\.timeline-tools \.icon-button \{\s*width:36px;\s*height:36px/);
-  assert.match(compactShell, /@media \(max-width:430px\) \{\s*\.player-bar \{\s*flex-wrap:wrap/);
+  assert.match(compactShell, /@media \(max-width:430px\) \{\s*\.editor-area \{\s*--player-h:88px\s*\}\s*\.player-bar \{\s*flex-wrap:wrap/);
   assert.match(compactShell, /\.player-bar input\[type=range\] \{\s*order:10;\s*flex:1 0 100%/);
+  // Short portrait phones cap the stage so the player stays above the fixed rail.
+  assert.match(compactShell, /--player-h:88px/);
+  assert.match(compactShell, /@media \(max-width:700px\) and \(max-height:640px\) and \(orientation:portrait\) \{\s*\.stage \{\s*flex:0 0 auto;\s*height:calc\(100dvh - 66px - 58px - var\(--player-h,56px\)/);
   for (const pathname of ['/package.json', '/.git/config', '/%2e%2e/package.json', '/..%2fpackage.json', '/missing.js']) {
     assert.equal((await fetch(origin + pathname)).status, 404, pathname);
   }

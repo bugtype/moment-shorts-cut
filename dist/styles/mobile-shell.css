@@ -21,7 +21,8 @@
   }
   .editor-area {
     height:calc(100dvh - 66px - 58px - env(safe-area-inset-bottom));
-    min-height:0
+    min-height:0;
+    --player-h:56px
   }
   .rail {
     position:fixed;
@@ -238,6 +239,9 @@
 /* Phones get a full-width scrubber: the player wraps to two rows so seeking is
    not squeezed between the transport buttons and the speed menu. */
 @media (max-width:430px) {
+  .editor-area {
+    --player-h:88px
+  }
   .player-bar {
     flex-wrap:wrap;
     height:auto;
@@ -256,5 +260,15 @@
   .player-bar #timeDisplay {
     flex:1;
     min-width:0
+  }
+}
+
+/* Short portrait phones: cap the stage so the player and its full-width scrubber
+   stay above the fixed rail on first paint. The timeline is one scroll away. */
+@media (max-width:700px) and (max-height:640px) and (orientation:portrait) {
+  .stage {
+    flex:0 0 auto;
+    height:calc(100dvh - 66px - 58px - var(--player-h,56px) - env(safe-area-inset-bottom));
+    min-height:180px
   }
 }

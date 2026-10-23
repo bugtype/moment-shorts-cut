@@ -25,7 +25,7 @@ function fmt(t){t=Math.max(0,Number(t)||0);return `${Math.floor(t/60).toString()
 function initial(){return createDemoProject();}
 let state=initial(), current=0, selected=0, playing=false, panel='templates', textLayer='title', videoFile=null, audioFile=null, sourceURL='', audioURL='', thumbnail='', history=[], future=[], exporting=false, muted=false, record=null, recognitionWorker=null, pendingTranscriptionReject=null, transcriptionCancelled=false, transcribing=false, transcriptionStatus='', saveTimer, recordTimer, pendingSave=Promise.resolve();
 const video=$('#sourceVideo'), audio=$('#sourceAudio'), canvas=$('#preview'), ctx=canvas.getContext('2d'), sample=new Image(), modal=$('#modal');
-let audioCtx, videoNode, audioNode, videoGain, audioGain, destination, exportRecorder, exportStream, exportCanvas, exportContext, exportChunks=[], exportCancelled=false, lastTick=0;
+let audioCtx, videoNode, audioNode, videoGain, audioGain, destination, exportRecorder, exportStream, exportCanvas, exportContext, exportChunks=[], exportCancelled=false, exportRequest=0, lastTick=0;
 let sampleRaster=null,lastSaveStatus='',effectTab='cards',selectedCard=null,templatePreviewFrame=0,cardPlaybackEnd=null,requestingMic=false;
 const galleryUI={query:'',category:'전체'};
 let savedTemplates=[],favoriteTemplates=[];
@@ -316,7 +316,7 @@ async function play(){
   playing=true;lastTick=performance.now();lastDrawTime=-Infinity;syncAudio(true);
   $('#playButton').innerHTML=icon('pause');$('#playButton').setAttribute('aria-label','일시정지');
   if(frameHandle)cancelAnimationFrame(frameHandle);frameHandle=requestAnimationFrame(tick);
- }catch(e){if(request!==playRequest)return;toast('재생할 수 없습니다. 영상 형식과 오디오 장치를 확인하세요.');if(exporting)stopExport(true);}
+ }catch(e){if(request!==playRequest)return;if(exporting)stopExport(true);toast('재생할 수 없습니다. 영상 형식과 오디오 장치를 확인하세요.');}
 }
 function pause(){
  ++playRequest;playing=false;cardPlaybackEnd=null;if(frameHandle)cancelAnimationFrame(frameHandle);frameHandle=0;
@@ -464,9 +464,52 @@ beforeApply();
 edit(()=>state.captions=prepared.project.captions);toast(`${caps.length}개의 자막을 생성했습니다. 인식 결과를 확인해 주세요.`);}catch(e){toast(e.message||'자막 생성에 실패했습니다. SRT 불러오기나 직접 입력을 사용할 수 있습니다.');}finally{pendingTranscriptionReject=null;transcribing=false;if(panel==='captions'){const restoreFocus=document.activeElement?.id==='generateCaptions';renderPanel();if(restoreFocus)$('#captionCreate summary').focus();}}}
 function supportedTypes(){if(typeof MediaRecorder==='undefined')return [];return [{mime:'video/mp4;codecs=avc1.424028,mp4a.40.2',label:'MP4 · H.264',ext:'mp4'},{mime:'video/webm;codecs=vp9,opus',label:'WebM · VP9',ext:'webm'},{mime:'video/webm;codecs=vp8,opus',label:'WebM · VP8',ext:'webm'},{mime:'video/mp4',label:'MP4',ext:'mp4'}].filter(t=>MediaRecorder.isTypeSupported(t.mime));}
 function exportDialog(){if(recoveryBlocked()||exporting)return;if(requestingMic||loadingMedia||record?.state==='recording'||transcribing){toast('파일 로드, 녹음 또는 자막 인식을 먼저 완료해 주세요.');return;}pause();const types=supportedTypes();if(!types.length||!canvas.captureStream){toast('이 브라우저는 영상 내보내기를 지원하지 않습니다. 최신 Chrome 또는 Edge에서 열어주세요.');return;}modalOpen('쇼츠를 완성할 시간',`<p class="modal-copy">타이틀, 자막, 구간별 문구, 움직임과 오디오를 하나의 영상으로 저장합니다.</p><div class="modal-field"><label for="exportFormat">파일 형식</label><select id="exportFormat">${types.map((t,i)=>`<option value="${i}">${t.label}</option>`).join('')}</select></div><div class="modal-field"><label for="exportQuality">해상도</label><select id="exportQuality"><option value="720">720p · 빠른 저장</option><option value="1080" selected>1080p · 고화질</option></select></div><div class="modal-field"><span>영상 길이</span><strong>${fmt(duration()/state.speed)}</strong></div><div class="notice">영상 길이만큼 실시간으로 저장합니다. 이 탭을 켜두세요. 지원 형식은 브라우저에 따라 다릅니다.</div>`,'<div class="modal-foot"><button class="button" id="cancelExportDialog">취소</button><button class="button primary" id="startExport">영상 내보내기</button></div>');$('#cancelExportDialog').onclick=()=>modal.close();$('#startExport').onclick=()=>startExport(types[+$('#exportFormat').value],+$('#exportQuality').value);}
-async function startExport(type,quality){if(recoveryBlocked()||exporting)return;pause();try{exporting=true;exportCancelled=false;document.body.classList.add('exporting');await ensureAudio();await document.fonts.ready;if(recoveryBlocked()){stopExport(true);return;}const [rw,rh]=state.ratio.split(':').map(Number);exportCanvas=document.createElement('canvas');exportCanvas.width=rw>rh?Math.round(quality*rw/rh):quality;exportCanvas.height=rh>rw?Math.round(quality*rh/rw):quality;exportContext=exportCanvas.getContext('2d');seekTo(0);if(state.kind==='video')await seekVideo(state.clips[0].start);draw();exportStream=exportCanvas.captureStream(30);destination.stream.getAudioTracks().forEach(track=>exportStream.addTrack(track.clone()));exportChunks=[];exportRecorder=new MediaRecorder(exportStream,{mimeType:type.mime,videoBitsPerSecond:quality===1080?8000000:4500000,audioBitsPerSecond:128000});exportRecorder.ondataavailable=e=>{if(e.data.size)exportChunks.push(e.data);};exportRecorder.onerror=()=>{toast('영상 저장 중 오류가 발생했습니다. 더 낮은 해상도로 다시 시도하세요.');stopExport(true);};exportRecorder.onstop=()=>{const blob=new Blob(exportChunks,{type:exportRecorder.mimeType});cleanupExport();if(exportCancelled){toast('내보내기를 취소했습니다.');return;}if(!blob.size){toast('출력 파일이 비어 있습니다. 다시 시도해 주세요.');return;}download(blob,`${state.name||'moment-shorts'}.${type.ext}`);modal.innerHTML=`<div class="modal-head"><h2>당신의 쇼츠가 완성됐어요.</h2></div><p class="modal-copy">${esc(state.name)}<br>${quality}p · ${type.ext.toUpperCase()} · ${fmt(duration()/state.speed)}</p><div class="notice">다운로드한 파일을 재생해 영상과 자막을 확인한 뒤 YouTube에 업로드하세요.</div><div class="modal-foot"><button class="button primary" id="exportDone">편집으로 돌아가기</button></div>`;$('#exportDone').onclick=()=>modal.close();};modal.innerHTML='<div class="modal-head"><h2>순간을 담는 중…</h2><strong id="exportPercent">0%</strong></div><p class="modal-copy">이 탭을 열어두면 완성된 영상이 다운로드됩니다.</p><div class="progress"><i id="exportProgress"></i></div><button class="button full" id="cancelRunningExport">내보내기 취소</button>';$('#cancelRunningExport').onclick=()=>stopExport(true);muted=false;renderInspector();exportRecorder.start(250);await play();}catch(e){stopExport(true);toast('내보내기를 시작하지 못했습니다. 브라우저와 영상 형식을 확인하세요.');}}
-function stopExport(cancelled){exportCancelled=cancelled;pause();if(exportRecorder&&exportRecorder.state!=='inactive')exportRecorder.stop();else cleanupExport();if(cancelled)modal.close();}
-function cleanupExport(){exporting=false;document.body.classList.remove('exporting');exportStream?.getTracks().forEach(t=>t.stop());exportStream=null;exportContext=null;exportCanvas=null;exportChunks=[];}
+async function startExport(type,quality){
+ if(recoveryBlocked()||exporting)return;pause();const request=++exportRequest;
+ try{
+  exporting=true;exportCancelled=false;document.body.classList.add('exporting');
+  await ensureAudio();if(request!==exportRequest)return;
+  await document.fonts.ready;if(request!==exportRequest)return;
+  if(recoveryBlocked()){stopExport(true);return;}
+  const [rw,rh]=state.ratio.split(':').map(Number);
+  exportCanvas=document.createElement('canvas');exportCanvas.width=rw>rh?Math.round(quality*rw/rh):quality;exportCanvas.height=rh>rw?Math.round(quality*rh/rw):quality;exportContext=exportCanvas.getContext('2d');
+  seekTo(0);if(state.kind==='video')await seekVideo(state.clips[0].start);
+  if(request!==exportRequest)return;
+  draw();exportStream=exportCanvas.captureStream(30);destination.stream.getAudioTracks().forEach(track=>exportStream.addTrack(track.clone()));
+  const chunks=exportChunks=[],recorder=exportRecorder=new MediaRecorder(exportStream,{mimeType:type.mime,videoBitsPerSecond:quality===1080?8000000:4500000,audioBitsPerSecond:128000});
+  recorder.ondataavailable=e=>{if(request===exportRequest&&e.data.size)chunks.push(e.data);};
+  recorder.onerror=()=>{if(request!==exportRequest)return;stopExport(true);toast('영상 저장 중 오류가 발생했습니다. 더 낮은 해상도로 다시 시도하세요.');};
+  recorder.onstop=()=>{
+   if(request!==exportRequest)return;
+   const blob=new Blob(chunks,{type:recorder.mimeType});pause();cleanupExport(request);
+   if(!blob.size){toast('출력 파일이 비어 있습니다. 다시 시도해 주세요.');return;}
+   download(blob,`${state.name||'moment-shorts'}.${type.ext}`);
+   modal.innerHTML=`<div class="modal-head"><h2>당신의 쇼츠가 완성됐어요.</h2></div><p class="modal-copy">${esc(state.name)}<br>${quality}p · ${type.ext.toUpperCase()} · ${fmt(duration()/state.speed)}</p><div class="notice">다운로드한 파일을 재생해 영상과 자막을 확인한 뒤 YouTube에 업로드하세요.</div><div class="modal-foot"><button class="button primary" id="exportDone">편집으로 돌아가기</button></div>`;$('#exportDone').onclick=()=>modal.close();
+  };
+  modal.innerHTML='<div class="modal-head"><h2>순간을 담는 중…</h2><strong id="exportPercent">0%</strong></div><p class="modal-copy">이 탭을 열어두면 완성된 영상이 다운로드됩니다.</p><div class="progress"><i id="exportProgress"></i></div><button class="button full" id="cancelRunningExport">내보내기 취소</button>';
+  $('#cancelRunningExport').onclick=()=>{if(request===exportRequest)stopExport(true);};muted=false;renderInspector();recorder.start(250);await play();
+ }catch(e){if(request!==exportRequest)return;stopExport(true);toast('내보내기를 시작하지 못했습니다. 브라우저와 영상 형식을 확인하세요.');}
+}
+function stopExport(cancelled){
+ if(!exporting)return;exportCancelled=cancelled;pause();
+ const request=exportRequest,recorder=exportRecorder;
+ if(cancelled){
+  // Invalidate before stop: even synchronous or retained callbacks no longer own the UI/resources.
+  cleanupExport(request);
+  try{if(recorder&&recorder.state!=='inactive')recorder.stop();}catch{}
+  modal.close();toast('내보내기를 취소했습니다.');
+ }else if(recorder){
+  // An inactive recorder may still owe its final dataavailable and stop events.
+  try{if(recorder.state!=='inactive')recorder.stop();}
+  catch{cleanupExport(request);modal.close();toast('영상 저장을 마무리하지 못했습니다. 다시 시도해 주세요.');}
+ }else cleanupExport(request);
+}
+function cleanupExport(request){
+ if(request!==exportRequest)return;++exportRequest;
+ exporting=false;document.body.classList.remove('exporting');
+ if(exportRecorder)exportRecorder.ondataavailable=exportRecorder.onerror=exportRecorder.onstop=null;
+ exportStream?.getTracks().forEach(t=>t.stop());exportRecorder=null;exportStream=null;exportContext=null;exportCanvas=null;exportChunks=[];
+}
 function bind(){icons();$$('[data-panel]').forEach(b=>b.onclick=()=>switchPanel(b.dataset.panel));document.addEventListener('click',e=>{const ratio=e.target.closest('[data-ratio]'),fit=e.target.closest('[data-fit]'),style=e.target.closest('[data-style]');if(ratio)setRatio(ratio.dataset.ratio);if(fit)edit(()=>state.fit=fit.dataset.fit);if(style)edit(()=>{state.style=style.dataset.style;state.captionItalic=state.style==='impact';state.captionStroke=state.style==='minimal'?2:3;},panel==='text');});$('#videoInput').onchange=e=>e.target.files[0]&&loadVideo(e.target.files[0]);$('#audioInput').onchange=e=>e.target.files[0]&&loadAudio(e.target.files[0]);$('#srtInput').onchange=e=>e.target.files[0]&&importSrt(e.target.files[0]);$('#projectInput').onchange=e=>e.target.files[0]&&importProjectSettings(e.target.files[0]);$('#projectName').onchange=e=>edit(()=>state.name=e.target.value.trim()||'제목 없는 쇼츠');$('#saveButton').onclick=()=>saveProject(true);$('#playButton').onclick=()=>playing?pause():play();$('#startButton').onclick=()=>{pause();seekTo(0);};$('#seek').oninput=e=>{pause();seekTo(+e.target.value);};$('#muteButton').onclick=()=>{muted=!muted;$('#muteButton').innerHTML=icon(muted?'mute':'volume');$('#muteButton').setAttribute('aria-label',muted?'미리보기 음소거 해제':'미리보기 음소거');if(audioCtx)renderInspector();};$('#speed').onchange=e=>runEditorCommand('project.update',{patch:{speed:+e.target.value}});inputHistory.bind($('#zoom'),()=>state.zoom,value=>{state.zoom=value;draw();renderInspector();scheduleSave();});inputHistory.bind($('#volume'),()=>state.volume,value=>{state.volume=value;renderInspector();scheduleSave();});$('#trimButton').onclick=()=>trim($('#trimStart').valueAsNumber,$('#trimEnd').valueAsNumber);$('#splitButton').onclick=split;$('#deleteButton').onclick=()=>{if(state.clips.length<=1)return;pause();edit(()=>{state.clips.splice(selected,1);selected=Math.min(selected,state.clips.length-1);});seekTo(0);};for(const [id,delta] of [['moveLeft',-1],['moveRight',1]])$('#'+id).onclick=()=>{const dest=selected+delta;if(dest<0||dest>=state.clips.length)return;pause();edit(()=>{const c=state.clips.splice(selected,1)[0];state.clips.splice(dest,0,c);selected=dest;});seekTo(0);};$('#undoButton').onclick=()=>undo();$('#redoButton').onclick=()=>undo(true);$('#videoTrack').onclick=e=>{const clip=e.target.closest('[data-clip]');if(!clip)return;pause();selected=+clip.dataset.clip;const c=state.clips[selected],r=clip.getBoundingClientRect(),offset=state.clips.slice(0,selected).reduce((s,c)=>s+c.end-c.start,0);seekTo(offset+clamp((e.clientX-r.left)/r.width,0,.999)*(c.end-c.start));renderInspector();renderTimeline();openInspector('clip');if(panel==='settings')renderPanel();};$('#ruler').onclick=e=>{pause();const r=e.currentTarget.getBoundingClientRect();seekTo((e.clientX-r.left)/r.width*duration());};$('#captionTrack').onclick=navigateCaption;$('#audioTrack').onclick=()=>switchPanel('audio');$('#ratioShortcut').onclick=()=>switchPanel('settings');$('#titleTrack').onclick=e=>{const id=e.target.closest('[data-track-card]')?.dataset.trackCard;if(id){selectedCard=id;effectTab='cards';const card=state.overlays.find(c=>c.id===id);pause();if(card)seekTo(Math.min(card.end-.001,card.start+.2)*state.speed);switchPanel('effects');}else{textLayer=e.target.closest('[data-track-layer]')?.dataset.trackLayer||'title';switchPanel('text');}};$('#safeButton').onclick=()=>{const b=$('#safeButton');$('#safeGuide').hidden=!$('#safeGuide').hidden;b.setAttribute('aria-pressed',!$('#safeGuide').hidden);};$('#resetButton').onclick=confirmReset;$('#exportButton').onclick=exportDialog;$('#helpButton').onclick=showHelp;modal.addEventListener('cancel',e=>{if(exporting)e.preventDefault();});let drag=null;
  canvas.onpointerdown=e=>{
   if(exporting||restorePhase==='restoring')return;pause();

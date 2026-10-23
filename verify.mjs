@@ -938,10 +938,99 @@ vm.runInContext("state=initial();state.kind='video';current=0;video.currentTime=
 const beforeFailedExportDownloads=downloads,beforeFailedExportStops=stoppedExportTracks;
 await vm.runInContext('startExport({mime:"video/webm;codecs=vp8,opus",ext:"webm"},720)',context);
 assert.equal(evaluate('exporting'),false);assert.equal(evaluate('playing'),false);assert.equal(evaluate('exportCancelled'),true);
+assert.match(element('#toast').textContent,/재생할 수 없습니다/);
 assert.equal(stoppedExportTracks,beforeFailedExportStops+2);assert.equal(downloads,beforeFailedExportDownloads);
 vm.runInContext('ensureAudio=savedPlayback.ensureAudio;seekVideo=savedPlayback.seekVideo;video.play=savedPlayback.play;video.pause=savedPlayback.pause;delete globalThis.savedPlayback;delete globalThis.mediaPauses;pause();state=initial();',context);
 console.log('PASS: superseded audio/seek/play fulfillment and rejection preserve current playback; current failures still report.');
 console.log('PASS: stale preview completion cannot cancel preparing/running export; current export playback failure releases tracks without download.');
+
+// Cancelling preparation must invalidate its continuation before any recorder is created.
+vm.runInContext('globalThis.preparationAudio=ensureAudio;state=initial();current=0;',context);
+let releasePreparation;context.pendingPreparation=()=>new Promise(resolve=>{releasePreparation=resolve;});
+vm.runInContext('ensureAudio=pendingPreparation',context);
+const preparationStarts=recorderStarts;
+const cancelledPreparation=vm.runInContext('startExport({mime:"video/webm;codecs=vp8,opus",ext:"webm"},720)',context);
+vm.runInContext('stopExport(true);ensureAudio=preparationAudio;',context);
+releasePreparation();await cancelledPreparation;
+assert.equal(recorderStarts,preparationStarts,'Cancelled preparation never starts a recorder');
+assert.equal(evaluate('exporting'),false);assert.equal(evaluate('playing'),false);
+vm.runInContext('delete globalThis.preparationAudio;',context);
+
+vm.runInContext('globalThis.savedExportPreparation={ensureAudio,seekVideo};',context);
+const savedFontReady=doc.fonts.ready;
+for(const stage of ['audio','fonts','seek'])for(const outcome of ['resolve','reject'])for(const retry of [false,true]){
+ vm.runInContext("state=initial();state.kind='video';current=0;ensureAudio=async()=>{};seekVideo=async()=>{};",context);
+ let finish,fail,entered=false;const pending=new Promise((resolve,reject)=>{finish=resolve;fail=reject;});
+ context.exportWait=()=>{entered=true;return pending;};
+ if(stage==='fonts')doc.fonts.ready={then(resolve,reject){entered=true;pending.then(resolve,reject);}};
+ else vm.runInContext(stage==='audio'?'ensureAudio=exportWait':'seekVideo=exportWait',context);
+ const old=vm.runInContext('startExport({mime:"video/webm;codecs=vp8,opus",ext:"webm"},720)',context);
+ for(let i=0;i<5;i++)await Promise.resolve();assert.equal(entered,true,stage+' await reached');
+ vm.runInContext('stopExport(true);ensureAudio=async()=>{};seekVideo=async()=>{};',context);doc.fonts.ready=Promise.resolve();
+ if(retry)await vm.runInContext('startExport({mime:"video/webm;codecs=vp8,opus",ext:"webm"},1080)',context);
+ const active=vm.runInContext('exportRecorder',context),before=evaluate('({state,exporting,exportCancelled,playing})'),counts=[recorderStarts,stoppedExportTracks,downloads];
+ element('#toast').textContent='current state';
+ if(outcome==='reject')fail(new Error('old preparation'));else finish();await old;
+ assert.deepEqual(evaluate('({state,exporting,exportCancelled,playing})'),before,`${stage} ${outcome} after cancel/retry`);
+ assert.equal(vm.runInContext('exportRecorder',context),active);assert.deepEqual([recorderStarts,stoppedExportTracks,downloads],counts);
+ assert.equal(element('#toast').textContent,'current state');
+ if(retry)vm.runInContext('stopExport(true)',context);
+}
+for(const stage of ['audio','fonts','seek']){
+ vm.runInContext("state=initial();state.kind='video';current=0;ensureAudio=async()=>{};seekVideo=async()=>{};",context);
+ context.failedPreparation=async()=>{throw new Error('current preparation failed');};
+ if(stage==='fonts')doc.fonts.ready={then(resolve,reject){reject(new Error('font preparation failed'));}};
+ else vm.runInContext(stage==='audio'?'ensureAudio=failedPreparation':'seekVideo=failedPreparation',context);
+ const counts=[recorderStarts,stoppedExportTracks,downloads];
+ await vm.runInContext('startExport({mime:"video/webm;codecs=vp8,opus",ext:"webm"},720)',context);
+ assert.equal(evaluate('exporting'),false);assert.equal(evaluate('exportCanvas'),null);assert.match(element('#toast').textContent,/시작하지 못했습니다/);
+ assert.deepEqual([recorderStarts,stoppedExportTracks,downloads],counts);doc.fonts.ready=Promise.resolve();
+}
+vm.runInContext('ensureAudio=savedExportPreparation.ensureAudio;seekVideo=savedExportPreparation.seekVideo;delete globalThis.savedExportPreparation;state=initial();',context);doc.fonts.ready=savedFontReady;
+
+// Native stop queues data/stop events; keep them deferred to test cleanup and stale callbacks.
+const immediateRecorder=context.MediaRecorder,delayedRecorders=[];
+context.MediaRecorder=class {
+ constructor(stream,options){this.mimeType=options.mimeType;this.state='inactive';this.stream=stream;this.stopCalls=0;delayedRecorders.push(this);}
+ start(){this.state='recording';recorderStarts++;}
+ stop(){this.stopCalls++;this.state='inactive';}
+};
+const exportStart=()=>vm.runInContext('startExport({mime:"video/webm;codecs=vp8,opus",ext:"webm"},720)',context);
+const callbacks=recorder=>({data:recorder.ondataavailable,stop:recorder.onstop,error:recorder.onerror});
+const dataEvent={data:new Blob(['synthetic final chunk'])};
+await exportStart();let previous=delayedRecorders.at(-1),oldCallbacks=callbacks(previous),oldCancel=element('#cancelRunningExport').onclick;
+let exportStops=stoppedExportTracks,exportDownloads=downloads;
+vm.runInContext('stopExport(true);stopExport(true)',context);
+assert.equal(previous.stopCalls,1);assert.equal(stoppedExportTracks,exportStops+2);assert.equal(evaluate('exportRecorder'),null);
+assert.equal(previous.onstop,null);await exportStart();const replacement=delayedRecorders.at(-1);
+oldCallbacks.data(dataEvent);oldCallbacks.error();oldCallbacks.stop();oldCancel();
+assert.equal(vm.runInContext('exportRecorder',context),replacement);assert.equal(replacement.state,'recording');assert.equal(downloads,exportDownloads);assert.equal(stoppedExportTracks,exportStops+2);
+let finalCallbacks=callbacks(replacement);finalCallbacks.data(dataEvent);
+vm.runInContext('stopExport(false);stopExport(false)',context);
+assert.equal(replacement.stopCalls,1);assert.equal(evaluate('exporting'),true,'Wait for final data and stop, including repeated stop calls');
+assert.equal(stoppedExportTracks,exportStops+2);finalCallbacks.data(dataEvent);finalCallbacks.stop();
+assert.equal(downloads,exportDownloads+1);assert.equal(stoppedExportTracks,exportStops+4);assert.equal(evaluate('exporting'),false);
+finalCallbacks.stop();finalCallbacks.error();finalCallbacks.data(dataEvent);assert.equal(downloads,exportDownloads+1);assert.equal(stoppedExportTracks,exportStops+4);
+await exportStart();previous=delayedRecorders.at(-1);oldCallbacks=callbacks(previous);exportStops=stoppedExportTracks;exportDownloads=downloads;
+vm.runInContext('stopExport(false);stopExport(true)',context);assert.equal(previous.stopCalls,1);assert.equal(stoppedExportTracks,exportStops+2);
+oldCallbacks.data(dataEvent);oldCallbacks.stop();assert.equal(downloads,exportDownloads,'Cancel during finalization never downloads');
+for(const failure of ['construct','start','stop','cancel-stop','error','empty']){
+ context.MediaRecorder=class extends immediateRecorder {
+  constructor(...args){if(failure==='construct')throw new Error('constructor failed');super(...args);}
+  start(...args){if(failure==='start')throw new Error('start failed');super.start(...args);}
+  stop(){if(failure==='stop'||failure==='cancel-stop')throw new Error('stop failed');super.stop();}
+ };
+ exportStops=stoppedExportTracks;exportDownloads=downloads;await exportStart();
+ if(failure==='stop')vm.runInContext('stopExport(false)',context);
+ if(failure==='cancel-stop')vm.runInContext('stopExport(true)',context);
+ if(failure==='error')vm.runInContext('exportRecorder.onerror()',context);
+ if(failure==='empty')vm.runInContext('exportRecorder.onstop()',context);
+ assert.equal(evaluate('exporting'),false,failure+' releases export');assert.equal(evaluate('exportRecorder'),null);
+ assert.equal(stoppedExportTracks,exportStops+2,failure+' releases tracks once');assert.equal(downloads,exportDownloads);
+ if(failure==='error')assert.match(element('#toast').textContent,/영상 저장 중 오류/);
+}
+context.MediaRecorder=immediateRecorder;await exportStart();vm.runInContext('stopExport(true)',context);
+console.log('PASS: cancelled audio/font/seek preparation never resumes; stale callbacks preserve replacement exports; final data, cancellation, errors, cleanup once and explicit retry.');
 console.log('LIMIT: no actual browser layout, microphone capture, AI inference or encoded MP4/WebM playback was tested.');
 
 vm.runInContext('state=initial();timelineCache=null;selected=0;',context);

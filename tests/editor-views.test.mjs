@@ -9,7 +9,8 @@ function controls() {
   const elements = new Map();
   const query = key => {
     if (!elements.has(key)) elements.set(key, {
-      value: '', style: {}, classList: { toggle() {} }, clientWidth: 600, attributes: {},
+      value: '', style: { setProperty(name, value) { this[name] = value; } },
+      classList: { toggle() {} }, clientWidth: 600, attributes: {},
       setAttribute(name, value) { this.attributes[name] = String(value); },
     });
     return elements.get(key);
@@ -57,6 +58,31 @@ test('timeline collapse hands space to the preview and updates its toggle', () =
   assert.equal(toggle.attributes['aria-label'], '타임라인 접기');
 });
 
+test('timeline zoom cycles readable levels and follows the playhead', () => {
+  const { query } = controls(), view = createTimelineView(query), state = createDemoProject();
+  const button = query('#timelineZoom'), label = query('#timelineZoomLabel');
+  const body = query('#timelineBody'), area = query('#tracksArea');
+  assert.equal(view.getZoom(), 1);
+
+  assert.equal(view.cycleZoom(), 2);
+  assert.equal(label.textContent, '2×');
+  assert.equal(button.attributes['aria-label'], '타임라인 확대, 현재 2배');
+  assert.equal(body.style['--timeline-zoom'], '2');
+  assert.equal(view.cycleZoom(), 4);
+  assert.equal(view.cycleZoom(), 8);
+  assert.equal(view.cycleZoom(), 1);
+  assert.equal(view.setZoom(100), 8);
+  assert.equal(view.setZoom(1), 1);
+
+  view.setZoom(4);
+  area.clientWidth = 1200;
+  view.updateTime(state, 10, () => 12, false, true);
+  assert.equal(query('#playhead').style.transform, 'translateX(1000px)');
+  assert.ok(body.scrollLeft > 0, 'the playhead stays inside the visible lane');
+  view.updateTime(state, 0, () => 12, false, true);
+  assert.equal(body.scrollLeft, 0);
+});
+
 test('ruler labels land on round intervals without repeating', () => {
   const { query } = controls(), view = createTimelineView(query), state = createDemoProject();
   state.captions = [];
@@ -70,7 +96,17 @@ test('ruler labels land on round intervals without repeating', () => {
   state.clips = [{ start: 0, end: 12 }];
   state.speed = 2;
   view.render(state, 12, { selected: 0, thumbnail: '', hasAudio: false });
-  assert.deepEqual(labels(), ['00:00', '00:02', '00:04', '00:06']);
+  assert.deepEqual(labels(), ['00:00', '00:01', '00:02', '00:03', '00:04', '00:05', '00:06']);
+
+  // A wider (zoomed) lane reveals finer round intervals instead of stretching five labels.
+  state.clips = [{ start: 0, end: 120 }];
+  state.speed = 1;
+  view.render(state, 120, { selected: 0, thumbnail: '', hasAudio: false });
+  assert.equal(labels().length, 5);
+  query('#tracksArea').clientWidth = 1200;
+  view.render(state, 120, { selected: 0, thumbnail: '', hasAudio: false });
+  assert.equal(labels().length, 13);
+  assert.equal(labels()[1], '00:10');
 });
 
 test('timeline presentation retains occurrence nodes and edits only display state', () => {

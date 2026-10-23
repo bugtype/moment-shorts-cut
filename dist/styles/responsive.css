@@ -83,8 +83,7 @@
     width:28px;
     height:29px
   }
-  /* The mark alone identifies the app on phones; the freed space belongs to the
-     project name so it stays editable instead of disappearing from the header. */
+  /* The project name keeps its own lane instead of disappearing from the header. */
   .project-title {
     display:flex;
     flex:1 1 auto;

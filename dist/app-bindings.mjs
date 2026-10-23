@@ -71,6 +71,10 @@ export function bindUi(app) {
         app.timelineView.setCollapsed(!app.timelineView.isCollapsed());
         app.resizePreview();
     };
+    $('#timelineZoom').onclick = () => {
+        app.timelineView.cycleZoom();
+        app.renderTimeline();
+    };
     // Landscape phones cannot fit the preview, player and tracks together; start
     // with the canvas in view and leave the expanded timeline one tap away.
     if (app.window.matchMedia?.('(max-height: 560px) and (orientation: landscape)')?.matches)

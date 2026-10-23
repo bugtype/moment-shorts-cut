@@ -32,7 +32,8 @@ const paths = {
     check: 'M5 12l4 4L19 6',
     download: 'M12 3v13M7 11l5 5 5-5M4 17v4h16v-4',
     reset: 'M4 10a8 8 0 1 1 2 8M4 4v6h6',
-    folder: 'M3 5h7l2 3h9v12H3z'
+    folder: 'M3 5h7l2 3h9v12H3z',
+    zoom: 'M11 4a7 7 0 1 0 0 14 7 7 0 0 0 0-14M16 16l5 5M8 11h6M11 8v6'
 };
 export function icon(name) {
     return `<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="${paths[name] || paths.plus}"/></svg>`;

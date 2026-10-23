@@ -17,6 +17,8 @@ test('preview serves modules with correct MIME types and never serves repository
   // its bottom row instead of consuming a separate toolbar above the canvas.
   assert.doesNotMatch(pageHtml, /class="stage-toolbar"/);
   assert.match(pageHtml, /<div class="stage-bottom">[\s\S]*?id="ratioShortcut"[\s\S]*?id="safeButton"/);
+  // The timeline corner owns the zoom level so long projects stay readable.
+  assert.match(pageHtml, /id="timelineZoom"[^>]*aria-label="타임라인 확대, 현재 1배"/);
   const module = await fetch(`${origin}/core/project.mjs`);
   assert.equal(module.status, 200);
   assert.match(module.headers.get('content-type'), /text\/javascript/);

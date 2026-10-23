@@ -47,6 +47,41 @@ export function renderCaptionTrackError(track, message) {
 export function createTimelineView($, clock = () => performance.now()) {
     let lastUiTime = 0, lastTimeLabel = '', collapsed = false;
     const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
+    const ZOOM_LEVELS = [1, 2, 4, 8], LABEL_WIDTH = 73;
+    let zoom = 1, lastCurrent = 0, lastLen = 0;
+    // Zoom is presentation only: the tracks keep their true percentages while the
+    // lane grows past the viewport, so clips and captions regain readable width.
+    function setZoom(next) {
+        const value = Number(next);
+        if (!Number.isFinite(value)) return zoom;
+        zoom = clamp(Math.round(value), ZOOM_LEVELS[0], ZOOM_LEVELS[ZOOM_LEVELS.length - 1]);
+        $('#timelineBody').style.setProperty('--timeline-zoom', String(zoom));
+        const label = $('#timelineZoomLabel');
+        if (label) label.textContent = `${zoom}×`;
+        const button = $('#timelineZoom');
+        if (button) {
+            button.setAttribute('aria-label', `타임라인 확대, 현재 ${zoom}배`);
+            button.title = `타임라인 확대 (${ZOOM_LEVELS.join('× → ')}×)`;
+        }
+        return zoom;
+    }
+    function cycleZoom() {
+        return setZoom(ZOOM_LEVELS[(ZOOM_LEVELS.indexOf(zoom) + 1) % ZOOM_LEVELS.length]);
+    }
+    // Sticky labels cover the first column, so only the remainder is visible track.
+    function keepPlayheadVisible() {
+        const body = $('#timelineBody'), area = $('#tracksArea');
+        if (!body || !area || !lastLen) return;
+        const view = body.clientWidth - LABEL_WIDTH;
+        if (view <= 0) return;
+        const x = lastCurrent / lastLen * area.clientWidth;
+        const margin = Math.min(24, view / 3);
+        let left = body.scrollLeft || 0;
+        if (x < left + margin) left = Math.max(0, x - margin);
+        else if (x > left + view - margin) left = Math.max(0, x - view + margin);
+        const content = Number.isFinite(body.scrollWidth) && body.scrollWidth > 0 ? body.scrollWidth : area.clientWidth + LABEL_WIDTH;
+        body.scrollLeft = Math.min(left, Math.max(0, content - body.clientWidth));
+    }
     // Collapsing hands the timeline's height back to the preview. The state lives
     // here so the control, its accessible name and the layout stay in sync.
     function setCollapsed(next) {
@@ -100,7 +135,10 @@ export function createTimelineView($, clock = () => performance.now()) {
         updateTimelineMarkup($('#videoTrack'), clips);
         renderCaptions(state, len);
         const total = len / state.speed;
-        const step = [1, 2, 3, 5, 10, 15, 30, 60, 120, 300, 600].find(value => total / value <= 5) || 600;
+        // Aim for a label roughly every 90px; zooming then reveals finer marks.
+        const width = $('#tracksArea').clientWidth || 600;
+        const target = clamp(Math.round(width / 90), 4, 12);
+        const step = [1, 2, 3, 5, 10, 15, 30, 60, 120, 300, 600].find(value => total / value <= target) || 600;
         const marks = [];
         for (let at = 0; at < total - 1e-6; at += step)
             marks.push(at);
@@ -124,7 +162,11 @@ export function createTimelineView($, clock = () => performance.now()) {
             lastTimeLabel = label;
         }
         $('#seek').value = current;
+        lastCurrent = current;
+        lastLen = len;
         $('#playhead').style.transform = `translateX(${len ? current / len * $('#tracksArea').clientWidth : 0}px)`;
+        if (zoom > 1)
+            keepPlayheadVisible();
         if (exporting) {
             const progress = Math.round(current / len * 100), bar = $('#exportProgress'), label = $('#exportPercent');
             if (bar)
@@ -133,5 +175,5 @@ export function createTimelineView($, clock = () => performance.now()) {
                 label.textContent = progress + '%';
         }
     }
-    return { render, renderLayers, updateTime, setCollapsed, isCollapsed: () => collapsed };
+    return { render, renderLayers, updateTime, setCollapsed, isCollapsed: () => collapsed, setZoom, cycleZoom, getZoom: () => zoom };
 }

@@ -556,6 +556,17 @@ function assertCaptionCountRejected(button){
  assert.match(element('#toast').textContent,/10,000/);
  assert.deepEqual(projectModule.readProjectDocument(projectModule.createProjectDocument(evaluate('state'))),before.state);
 }
+// Older/custom runtimes must leave the whole operation untouched, including redo/focus.
+const unsupportedSplit=vm.runInNewContext(fs.readFileSync('dist/effects.mjs','utf8').replaceAll('export ','')+';splitCaptionText',{Intl:{}});
+setCaptionLimitFixture([{start:0,end:4,text:'e\u0301'.repeat(25)}]);
+context.splitCaptionText=unsupportedSplit;
+const unsupportedBefore=evaluate('({state,history,future})'),unsupportedTimer=vm.runInContext('saveTimer',context);
+element('#splitLongCaptions').focus();const unsupportedFocus=focusEvents.length;
+element('#splitLongCaptions').onclick();
+assert.deepEqual(evaluate('({state,history,future})'),unsupportedBefore);
+assert.equal(vm.runInContext('saveTimer',context),unsupportedTimer);assert.equal(focusEvents.length,unsupportedFocus);
+assert.equal(doc.activeElement,element('#splitLongCaptions'));assert.match(element('#toast').textContent,/문자 분할/);
+context.splitCaptionText=effectsModule.splitCaptionText;
 const shortLimitCaption={start:0,end:1,text:'짧게 🎬',basis:'timeline',speaker:'1',keywords:'🎬'};
 setCaptionLimitFixture(Array.from({length:102},()=>({...shortLimitCaption,text:'가'.repeat(1200)})));
 let countedSplits=0;
@@ -563,7 +574,7 @@ context.splitCaptionText=(...args)=>{countedSplits++;return effectsModule.splitC
 assertCaptionCountRejected(element('#splitLongCaptions'));
 assert.equal(countedSplits,101,'stop expansion at the first overflow, before processing remaining captions');
 context.splitCaptionText=effectsModule.splitCaptionText;
-const twoParts={start:2,end:4,text:'가🎬'.repeat(12),basis:'source',speaker:'0',keywords:'가'};
+const twoParts={start:2,end:4,text:'e\u0301👩‍👩‍👧‍👦'.repeat(12),basis:'source',speaker:'0',keywords:'가'};
 setCaptionLimitFixture([...Array.from({length:captionModule.MAX_CAPTIONS-1},()=>({...shortLimitCaption})),twoParts]);
 assertCaptionCountRejected(element('#splitLongCaptions'));
 for(const basis of ['source','timeline']){

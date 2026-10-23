@@ -225,11 +225,13 @@ function renderEffects(target){
 }
 function splitLongCaptions(){
  const limit=Number($('#captionChunkSize').value),captions=[];
- for(const caption of state.captions){
-  const parts=splitCaptionText(caption,limit);
-  if(captions.length+parts.length>MAX_CAPTIONS){toast('자막은 10,000개 이하만 지원합니다.');return;}
-  captions.push(...parts);
- }
+ try{
+  for(const caption of state.captions){
+   const parts=splitCaptionText(caption,limit);
+   if(captions.length+parts.length>MAX_CAPTIONS){toast('자막은 10,000개 이하만 지원합니다.');return;}
+   captions.push(...parts);
+  }
+ }catch(error){toast(error.message);return;}
  edit(()=>state.captions=captions,true);$('#splitLongCaptions').focus();
  toast('긴 자막을 나눴습니다. 시간은 글자 수 기준으로 배분했으니 음성과 확인해 주세요.');
 }

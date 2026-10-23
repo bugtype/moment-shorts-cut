@@ -30,23 +30,32 @@ export function newCard(total, time = 0) {
     start, end: Math.min(total, start + 3), x: .47, y: .16, width: .78, size: 34, enabled:true, role:'headline', presentation:'plain', backgroundOpacity:.65, stroke:3,
     color: '#ffffff', background: '#16201f', accent: '#b5ff00', animation: 'slide' };
 }
+const captionSegmenter=typeof globalThis.Intl?.Segmenter==='function'?new Intl.Segmenter(undefined,{granularity:'grapheme'}):null;
+function trimGraphemes(parts) {
+  let start=0,end=parts.length;
+  while(start<end&&/^\s+$/u.test(parts[start]))start++;
+  while(end>start&&/^\s+$/u.test(parts[end-1]))end--;
+  return parts.slice(start,end);
+}
 export function splitCaptionText(caption, limit = 18) {
+  if(!captionSegmenter)throw new Error('이 환경은 안전한 문자 분할을 지원하지 않습니다. 최신 브라우저에서 다시 시도하세요.');
   limit = Math.max(1, Math.floor(Number(limit) || 18));
-  const text = Array.from(caption.text.trim());
+  const text = trimGraphemes(Array.from(captionSegmenter.segment(caption.text),item=>item.segment));
   if (!text.length || text.length <= limit) return [caption];
   const pieces = []; let rest = text;
   while (rest.length > limit) {
     let cut = rest.lastIndexOf(' ', limit);
     if (cut < limit * .45) cut = limit;
-    pieces.push(rest.slice(0, cut).join('').trim()); rest = rest.slice(cut);
-    while (rest[0] === ' ') rest.shift();
+    const part=trimGraphemes(rest.slice(0,cut));
+    if(part.length)pieces.push(part);
+    rest=trimGraphemes(rest.slice(cut));
   }
-  if (rest.length) pieces.push(rest.join(''));
+  if (rest.length) pieces.push(rest);
   const weight = pieces.reduce((n, part) => n + part.length, 0);
   let cursor = caption.start;
   return pieces.map((part, index) => {
     const end = index === pieces.length - 1 ? caption.end : cursor + (caption.end - caption.start) * part.length / weight;
-    const result = { ...caption, text: part, start: cursor, end, timing: 'estimated' }; cursor = end; return result;
+    const result = { ...caption, text: part.join(''), start: cursor, end, timing: 'estimated' }; cursor = end; return result;
   });
 }
 // Timed copy uses the headline lane. Opaque cards are an explicit opt-in.

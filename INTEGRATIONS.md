@@ -34,6 +34,8 @@
 
 모든 결과는 `{ok, apiVersion: 1, command, data}` 또는 `{ok:false, apiVersion:1, command, error:{code,message,path?}}`입니다. 잘못된 숫자·시간·색상·알 수 없는 필드는 변경 전에 거부합니다. 변경은 복사본에서 준비하며, 저장 포트가 성공한 뒤 완료를 반환합니다.
 
+JavaScript에서 직접 호출할 때도 JSON으로 왕복 가능한 값을 전달하세요. 배열의 빈 슬롯(예: `[, '둘째 줄']`)과 열거되지 않는 인덱스는 `INVALID_ARGUMENT`로 거부합니다. 빈 제목 줄에는 `''`를 사용하고, `null`은 해당 입력 스키마가 허용하는 곳에서만 사용합니다.
+
 주요 오류: `INVALID_ARGUMENT`, `UNKNOWN_COMMAND`, `NOT_FOUND`, `UNSUPPORTED_VERSION`, `BUSY`, `MEDIA_RELINK_REQUIRED`, `NOT_CONFIGURED`, `INVALID_PROVIDER_RESULT`, `CAPTION_OUTPUT_LIMIT`. 예상하지 못한 내부 오류는 `INTERNAL_ERROR`로 반환하며 스택이나 내부 인증 정보를 반환하지 않습니다.
 
 시간 기준을 유지해야 합니다.

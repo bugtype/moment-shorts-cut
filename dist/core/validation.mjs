@@ -40,6 +40,11 @@ export function assertJson(value) {
     if(typeof v==='number'){if(!Number.isFinite(v))fail('유한한 숫자가 필요합니다.',path);return;}
     if(typeof v==='string'){if(v.length>100000)fail('문자열이 너무 깁니다.',path);return;}
     if(!v||typeof v!=='object'||(!Array.isArray(v)&&Object.prototype.toString.call(v)!=='[object Object]'))fail('JSON 데이터만 사용할 수 있습니다.',path);
+    if(Array.isArray(v)){
+      if(v.length>100000-count)fail('데이터가 너무 크거나 깊습니다.',path);
+      // Holes and hidden indices do not survive both cloning and JSON round-trips.
+      for(let i=0;i<v.length;i++)if(!Object.prototype.propertyIsEnumerable.call(v,i))fail('배열의 빈 항목이나 숨겨진 항목은 사용할 수 없습니다.',`${path}[${i}]`);
+    }
     for(const [key,child] of Object.entries(v)){
       if(['__proto__','constructor','prototype'].includes(key))fail('허용되지 않은 필드 이름입니다.',path);
       visit(child,`${path}.${key}`,depth+1);

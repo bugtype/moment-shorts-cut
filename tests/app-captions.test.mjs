@@ -3,7 +3,6 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import vm from 'node:vm';
 import * as projectModule from '../dist/core/project.mjs';
-import { prepareCommand } from '../dist/core/commands.mjs';
 import * as captionModule from '../dist/captions.mjs';
 import * as effectsModule from '../dist/effects.mjs';
 import { createAppFixture } from './fixtures/app.mjs';
@@ -241,10 +240,11 @@ test('caption workspace, budgets and asynchronous recognition lifecycle', async 
   const beforeOutOfBounds=evaluate('({state,history,future})');
   await vm.runInContext('generateCaptions()',context);assert.deepEqual(evaluate('({state,history,future})'),beforeOutOfBounds);
   // Validation is pure; it must not release the transcription guard to commit a command.
-  context.prepareCommand=(...args)=>{assert.equal(evaluate('transcribing'),true);return prepareCommand(...args);};
+  const beforeValidationWorker=context.Worker;
+  context.Worker=class extends beforeValidationWorker {postMessage(){assert.equal(evaluate('transcribing'),true);super.postMessage();}};
   context.captionTestResult={text:'valid fallback'};
   await vm.runInContext('generateCaptions()',context);
-  assert.deepEqual(evaluate('state.captions'),[{start:0,end:12,text:'valid fallback'}]);context.prepareCommand=prepareCommand;
+  assert.deepEqual(evaluate('state.captions'),[{start:0,end:12,text:'valid fallback'}]);context.Worker=beforeValidationWorker;
   delete context.captionTestResult;
   console.log('PASS: ASR validation preserves prior state/redo/save on invalid chunks or fallback; Unicode boundaries, both clocks, cleanup, retry and canonical JSON succeed.');
   

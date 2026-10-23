@@ -1,3 +1,4 @@
+import { createCaptionGeneration } from './caption-generation.mjs';
 import { createInspectorView } from './inspector-view.mjs';
 import { bindPreviewDrag, bindEditorKeyboard } from './editor-interactions.mjs';
 import { createTemplatePreview } from './template-preview.mjs';
@@ -10,7 +11,7 @@ import { createDemoProject, createProjectDocument, srtTimestamp, projectSrt, rea
 import { prepareCommand } from './core/commands.mjs';
 import { CommandError } from './core/validation.mjs';
 import { createEditorService } from './integration/editor-service.mjs';
-import { editedCaptions, mapAudioCaptions, parseSubtitles, MAX_SUBTITLE_BYTES, MAX_CAPTIONS } from './captions.mjs';
+import { editedCaptions, parseSubtitles, MAX_SUBTITLE_BYTES, MAX_CAPTIONS } from './captions.mjs';
 import { createTimelineView } from './timeline-view.mjs';
 import { createInputHistory } from './input-history.mjs';
 import { defaultEnhancements, newCard, splitCaptionText, retimeOutputLayers, activeSceneLayers, sceneBounds } from './effects.mjs';
@@ -36,7 +37,7 @@ function clamp(v, a, b) {
 function initial() {
     return createDemoProject();
 }
-let state = initial(), current = 0, selected = 0, playing = false, panel = 'templates', textLayer = 'title', videoFile = null, audioFile = null, sourceURL = '', audioURL = '', thumbnail = '', history = [], future = [], exporting = false, muted = false, transcriptionCancelled = false, transcribing = false, transcriptionStatus = '', saveTimer, pendingSave = Promise.resolve();
+let state = initial(), current = 0, selected = 0, playing = false, panel = 'templates', textLayer = 'title', videoFile = null, audioFile = null, sourceURL = '', audioURL = '', thumbnail = '', history = [], future = [], exporting = false, muted = false, transcribing = false, transcriptionStatus = '', saveTimer, pendingSave = Promise.resolve();
 const video = $('#sourceVideo'), audio = $('#sourceAudio'), canvas = $('#preview'), ctx = canvas.getContext('2d'), sample = new Image(), modal = $('#modal');
 let audioCtx, videoNode, audioNode, videoGain, audioGain, destination, exportCancelled = false, lastTick = 0;
 let sampleRaster = null, lastSaveStatus = '', effectTab = 'cards', selectedCard = null, cardPlaybackEnd = null;
@@ -79,6 +80,12 @@ const videoExport = createVideoExport({
     },
 });
 const transcription = createTranscriptionClient(() => new Worker('./transcribe-worker.js', { type: 'module' }));
+const captionGeneration = createCaptionGeneration({
+    transcription,
+    getProject: () => state,
+    getFile: source => source === 'audio' ? audioFile : videoFile,
+    getDuration: () => duration(),
+});
 const audioRecording = createAudioRecording({
     prepare: () => pause(),
     onReady: (file, recorder) => loadAudio(file, recorder),
@@ -1287,23 +1294,11 @@ async function importSrt(file) {
         $('#srtInput').value = '';
     }
 }
-function guardTranscription(source, file) {
-    const original = state, captions = state.captions;
-    const context = () => JSON.stringify([state.captions, state.duration, source === 'audio' ? [state.audioOffset, duration()] : null]);
-    const contents = context();
-    return () => {
-        if (transcriptionCancelled)
-            throw new Error('자동 자막 생성을 취소했습니다.');
-        if (state !== original || state.captions !== captions || file !== (source === 'audio' ? audioFile : videoFile) || context() !== contents)
-            throw new Error('원본·자막·시간 기준이 변경되어 인식 결과를 적용하지 않았습니다. 다시 생성하세요.');
-    };
-}
 async function generateCaptions() {
     if (recoveryBlocked())
         return;
     if (transcribing) {
-        transcriptionCancelled = true;
-        transcription.cancel();
+        captionGeneration.cancel();
         return;
     }
     if (audioRecording.current || audioRecording.requesting || loadingMedia || exporting) {
@@ -1319,62 +1314,28 @@ async function generateCaptions() {
         toast('자동 자막은 원본 길이 3분 이하를 지원합니다. 짧은 원본을 업로드하세요.');
         return;
     }
-    const beforeApply = guardTranscription(source, file);
-    pause();
-    transcriptionCancelled = false;
-    transcribing = true;
-    const button = $('#generateCaptions');
-    button.disabled = false;
-    button.innerHTML = '<span class="spinner"></span> 준비 중 · 취소';
-    const status = message => {
-        transcriptionStatus = message;
-        const el = $('#asrStatus');
-        if (el) {
-            el.hidden = false;
-            el.textContent = message;
-        }
-    };
     try {
-        status('오디오를 읽고 있습니다…');
-        const decodeCtx = new AudioContext();
-        let buffer;
-        try {
-            buffer = await decodeCtx.decodeAudioData(await file.arrayBuffer());
-        }
-        finally {
-            await decodeCtx.close();
-        }
-        const length = Math.min(buffer.duration, 180), offline = new OfflineAudioContext(1, Math.ceil(length * 16000), 16000), src = offline.createBufferSource();
-        src.buffer = buffer;
-        src.connect(offline.destination);
-        src.start();
-        const pcm = (await offline.startRendering()).getChannelData(0);
-        beforeApply();
-        let peak = 0;
-        for (let i = 0; i < pcm.length; i += 50)
-            peak = Math.max(peak, Math.abs(pcm[i]));
-        if (peak < .002)
-            throw new Error('음성을 찾지 못했습니다. 소리가 있는 영상이나 오디오를 선택하세요.');
-        status('음성 인식 모델을 준비합니다. 첫 실행은 다운로드에 시간이 걸릴 수 있습니다.');
-        const result = await transcription.transcribe(pcm, language, status);
-        let caps = (result.chunks || []).map(c => ({ start: c.timestamp[0] ?? 0, end: c.timestamp[1] ?? length, text: c.text.trim() }));
-        // Check raw times before audio mapping can clamp them or discard reversed spans.
-        for (const c of caps)
-            if (!Number.isFinite(c.start) || !Number.isFinite(c.end) || c.start < 0 || c.end <= c.start)
-                throw new Error('인식된 자막의 시간 정보가 올바르지 않습니다. 기존 자막은 유지됩니다.');
-        caps = caps.filter(c => c.text);
-        if (!caps.length && result.text?.trim())
-            caps.push({ start: 0, end: length, text: result.text.trim() });
-        if (source === 'audio')
-            caps = mapAudioCaptions(caps, state.audioOffset, duration());
-        if (!caps.length)
-            throw new Error('인식된 음성이 없습니다. 음질과 언어 설정을 확인하세요.');
-        if (caps.length > MAX_CAPTIONS)
-            throw new Error('자막은 10,000개 이하만 지원합니다.');
-        const prepared = prepareCommand(state, 'captions.replace', { captions: caps });
-        beforeApply();
-        edit(() => state.captions = prepared.project.captions);
-        toast(`${caps.length}개의 자막을 생성했습니다. 인식 결과를 확인해 주세요.`);
+        await captionGeneration.generate(source, file, language, {
+            start: () => {
+                pause();
+                transcribing = true;
+                const button = $('#generateCaptions');
+                button.disabled = false;
+                button.innerHTML = '<span class="spinner"></span> 준비 중 · 취소';
+            },
+            status: message => {
+                transcriptionStatus = message;
+                const el = $('#asrStatus');
+                if (el) {
+                    el.hidden = false;
+                    el.textContent = message;
+                }
+            },
+            apply: (captions, count) => {
+                edit(() => state.captions = captions);
+                toast(`${count}개의 자막을 생성했습니다. 인식 결과를 확인해 주세요.`);
+            },
+        });
     }
     catch (e) {
         toast(e.message || '자막 생성에 실패했습니다. SRT 불러오기나 직접 입력을 사용할 수 있습니다.');

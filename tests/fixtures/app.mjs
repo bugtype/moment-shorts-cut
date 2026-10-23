@@ -1,3 +1,4 @@
+import { createCaptionGeneration } from '../../dist/caption-generation.mjs';
 import { createInspectorView } from '../../dist/inspector-view.mjs';
 import { bindPreviewDrag, bindEditorKeyboard } from '../../dist/editor-interactions.mjs';
 import { createTemplatePreview } from '../../dist/template-preview.mjs';
@@ -103,6 +104,10 @@ export async function createAppFixture() {
     ...effectsModule, ...templateModule, readTemplateLibrary, validateTemplateLibrary,
     mountTemplateGallery, mountEffectsPanel, ...typographyModule, createCompositionRenderer,
     createProjectStore, createTranscriptionClient, createVideoExport, bindPreviewDrag, bindEditorKeyboard,
+    createCaptionGeneration: options => createCaptionGeneration(options, {
+      createAudioContext: () => new context.AudioContext(),
+      createOfflineContext: (...args) => new context.OfflineAudioContext(...args),
+    }),
     createTemplatePreview: options => createTemplatePreview(options, {
       requestFrame: callback => context.requestAnimationFrame(callback),
       cancelFrame: id => context.cancelAnimationFrame(id),

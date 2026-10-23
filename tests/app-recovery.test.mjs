@@ -1,3 +1,4 @@
+import { createCaptionGeneration } from '../dist/caption-generation.mjs';
 import { createTemplatePreview } from '../dist/template-preview.mjs';
 import { createAudioRecording } from '../dist/audio-recording.mjs';
 import test from 'node:test';
@@ -25,6 +26,10 @@ test('restore protection and isolated template library failures', async () => {
    const f={raw,media:structuredClone(media),jsonWrites:0,mediaWrites:0,reads:0,downloads:[],events:new Map(),timers:[],micCalls:0,libraryWrites:[],library:{'moment-templates-v1':templateRaw,'moment-favorites-v1':favoritesRaw}};
    const audioEvents=new Map(),fixtureAudio={duration:audioDuration,paused:true,pause(){this.paused=true;},removeAttribute(){},addEventListener(name,handler){audioEvents.set(name,handler);},removeEventListener(name){audioEvents.delete(name);},set src(value){queueMicrotask(()=>audioEvents.get(audioResult)?.());}};
    const app=vm.createContext({...context,
+    createCaptionGeneration: options => createCaptionGeneration(options, {
+      createAudioContext: () => new app.AudioContext(),
+      createOfflineContext: (...args) => new app.OfflineAudioContext(...args),
+    }),
     createTemplatePreview: options => createTemplatePreview(options, {
       requestFrame: callback => app.requestAnimationFrame(callback),
       cancelFrame: id => app.cancelAnimationFrame(id),

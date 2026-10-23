@@ -234,6 +234,19 @@
   .timeline-hint {
     display:none
   }
+  /* The stage chrome and project name are controls too; keep them tappable
+     without stealing height from the preview. */
+  .stage-bottom {
+    bottom:6px
+  }
+  .stage-ratio,.stage-bottom .text-button {
+    min-height:32px;
+    padding-top:0;
+    padding-bottom:0
+  }
+  .project-title input {
+    padding:7px 0
+  }
 }
 
 /* Phones get a full-width scrubber: the player wraps to two rows so seeking is

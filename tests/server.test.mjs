@@ -88,6 +88,11 @@ test('preview serves modules with correct MIME types and never serves repository
   // Short portrait phones cap the stage so the player stays above the fixed rail.
   assert.match(compactShell, /--player-h:88px/);
   assert.match(compactShell, /@media \(max-width:700px\) and \(max-height:640px\) and \(orientation:portrait\) \{\s*\.stage \{\s*flex:0 0 auto;\s*height:calc\(100dvh - 66px - 58px - var\(--player-h,56px\)/);
+  // The stage chrome and the project name are controls too: compact screens give
+  // them thumb-sized height without taking any room away from the preview.
+  assert.match(compactShell, /\.stage-bottom \{\s*bottom:6px\s*\}/);
+  assert.match(compactShell, /\.stage-ratio,\.stage-bottom \.text-button \{\s*min-height:32px;\s*padding-top:0;\s*padding-bottom:0\s*\}/);
+  assert.match(compactShell, /\.project-title input \{\s*padding:7px 0\s*\}/);
   for (const pathname of ['/package.json', '/.git/config', '/%2e%2e/package.json', '/..%2fpackage.json', '/missing.js']) {
     assert.equal((await fetch(origin + pathname)).status, 404, pathname);
   }

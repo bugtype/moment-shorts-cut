@@ -62,3 +62,33 @@ test('MCP rejects invalid input before resolving storage and hides internal erro
   assert.equal(internal.structuredContent.error.code, 'INTERNAL_ERROR');
   assert.doesNotMatch(JSON.stringify(internal), /secret storage path/);
 });
+
+test('MCP discovery schemas cannot change later discovery or private input validation', async () => {
+  const f=fixture();let lookups=0;
+  const adapter=createMcpToolAdapter({resolveService:()=>{lookups++;return f.service;}});
+  const original=adapter.listTools(),list=adapter.listTools();
+  const update=list.tools.find(t=>t.name==='moment_project_update');
+  update.inputSchema.properties.patch.properties.speed.minimum=0;
+  update.inputSchema.properties.patch.properties.zoom.maximum=0;
+  const captions=list.tools.find(t=>t.name==='moment_captions_replace').inputSchema.properties.captions;
+  captions.maxItems=0;
+  captions.items.required.length=0;
+  captions.items.properties.basis.enum.push('invalid-clock');
+  update.name='renamed';update.annotations.readOnlyHint=true;list.tools.pop();
+  assert.deepEqual(adapter.listTools(),original);
+  const before=structuredClone(f.state);
+  for(const [name,args] of [
+    ['moment_project_update',{patch:{speed:0}}],
+    ['moment_captions_replace',{captions:[{start:0,end:1,text:'caption',basis:'invalid-clock'}]}],
+    ['moment_captions_replace',{captions:[{start:0,end:1}]}],
+  ]){
+    const result=await adapter.callTool(name,{projectId:'one',...args});
+    assert.equal(result.isError,true);assert.equal(result.structuredContent.error.code,'INVALID_ARGUMENT');
+  }
+  assert.equal(lookups,0);assert.deepEqual(f.state,before);
+  assert.equal((await adapter.callTool('moment_project_update',{projectId:'one',patch:{zoom:1.5}})).isError,false);
+  assert.equal(f.state.zoom,1.5);
+  assert.equal((await adapter.callTool('moment_captions_replace',{projectId:'one',captions:[{start:0,end:1,text:'valid'}]})).isError,false);
+  assert.equal(f.state.captions[0].text,'valid');assert.equal(lookups,2);
+  assert.deepEqual(adapter.listTools(),original);
+});

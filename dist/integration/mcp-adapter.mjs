@@ -9,7 +9,7 @@ export function createMcpToolAdapter({resolveService}){
   const definitions=commandDefinitions();
   const names=new Map(definitions.map(c=>[`moment_${c.name.replaceAll('.','_')}`,c]));
   return {
-    listTools(){return {resultType:'complete',tools:[...names].map(([name,c])=>({name,description:c.description,inputSchema:{...c.inputSchema,properties:{projectId:{type:'string',minLength:1,maxLength:200},...c.inputSchema.properties},required:['projectId',...c.inputSchema.required]},annotations:{readOnlyHint:!c.mutates,destructiveHint:c.mutates,openWorldHint:false}}))};},
+    listTools(){return structuredClone({resultType:'complete',tools:[...names].map(([name,c])=>({name,description:c.description,inputSchema:{...c.inputSchema,properties:{projectId:{type:'string',minLength:1,maxLength:200},...c.inputSchema.properties},required:['projectId',...c.inputSchema.required]},annotations:{readOnlyHint:!c.mutates,destructiveHint:c.mutates,openWorldHint:false}}))});},
     async callTool(name,args,context){
       const command=names.get(name);
       // Host must translate this into a JSON-RPC invalid-params protocol error.

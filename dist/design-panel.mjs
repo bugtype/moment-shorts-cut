@@ -62,7 +62,6 @@ export function mountDesignPanel(root, api) {
   root.querySelectorAll('[data-design]').forEach(input => {
     const path = input.dataset.design;
     const continuous = ['text', 'range', 'color'].includes(input.type);
-    if (continuous && input.type !== 'range') input.onfocus = api.snapshot;
     const update = () => {
       let value = input.type === 'checkbox' ? input.checked : ['number','range'].includes(input.type) ? (input.value === '' ? null : Number(input.value)) : input.value;
       if (input.dataset.unit === '%') value /= 100;
@@ -84,11 +83,11 @@ export function mountDesignPanel(root, api) {
       const output = root.querySelector(`[data-output="${path}"]`);
       if (output) output.textContent = input.value + (input.dataset.unit || '');
     };
-    if (input.type === 'range') api.range(input, () => {
+    if (continuous) api.input(input, () => {
       const value = path.split('.').reduce((item, key) => item[key], state);
       return input.dataset.unit === '%' ? Math.round(value * 100) : value;
     }, update);
-    else input[continuous ? 'oninput' : 'onchange'] = update;
+    else input.onchange = update;
   });
   const timedButton=root.querySelector('#editTimedTitle');
   if(timed&&timedButton)timedButton.onclick=()=>api.timedTitle(timed.id);

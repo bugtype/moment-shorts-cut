@@ -38,6 +38,11 @@ function element(key=''){
 let canvasCount=0,rafCounter=0;const pendingFrames=new Map();
 Object.assign(element('#captionTrack'),createTrack());
 for(const id of ['zoom','volume','audioVolume','mobileZoom','captionSize','captionY','panelVolume'])element('#'+id).type='range';
+for(const id of ['trimStart','trimEnd','panelTrimStart','panelTrimEnd']){
+ const control=element('#'+id);control.type='number';
+ // Model the numeric getter contract; this is not browser input sanitization.
+ Object.defineProperty(control,'valueAsNumber',{configurable:true,get(){const value=String(this.value);return value.trim()===''?NaN:Number(value);}});
+}
 const documentEvents=new Map();
 const doc={querySelector:element,querySelectorAll:()=>[],addEventListener(name,handler){documentEvents.set(name,handler);},body:element('body'),fonts:{ready:Promise.resolve()},createElement:()=>element('canvas-'+(++canvasCount))};
 const context=vm.createContext({document:doc,window:{addEventListener(){}},Image:class{complete=false;},localStorage:{getItem:()=>null,setItem(){}},requestAnimationFrame(callback){pendingFrames.set(++rafCounter,callback);return rafCounter;},cancelAnimationFrame(id){pendingFrames.delete(id);},setTimeout(){},clearTimeout(){},setInterval(){},clearInterval(){},console,URL,Blob,performance,Number,Math,Promise,structuredClone,...projectModule,prepareCommand,CommandError,createEditorService,...captionModule,renderCaptionTrack,updateTimelineMarkup,createInputHistory,...effectsModule,...templateModule,mountTemplateGallery,mountEffectsPanel,...typographyModule,createProjectStore,mountDesignPanel});
@@ -252,6 +257,33 @@ trimDraft('2.5','3.5');await context.window.moment.execute('template.apply',{tem
 trimDraft('2.5','3.5');vm.runInContext('confirmReset()',context);element('#confirmReset').onclick();assertTrimDraft('0.0','12.0');
 vm.runInContext('state=initial();history=[];future=[];inputHistory.reset();selected=0;current=0;changed()',context);
 console.log('PASS: trim drafts survive unrelated edits and failed/blocked Apply; successful Apply, clip selection/structure, undo/redo and project replacement reset their context.');
+
+for(const [startId,endId,applyId] of [['trimStart','trimEnd','trimButton'],['panelTrimStart','panelTrimEnd','panelTrimApply']]){
+ vm.runInContext('state=initial();state.clips=[{start:2,end:8}];selected=0;current=0;history=[];future=[];inputHistory.reset();switchPanel("settings");renderInspector();',context);
+ vm.runInContext('edit(()=>state.zoom=1.2);undo();',context);
+ const beforeNumericTrim=evaluate('[state,history,future]'),startInput=element('#'+startId),endInput=element('#'+endId);
+ for(const [start,end] of [['','6'],[' \t','6'],['2',''],['2',' \t'],['bad','6'],['2','bad'],['Infinity','6'],['2','Infinity'],['1e999','6'],['-1','6'],['2','13'],['6','2'],['2','2.05']]){
+  startInput.value=start;endInput.value=end;element('#'+applyId).onclick();
+  assert.deepEqual(evaluate('[state,history,future]'),beforeNumericTrim,`${startId}: ${JSON.stringify([start,end])}`);
+  assert.deepEqual([startInput.value,endInput.value],[start,end]);assert.match(element('#toast').textContent,/시작·끝/);
+ }
+ // A native bad-input state may expose an empty string and NaN simultaneously.
+ const numericGetter=Object.getOwnPropertyDescriptor(startInput,'valueAsNumber');
+ startInput.value='';endInput.value='6';Object.defineProperty(startInput,'valueAsNumber',{configurable:true,value:NaN});
+ element('#'+applyId).onclick();assert.deepEqual(evaluate('[state,history,future]'),beforeNumericTrim);
+ Object.defineProperty(startInput,'valueAsNumber',numericGetter);
+ startInput.value='0';endInput.value='6.25';element('#'+applyId).onclick();
+ assert.deepEqual(evaluate('state.clips'),[{start:0,end:6.25}]);assert.equal(evaluate('history.length'),1);assert.equal(evaluate('future.length'),0);
+ vm.runInContext('undo()',context);assert.deepEqual(evaluate('state.clips'),[{start:2,end:8}]);
+ startInput.value='0';endInput.value='0.1';element('#'+applyId).onclick();assert.deepEqual(evaluate('state.clips'),[{start:0,end:.1}]);
+}
+const typedTrimBefore=evaluate('[state,history,future]');
+for(const start of ['', ' ', NaN, Infinity]){
+ assert.equal((await context.window.moment.execute('timeline.replace',{clips:[{start,end:6}]})).ok,false);
+ assert.deepEqual(evaluate('[state,history,future]'),typedTrimBefore);
+}
+vm.runInContext('state=initial();history=[];future=[];inputHistory.reset();selected=0;current=0;changed()',context);
+console.log('PASS: both trim Apply paths reject empty/invalid/nonfinite inputs without losing drafts/history; zero, decimals, minimum duration, correction and undo remain supported.');
 
 // Focusing mounted design text/color controls must leave actual project redo intact.
 const titleInput=element('#titleFirst'),titleColor=element('[data-design="design.title.colors.0"]');

@@ -1,3 +1,4 @@
+import { createCaptionPanel } from './caption-panel.mjs';
 import { createCaptionGeneration } from './caption-generation.mjs';
 import { createInspectorView } from './inspector-view.mjs';
 import { bindPreviewDrag, bindEditorKeyboard } from './editor-interactions.mjs';
@@ -6,15 +7,15 @@ import { createVideoExport } from './video-export.mjs';
 import { createAudioRecording } from './audio-recording.mjs';
 import { createTranscriptionClient } from './transcription-client.mjs';
 import { icon, esc, fmt } from './ui-format.mjs';
-import { captionsPanelMarkup, mediaPanelMarkup, audioPanelMarkup, settingsPanelMarkup } from './panel-markup.mjs';
+import { mediaPanelMarkup, audioPanelMarkup, settingsPanelMarkup } from './panel-markup.mjs';
 import { createDemoProject, createProjectDocument, srtTimestamp, projectSrt, readProjectDocument, MAX_CLIPS } from './core/project.mjs';
 import { prepareCommand } from './core/commands.mjs';
 import { CommandError } from './core/validation.mjs';
 import { createEditorService } from './integration/editor-service.mjs';
-import { editedCaptions, parseSubtitles, MAX_SUBTITLE_BYTES, MAX_CAPTIONS } from './captions.mjs';
+import { editedCaptions, parseSubtitles, MAX_SUBTITLE_BYTES } from './captions.mjs';
 import { createTimelineView } from './timeline-view.mjs';
 import { createInputHistory } from './input-history.mjs';
-import { defaultEnhancements, newCard, splitCaptionText, retimeOutputLayers, activeSceneLayers, sceneBounds } from './effects.mjs';
+import { defaultEnhancements, newCard, retimeOutputLayers, activeSceneLayers, sceneBounds } from './effects.mjs';
 import { applyTemplate, visualPreset, saveCustomTemplate } from './template-catalog.mjs';
 import { readTemplateLibrary, validateTemplateLibrary } from './template-library.mjs';
 import { mountTemplateGallery } from './template-gallery.mjs';
@@ -69,6 +70,15 @@ const templatePreview = createTemplatePreview({
         seekTo(0);
         toast(withContent ? '예시 타이틀과 구간별 문구를 적용했습니다. 문구를 내 영상에 맞게 수정하세요.' : '스타일을 적용했습니다. 기존 문구와 자막은 유지했습니다.');
     },
+});
+const captionPanel = createCaptionPanel({
+    query: $, queryAll: $$,
+    getProject: () => state,
+    getDuration: () => duration(),
+    sourceTime: () => locate(current).source,
+    edit: (change, refresh) => edit(change, refresh),
+    refresh: () => renderPanel(),
+    toast: message => toast(message),
 });
 const projectStore = createProjectStore();
 const videoExport = createVideoExport({
@@ -602,70 +612,15 @@ function renderEffects(target) {
         }
     });
 }
-function splitLongCaptions() {
-    const limit = Number($('#captionChunkSize').value), captions = [];
-    try {
-        for (const caption of state.captions) {
-            const parts = splitCaptionText(caption, limit);
-            if (captions.length + parts.length > MAX_CAPTIONS) {
-                toast('자막은 10,000개 이하만 지원합니다.');
-                return;
-            }
-            captions.push(...parts);
-        }
-    }
-    catch (error) {
-        toast(error.message);
-        return;
-    }
-    if (captions.length === state.captions.length && captions.every((caption, i) => caption === state.captions[i] || JSON.stringify(caption) === JSON.stringify(state.captions[i]))) {
-        toast('나눌 긴 자막이 없습니다.');
-        return;
-    }
-    edit(() => state.captions = captions, true);
-    $('#splitLongCaptions').focus();
-    toast('긴 자막을 나눴습니다. 시간은 글자 수 기준으로 배분했으니 음성과 확인해 주세요.');
-}
 function renderCaptionsPanel(target) {
-    const toolsOpen = target.querySelector('#captionTools')?.open;
-    target.innerHTML = captionsPanelMarkup(state, { toolsOpen, transcribing, hasAudio: !!audioFile, transcriptionStatus });
-    $('#captionDesignShortcut').onclick = () => {
-        textLayer = 'caption';
-        switchPanel('text');
-    };
-    $('#splitLongCaptions').onclick = splitLongCaptions;
-    $$('[data-caption-keywords]').forEach(el => el.onchange = () => edit(() => state.captions[+el.dataset.captionKeywords].keywords = el.value));
-    $$('[data-caption-speaker]').forEach(el => el.onchange = () => edit(() => state.captions[+el.dataset.captionSpeaker].speaker = el.value));
-    $('#generateCaptions').onclick = generateCaptions;
-    $('#addCaption').onclick = () => {
-        if (state.captions.length >= MAX_CAPTIONS) {
-            toast('자막은 10,000개 이하만 지원합니다.');
-            return;
-        }
-        edit(() => {
-            const t = Math.min(locate(current).source, Math.max(0, state.duration - .1));
-            state.captions.push({ start: t, end: Math.min(state.duration, t + 3), text: '새로운 자막을 입력하세요' });
-        }, true);
-        focusCaption(state.captions.length - 1);
-    };
-    $('#importSrt').onclick = () => $('#srtInput').click();
-    $('#downloadSrt').onclick = downloadSrt;
-    $$('[data-delete-caption]').forEach(b => b.onclick = () => {
-        const index = +b.dataset.deleteCaption;
-        edit(() => state.captions.splice(index, 1), true);
-        focusCaption(Math.min(index, state.captions.length - 1));
+    captionPanel.render(target, { transcribing, hasAudio: !!audioFile, transcriptionStatus }, {
+        design: () => {
+            textLayer = 'caption';
+            switchPanel('text');
+        },
+        generate: generateCaptions,
+        download: downloadSrt,
     });
-    $$('[data-caption-text]').forEach(el => el.onchange = () => edit(() => state.captions[+el.dataset.captionText].text = el.value));
-    for (const side of ['start', 'end'])
-        $$(`[data-caption-${side}]`).forEach(el => el.onchange = () => {
-            const i = +el.dataset[side === 'start' ? 'captionStart' : 'captionEnd'], c = state.captions[i], value = +el.value;
-            if (!Number.isFinite(value) || value < 0 || value > (c.basis === 'timeline' ? duration() : state.duration) || (side === 'start' ? value >= c.end : value <= c.start)) {
-                toast('시작은 끝보다 작고, 영상 길이 안에 있어야 합니다.');
-                renderPanel();
-                return;
-            }
-            edit(() => c[side] = value);
-        });
 }
 function navigateCaption(event) {
     if (exporting)
@@ -681,9 +636,7 @@ function navigateCaption(event) {
     focusCaption(+block.dataset.captionIndex);
 }
 function focusCaption(index) {
-    const field = (index < 0 ? null : $('[data-caption-text="' + index + '"]')) || $('#addCaption');
-    field.focus({ preventScroll: true });
-    field.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: 'instant' });
+    captionPanel.focus(index);
 }
 function renderPanel() {
     const target = $('#panelContent');

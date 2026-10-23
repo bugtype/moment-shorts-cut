@@ -31,7 +31,7 @@ import assert from 'node:assert/strict';
 // Synthetic DOM/media only. Each call owns a separate VM, controls and event queues.
 export async function createAppFixture() {
   const source=fs.readFileSync(new URL('../../dist/app.js',import.meta.url),'utf8');
-  const panelSource=['design-panel.mjs','effects-panel.mjs','template-gallery.mjs','panel-markup.mjs','template-preview.mjs','inspector-view.mjs','timeline-view.mjs'].map(f=>fs.readFileSync(new URL('../../dist/'+f,import.meta.url),'utf8')).join('\n');
+  const panelSource=['design-panel.mjs','effects-panel.mjs','template-gallery.mjs','panel-markup.mjs','template-preview.mjs','inspector-view.mjs','timeline-view.mjs','caption-panel.mjs'].map(f=>fs.readFileSync(new URL('../../dist/'+f,import.meta.url),'utf8')).join('\n');
   const html=fs.readFileSync(new URL('../../dist/index.html',import.meta.url),'utf8');
   const ids=new Set([...`${html}\n${source}\n${panelSource}`.matchAll(/id="([\w-]+)"/g)].map(m=>m[1]));
   const selectors=[...source.matchAll(/\$\('#([\w-]+)'\)/g)].map(m=>m[1]);
@@ -121,6 +121,9 @@ export async function createAppFixture() {
       clearTimer: timer => context.clearInterval(timer),
     }), mountDesignPanel, ...panelMarkup, icon, esc, fmt,
   });
+  // Keep the existing split-helper fault injection in this VM without a production test hook.
+  const captionPanelSource=fs.readFileSync(new URL('../../dist/caption-panel.mjs',import.meta.url),'utf8');
+  context.createCaptionPanel=vm.runInContext('(()=>{'+captionPanelSource.replace(/^import .*;$/gm,'').replace('export function','function')+';return createCaptionPanel;})()',context);
   vm.runInContext(source.replace(/^import .*;$/gm,'').replace(/init\(\);\s*$/,'globalThis.ready=init();'),context);
   await context.ready;
   for(const [id,cb] of pendingFrames){pendingFrames.delete(id);cb(performance.now());}

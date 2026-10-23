@@ -58,7 +58,9 @@ node cli/moment.mjs exec captions.export --project titled.json --out captions.sr
 node cli/moment.mjs exec render.plan --project titled.json --json '{"quality":1080,"format":"mp4"}' --out render-plan.json
 ```
 
-`exec --dry-run`은 결과를 JSON으로 출력하고 파일을 쓰지 않습니다. `init`은 `--out`과 `--overwrite`만 지원하며, `--dry-run` 등 지원하지 않는 옵션은 파일 접근 전에 거부합니다. 기존 출력 파일은 기본적으로 거부하며, 교체하려면 `--overwrite`를 지정합니다. 성공은 종료 코드 0과 stdout JSON, 실패는 종료 코드 1과 stderr JSON입니다. JSON 파일은 10 MB까지 읽습니다. 임시 파일에 먼저 쓴 뒤 최종 경로로 반영합니다.
+`exec --dry-run`은 결과를 JSON으로 출력하고 파일을 쓰지 않습니다. `init`은 `--out`과 `--overwrite`만 지원하며, `--dry-run` 등 지원하지 않는 옵션은 파일 접근 전에 거부합니다. 기존 출력 파일은 기본적으로 거부하며, 교체하려면 `--overwrite`를 지정합니다. 성공은 종료 코드 0과 stdout JSON, 실패는 종료 코드 1과 stderr JSON입니다. 임시 파일에 먼저 쓴 뒤 최종 경로로 반영합니다.
+
+JSON 파일은 BOM을 포함해 10 MiB(10,485,760바이트) 이하만 허용합니다. 읽기 전 파일 크기와 읽은 바이트 수를 모두 확인하므로 중간에 커진 파일도 초과하면 거부합니다. 파일 전체를 읽은 뒤 재검사하므로 메모리 할당 상한이나 다른 프로세스와의 원자적 읽기를 보장하지는 않습니다.
 
 `--project`와 `--args-file`은 UTF-8 JSON 파일을 읽으며, 파일 시작의 BOM 하나는 허용합니다. 본문의 문자는 그대로 보존하고 출력 JSON에는 BOM을 붙이지 않습니다. 잘못된 UTF-8 바이트는 대체 문자로 변환하지 않고 `INVALID_JSON`으로 거부합니다. UTF-16 파일은 지원하지 않으므로 UTF-8로 저장하세요. `--json` 인수에는 BOM 없는 JSON 문자열을 전달합니다.
 

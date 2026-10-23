@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import {tmpdir} from 'node:os';
-import {fileURLToPath} from 'node:url';
+import {fileURLToPath,pathToFileURL} from 'node:url';
 import {spawnSync} from 'node:child_process';
 import {createDemoProject,createProjectDocument,readProjectDocument} from '../dist/core/project.mjs';
 
@@ -59,16 +59,73 @@ test('CLI rejects misplaced/repeated BOM, malformed JSON and UTF-16 without touc
   }finally{await fs.rm(directory,{recursive:true,force:true});}
 });
 
-test('JSON file byte limit includes the UTF-8 BOM',async()=>{
+test('both JSON file inputs accept exactly the byte limit including BOM and reject one byte more',async()=>{
   const directory=await fs.mkdtemp(path.join(tmpdir(),'moment-json-size-'));
   try{
-    const args=path.join(directory,'args.json'),limit=10*1024*1024;
-    const bytes=Buffer.alloc(limit,0x20);Buffer.from('\ufeff{}').copy(bytes);
-    await fs.writeFile(args,bytes);
-    assert.equal(run('exec','templates.list','--args-file',args).status,0);
-    await fs.appendFile(args,' ');
-    const result=run('exec','templates.list','--args-file',args);
-    assert.equal(result.status,1);assert.equal(JSON.parse(result.stderr).error.code,'FILE_TOO_LARGE');
+    const input=path.join(directory,'input.json'),limit=10*1024*1024;
+    for(const [text,args] of [
+      [JSON.stringify(createProjectDocument(createDemoProject())),['exec','project.get','--project',input]],
+      ['{}',['exec','templates.list','--args-file',input]],
+    ]){
+      const bytes=Buffer.alloc(limit,0x20);Buffer.from('\ufeff'+text).copy(bytes);
+      await fs.writeFile(input,bytes);
+      const accepted=run(...args);assert.equal(accepted.status,0,accepted.stderr);
+      await fs.appendFile(input,' ');
+      const result=run(...args);
+      assert.equal(result.status,1);assert.equal(JSON.parse(result.stderr).error.code,'FILE_TOO_LARGE');
+      assert.equal(result.stdout,'');assert.equal((await fs.stat(input)).size,limit+1);
+    }
+  }finally{await fs.rm(directory,{recursive:true,force:true});}
+});
+
+test('JSON reads enforce actual bytes after growth and preserve outputs on size/read errors',async()=>{
+  const directory=await fs.mkdtemp(path.join(tmpdir(),'moment-json-growth-'));
+  try{
+    const project=path.join(directory,'project.json'),input=path.join(directory,'input.json'),output=path.join(directory,'output.json'),missing=path.join(directory,'missing.json'),loader=path.join(directory,'reader.mjs');
+    const document=JSON.stringify(createProjectDocument(createDemoProject())),limit=10*1024*1024;
+    await fs.writeFile(project,document);
+    for(const [text,args] of [
+      [document,['exec','project.update','--project',input,'--json','{"patch":{"zoom":1.5}}']],
+      ['{"patch":{"zoom":1.5}}',['exec','project.update','--project',project,'--args-file',input]],
+    ]){
+      const initial=Buffer.from('\ufeff'+text);
+      for(const mode of ['boundary','oversize','read-error']){
+        // Isolated child-process fixture: a writer changes input after stat.
+        await fs.writeFile(loader,`import fs from 'node:fs/promises';
+const target=${JSON.stringify(input)},mode=${JSON.stringify(mode)},stat=fs.stat,read=fs.readFile;
+fs.stat=async function(file,...args){
+ const info=await stat.call(this,file,...args);
+ if(file===target&&mode!=='read-error'){
+  const bytes=Buffer.alloc(${limit}+(mode==='oversize'?1:0),0x20);
+  (await read.call(this,file)).copy(bytes);await fs.writeFile(file,bytes);
+ }
+ return info;
+};
+fs.readFile=function(file,...args){
+ if(file===target&&mode==='read-error')return Promise.reject(Object.assign(new Error('fixture read failed'),{code:'EACCES'}));
+ return read.call(this,file,...args);
+};`);
+        for(const destination of mode==='boundary'?[output]:[output,missing,input]){
+          await fs.writeFile(input,initial);await fs.writeFile(output,'existing output');
+          const result=spawnSync(process.execPath,['--import',pathToFileURL(loader).href,cli,...args,'--out',destination,'--overwrite'],{encoding:'utf8'});
+          const expected=mode==='read-error'?initial:Buffer.alloc(limit+(mode==='oversize'?1:0),0x20);
+          if(mode!=='read-error')initial.copy(expected);
+          assert.deepEqual(await fs.readFile(input),expected,'only fixture writer changes input');
+          if(mode==='boundary'){
+            assert.equal(result.status,0,result.stderr);
+            assert.equal(readProjectDocument(JSON.parse(await fs.readFile(output,'utf8'))).zoom,1.5);
+          }else{
+            assert.equal(result.status,1);assert.equal(result.stdout,'');
+            assert.equal(JSON.parse(result.stderr).error.code,mode==='oversize'?'FILE_TOO_LARGE':'FILE_ERROR');
+            assert.equal(await fs.readFile(output,'utf8'),'existing output');
+            assert.deepEqual((await fs.readdir(directory)).sort(),['input.json','output.json','project.json','reader.mjs']);
+          }
+        }
+      }
+      await fs.writeFile(input,initial);
+      assert.equal(run(...args,'--out',missing).status,0,'retry with valid input succeeds');
+      await fs.unlink(missing);assert.equal(await fs.readFile(project,'utf8'),document);
+    }
   }finally{await fs.rm(directory,{recursive:true,force:true});}
 });
 

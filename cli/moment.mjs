@@ -16,6 +16,7 @@ const usage=`Moment CLI · Node.js 20+
 수정 명령에는 --out이 필요합니다. 기존 파일 교체는 --overwrite로 지정하세요.
 자막 출력은 --out으로 SRT를 저장합니다. 영상/음성 파일과 인코더는 포함하지 않습니다.
 `;
+const MAX_JSON_FILE_BYTES=10*1024*1024;
 function parse(argv){
   const [mode,...tail]=argv,opts={},command=mode==='exec'?tail.shift():undefined;
   const allowed=mode==='exec'?['--project','--json','--args-file','--out','--overwrite','--dry-run']:mode==='init'?['--out','--overwrite']:[];
@@ -28,8 +29,9 @@ function parse(argv){
   return {mode,command,opts};
 }
 async function jsonFile(file){
-  const info=await fs.stat(file);if(info.size>10*1024*1024)throw new CommandError('FILE_TOO_LARGE','JSON 파일은 10 MB 이하만 지원합니다.');
+  const info=await fs.stat(file);if(info.size>MAX_JSON_FILE_BYTES)throw new CommandError('FILE_TOO_LARGE','JSON 파일은 10 MB 이하만 지원합니다.');
   const bytes=await fs.readFile(file);
+  if(bytes.length>MAX_JSON_FILE_BYTES)throw new CommandError('FILE_TOO_LARGE','JSON 파일은 10 MB 이하만 지원합니다.');
   if(!isUtf8(bytes))throw new CommandError('INVALID_JSON','JSON 파일을 올바른 UTF-8로 저장하세요.');
   return JSON.parse(bytes.toString('utf8').replace(/^\uFEFF/,''));
 }

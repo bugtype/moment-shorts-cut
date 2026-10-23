@@ -47,3 +47,34 @@ test('committed values avoid redundant large-media writes while queue order is r
   assert.deepEqual(f.attempts,[[['audio',firstAudio]],[['audio',lastAudio]]]);
   assert.deepEqual(Object.fromEntries(f.records),{video,audio:lastAudio});
 });
+
+test('second-request enqueue failures abort earlier replacements/deletions and preserve the original error',async()=>{
+  for(const deleteVideo of [false,true])for(const deleteAudio of [false,true]){
+    const f=createMediaStorageFixture(),store=createProjectStore(f.factory);
+    const oldVideo={name:'old.mp4'},oldAudio={name:'old.wav'};
+    await store.setMedia(oldVideo,oldAudio);f.attempts.length=0;f.events.length=0;
+    const video=deleteVideo?null:{name:'new.mp4'},audio=deleteAudio?null:{name:'new.wav'};
+    const error=new DOMException('synthetic second-request failure','DataCloneError');
+    f.enqueueFailures.push({key:'audio',error});
+    await assert.rejects(store.setMedia(video,audio),actual=>actual===error);
+    assert.deepEqual(f.events,['abort']);
+    assert.deepEqual(f.attempts,[[['video',video]]],'Only the first request was queued');
+    assert.deepEqual(Object.fromEntries(f.records),{video:oldVideo,audio:oldAudio});
+    await store.setMedia(oldVideo,oldAudio);
+    assert.equal(f.attempts.length,1,'Failure must not change the committed-value cache');
+    await store.setMedia(video,audio);
+    assert.deepEqual(f.attempts[1],[['video',video],['audio',audio]],'Retry must include both uncommitted changes');
+    const expected={};if(video)expected.video=video;if(audio)expected.audio=audio;
+    assert.deepEqual(Object.fromEntries(f.records),expected);
+  }
+});
+
+test('a synchronous structured-clone error cannot partially commit queued media',async()=>{
+  const oldVideo={name:'old.mp4'},f=createMediaStorageFixture([['video',oldVideo]]),store=createProjectStore(f.factory);
+  const video={name:'new.mp4'},badAudio={name:'synthetic.wav',uncloneable(){}};
+  const failed=assert.rejects(store.setMedia(video,badAudio),{name:'DataCloneError'});
+  const audio={name:'valid.wav'},retry=store.setMedia(video,audio);
+  await failed;await retry;
+  assert.deepEqual(f.events,['abort','complete']);
+  assert.deepEqual(Object.fromEntries(f.records),{video,audio});
+});

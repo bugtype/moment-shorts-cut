@@ -32,10 +32,15 @@ export function createProjectStore(factory = globalThis.indexedDB) {
       const db = await open();
       return new Promise((resolve, reject) => {
         const tx = db.transaction('project', 'readwrite');
-        const store = tx.objectStore('project');
-        changed.forEach(([key, value]) => value ? store.put(value, key) : store.delete(key));
         tx.oncomplete = () => { changed.forEach(([key, value]) => stored.set(key, value)); resolve(); };
         tx.onerror = tx.onabort = () => reject(tx.error || new Error('Media storage failed'));
+        try {
+          const store = tx.objectStore('project');
+          changed.forEach(([key, value]) => value ? store.put(value, key) : store.delete(key));
+        } catch (error) {
+          // Promise rejection alone does not cancel requests already queued.
+          try { tx.abort(); } finally { reject(error); }
+        }
       });
     });
     return queue;

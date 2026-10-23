@@ -433,3 +433,44 @@ body.exporting .workspace,body.exporting .topbar {
   pointer-events:none;
   filter:grayscale(.4)
 }
+/* Short landscape screens cannot fit the default modal rhythm; tighten it so the
+   primary action stays on screen instead of hiding below the dialog fold. These
+   rules come last so they win over the base spacing they refine. */
+@media(max-height:560px) {
+  dialog {
+    padding:18px 22px
+  }
+  .modal-head {
+    margin-bottom:10px
+  }
+  .modal-copy {
+    line-height:1.7
+  }
+  .modal-field {
+    margin:10px 0
+  }
+  .notice {
+    margin:10px 0;
+    padding:10px 12px;
+    line-height:1.7
+  }
+  .modal-foot {
+    margin-top:14px
+  }
+  .guide-steps {
+    line-height:1.9
+  }
+}
+/* The shortest landscape phones still clip the last few pixels; one more tier
+   keeps the footer and its padding inside the dialog. */
+@media(max-height:400px) {
+  dialog {
+    padding:14px 20px
+  }
+  .modal-foot {
+    margin-top:10px
+  }
+  .guide-steps {
+    line-height:1.7
+  }
+}

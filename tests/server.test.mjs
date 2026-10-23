@@ -67,6 +67,13 @@ test('preview serves modules with correct MIME types and never serves repository
   // Phones trade the wordmark for the project name so it stays editable.
   assert.match(responsive, /\.brand>span:last-child \{\s*display:none\s*\}/);
   assert.match(responsive, /\.project-title \{\s*display:flex;\s*flex:1 1 auto;\s*min-width:0\s*\}/);
+  const dialogs = await (await fetch(`${origin}/styles/inspector-dialogs.css`)).text();
+  // Short landscape screens compact the modal after the base rhythm so its
+  // primary action never hides below the fold.
+  const compactDialog = dialogs.indexOf('@media(max-height:560px)');
+  assert.ok(compactDialog > dialogs.indexOf('.modal-foot {'), 'compact modal rules must win the cascade');
+  assert.match(dialogs.slice(compactDialog), /\.modal-foot \{\s*margin-top:14px/);
+  assert.match(dialogs, /@media\(max-height:400px\)/);
   const compactShell = await (await fetch(`${origin}/styles/mobile-shell.css`)).text();
   // Expanding the timeline on a short landscape screen focuses the tracks and
   // hands them the height above the fixed rail instead of scrolling the page.

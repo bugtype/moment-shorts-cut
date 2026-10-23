@@ -83,10 +83,18 @@ async function readUtf8File(file){
  try{return new TextDecoder('utf-8',{fatal:true}).decode(bytes);}
  catch{throw new Error('파일을 올바른 UTF-8로 저장한 뒤 다시 불러오세요.');}
 }
+let textImportRequest=0;
+function guardTextImport(){
+ const request=++textImportRequest,original=state,contents=JSON.stringify(state);
+ return ()=>{
+  if(request!==textImportRequest||state!==original||JSON.stringify(state)!==contents)throw new CommandError('CONFLICT','프로젝트가 변경되었거나 다른 가져오기를 선택했습니다. 파일을 다시 선택하세요.');
+ };
+}
 async function importProjectSettings(file){
  try{
+  const beforeCommit=guardTextImport();
   if(file.size>10*1024*1024)throw new Error('편집 설정 JSON은 10 MB 이하만 불러올 수 있습니다.');
-  const result=await editorService.execute('project.import',{document:JSON.parse(await readUtf8File(file))});
+  const result=await editorService.execute('project.import',{document:JSON.parse(await readUtf8File(file))},beforeCommit);
   if(!result.ok)throw new Error(result.error.message);modal.close();toast('편집 설정을 적용했습니다. 실행 취소할 수 있습니다.');return result;
  }catch(error){toast(error.message||'설정 파일을 확인하세요.');return {ok:false,error:{code:'IMPORT_FAILED',message:error.message}};}
  finally{$('#projectInput').value='';}
@@ -398,12 +406,11 @@ function downloadSrt(){
 }
 async function importSrt(file){
  try{
+  const beforeCommit=guardTextImport();
   if(file.size>MAX_SUBTITLE_BYTES)throw new Error('자막 파일은 2 MB 이하만 지원합니다.');
-  const original=state;
   const text=await readUtf8File(file);
-  if(state!==original)throw new Error('프로젝트가 변경되었습니다. 자막 파일을 다시 선택하세요.');
   const captions=parseSubtitles(text,state.duration);
-  const result=await editorService.execute('captions.replace',{captions});
+  const result=await editorService.execute('captions.replace',{captions},beforeCommit);
   if(!result.ok)throw new Error(result.error.message);
   if(panel==='captions')focusCaption(0);
   toast(`${captions.length}개의 자막을 불러왔습니다.`);

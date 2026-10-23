@@ -96,3 +96,28 @@ test('async host conflict checks receive the snapshot and propagate rejection wi
  assert.equal((await service.execute('project.update',{patch:{name:'explicit next request'}})).ok,true);
  assert.equal(state.zoom,1.5);assert.equal(commits,2);
 });
+
+test('queued beforeCommit checks run once immediately before project commit and rejection preserves the queue',async()=>{
+ let state=createDemoProject(),checks=0,commits=0;const trace=[];
+ const service=createEditorService({getProject:()=>structuredClone(state),commitProject(next){commits++;trace.push('commit');state=next;}});
+ const first=service.execute('project.update',{patch:{zoom:1.5}});
+ const stale=service.execute('project.update',{patch:{zoom:1}},()=>{checks++;trace.push('check');if(state.zoom!==1)throw new CommandError('CONFLICT','changed');});
+ assert.equal((await first).ok,true);assert.equal((await stale).error.code,'CONFLICT');
+ assert.equal(state.zoom,1.5);assert.equal(checks,1);assert.equal(commits,1);
+ const success=service.execute('project.update',{patch:{name:'next'}},()=>{checks++;trace.push('check');queueMicrotask(()=>{trace.push('microtask');state.zoom=2;});});
+ assert.equal((await success).ok,true);assert.equal(state.name,'next');assert.equal(state.zoom,2);
+ assert.deepEqual(trace,['commit','check','check','commit','microtask']);
+ assert.equal(checks,2);assert.equal(commits,2);
+ await service.execute('project.get',{},()=>{throw new Error('read must not run a commit hook');});
+ assert.equal(commits,2);
+});
+
+test('invalid, throwing and asynchronous commit checks reject without commit and allow retry',async()=>{
+ for(const check of [null,{},()=>{throw new Error('failure');},()=>Promise.resolve(),()=>Promise.reject(new Error('async failure')),()=>({then(resolve){resolve();}})]){
+  let state=createDemoProject(),commits=0;const before=structuredClone(state);
+  const service=createEditorService({getProject:()=>state,commitProject(next){commits++;state=next;}});
+  const rejected=await service.execute('project.update',{patch:{zoom:2}},check);
+  assert.equal(rejected.ok,false);assert.equal(commits,0);assert.deepEqual(state,before);
+  assert.equal((await service.execute('project.update',{patch:{zoom:1.5}})).ok,true);assert.equal(commits,1);
+ }
+});

@@ -969,6 +969,75 @@ assert.match(element('#toast').textContent,/프로젝트가 변경/);
 vm.runInContext('state=initial();timelineCache=null;history=[];future=[];current=0;scheduleSave=utf8ScheduleSave;',context);
 console.log('PASS: app JSON/SRT byte imports reject malformed UTF-8 without state/history/redo/save loss; Unicode/BOM, exact size limits, read failures, busy/recovery guards, delayed subtitles and undo/redo pass in the VM.');
 
+// Deferred synthetic reads exercise imports without a browser file picker.
+vm.runInContext('globalThis.importSave=scheduleSave;globalThis.importSaves=0;scheduleSave=()=>importSaves++;',context);
+function resetImportFixture(){vm.runInContext('state=initial();timelineCache=null;history=[];future=[JSON.stringify(state)];current=0;selected=0;importSaves=0;inputHistory.reset();',context);}
+function delayedImport(kind,marker='imported'){
+ const document=projectModule.createProjectDocument(evaluate('state'));document.project.name=marker;document.project.zoom=1;
+ const text=kind==='json'?JSON.stringify(document):`00:00.000 --> 00:01.000\n${marker}`;
+ let finish;context.importFile={size:Buffer.byteLength(text),arrayBuffer:()=>new Promise(resolve=>{finish=resolve;})};
+ const pending=vm.runInContext(kind==='json'?'importProjectSettings(importFile)':'importSrt(importFile)',context);
+ return {pending,finish(){finish(new Uint8Array(Buffer.from(text)).buffer);}};
+}
+const importSnapshot=()=>evaluate('[state,history,future,current,selected,importSaves]');
+for(const kind of ['json','srt']){
+ for(const mutation of [
+  'edit(()=>state.zoom=1.5)',
+  'edit(()=>state.captions[0].text="manual correction")',
+  'state={...initial(),name:"replacement"};changed()',
+  'state=initial();timelineCache=null;changed()',
+  'edit(()=>state.zoom=1.5);undo()',
+  'edit(()=>state.zoom=1.5);undo();undo(true)',
+ ]){
+  resetImportFixture();const read=delayedImport(kind);vm.runInContext(mutation,context);
+  const before=importSnapshot();read.finish();await read.pending;
+  assert.deepEqual(importSnapshot(),before,`${kind}: stale import preserves model/history/redo/saves`);
+  assert.match(element('#toast').textContent,/프로젝트가 변경/);
+ }
+ resetImportFixture();const continuous=delayedImport(kind);
+ element('#zoom').onfocus?.();element('#zoom').value='1.5';element('#zoom').oninput();
+ const before=importSnapshot();continuous.finish();await continuous.pending;assert.deepEqual(importSnapshot(),before);
+ element('#zoom').value='1.6';element('#zoom').oninput();
+ assert.equal(evaluate('history.length'),1,'rejection must not reset continuous input grouping');
+ vm.runInContext('undo()',context);assert.equal(evaluate('state.zoom'),1);
+ // Read-only view changes do not invalidate an intentional import.
+ resetImportFixture();const allowed=delayedImport(kind);vm.runInContext('current=2;selected=0;panel="captions"',context);
+ allowed.finish();await allowed.pending;
+ assert.equal(evaluate(kind==='json'?'state.name':'state.captions[0].text'),'imported');
+ assert.equal(evaluate('history.length'),1);assert.equal(evaluate('future.length'),0);assert.equal(context.importSaves,1);
+ const accepted=evaluate('state');vm.runInContext('undo();undo(true)',context);assert.deepEqual(evaluate('state'),accepted);
+}
+// Newest selection wins, including cross-format imports and failed newer reads.
+for(const first of ['json','srt'])for(const second of ['json','srt'])for(const reverse of [false,true]){
+ resetImportFixture();const old=delayedImport(first,'older'),latest=delayedImport(second,'newest');
+ if(reverse){latest.finish();await latest.pending;const before=importSnapshot();old.finish();await old.pending;assert.deepEqual(importSnapshot(),before);}
+ else{const before=importSnapshot();old.finish();await old.pending;assert.deepEqual(importSnapshot(),before);latest.finish();await latest.pending;}
+ assert.equal(evaluate(second==='json'?'state.name':'state.captions[0].text'),'newest');
+ assert.equal(evaluate('history.length'),1);assert.equal(context.importSaves,1);
+}
+for(const kind of ['json','srt']){
+ resetImportFixture();const old=delayedImport(kind);context.importFile=new Blob(['invalid']);
+ await vm.runInContext(kind==='json'?'importProjectSettings(importFile)':'importSrt(importFile)',context);
+ const before=importSnapshot();old.finish();await old.pending;assert.deepEqual(importSnapshot(),before);
+ const retry=delayedImport(kind,'retried');retry.finish();await retry.pending;
+ assert.equal(evaluate(kind==='json'?'state.name':'state.captions[0].text'),'retried');
+}
+// Enqueue a mutation during parsing, after any read-time check but before apply.
+resetImportFixture();
+vm.runInContext('globalThis.importParser=parseSubtitles;parseSubtitles=(...args)=>{window.moment.execute("project.update",{patch:{zoom:1.5}});return importParser(...args);};',context);
+const queuedImport=delayedImport('srt');queuedImport.finish();await queuedImport.pending;
+assert.equal(evaluate('state.zoom'),1.5);assert.notEqual(evaluate('state.captions[0].text'),'imported');
+assert.equal(evaluate('history.length'),1);assert.equal(context.importSaves,1);assert.match(element('#toast').textContent,/프로젝트가 변경/);
+vm.runInContext('parseSubtitles=importParser;',context);
+// Existing queued commands retain order; stale imports cannot jump the queue.
+resetImportFixture();const queuedJson=delayedImport('json');
+const commands=[context.window.moment.execute('project.update',{patch:{zoom:1.5}}),context.window.moment.execute('title.update',{patch:{lines:['queued title','second line']}})];
+queuedJson.finish();assert.ok((await Promise.all(commands)).every(result=>result.ok));await queuedJson.pending;
+assert.equal(evaluate('state.zoom'),1.5);assert.deepEqual(evaluate('state.design.title.lines'),['queued title','second line']);
+assert.equal(evaluate('history.length'),2);assert.equal(context.importSaves,2);
+vm.runInContext('state=initial();timelineCache=null;history=[];future=[];current=0;scheduleSave=importSave;',context);
+console.log('PASS: stale JSON/SRT imports preserve committed edits, redo and continuous history; latest-selection ordering, failed reads/retry, queued mutations, view-only navigation and undo/redo pass in the VM.');
+
 // Invalid SRT text stays editable and must never produce a partial download.
 context.blankLineCaption='first\n\nsecond';
 vm.runInContext('edit(()=>state.captions[0].text=blankLineCaption);',context);

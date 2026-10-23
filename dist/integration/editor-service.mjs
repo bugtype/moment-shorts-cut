@@ -18,6 +18,8 @@ export function errorResult(command,error){
  * commitProject must atomically persist/replace the supplied project or throw.
  * Async stores with external writers must check previous atomically at commit;
  * this instance's queue does not coordinate other writers or retry conflicts.
+ * execute's optional beforeCommit hook must synchronously check, without editing,
+ * and throw to reject a project mutation. It does not guard provider jobs.
  * A job provider must implement submit/get/cancel and return JSON job records.
  * Submission is not completion: providers own asset access, progress and artifacts.
  */
@@ -26,7 +28,7 @@ export function createEditorService({getProject,commitProject,jobs}={}){
   if(jobs&&!['submit','get','cancel'].every(k=>typeof jobs[k]==='function'))throw new TypeError('A job provider must implement submit, get and cancel.');
   let queue=Promise.resolve();
   const describe=()=>[...commandDefinitions(),...(jobs?structuredClone(jobCommands):[])];
-  async function run(name,args){
+  async function run(name,args,beforeCommit){
     try{
       if(typeof name!=='string')throw new CommandError('INVALID_ARGUMENT','명령 이름이 필요합니다.');
       let data;
@@ -53,7 +55,14 @@ export function createEditorService({getProject,commitProject,jobs}={}){
         const value=getProject(),then=value?.then;
         const before=typeof then==='function'?await {then:(resolve,reject)=>then.call(value,resolve,reject)}:value;
         const prepared=prepareCommand(before,name,args);
-        if(prepared.project)await commitProject(prepared.project,{command:name,previous:before});
+        if(prepared.project){
+          const checked=beforeCommit?.();
+          if(typeof checked?.then==='function'){
+            Promise.resolve(checked).catch(()=>{});
+            throw new CommandError('INVALID_ARGUMENT','커밋 전 검사는 동기 함수여야 합니다.');
+          }
+          await commitProject(prepared.project,{command:name,previous:before});
+        }
         data=prepared.data;
       }
       return {ok:true,apiVersion:API_VERSION,command:name,data:structuredClone(data)};
@@ -63,10 +72,10 @@ export function createEditorService({getProject,commitProject,jobs}={}){
     apiVersion:API_VERSION,
     describe,
     capabilities:()=>({apiVersion:API_VERSION,commands:describe().map(c=>c.name),mediaJobs:!!jobs}),
-    execute(name,args={}){
+    execute(name,args={},beforeCommit){
       // Capture caller arguments now; edits made after submission cannot change it.
-      let input;try{assertJson(args);input=structuredClone(args);}catch(error){return Promise.resolve(errorResult(name,error));}
-      const result=queue.then(()=>run(name,input));queue=result.then(()=>undefined,()=>undefined);return result;
+      let input;try{if(beforeCommit!==undefined&&typeof beforeCommit!=='function')throw new CommandError('INVALID_ARGUMENT','커밋 전 검사 함수가 필요합니다.');assertJson(args);input=structuredClone(args);}catch(error){return Promise.resolve(errorResult(name,error));}
+      const result=queue.then(()=>run(name,input,beforeCommit));queue=result.then(()=>undefined,()=>undefined);return result;
     },
   });
 }

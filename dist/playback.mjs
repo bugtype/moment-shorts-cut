@@ -239,6 +239,8 @@ export function createPlayback(app, {
         wrap.style.height = `${Math.max(100, Math.min(maxH, maxW * h / w, 570))}px`;
         wrap.style.width = 'auto';
         draw();
+        // A ratio change moves the preview edge the open sheet sits below.
+        app.syncPanelSheet?.();
     }
 
     return {

@@ -19,13 +19,33 @@ export function createWorkspacePanels(app) {
             if (library)
                 library.hidden = false;
             app.document.body.classList.remove('panel-sheet-open');
+            fitSheet();
             setExpanded();
             return;
         }
         if (library)
             library.hidden = !sheetOpen;
         app.document.body.classList.toggle('panel-sheet-open', sheetOpen);
+        fitSheet();
         setExpanded();
+    }
+
+    // The sheet grows from the rail up to just below the preview, so it uses the
+    // room a given ratio leaves instead of an arbitrary share of the viewport.
+    function fitSheet() {
+        const library = $('#libraryPanel');
+        if (!library)
+            return;
+        library.style.removeProperty('max-height');
+        if (!isCompact() || !sheetOpen || app.window.matchMedia?.('(max-height:720px)').matches)
+            return;
+        const canvas = $('#canvasWrap')?.getBoundingClientRect();
+        const rail = $('.rail')?.getBoundingClientRect();
+        if (!canvas || !rail)
+            return;
+        const available = Math.floor(rail.top - canvas.bottom - 8);
+        if (available > 0)
+            library.style.maxHeight = `${Math.max(180, available)}px`;
     }
 
     function setExpanded() {

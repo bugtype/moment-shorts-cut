@@ -58,7 +58,7 @@ export async function createAppFixture() {
    if(elements.has(key))return elements.get(key);
    const e = {
      value: '', innerHTML: '', textContent: '', hidden: false,
-     style: { setProperty(name, value) { this[name] = value; } },
+     style: { setProperty(name, value) { this[name] = value; }, removeProperty(name) { delete this[name]; } },
      dataset: {},
      clientWidth: 700, clientHeight: 500, width: 540, height: 960,
      currentTime: 0, duration: 12, readyState: 4, videoWidth: 1920, videoHeight: 1080,

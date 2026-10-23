@@ -570,7 +570,7 @@ vm.runInContext('undo(true)',context);assert.deepEqual(evaluate('state'),withLas
 context.AudioContext=class {async decodeAudioData(){return {duration:1};}async close(){}};
 context.OfflineAudioContext=class {createBufferSource(){return {connect(){},start(){}};}async startRendering(){return {getChannelData:()=>new Float32Array([.1])};}};
 context.captionTestFile={arrayBuffer:async()=>new ArrayBuffer(0)};
-context.Worker=class {postMessage(){queueMicrotask(()=>this.onmessage({data:{type:'result',result:{chunks:context.captionTestChunks}}}));}};
+context.Worker=class {postMessage(){queueMicrotask(()=>this.onmessage({data:{type:'result',result:context.captionTestResult??{chunks:context.captionTestChunks}}}));}};
 for(const source of ['video','audio'])for(const count of [captionModule.MAX_CAPTIONS,captionModule.MAX_CAPTIONS+1]){
  setCaptionLimitFixture([shortLimitCaption]);
  vm.runInContext('videoFile=captionTestFile;audioFile=captionTestFile;recognitionWorker=null',context);
@@ -587,6 +587,68 @@ for(const source of ['video','audio'])for(const count of [captionModule.MAX_CAPT
   assert.deepEqual(projectModule.readProjectDocument(projectModule.createProjectDocument(result)),result);
  }
 }
+// Result validation is atomic: one invalid chunk rejects the whole replacement.
+context.AudioContext=class {async decodeAudioData(){return {duration:12};}async close(){}};
+const invalidAsrResults=[
+ {chunks:[{timestamp:[1,3],text:'valid'},{timestamp:[3,4],text:'x'.repeat(2001)}]},
+ {text:'word '.repeat(500)},
+ {text:'🎬'.repeat(1000)+'a'},
+ {text:'한'.repeat(2001)},
+ ...[[-1,2],[NaN,2],[0,Infinity],[0,NaN],[Infinity,3],[3,2],[2,2]].map(timestamp=>({chunks:[{timestamp:[0,1],text:'valid'},{timestamp,text:'invalid'}]})),
+ {chunks:[],text:'   '},
+ {chunks:[{timestamp:[0,1],text:'   '}],text:''},
+];
+for(const source of ['video','audio']){
+ for(const result of invalidAsrResults){
+  setCaptionLimitFixture([shortLimitCaption]);
+  vm.runInContext('videoFile=captionTestFile;audioFile=captionTestFile;state.audioOffset=2;recognitionWorker=null',context);
+  element('#captionSource').value=source;context.captionTestResult=result;
+  const before=evaluate('({state,history,future})'),timer=vm.runInContext('saveTimer',context);
+  await vm.runInContext('generateCaptions()',context);
+  assert.deepEqual(evaluate('({state,history,future})'),before,`${source}: invalid ASR must keep the entire previous state`);
+  assert.equal(vm.runInContext('saveTimer',context),timer);
+  assert.equal(evaluate('transcribing'),false);assert.equal(vm.runInContext('pendingTranscriptionReject',context),null);
+  assert.doesNotMatch(element('#toast').textContent,/개의 자막을 생성/);
+  assert.deepEqual(projectModule.readProjectDocument(projectModule.createProjectDocument(evaluate('state'))),before.state);
+  // Retry on the existing worker, then check exact mapped payload and undo metadata.
+  context.captionTestResult={chunks:[{timestamp:[1,3],text:'  valid retry 🎬  '}]};
+  await vm.runInContext('generateCaptions()',context);
+  const expected=source==='audio'?[{start:3,end:5,text:'valid retry 🎬',basis:'timeline'}]:[{start:1,end:3,text:'valid retry 🎬'}];
+  assert.deepEqual(evaluate('state.captions'),expected);
+  assert.equal(evaluate('transcribing'),false);
+  const after=evaluate('state');
+  assert.deepEqual(projectModule.readProjectDocument(projectModule.createProjectDocument(after)),after);
+  assert.equal((await context.window.moment.execute('project.get')).ok,true);
+  assert.equal((await context.window.moment.execute('captions.export')).ok,true);
+  vm.runInContext('undo()',context);assert.deepEqual(evaluate('state'),before.state);
+  vm.runInContext('undo(true)',context);assert.deepEqual(evaluate('state'),after);
+ }
+ for(const text of ['a'.repeat(2000),'한'.repeat(2000),'🎬'.repeat(1000),'e\u0301'.repeat(1000)]){
+  for(const fallback of [false,true]){
+   setCaptionLimitFixture([shortLimitCaption]);
+   vm.runInContext('videoFile=captionTestFile;audioFile=captionTestFile;state.audioOffset=2;recognitionWorker=null',context);
+   element('#captionSource').value=source;
+   context.captionTestResult=fallback?{chunks:[],text}:{chunks:[{timestamp:[0,null],text}]};
+   await vm.runInContext('generateCaptions()',context);
+   const expected={start:source==='audio'?2:0,end:12,text,...(source==='audio'?{basis:'timeline'}:{})};
+   assert.deepEqual(evaluate('state.captions'),[expected]);
+   const after=evaluate('state');assert.deepEqual(projectModule.readProjectDocument(projectModule.createProjectDocument(after)),after);
+  }
+ }
+}
+// Canonical source bounds still reject a finite cue extending beyond the source.
+setCaptionLimitFixture([shortLimitCaption]);
+vm.runInContext('videoFile=captionTestFile;recognitionWorker=null',context);element('#captionSource').value='video';
+context.captionTestResult={chunks:[{timestamp:[0,13],text:'outside source'}]};
+const beforeOutOfBounds=evaluate('({state,history,future})');
+await vm.runInContext('generateCaptions()',context);assert.deepEqual(evaluate('({state,history,future})'),beforeOutOfBounds);
+// Validation is pure; it must not release the transcription guard to commit a command.
+context.prepareCommand=(...args)=>{assert.equal(evaluate('transcribing'),true);return prepareCommand(...args);};
+context.captionTestResult={text:'valid fallback'};
+await vm.runInContext('generateCaptions()',context);
+assert.deepEqual(evaluate('state.captions'),[{start:0,end:12,text:'valid fallback'}]);context.prepareCommand=prepareCommand;
+delete context.captionTestResult;
+console.log('PASS: ASR validation preserves prior state/redo/save on invalid chunks or fallback; Unicode boundaries, both clocks, cleanup, retry and canonical JSON succeed.');
 vm.runInContext('videoFile=null;audioFile=null;recognitionWorker=null',context);
 delete context.AudioContext;delete context.OfflineAudioContext;delete context.Worker;delete context.captionTestFile;delete context.captionTestChunks;
 vm.runInContext('state=initial();timelineCache=null;history=[];future=[];renderPanel()',context);

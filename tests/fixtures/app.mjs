@@ -1,3 +1,4 @@
+import { createInspectorView } from '../../dist/inspector-view.mjs';
 import { bindPreviewDrag, bindEditorKeyboard } from '../../dist/editor-interactions.mjs';
 import { createTemplatePreview } from '../../dist/template-preview.mjs';
 import { createVideoExport } from '../../dist/video-export.mjs';
@@ -10,7 +11,7 @@ import { prepareCommand } from '../../dist/core/commands.mjs';
 import { CommandError } from '../../dist/core/validation.mjs';
 import { createEditorService } from '../../dist/integration/editor-service.mjs';
 import * as captionModule from '../../dist/captions.mjs';
-import { renderCaptionTrack, renderCaptionTrackError, updateTimelineMarkup } from '../../dist/timeline-view.mjs';
+import { renderCaptionTrack, renderCaptionTrackError, updateTimelineMarkup, createTimelineView } from '../../dist/timeline-view.mjs';
 import { createInputHistory } from '../../dist/input-history.mjs';
 import { createTrack } from './timeline-dom.mjs';
 import * as effectsModule from '../../dist/effects.mjs';
@@ -29,7 +30,7 @@ import assert from 'node:assert/strict';
 // Synthetic DOM/media only. Each call owns a separate VM, controls and event queues.
 export async function createAppFixture() {
   const source=fs.readFileSync(new URL('../../dist/app.js',import.meta.url),'utf8');
-  const panelSource=['design-panel.mjs','effects-panel.mjs','template-gallery.mjs','panel-markup.mjs','template-preview.mjs'].map(f=>fs.readFileSync(new URL('../../dist/'+f,import.meta.url),'utf8')).join('\n');
+  const panelSource=['design-panel.mjs','effects-panel.mjs','template-gallery.mjs','panel-markup.mjs','template-preview.mjs','inspector-view.mjs','timeline-view.mjs'].map(f=>fs.readFileSync(new URL('../../dist/'+f,import.meta.url),'utf8')).join('\n');
   const html=fs.readFileSync(new URL('../../dist/index.html',import.meta.url),'utf8');
   const ids=new Set([...`${html}\n${source}\n${panelSource}`.matchAll(/id="([\w-]+)"/g)].map(m=>m[1]));
   const selectors=[...source.matchAll(/\$\('#([\w-]+)'\)/g)].map(m=>m[1]);
@@ -98,7 +99,7 @@ export async function createAppFixture() {
     setTimeout() {}, clearTimeout() {}, setInterval() {}, clearInterval() {},
     console, URL, Blob, TextDecoder, performance, Number, Math, Promise, structuredClone,
     ...projectModule, prepareCommand, CommandError, createEditorService, ...captionModule,
-    renderCaptionTrack, renderCaptionTrackError, updateTimelineMarkup, createInputHistory,
+    renderCaptionTrack, renderCaptionTrackError, updateTimelineMarkup, createTimelineView, createInspectorView, createInputHistory,
     ...effectsModule, ...templateModule, readTemplateLibrary, validateTemplateLibrary,
     mountTemplateGallery, mountEffectsPanel, ...typographyModule, createCompositionRenderer,
     createProjectStore, createTranscriptionClient, createVideoExport, bindPreviewDrag, bindEditorKeyboard,

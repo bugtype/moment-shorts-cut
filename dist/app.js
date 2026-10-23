@@ -1,3 +1,4 @@
+import { createInspectorView } from './inspector-view.mjs';
 import { bindPreviewDrag, bindEditorKeyboard } from './editor-interactions.mjs';
 import { createTemplatePreview } from './template-preview.mjs';
 import { createVideoExport } from './video-export.mjs';
@@ -9,8 +10,8 @@ import { createDemoProject, createProjectDocument, srtTimestamp, projectSrt, rea
 import { prepareCommand } from './core/commands.mjs';
 import { CommandError } from './core/validation.mjs';
 import { createEditorService } from './integration/editor-service.mjs';
-import { captionOccurrences, editedCaptions, mapAudioCaptions, parseSubtitles, MAX_SUBTITLE_BYTES, MAX_CAPTIONS } from './captions.mjs';
-import { renderCaptionTrack, renderCaptionTrackError, updateTimelineMarkup } from './timeline-view.mjs';
+import { editedCaptions, mapAudioCaptions, parseSubtitles, MAX_SUBTITLE_BYTES, MAX_CAPTIONS } from './captions.mjs';
+import { createTimelineView } from './timeline-view.mjs';
 import { createInputHistory } from './input-history.mjs';
 import { defaultEnhancements, newCard, splitCaptionText, retimeOutputLayers, activeSceneLayers, sceneBounds } from './effects.mjs';
 import { applyTemplate, visualPreset, saveCustomTemplate } from './template-catalog.mjs';
@@ -112,8 +113,9 @@ function settingsUnavailable() {
     recoveryBlocked();
     return true;
 }
-let inspectorTrimContext = null;
-let timelineCache = null, frameHandle = 0, paintHandle = 0, lastUiTime = 0, lastTimeLabel = '', lastDrawTime = -Infinity, playRequest = 0, loadingMedia = false;
+const inspectorView = createInspectorView($, $$);
+const timelineView = createTimelineView($, () => performance.now());
+let timelineCache = null, frameHandle = 0, paintHandle = 0, lastDrawTime = -Infinity, playRequest = 0, loadingMedia = false;
 sample.onload = () => {
     sampleRaster = document.createElement('canvas');
     sampleRaster.width = 540;
@@ -191,12 +193,12 @@ function commitCommandProject(next, { command } = {}) {
     if (command === 'project.import' && (next.kind !== state.kind || (next.kind === 'video' && (next.fileName !== state.fileName || Math.abs(next.duration - state.duration) > .05)) || next.audioName !== state.audioName))
         throw new CommandError('MEDIA_RELINK_REQUIRED', '설정에 사용된 원본 영상과 오디오를 먼저 같은 이름으로 연결하세요.');
     // Non-timeline commands clone clips without changing the trim draft's target.
-    const preserveTrim = ['project.update', 'title.update', 'captions.replace'].includes(command) && inspectorTrimContext?.clip === state.clips[selected];
+    const preserveTrim = ['project.update', 'title.update', 'captions.replace'].includes(command) && inspectorView.hasTrimTarget(state.clips[selected]);
     pause();
     snapshot();
     state = next;
     if (preserveTrim)
-        inspectorTrimContext.clip = state.clips[selected];
+        inspectorView.retargetTrim(state.clips[selected]);
     timelineCache = null;
     selected = clamp(selected, 0, state.clips.length - 1);
     current = clamp(current, 0, duration());
@@ -346,39 +348,10 @@ function resizePreview() {
     draw();
 }
 function openInspector(section) {
-    for (const name of ['frame', 'clip', 'caption'])
-        $('#' + name + 'Settings').open = name === section;
+    inspectorView.open(section);
 }
 function renderInspector() {
-    for (const [id, key] of [['mobileZoom', 'zoom'], ['panelVolume', 'volume']]) {
-        const control = $('#' + id), value = String(state[key]);
-        if (control && control.value !== value)
-            control.value = value;
-    }
-    const c = state.clips[selected] || state.clips[0];
-    if (inspectorTrimContext?.clip !== c || inspectorTrimContext.index !== selected || inspectorTrimContext.start !== c.start || inspectorTrimContext.end !== c.end) {
-        $('#trimStart').value = c.start.toFixed(1);
-        $('#trimEnd').value = c.end.toFixed(1);
-        inspectorTrimContext = { clip: c, index: selected, start: c.start, end: c.end };
-    }
-    $('#projectName').value = state.name;
-    $('#ratioLabel').textContent = state.ratio;
-    $('#previewSize').textContent = state.ratio === '9:16' ? '1080 × 1920' : state.ratio === '1:1' ? '1080 × 1080' : '1920 × 1080';
-    $$('[data-ratio]').forEach(b => b.classList.toggle('active', b.dataset.ratio === state.ratio));
-    $$('[data-fit]').forEach(b => b.classList.toggle('active', b.dataset.fit === state.fit));
-    $$('[data-style]').forEach(b => b.classList.toggle('active', b.dataset.style === state.style));
-    $('#zoom').value = state.zoom;
-    $('#zoomValue').textContent = `${Math.round(state.zoom * 100)}%`;
-    $('#volume').value = state.volume;
-    $('#volumeValue').textContent = `${Math.round(state.volume * 100)}%`;
-    $('#speed').value = state.speed;
-    $('#clipIndex').textContent = `클립 ${selected + 1}`;
-    $('#undoButton').disabled = !history.length;
-    $('#redoButton').disabled = !future.length;
-    $('#deleteButton').disabled = state.clips.length <= 1;
-    $('#moveLeft').disabled = selected <= 0;
-    $('#moveRight').disabled = selected >= state.clips.length - 1;
-    $('#sampleBadge').hidden = state.kind !== 'demo';
+    inspectorView.render(state, selected, history.length, future.length);
     if (videoGain) {
         videoGain.gain.value = muted ? 0 : state.volume;
         audioGain.gain.value = muted ? 0 : state.audioVolume;
@@ -386,56 +359,15 @@ function renderInspector() {
     video.playbackRate = state.speed;
     audio.playbackRate = state.speed;
 }
-function renderTimelineCaptions(len) {
-    try {
-        renderCaptionTrack($('#captionTrack'), captionOccurrences(state.captions, state.clips), len, state.speed);
-    }
-    catch (error) {
-        if (error.code !== 'CAPTION_OUTPUT_LIMIT')
-            throw error;
-        renderCaptionTrackError($('#captionTrack'), error.message);
-    }
-}
+
 function renderTimeline() {
-    renderLayerTrack();
-    const len = duration();
-    $('#seek').max = len;
-    updateTimelineMarkup($('#videoTrack'), state.clips.map((c, i) => `<button class="clip ${i === selected ? 'active' : ''}" data-clip="${i}" style="flex:${c.end - c.start};${thumbnail ? `background-image:url('${thumbnail}');background-size:auto 100%;` : ''}" title="클립 ${i + 1}: ${fmt(c.start)}–${fmt(c.end)}"><span>${i === 0 ? esc(state.fileName) : '클립 ' + (i + 1)}</span></button>`).join(''));
-    renderTimelineCaptions(len);
-    $('#ruler').innerHTML = Array.from({ length: 6 }, (_, i) => `<span>${fmt(len * i / 5 / state.speed)}</span>`).join('');
-    $('#audioTrack').classList.toggle('has-audio', !!audioFile);
-    $('#audioTrack').textContent = audioFile ? `♫ ${state.audioName} · ${(state.audioOffset / state.speed).toFixed(1)}초부터` : '+ 오디오를 추가해 보세요';
+    timelineView.render(state, duration(), { selected, thumbnail, hasAudio: !!audioFile });
     updateTime();
 }
 function updateTime(force = true) {
-    const now = performance.now();
-    if (!force && now - lastUiTime < 100)
-        return;
-    lastUiTime = now;
-    const len = duration(), label = `${fmt(current / state.speed)} <span>/ ${fmt(len / state.speed)}</span>`;
-    if (label !== lastTimeLabel) {
-        $('#timeDisplay').innerHTML = label;
-        lastTimeLabel = label;
-    }
-    $('#seek').value = current;
-    $('#playhead').style.transform = `translateX(${len ? current / len * $('#tracksArea').clientWidth : 0}px)`;
-    if (exporting) {
-        const progress = Math.round(current / len * 100), bar = $('#exportProgress'), label = $('#exportPercent');
-        if (bar)
-            bar.style.width = progress + '%';
-        if (label)
-            label.textContent = progress + '%';
-    }
+    timelineView.updateTime(state, current, duration, exporting, force);
 }
-function renderLayerTrack() {
-    const total = duration() / state.speed, d = state.design;
-    let html = [['title', d.title, '타이틀'], ['credit', d.credit, '크레딧']].filter(([, l]) => l.enabled).map(([key, l, label]) => {
-        const start = clamp(l.start, 0, total), end = clamp(l.end ?? total, start, total);
-        return `<button class="title-track-block ${key}" data-track-layer="${key}" style="left:${start / total * 100}%;width:${(end - start) / total * 100}%">${label} · ${esc(key === 'title' ? l.lines.filter(Boolean).join(' / ') : l.text)}</button>`;
-    }).join('');
-    html += (state.overlays || []).filter(card => card.start < total).map(card => `<button class="title-track-block scene" data-track-card="${esc(card.id)}" style="left:${clamp(card.start / total * 100, 0, 100)}%;width:${clamp((Math.min(total, card.end) - card.start) / total * 100, 0, 100)}%">${esc(card.label)} · ${esc(card.text)}</button>`).join('');
-    updateTimelineMarkup($('#titleTrack'), html || '<span class="empty-layer-track">+ 타이틀 · 장면 카드를 추가하세요</span>');
-}
+
 function selectedSceneLayer() {
     const active = activeSceneLayers(state, current / state.speed);
     if (panel === 'effects' && effectTab === 'cards')
@@ -470,7 +402,7 @@ function updateLayerGuide() {
 }
 function previewDesign(change) {
     change(state);
-    renderLayerTrack();
+    timelineView.renderLayers(state, duration());
     updateLayerGuide();
     requestDraw();
     scheduleSave();

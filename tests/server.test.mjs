@@ -40,6 +40,8 @@ test('preview serves modules with correct MIME types and never serves repository
   assert.ok(modules.has('/video-export.mjs'));
   assert.ok(modules.has('/template-preview.mjs'));
   assert.ok(modules.has('/editor-interactions.mjs'));
+  assert.ok(modules.has('/inspector-view.mjs'));
+  assert.ok(modules.has('/timeline-view.mjs'));
   await checkModule('/transcribe-worker.js');
   const stylesheet = await fetch(`${origin}/style.css`);
   assert.equal(stylesheet.status, 200);

@@ -116,3 +116,18 @@ test('audio workspace groups connected controls before replacement actions witho
     assert.equal((html.match(/<section\b/g) || []).length, (html.match(/<\/section>/g) || []).length);
   }
 });
+
+test('settings layout groups frame, captions, trim and audio without promotional explanations', () => {
+  const html = settingsPanelMarkup(frozenProject(), { start: 2, end: 7 });
+  assert.doesNotMatch(html, /panel-intro/);
+  const groups = [...html.matchAll(/<section class="settings-group" aria-label="([^"]+)">([\s\S]*?)<\/section>/g)];
+  assert.deepEqual(groups.map(group => group[1]), ['화면 비율과 구도', '자막 크기와 위치', '선택 클립 구간', '원본 오디오']);
+  for (const id of ['mobileZoom', 'resetPosition']) assert.ok(groups[0][2].includes(`id="${id}"`));
+  for (const id of ['captionSize', 'captionY']) assert.ok(groups[1][2].includes(`id="${id}"`));
+  for (const id of ['panelTrimStart', 'panelTrimEnd', 'panelTrimApply']) assert.ok(groups[2][2].includes(`id="${id}"`));
+  assert.ok(groups[3][2].includes('id="panelVolume"'));
+  assert.match(html, /data-ratio="9:16" aria-pressed="true"/);
+  assert.match(html, /data-ratio="1:1" aria-pressed="false"/);
+  assert.match(html, /data-fit="cover" class="active" aria-pressed="true"/);
+  assert.match(html, /미리보기를 드래그해 위치를 조절하세요/);
+});

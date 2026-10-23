@@ -66,3 +66,28 @@ test('time updates keep their throttle and label cache local to each view', () =
   second.updateTime(state, 6, duration, false);
   assert.match(other.query('#timeDisplay').innerHTML, /00:06/);
 });
+
+test('ratio and fit selections synchronize visual and accessible state in both editor surfaces', () => {
+  const { query } = controls();
+  const groups = Object.fromEntries(['ratio', 'fit'].map(key => [key,
+    Array.from({ length: 2 }, () => (key === 'ratio' ? ['9:16', '1:1', '16:9'] : ['cover', 'contain']).map(value => {
+      const button = { dataset: { [key]: value }, attributes: {}, active: false };
+      button.classList = { toggle: (_, active) => { button.active = active; } };
+      button.setAttribute = (name, value) => { button.attributes[name] = String(value); };
+      return button;
+    })).flat(),
+  ]));
+  const inspector = createInspectorView(query, selector => groups[selector.slice(6, -1)] || []);
+  const state = createDemoProject();
+  for (const [ratio, fit] of [['9:16', 'cover'], ['1:1', 'contain'], ['16:9', 'cover']]) {
+    Object.assign(state, { ratio, fit });
+    inspector.render(state, 0, false, false);
+    for (const key of ['ratio', 'fit']) {
+      assert.equal(groups[key].filter(button => button.active).length, 2);
+      for (const button of groups[key]) {
+        assert.equal(button.active, button.dataset[key] === state[key]);
+        assert.equal(button.attributes['aria-pressed'], String(button.active));
+      }
+    }
+  }
+});

@@ -171,3 +171,15 @@ body.restore-failed #saveStatus i {
 .asset-workspace .asset-info>span {
   min-width:0
 }
+
+.settings-mirror {
+  margin-top:18px
+}
+.settings-group+.settings-group {
+  margin-top:22px;
+  padding-top:22px;
+  border-top:1px solid var(--line)
+}
+.settings-group>.panel-label:first-child {
+  margin-top:0
+}

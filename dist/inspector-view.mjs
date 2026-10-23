@@ -21,8 +21,13 @@ export function createInspectorView($, $$) {
         $('#projectName').value = state.name;
         $('#ratioLabel').textContent = state.ratio;
         $('#previewSize').textContent = state.ratio === '9:16' ? '1080 × 1920' : state.ratio === '1:1' ? '1080 × 1080' : '1920 × 1080';
-        $$('[data-ratio]').forEach(b => b.classList.toggle('active', b.dataset.ratio === state.ratio));
-        $$('[data-fit]').forEach(b => b.classList.toggle('active', b.dataset.fit === state.fit));
+        for (const key of ['ratio', 'fit']) {
+            $$(`[data-${key}]`).forEach(button => {
+                const active = button.dataset[key] === state[key];
+                button.classList.toggle('active', active);
+                button.setAttribute('aria-pressed', active);
+            });
+        }
         $$('[data-style]').forEach(b => b.classList.toggle('active', b.dataset.style === state.style));
         $('#zoom').value = state.zoom;
         $('#zoomValue').textContent = `${Math.round(state.zoom * 100)}%`;

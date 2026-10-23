@@ -103,29 +103,34 @@ export function audioPanelMarkup({ audioName, audioOffset, audioVolume, speed },
 
 export function settingsPanelMarkup({ ratio, fit, zoom, captionSize, captionY, volume }, clip) {
     return (
-        `<h1 class="panel-heading">내 영상에 맞는 화면</h1>` +
-        `<p class="panel-intro">비율과 구도를 조정해<br>중요한 장면을 화면에 담으세요.</p>` +
+        `<h1 class="panel-heading">편집 설정</h1>` +
         `<div class="settings-mirror">` +
+        `<section class="settings-group" aria-label="화면 비율과 구도">` +
         `<div class="section-label">화면 비율</div>` +
         `<div class="ratio-grid">${['9:16', '1:1', '16:9'].map(r => (
-            `<button class="ratio-option ${ratio === r ? 'active' : ''}" data-ratio="${r}">` +
+            `<button class="ratio-option ${ratio === r ? 'active' : ''}" data-ratio="${r}" aria-pressed="${ratio === r}">` +
             `<strong>${r}</strong>` +
             `<small>${r === '9:16' ? '쇼츠' : r === '1:1' ? '피드' : '가로'}</small>` +
             `</button>`
         )).join('')}</div>` +
         `<div class="field-label">화면 채우기</div>` +
         `<div class="segmented">` +
-        `<button data-fit="cover" class="${fit === 'cover' ? 'active' : ''}">채우기</button>` +
-        `<button data-fit="contain" class="${fit === 'contain' ? 'active' : ''}">전체 보기</button>` +
+        `<button data-fit="cover" class="${fit === 'cover' ? 'active' : ''}" aria-pressed="${fit === 'cover'}">채우기</button>` +
+        `<button data-fit="contain" class="${fit === 'contain' ? 'active' : ''}" aria-pressed="${fit === 'contain'}">전체 보기</button>` +
         `</div>` +
         `<label class="panel-label" for="mobileZoom">확대</label>` +
         `<input id="mobileZoom" type="range" min="1" max="3" step=".01" value="${zoom}" style="width:100%">` +
         `<p class="tiny-note">미리보기를 드래그해 위치를 조절하세요.</p>` +
+        `<button class="button full" id="resetPosition">${icon('reset')} 화면 위치 초기화</button>` +
+        `</section>` +
+        `<section class="settings-group" aria-label="자막 크기와 위치">` +
         `<label class="panel-label" for="captionSize">자막 크기</label>` +
         `<input id="captionSize" type="range" min="18" max="52" value="${captionSize}" style="width:100%">` +
         `<label class="panel-label" for="captionY">자막 세로 위치</label>` +
         `<input id="captionY" type="range" min=".15" max=".9" step=".01" value="${captionY}" style="width:100%">` +
-        `<div class="section-label" style="margin-top:25px">선택 클립 자르기</div>` +
+        `</section>` +
+        `<section class="settings-group" aria-label="선택 클립 구간">` +
+        `<div class="section-label">선택 클립 자르기</div>` +
         `<div class="time-fields">` +
         `<label>시작 (초)<input id="panelTrimStart" type="number" min="0" step=".1" value="${clip.start}">` +
         `</label>` +
@@ -133,10 +138,11 @@ export function settingsPanelMarkup({ ratio, fit, zoom, captionSize, captionY, v
         `</label>` +
         `</div>` +
         `<button class="button full" id="panelTrimApply">구간 적용</button>` +
+        `</section>` +
+        `<section class="settings-group" aria-label="원본 오디오">` +
         `<label class="panel-label" for="panelVolume">원본 볼륨</label>` +
         `<input id="panelVolume" type="range" min="0" max="1" step=".01" value="${volume}" style="width:100%">` +
-        `<button class="button full" style="margin-top:25px" id="resetPosition">${icon('reset')} 화면 위치 초기화</button>` +
-        `</div>`
+        `</section></div>`
     );
 }
 

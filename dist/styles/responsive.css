@@ -31,9 +31,6 @@
     padding-left:15px;
     padding-right:15px
   }
-  .stage-title {
-    display:none
-  }
   .project-title>span {
     display:none
   }
@@ -42,10 +39,6 @@
   }
   .timeline-tools>button:nth-last-child(2) {
     margin-left:auto
-  }
-  .stage-toolbar {
-    padding-left:18px;
-    padding-right:18px
   }
   .timeline {
     height:211px
@@ -147,9 +140,6 @@
     grid-row:2;
     height:690px
   }
-  .stage-toolbar {
-    padding-top:12px
-  }
   .stage {
     padding-top:6px
   }
@@ -190,10 +180,6 @@
   }
   .timeline-hint {
     display:none
-  }
-  .stage-title {
-    display:block;
-    font-size:10px
   }
   .timecode {
     font-size:9px;

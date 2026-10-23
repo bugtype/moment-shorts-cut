@@ -20,6 +20,7 @@ export function createInspectorView($, $$) {
         }
         $('#projectName').value = state.name;
         $('#ratioLabel').textContent = state.ratio;
+        $('#ratioShortcut').setAttribute('aria-label', `화면 비율 변경, 현재 ${state.ratio}`);
         $('#previewSize').textContent = state.ratio === '9:16' ? '1080 × 1920' : state.ratio === '1:1' ? '1080 × 1080' : '1920 × 1080';
         for (const key of ['ratio', 'fit']) {
             $$(`[data-${key}]`).forEach(button => {

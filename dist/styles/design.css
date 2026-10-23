@@ -452,9 +452,6 @@
   .timeline {
     height:258px
   }
-  .stage-title {
-    display:none
-  }
 }
 @media(min-width:981px) {
   .workspace {

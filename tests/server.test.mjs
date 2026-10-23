@@ -11,7 +11,12 @@ test('preview serves modules with correct MIME types and never serves repository
   const origin = `http://127.0.0.1:${server.address().port}`;
   const page = await fetch(origin);
   assert.equal(page.status, 200);
-  assert.match(await page.text(), /모먼트/);
+  const pageHtml = await page.text();
+  assert.match(pageHtml, /모먼트/);
+  // The preview owns the full center column: ratio and safe-area controls share
+  // its bottom row instead of consuming a separate toolbar above the canvas.
+  assert.doesNotMatch(pageHtml, /class="stage-toolbar"/);
+  assert.match(pageHtml, /<div class="stage-bottom">[\s\S]*?id="ratioShortcut"[\s\S]*?id="safeButton"/);
   const module = await fetch(`${origin}/core/project.mjs`);
   assert.equal(module.status, 200);
   assert.match(module.headers.get('content-type'), /text\/javascript/);

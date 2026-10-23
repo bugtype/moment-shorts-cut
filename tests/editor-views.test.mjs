@@ -8,7 +8,10 @@ import { createTrack } from './fixtures/timeline-dom.mjs';
 function controls() {
   const elements = new Map();
   const query = key => {
-    if (!elements.has(key)) elements.set(key, { value: '', style: {}, classList: { toggle() {} }, clientWidth: 600 });
+    if (!elements.has(key)) elements.set(key, {
+      value: '', style: {}, classList: { toggle() {} }, clientWidth: 600, attributes: {},
+      setAttribute(name, value) { this.attributes[name] = String(value); },
+    });
     return elements.get(key);
   };
   elements.set('#captionTrack', createTrack());
@@ -82,6 +85,7 @@ test('ratio and fit selections synchronize visual and accessible state in both e
   for (const [ratio, fit] of [['9:16', 'cover'], ['1:1', 'contain'], ['16:9', 'cover']]) {
     Object.assign(state, { ratio, fit });
     inspector.render(state, 0, false, false);
+    assert.equal(query('#ratioShortcut').attributes['aria-label'], `화면 비율 변경, 현재 ${ratio}`);
     for (const key of ['ratio', 'fit']) {
       assert.equal(groups[key].filter(button => button.active).length, 2);
       for (const button of groups[key]) {

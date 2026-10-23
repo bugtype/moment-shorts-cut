@@ -1,3 +1,5 @@
+import { createMediaSources } from './media-sources.mjs';
+import { createProjectPersistence } from './project-persistence.mjs';
 import { createCaptionPanel } from './caption-panel.mjs';
 import { createCaptionGeneration } from './caption-generation.mjs';
 import { createInspectorView } from './inspector-view.mjs';
@@ -8,7 +10,7 @@ import { createAudioRecording } from './audio-recording.mjs';
 import { createTranscriptionClient } from './transcription-client.mjs';
 import { icon, esc, fmt } from './ui-format.mjs';
 import { mediaPanelMarkup, audioPanelMarkup, settingsPanelMarkup } from './panel-markup.mjs';
-import { createDemoProject, createProjectDocument, srtTimestamp, projectSrt, readProjectDocument, MAX_CLIPS } from './core/project.mjs';
+import { createDemoProject, createProjectDocument, srtTimestamp, projectSrt, MAX_CLIPS } from './core/project.mjs';
 import { prepareCommand } from './core/commands.mjs';
 import { CommandError } from './core/validation.mjs';
 import { createEditorService } from './integration/editor-service.mjs';
@@ -38,7 +40,7 @@ function clamp(v, a, b) {
 function initial() {
     return createDemoProject();
 }
-let state = initial(), current = 0, selected = 0, playing = false, panel = 'templates', textLayer = 'title', videoFile = null, audioFile = null, sourceURL = '', audioURL = '', thumbnail = '', history = [], future = [], exporting = false, muted = false, transcribing = false, transcriptionStatus = '', saveTimer, pendingSave = Promise.resolve();
+let state = initial(), current = 0, selected = 0, playing = false, panel = 'templates', textLayer = 'title', history = [], future = [], exporting = false, muted = false, transcribing = false, transcriptionStatus = '';
 const video = $('#sourceVideo'), audio = $('#sourceAudio'), canvas = $('#preview'), ctx = canvas.getContext('2d'), sample = new Image(), modal = $('#modal');
 let audioCtx, videoNode, audioNode, videoGain, audioGain, destination, exportCancelled = false, lastTick = 0;
 let sampleRaster = null, lastSaveStatus = '', effectTab = 'cards', selectedCard = null, cardPlaybackEnd = null;
@@ -81,6 +83,21 @@ const captionPanel = createCaptionPanel({
     toast: message => toast(message),
 });
 const projectStore = createProjectStore();
+const sources = createMediaSources({ video, audio });
+const persistence = createProjectPersistence({
+    store: projectStore, sources,
+    getProject: () => state,
+    replaceProject: project => { state = project; timelineCache = null; },
+    saveStatus: (text, ok) => saveStatus(text, ok),
+    toast: message => toast(message),
+    pause: () => pause(),
+});
+function recoveryBlocked(show = true) { return persistence.recoveryBlocked(show); }
+function settingsUnavailable() { return persistence.settingsUnavailable(); }
+function scheduleSave() { persistence.scheduleSave(); }
+function saveProject(show = false) { return persistence.saveProject(show); }
+function persistMedia() { persistence.persistMedia(); }
+
 const videoExport = createVideoExport({
     createCanvas: () => document.createElement('canvas'),
     createRecorder: (stream, options) => new MediaRecorder(stream, options),
@@ -93,7 +110,7 @@ const transcription = createTranscriptionClient(() => new Worker('./transcribe-w
 const captionGeneration = createCaptionGeneration({
     transcription,
     getProject: () => state,
-    getFile: source => source === 'audio' ? audioFile : videoFile,
+    getFile: source => source === 'audio' ? sources.audioFile : sources.videoFile,
     getDuration: () => duration(),
 });
 const audioRecording = createAudioRecording({
@@ -114,22 +131,6 @@ const audioRecording = createAudioRecording({
             button.innerHTML = icon('mic') + ` 녹음 완료 · ${fmt(seconds)}`;
     },
 });
-// Session-only protection: never overwrite a project whose restore is incomplete.
-let restorePhase = 'restoring', restoreMessage = '프로젝트를 불러오는 중…', recoveryValid = false, recoveryBaseline = '';
-function recoveryBlocked(show = true) {
-    if (restorePhase === 'ready')
-        return false;
-    saveStatus(restoreMessage, false);
-    if (show)
-        toast(restoreMessage);
-    return true;
-}
-function settingsUnavailable() {
-    if (restorePhase === 'ready' || (restorePhase === 'failed' && recoveryValid))
-        return false;
-    recoveryBlocked();
-    return true;
-}
 const inspectorView = createInspectorView($, $$);
 const timelineView = createTimelineView($, () => performance.now());
 let timelineCache = null, frameHandle = 0, paintHandle = 0, lastDrawTime = -Infinity, playRequest = 0, loadingMedia = false;
@@ -171,7 +172,7 @@ function locate(t) {
         source: e.clip.start + clamp(t - e.offset, 0, e.clip.end - e.clip.start),
         offset: e.offset };
 }
-const inputHistory = createInputHistory(snapshot, () => exporting || restorePhase === 'restoring');
+const inputHistory = createInputHistory(snapshot, () => exporting || persistence.restorePhase === 'restoring');
 function snapshot() {
     inputHistory.reset();
     history.push(JSON.stringify(state));
@@ -188,7 +189,7 @@ function changed() {
     scheduleSave();
 }
 function edit(fn, refresh = false) {
-    if (exporting || restorePhase === 'restoring')
+    if (exporting || persistence.restorePhase === 'restoring')
         return;
     const previousDuration = duration() / state.speed;
     snapshot();
@@ -240,8 +241,8 @@ const editorService = createEditorService({
     getProject() {
         if (!editorReady)
             throw new CommandError('BUSY', '편집기를 불러오는 중입니다.');
-        if (restorePhase === 'failed' && !recoveryValid)
-            throw new CommandError('RECOVERY_REQUIRED', restoreMessage);
+        if (persistence.restorePhase === 'failed' && !persistence.recoveryValid)
+            throw new CommandError('RECOVERY_REQUIRED', persistence.restoreMessage);
         return structuredClone(state);
     },
     commitProject: commitCommandProject,
@@ -306,50 +307,6 @@ function saveStatus(text, ok = true) {
     lastSaveStatus = key;
     $('#saveStatus').innerHTML = `<i style="background:${ok ? '#93a88d' : '#dd9c70'}"></i> ${esc(text)}`;
 }
-const dbGet = key => projectStore.get(key);
-function scheduleSave() {
-    clearTimeout(saveTimer);
-    if (recoveryBlocked(false))
-        return;
-    saveStatus('저장 중…');
-    saveTimer = setTimeout(() => saveProject(), 500);
-}
-async function saveProject(show = false) {
-    clearTimeout(saveTimer);
-    if (recoveryBlocked(show))
-        return;
-    try {
-        if (show && (videoFile || audioFile))
-            persistMedia();
-        let saving;
-        do {
-            saving = pendingSave;
-            await saving;
-            if (recoveryBlocked(show))
-                return;
-        } while (saving !== pendingSave);
-        localStorage.setItem('moment-state-v1', JSON.stringify(state));
-        saveStatus('이 브라우저에 저장됨');
-        if (show)
-            toast('프로젝트를 이 브라우저에 저장했습니다.');
-    }
-    catch (e) {
-        if (recoveryBlocked(show))
-            return;
-        saveStatus('저장 공간을 확인하세요', false);
-        if (show)
-            toast('저장 공간이 부족하거나 브라우저 저장이 차단되었습니다.');
-    }
-}
-function persistMedia() {
-    if (recoveryBlocked(false))
-        return;
-    pendingSave = projectStore.setMedia(videoFile, audioFile);
-    pendingSave.catch(() => {
-        if (!recoveryBlocked(false))
-            saveStatus('미디어 저장 실패', false);
-    });
-}
 function setRatio(value) {
     runEditorCommand('project.update', { patch: { ratio: value } });
 }
@@ -378,7 +335,7 @@ function renderInspector() {
 }
 
 function renderTimeline() {
-    timelineView.render(state, duration(), { selected, thumbnail, hasAudio: !!audioFile });
+    timelineView.render(state, duration(), { selected, thumbnail: sources.thumbnail, hasAudio: !!sources.audioFile });
     updateTime();
 }
 function updateTime(force = true) {
@@ -613,7 +570,7 @@ function renderEffects(target) {
     });
 }
 function renderCaptionsPanel(target) {
-    captionPanel.render(target, { transcribing, hasAudio: !!audioFile, transcriptionStatus }, {
+    captionPanel.render(target, { transcribing, hasAudio: !!sources.audioFile, transcriptionStatus }, {
         design: () => {
             textLayer = 'caption';
             switchPanel('text');
@@ -647,7 +604,7 @@ function renderPanel() {
         renderEffects(target);
     }
     else if (panel === 'media') {
-        target.innerHTML = mediaPanelMarkup(state, thumbnail);
+        target.innerHTML = mediaPanelMarkup(state, sources.thumbnail);
         $('#chooseVideo').onclick = () => $('#videoInput').click();
         $('#assetSelect').onclick = () => {
             seekTo(0);
@@ -670,19 +627,19 @@ function renderPanel() {
         renderCaptionsPanel(target);
     }
     else if (panel === 'audio') {
-        target.innerHTML = audioPanelMarkup(state, !!audioFile, audioFile ? duration() : 0);
+        target.innerHTML = audioPanelMarkup(state, !!sources.audioFile, sources.audioFile ? duration() : 0);
         $('#chooseAudio').onclick = () => $('#audioInput').click();
         $('#recordButton').onclick = toggleRecording;
-        if (audioFile) {
+        if (sources.audioFile) {
             $('#removeAudio').onclick = () => {
                 if (recoveryBlocked() || audioRecording.current || audioRecording.requesting || loadingMedia)
                     return;
                 pause();
-                audioFile = null;
+                sources.audioFile = null;
                 state.audioName = '';
                 audio.removeAttribute('src');
-                if (audioURL)
-                    URL.revokeObjectURL(audioURL);
+                if (sources.audioURL)
+                    URL.revokeObjectURL(sources.audioURL);
                 persistMedia();
                 changed();
                 renderPanel();
@@ -746,7 +703,7 @@ function paint(c, w, h) {
         source: state.kind === 'demo' ? (sampleRaster || sample) : video,
         sw: state.kind === 'demo' ? 540 : video.videoWidth,
         sh: state.kind === 'demo' ? 960 : video.videoHeight,
-        ready: state.kind === 'demo' ? sample.complete : restorePhase === 'ready' && video.readyState >= 2,
+        ready: state.kind === 'demo' ? sample.complete : persistence.restorePhase === 'ready' && video.readyState >= 2,
         sourceTime: pos.source,
         time: current / state.speed,
         total: duration() / state.speed,
@@ -790,7 +747,7 @@ async function ensureAudio() {
     renderInspector();
 }
 function syncAudio(force = false) {
-    if (restorePhase !== 'ready' || !audioFile)
+    if (persistence.restorePhase !== 'ready' || !sources.audioFile)
         return;
     const t = current - state.audioOffset;
     if (t >= 0 && t < audio.duration) {
@@ -806,7 +763,7 @@ function syncAudio(force = false) {
 function seekTo(t) {
     current = clamp(t, 0, duration());
     const pos = locate(current);
-    if (restorePhase === 'ready' && state.kind === 'video' && Number.isFinite(video.duration))
+    if (persistence.restorePhase === 'ready' && state.kind === 'video' && Number.isFinite(video.duration))
         video.currentTime = Math.min(video.duration - .001, pos.source);
     syncAudio(true);
     updateTime();
@@ -935,43 +892,6 @@ function seekVideo(time) {
         video.currentTime = clamp(time, 0, Math.max(0, video.duration - .001));
     });
 }
-function waitForMedia(element, event, message) {
-    return new Promise((resolve, reject) => {
-        const cleanup = () => {
-            clearTimeout(timer);
-            element.removeEventListener(event, loaded);
-            element.removeEventListener('error', failed);
-        };
-        const loaded = () => {
-            cleanup();
-            resolve();
-        }, failed = () => {
-            cleanup();
-            reject(new Error(message));
-        };
-        const timer = setTimeout(() => {
-            cleanup();
-            reject(new Error('파일을 읽는 데 시간이 초과되었습니다. 더 작은 파일로 다시 시도하세요.'));
-        }, 20000);
-        element.addEventListener(event, loaded, { once: true });
-        element.addEventListener('error', failed, { once: true });
-    });
-}
-async function setVideoFile(file) {
-    if (sourceURL)
-        URL.revokeObjectURL(sourceURL);
-    sourceURL = URL.createObjectURL(file);
-    const loaded = waitForMedia(video, 'loadeddata', '브라우저에서 지원하지 않는 영상입니다. H.264 MP4 또는 WebM을 사용해 주세요.');
-    video.src = sourceURL;
-    await loaded;
-    if (!Number.isFinite(video.duration) || video.duration <= 0)
-        throw new Error('영상 길이를 읽을 수 없습니다.');
-    const thumb = document.createElement('canvas');
-    thumb.width = 320;
-    thumb.height = 180;
-    thumb.getContext('2d').drawImage(video, 0, 0, 320, 180);
-    thumbnail = thumb.toDataURL('image/jpeg', .7);
-}
 function visualSettings() {
     return visualPreset(state);
 }
@@ -992,13 +912,13 @@ async function loadVideo(file) {
     }
     loadingMedia = true;
     pause();
-    const old = videoFile, previousOutput = duration() / state.speed;
+    const old = sources.videoFile, previousOutput = duration() / state.speed;
     toast('영상을 불러오는 중입니다…');
     try {
-        await setVideoFile(file);
+        await sources.setVideoFile(file);
         if (recoveryBlocked())
             return;
-        videoFile = file;
+        sources.videoFile = file;
         state = {
             ...initial(),
             ...visualSettings(),
@@ -1012,12 +932,12 @@ async function loadVideo(file) {
         retimeOutputLayers(state, previousOutput, state.duration);
         current = 0;
         selected = 0;
-        audioFile = null;
+        sources.audioFile = null;
         audio.pause();
         audio.removeAttribute('src');
-        if (audioURL)
-            URL.revokeObjectURL(audioURL);
-        audioURL = '';
+        if (sources.audioURL)
+            URL.revokeObjectURL(sources.audioURL);
+        sources.audioURL = '';
         history = [];
         future = [];
         inputHistory.reset();
@@ -1028,14 +948,14 @@ async function loadVideo(file) {
         toast('영상을 불러왔습니다. 9:16 세로 화면이 적용되었습니다.');
     }
     catch (e) {
-        videoFile = old;
+        sources.videoFile = old;
         if (old)
-            await setVideoFile(old).catch(() => {
+            await sources.setVideoFile(old).catch(() => {
             });
         else {
-            if (sourceURL)
-                URL.revokeObjectURL(sourceURL);
-            sourceURL = '';
+            if (sources.sourceURL)
+                URL.revokeObjectURL(sources.sourceURL);
+            sources.sourceURL = '';
             video.removeAttribute('src');
         }
         toast(e.message);
@@ -1058,7 +978,7 @@ async function loadAudio(file, recording = null) {
     const nextURL = URL.createObjectURL(file);
     const probe = new Audio();
     try {
-        const loaded = waitForMedia(probe, 'loadedmetadata', '지원하지 않는 오디오 형식입니다.');
+        const loaded = sources.waitForMedia(probe, 'loadedmetadata', '지원하지 않는 오디오 형식입니다.');
         probe.src = nextURL;
         await loaded;
         if (recoveryBlocked() || (recording && audioRecording.current !== recording)) {
@@ -1066,11 +986,11 @@ async function loadAudio(file, recording = null) {
             return;
         }
         pause();
-        if (audioURL)
-            URL.revokeObjectURL(audioURL);
-        audioURL = nextURL;
-        audio.src = audioURL;
-        audioFile = file;
+        if (sources.audioURL)
+            URL.revokeObjectURL(sources.audioURL);
+        sources.audioURL = nextURL;
+        audio.src = sources.audioURL;
+        sources.audioFile = file;
         state.audioName = file.name;
         state.audioOffset = 0;
         persistMedia();
@@ -1099,7 +1019,7 @@ async function toggleRecording() {
     if (audioRecording.current || loadingMedia || exporting || transcribing || audioRecording.requesting)
         return;
     const project = state;
-    await audioRecording.start(() => restorePhase === 'ready' && state === project && panel === 'audio' && !loadingMedia && !exporting && !transcribing);
+    await audioRecording.start(() => persistence.restorePhase === 'ready' && state === project && panel === 'audio' && !loadingMedia && !exporting && !transcribing);
 }
 function trim(start, end) {
     if (!Number.isFinite(start) || !Number.isFinite(end) || start < 0 || end > state.duration || end - start < .1) {
@@ -1141,8 +1061,8 @@ function undo(redo = false) {
     to.push(JSON.stringify(state));
     state = JSON.parse(from.pop());
     timelineCache = null;
-    if (restorePhase === 'ready')
-        state.audioName = audioFile?.name || '';
+    if (persistence.restorePhase === 'ready')
+        state.audioName = sources.audioFile?.name || '';
     selected = clamp(selected, 0, state.clips.length - 1);
     current = Math.min(current, duration());
     changed();
@@ -1173,17 +1093,7 @@ function confirmReset() {
         pause();
         state = initial();
         timelineCache = null;
-        videoFile = null;
-        audioFile = null;
-        thumbnail = '';
-        video.removeAttribute('src');
-        audio.removeAttribute('src');
-        if (sourceURL)
-            URL.revokeObjectURL(sourceURL);
-        if (audioURL)
-            URL.revokeObjectURL(audioURL);
-        sourceURL = '';
-        audioURL = '';
+        sources.reset();
         current = 0;
         selected = 0;
         history = [];
@@ -1258,7 +1168,7 @@ async function generateCaptions() {
         toast('진행 중인 작업을 먼저 완료해 주세요.');
         return;
     }
-    const source = $('#captionSource').value, language = $('#language').value, file = source === 'audio' ? audioFile : videoFile;
+    const source = $('#captionSource').value, language = $('#language').value, file = source === 'audio' ? sources.audioFile : sources.videoFile;
     if (!file) {
         toast(source === 'video' ? '샘플에는 음성이 없습니다. 음성이 있는 영상을 업로드하세요.' : '인식할 오디오를 먼저 추가하세요.');
         return;
@@ -1550,7 +1460,7 @@ function bind() {
     });
     bindPreviewDrag(canvas, {
         getProject: () => state,
-        blocked: () => exporting || restorePhase === 'restoring',
+        blocked: () => exporting || persistence.restorePhase === 'restoring',
         pause: () => pause(),
         selection: () => {
             const scene = selectedSceneLayer();
@@ -1588,7 +1498,7 @@ function bind() {
         }
     });
     window.addEventListener('beforeunload', e => {
-        if (exporting || audioRecording.current || (restorePhase === 'failed' && JSON.stringify(state) !== recoveryBaseline)) {
+        if (exporting || audioRecording.current || (persistence.restorePhase === 'failed' && JSON.stringify(state) !== persistence.recoveryBaseline)) {
             e.preventDefault();
             e.returnValue = true;
         }
@@ -1598,62 +1508,8 @@ function bind() {
 async function init() {
     bind();
     editorReady = false;
-    restorePhase = 'restoring';
-    restoreMessage = '프로젝트를 불러오는 중…';
-    recoveryValid = false;
-    clearTimeout(saveTimer);
-    let recovered = null, cause = '저장된 프로젝트를 불러오지 못함';
-    try {
-        const raw = localStorage.getItem('moment-state-v1');
-        if (raw !== null) {
-            cause = '저장된 편집 설정을 읽을 수 없습니다';
-            const saved = JSON.parse(raw);
-            if (!saved || typeof saved !== 'object' || Array.isArray(saved) || !Array.isArray(saved.clips) || !saved.clips.length)
-                throw new Error('Invalid saved project');
-            recovered = readProjectDocument({
-                format: 'moment-project',
-                formatVersion: 1,
-                project: { ...saved, schemaVersion: saved.schemaVersion ?? 1 } });
-            state = recovered;
-            timelineCache = null;
-            cause = '저장된 미디어를 읽을 수 없습니다';
-            [videoFile, audioFile] = await Promise.all([dbGet('video'), dbGet('audio')]);
-            if (state.kind === 'video') {
-                cause = '저장된 영상 파일을 찾을 수 없습니다';
-                if (!videoFile)
-                    throw new Error('Missing video');
-                cause = '저장된 영상을 열 수 없습니다';
-                await setVideoFile(videoFile);
-            }
-            if (state.audioName && !audioFile) {
-                cause = '저장된 오디오 파일을 찾을 수 없습니다';
-                throw new Error('Missing audio');
-            }
-            if (audioFile) {
-                cause = '저장된 오디오를 열 수 없습니다';
-                audioURL = URL.createObjectURL(audioFile);
-                const loaded = waitForMedia(audio, 'loadeddata', cause);
-                audio.src = audioURL;
-                await loaded;
-                if (!(audio.duration > 0))
-                    throw new Error('Invalid audio duration');
-            }
-        }
-        restorePhase = 'ready';
-        saveStatus(raw === null ? '이 브라우저에 저장' : '저장된 프로젝트를 불러왔습니다');
-    }
-    catch (e) {
-        state = recovered || initial();
-        timelineCache = null;
-        restorePhase = 'failed';
-        recoveryValid = !!recovered;
-        restoreMessage = cause + ' · 변경사항은 저장되지 않습니다. ' + (recoveryValid ? '새로고침 전에 사용 가이드에서 편집 설정을 내보내세요. 새로고침은 복원을 다시 시도합니다.' : '원래 설정을 내보낼 수 없습니다. 새로고침은 읽기를 다시 시도합니다.');
-        recoveryBaseline = JSON.stringify(state);
-        clearTimeout(saveTimer);
-        pause();
-        recoveryBlocked();
-    }
-    document.body.classList.toggle('restore-failed', restorePhase === 'failed');
+    await persistence.restore();
+    document.body.classList.toggle('restore-failed', persistence.restorePhase === 'failed');
     renderPanel();
     renderInspector();
     renderTimeline();

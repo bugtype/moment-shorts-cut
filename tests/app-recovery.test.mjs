@@ -1,3 +1,5 @@
+import { createMediaSources } from '../dist/media-sources.mjs';
+import { createProjectPersistence } from '../dist/project-persistence.mjs';
 import { createCaptionGeneration } from '../dist/caption-generation.mjs';
 import { createTemplatePreview } from '../dist/template-preview.mjs';
 import { createAudioRecording } from '../dist/audio-recording.mjs';
@@ -26,6 +28,19 @@ test('restore protection and isolated template library failures', async () => {
    const f={raw,media:structuredClone(media),jsonWrites:0,mediaWrites:0,reads:0,downloads:[],events:new Map(),timers:[],micCalls:0,libraryWrites:[],library:{'moment-templates-v1':templateRaw,'moment-favorites-v1':favoritesRaw}};
    const audioEvents=new Map(),fixtureAudio={duration:audioDuration,paused:true,pause(){this.paused=true;},removeAttribute(){},addEventListener(name,handler){audioEvents.set(name,handler);},removeEventListener(name){audioEvents.delete(name);},set src(value){queueMicrotask(()=>audioEvents.get(audioResult)?.());}};
    const app=vm.createContext({...context,
+    createMediaSources: options => createMediaSources(options, {
+      createURL: file => app.URL.createObjectURL(file),
+      revokeURL: url => app.URL.revokeObjectURL(url),
+      createCanvas: () => app.document.createElement('canvas'),
+      setTimer: (callback, delay) => app.setTimeout(callback, delay),
+      clearTimer: timer => app.clearTimeout(timer),
+    }),
+    createProjectPersistence: options => createProjectPersistence(options, {
+      readSettings: key => app.localStorage.getItem(key),
+      writeSettings: (key, value) => app.localStorage.setItem(key, value),
+      setTimer: (callback, delay) => app.setTimeout(callback, delay),
+      clearTimer: timer => app.clearTimeout(timer),
+    }),
     createCaptionGeneration: options => createCaptionGeneration(options, {
       createAudioContext: () => new app.AudioContext(),
       createOfflineContext: (...args) => new app.OfflineAudioContext(...args),
@@ -54,7 +69,7 @@ test('restore protection and isolated template library failures', async () => {
    });
    vm.runInContext(source.replace(/^import .*;$/gm,'').replace(/init\(\);\s*$/,''),app);
    const run=code=>vm.runInContext(code,app);
-   run('setVideoFile=async()=>{if(fixtureDecodeError)throw fixtureDecodeError;};download=(blob,name)=>fixtureDownloads.push({blob,name});');
+   run('sources.setVideoFile=async()=>{if(fixtureDecodeError)throw fixtureDecodeError;};download=(blob,name)=>fixtureDownloads.push({blob,name});');
    return {...f,app,run,f,init:()=>run('init()'),value:code=>JSON.parse(JSON.stringify(run(code)))};
   }
   const recoveryProject=projectModule.createDemoProject();
@@ -73,7 +88,7 @@ test('restore protection and isolated template library failures', async () => {
    {mediaError:new Error('storage read failed')},
   ]){
    const a=recoveryApp({raw:recoveryRaw,media:recoveryMedia,...options});await a.init();
-   assert.equal(a.run('restorePhase'),'failed');assert.deepEqual(a.value('state'),recoveryProject);
+   assert.equal(a.run('persistence.restorePhase'),'failed');assert.deepEqual(a.value('state'),recoveryProject);
    assert.match(element('#saveStatus').innerHTML,/변경사항은 저장되지 않습니다/);
    assert.match(element('#saveStatus').innerHTML,/새로고침 전에.*내보내세요/);
    let cancelled=false;const unload=()=>{cancelled=false;a.f.events.get('beforeunload')({preventDefault(){cancelled=true;}});return cancelled;};
@@ -88,7 +103,7 @@ test('restore protection and isolated template library failures', async () => {
    const api=await a.app.window.moment.execute('project.get');assert.equal(api.ok,true);assert.equal(api.data.project.audioName,'voice.wav');
    const imported=await a.app.window.moment.execute('project.import',{document:projectModule.createProjectDocument(recoveryProject)});assert.equal(imported.ok,true);
    const before=a.value('state'),files=structuredClone(a.f.media);
-   a.run('switchPanel("audio")');if(a.run('audioFile'))element('#removeAudio').onclick();
+   a.run('switchPanel("audio")');if(a.run('sources.audioFile'))element('#removeAudio').onclick();
    await a.run('loadVideo({name:"new.mp4",type:"video/mp4",size:1});loadAudio({name:"new.wav",size:1});toggleRecording();generateCaptions();play();startExport({mime:"video/webm",ext:"webm"},720)');
    a.run('confirmReset();exportDialog();persistMedia();scheduleSave()');await a.run('saveProject(true)');
    assert.deepEqual(a.value('state'),before);assert.deepEqual(a.f.media,files);
@@ -97,37 +112,37 @@ test('restore protection and isolated template library failures', async () => {
    assert.match(element('#saveStatus').innerHTML,/변경사항은 저장되지 않습니다/);
   }
   for(const raw of ['', ' ', 'null', 'false', '42', '[]', '{}', '{broken', JSON.stringify({...recoveryProject,clips:[]}),JSON.stringify({...recoveryProject,design:null})]){
-   const a=recoveryApp({raw});await a.init();assert.equal(a.run('restorePhase'),'failed');
-   assert.equal(a.run('recoveryValid'),false);assert.equal(a.f.reads,0);
+   const a=recoveryApp({raw});await a.init();assert.equal(a.run('persistence.restorePhase'),'failed');
+   assert.equal(a.run('persistence.recoveryValid'),false);assert.equal(a.f.reads,0);
    a.run('edit(()=>state.name="임시 화면");downloadProjectSettings();downloadSrt();persistMedia();scheduleSave()');await a.run('saveProject(true)');
    assert.equal(a.f.downloads.length,0);assert.equal(a.f.jsonWrites,0);assert.equal(a.f.mediaWrites,0);assert.equal(a.f.raw,raw);
    assert.equal((await a.app.window.moment.execute('project.get')).error.code,'RECOVERY_REQUIRED');
   }
   const readFailure=recoveryApp({readError:new Error('storage blocked')});await readFailure.init();
-  assert.equal(readFailure.run('restorePhase'),'failed');await readFailure.run('saveProject(true)');assert.equal(readFailure.f.jsonWrites,0);
-  const emptyStart=recoveryApp();await emptyStart.init();assert.equal(emptyStart.run('restorePhase'),'ready');assert.equal(emptyStart.f.reads,0);
+  assert.equal(readFailure.run('persistence.restorePhase'),'failed');await readFailure.run('saveProject(true)');assert.equal(readFailure.f.jsonWrites,0);
+  const emptyStart=recoveryApp();await emptyStart.init();assert.equal(emptyStart.run('persistence.restorePhase'),'ready');assert.equal(emptyStart.f.reads,0);
   await emptyStart.run('saveProject()');assert.equal(emptyStart.f.jsonWrites,1);
   emptyStart.run('confirmReset()');element('#confirmReset').onclick();await emptyStart.run('saveProject()');assert.equal(emptyStart.f.mediaWrites,1);
   const retried=recoveryApp({raw:recoveryRaw,media:recoveryMedia});await retried.init();
-  assert.equal(retried.run('restorePhase'),'ready');assert.deepEqual(retried.value('state'),recoveryProject);
+  assert.equal(retried.run('persistence.restorePhase'),'ready');assert.deepEqual(retried.value('state'),recoveryProject);
   await retried.run('saveProject(true)');assert.equal(retried.f.jsonWrites,1);assert.equal(retried.f.mediaWrites,1);
   const unknownAudioDuration=recoveryApp({raw:recoveryRaw,media:recoveryMedia,audioDuration:Infinity});
-  await unknownAudioDuration.init();assert.equal(unknownAudioDuration.run('restorePhase'),'ready','Loaded audio with unknown duration remains supported');
+  await unknownAudioDuration.init();assert.equal(unknownAudioDuration.run('persistence.restorePhase'),'ready','Loaded audio with unknown duration remains supported');
   const noAudioProject={...recoveryProject,audioName:''};
-  const noAudio=recoveryApp({raw:JSON.stringify(noAudioProject),media:{video:recoveryMedia.video}});await noAudio.init();assert.equal(noAudio.run('restorePhase'),'ready');
+  const noAudio=recoveryApp({raw:JSON.stringify(noAudioProject),media:{video:recoveryMedia.video}});await noAudio.init();assert.equal(noAudio.run('persistence.restorePhase'),'ready');
   
   let finishRead;const restoring=recoveryApp({raw:recoveryRaw,media:recoveryMedia,readGate:new Promise(resolve=>finishRead=resolve)});
-  const initializing=restoring.init();assert.equal(restoring.run('restorePhase'),'restoring');
+  const initializing=restoring.init();assert.equal(restoring.run('persistence.restorePhase'),'restoring');
   restoring.run('persistMedia();scheduleSave();confirmReset()');await restoring.run('saveProject(true)');
   assert.equal(restoring.f.jsonWrites,0);assert.equal(restoring.f.mediaWrites,0);
   assert.equal((await restoring.app.window.moment.execute('project.update',{patch:{name:'too early'}})).error.code,'BUSY');
-  finishRead();await initializing;assert.equal(restoring.run('restorePhase'),'ready');
+  finishRead();await initializing;assert.equal(restoring.run('persistence.restorePhase'),'ready');
   assert.match(element('#saveStatus').innerHTML,/저장된 프로젝트를 불러왔습니다/);
   
   const stale=recoveryApp();await stale.init();stale.run('scheduleSave();confirmReset()');
   const staleTimer=stale.f.timers.at(-1),oldReset=element('#confirmReset').onclick;
-  stale.run('switchPanel("audio");audioFile={name:"voice.wav"};renderPanel()');const oldRemove=element('#removeAudio').onclick;
-  let finishSave;stale.app.fixturePending=new Promise(resolve=>finishSave=resolve);stale.run('pendingSave=fixturePending');
+  stale.run('switchPanel("audio");sources.audioFile={name:"voice.wav"};renderPanel()');const oldRemove=element('#removeAudio').onclick;
+  let finishSave;stale.app.fixturePending=new Promise(resolve=>finishSave=resolve);stale.run('persistence.pendingSave=fixturePending');
   const saving=stale.run('saveProject()');stale.f.raw='null';await stale.init();
   assert.equal(staleTimer.cancelled,true);finishSave();await saving;await staleTimer.callback();oldReset();oldRemove();
   assert.equal(stale.f.jsonWrites,0);assert.equal(stale.f.mediaWrites,0);assert.equal(stale.f.raw,'null');
@@ -146,7 +161,7 @@ test('restore protection and isolated template library failures', async () => {
   ]){
    const r=recoveryApp({...options,raw:JSON.stringify({...projectModule.createDemoProject(),name:'preserved project'})});let api;
    r.app.mountTemplateGallery=(root,value)=>{api=value;mountTemplateGallery(root,value);};
-   await r.init();assert.equal(r.value('editorReady'),true);assert.equal(r.value('restorePhase'),'ready');assert.equal(r.value('state.name'),'preserved project');
+   await r.init();assert.equal(r.value('editorReady'),true);assert.equal(r.value('persistence.restorePhase'),'ready');assert.equal(r.value('state.name'),'preserved project');
    assert.match(r.value('templateLibraryError'),/원본 저장값은 유지/);assert.ok(element('#panelContent').innerHTML.includes('role="alert"'));
    const stored=structuredClone(r.f.library),before=r.value('({savedTemplates,favoriteTemplates,state,history,future})');
    api.favorite('reference');api.remove('unknown');r.run('saveTemplateDialog();persistTemplateLibrary();');

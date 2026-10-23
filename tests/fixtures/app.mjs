@@ -1,3 +1,5 @@
+import { createMediaSources } from '../../dist/media-sources.mjs';
+import { createProjectPersistence } from '../../dist/project-persistence.mjs';
 import { createCaptionGeneration } from '../../dist/caption-generation.mjs';
 import { createInspectorView } from '../../dist/inspector-view.mjs';
 import { bindPreviewDrag, bindEditorKeyboard } from '../../dist/editor-interactions.mjs';
@@ -104,6 +106,19 @@ export async function createAppFixture() {
     ...effectsModule, ...templateModule, readTemplateLibrary, validateTemplateLibrary,
     mountTemplateGallery, mountEffectsPanel, ...typographyModule, createCompositionRenderer,
     createProjectStore, createTranscriptionClient, createVideoExport, bindPreviewDrag, bindEditorKeyboard,
+    createMediaSources: options => createMediaSources(options, {
+      createURL: file => context.URL.createObjectURL(file),
+      revokeURL: url => context.URL.revokeObjectURL(url),
+      createCanvas: () => context.document.createElement('canvas'),
+      setTimer: (callback, delay) => context.setTimeout(callback, delay),
+      clearTimer: timer => context.clearTimeout(timer),
+    }),
+    createProjectPersistence: options => createProjectPersistence(options, {
+      readSettings: key => context.localStorage.getItem(key),
+      writeSettings: (key, value) => context.localStorage.setItem(key, value),
+      setTimer: (callback, delay) => context.setTimeout(callback, delay),
+      clearTimer: timer => context.clearTimeout(timer),
+    }),
     createCaptionGeneration: options => createCaptionGeneration(options, {
       createAudioContext: () => new context.AudioContext(),
       createOfflineContext: (...args) => new context.OfflineAudioContext(...args),

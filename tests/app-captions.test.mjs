@@ -48,7 +48,7 @@ test('caption workspace, budgets and asynchronous recognition lifecycle', async 
   context.captionTestFile={arrayBuffer:()=>new Promise(resolve=>releaseCaptionAudio=resolve)};
   context.AudioContext=class {async decodeAudioData(){return {duration:1};}async close(){}};
   context.OfflineAudioContext=class {createBufferSource(){return {connect(){},start(){}};}async startRendering(){return {getChannelData:()=>new Float32Array([.1])};}};
-  vm.runInContext('videoFile=captionTestFile;renderPanel()',context);
+  vm.runInContext('sources.videoFile=captionTestFile;renderPanel()',context);
   element('#captionSource').value='video';element('#language').value='korean';
   const beforeCaptionGeneration=evaluate('state.captions');
   const pendingCaptionGeneration=vm.runInContext('generateCaptions()',context);
@@ -64,34 +64,34 @@ test('caption workspace, budgets and asynchronous recognition lifecycle', async 
   assert.equal(evaluate('transcribing'),false);assert.equal(createIsOpen(),false);
   assert.deepEqual(evaluate('state.captions'),beforeCaptionGeneration);
   assert.equal(doc.activeElement,element('#captionCreate summary'));
-  vm.runInContext('videoFile=null;state=initial();timelineCache=null;renderPanel()',context);
+  vm.runInContext('sources.videoFile=null;state=initial();timelineCache=null;renderPanel()',context);
   delete context.captionTestFile;delete context.AudioContext;delete context.OfflineAudioContext;
   console.log('PASS: captions-first layout, empty/add/delete/import focus, timing notices and running/cancelled generation without a model download.');
   
   // Count failures happen before edit(): preserve history, redo, pending save and focus.
   function setCaptionLimitFixture(captions){
    context.captionLimitFixture=captions;
-   vm.runInContext('state=initial();state.captions=structuredClone(captionLimitFixture);timelineCache=null;history=[];future=[];edit(()=>state.name="redo target");undo();switchPanel("captions");saveTimer={pending:true};',context);
+   vm.runInContext('state=initial();state.captions=structuredClone(captionLimitFixture);timelineCache=null;history=[];future=[];edit(()=>state.name="redo target");undo();switchPanel("captions");persistence.saveTimer={pending:true};',context);
    projectModule.createProjectDocument(evaluate('state'));
    element('#captionChunkSize').value='12';
   }
   function assertCaptionCountRejected(button){
-   const before=evaluate('({state,history,future})'),timer=vm.runInContext('saveTimer',context);
+   const before=evaluate('({state,history,future})'),timer=vm.runInContext('persistence.saveTimer',context);
    button.focus();const focused=doc.activeElement,events=focusEvents.length;
    button.onclick();
    assert.deepEqual(evaluate('({state,history,future})'),before);
-   assert.equal(vm.runInContext('saveTimer',context),timer);
+   assert.equal(vm.runInContext('persistence.saveTimer',context),timer);
    assert.equal(doc.activeElement,focused);assert.equal(focusEvents.length,events);
    assert.match(element('#toast').textContent,/10,000/);
    assert.deepEqual(projectModule.readProjectDocument(projectModule.createProjectDocument(evaluate('state'))),before.state);
   }
   // A split that changes nothing must not consume redo or schedule a save.
   function assertSplitNoop(){
-   const before=evaluate('({state,history,future})'),timer=vm.runInContext('saveTimer',context);
+   const before=evaluate('({state,history,future})'),timer=vm.runInContext('persistence.saveTimer',context);
    const original=vm.runInContext('state.captions',context);element('#splitLongCaptions').focus();const events=focusEvents.length;
    element('#splitLongCaptions').onclick();
    assert.deepEqual(evaluate('({state,history,future})'),before);assert.equal(vm.runInContext('state.captions',context),original);
-   assert.equal(vm.runInContext('saveTimer',context),timer);assert.equal(focusEvents.length,events);
+   assert.equal(vm.runInContext('persistence.saveTimer',context),timer);assert.equal(focusEvents.length,events);
    assert.equal(doc.activeElement,element('#splitLongCaptions'));assert.match(element('#toast').textContent,/나눌 긴 자막이 없습니다/);
   }
   for(const captions of [[],[{start:0,end:2,text:'짧은 자막'}],[{start:0,end:2,text:'  short  '}],[{start:0,end:2,text:' \t\n '}],[{start:0,end:2,text:'a'+'\u0301'.repeat(1999),basis:'timeline'}]]){
@@ -112,7 +112,7 @@ test('caption workspace, budgets and asynchronous recognition lifecycle', async 
    const before=evaluate('state');element('#splitLongCaptions').onclick();const after=evaluate('state');
    assert.notDeepEqual(after,before);assert.equal(evaluate('history.length'),1);assert.equal(evaluate('future.length'),0);
    assert.equal(after.captions.slice(1).map(c=>c.text).join('').replace(/\s/g,''),'alphabetagammadelta');
-   vm.runInContext('edit(()=>state.zoom=1.5);undo();saveTimer={pending:true};',context);assertSplitNoop();
+   vm.runInContext('edit(()=>state.zoom=1.5);undo();persistence.saveTimer={pending:true};',context);assertSplitNoop();
    vm.runInContext('undo(true)',context);assert.equal(evaluate('state.zoom'),1.5);
    vm.runInContext('undo();undo()',context);assert.deepEqual(evaluate('state'),before);
    vm.runInContext('undo(true)',context);assert.deepEqual(evaluate('state'),after);
@@ -123,11 +123,11 @@ test('caption workspace, budgets and asynchronous recognition lifecycle', async 
   const unsupportedSplit=vm.runInNewContext(fs.readFileSync('dist/effects.mjs','utf8').replaceAll('export ','')+';splitCaptionText',{Intl:{}});
   setCaptionLimitFixture([{start:0,end:4,text:'e\u0301'.repeat(25)}]);
   context.splitCaptionText=unsupportedSplit;
-  const unsupportedBefore=evaluate('({state,history,future})'),unsupportedTimer=vm.runInContext('saveTimer',context);
+  const unsupportedBefore=evaluate('({state,history,future})'),unsupportedTimer=vm.runInContext('persistence.saveTimer',context);
   element('#splitLongCaptions').focus();const unsupportedFocus=focusEvents.length;
   element('#splitLongCaptions').onclick();
   assert.deepEqual(evaluate('({state,history,future})'),unsupportedBefore);
-  assert.equal(vm.runInContext('saveTimer',context),unsupportedTimer);assert.equal(focusEvents.length,unsupportedFocus);
+  assert.equal(vm.runInContext('persistence.saveTimer',context),unsupportedTimer);assert.equal(focusEvents.length,unsupportedFocus);
   assert.equal(doc.activeElement,element('#splitLongCaptions'));assert.match(element('#toast').textContent,/문자 분할/);
   context.splitCaptionText=effectsModule.splitCaptionText;
   const shortLimitCaption={start:0,end:1,text:'짧게 🎬',basis:'timeline',speaker:'1',keywords:'🎬'};
@@ -170,14 +170,14 @@ test('caption workspace, budgets and asynchronous recognition lifecycle', async 
   context.Worker=class {constructor(){context.captionTestWorker=this;}terminate(){}postMessage(){queueMicrotask(()=>this.onmessage({data:{type:'result',result:context.captionTestResult??{chunks:context.captionTestChunks}}}));}};
   for(const source of ['video','audio'])for(const count of [captionModule.MAX_CAPTIONS,captionModule.MAX_CAPTIONS+1]){
    setCaptionLimitFixture([shortLimitCaption]);
-   vm.runInContext('videoFile=captionTestFile;audioFile=captionTestFile;transcription.cancel()',context);
+   vm.runInContext('sources.videoFile=captionTestFile;sources.audioFile=captionTestFile;transcription.cancel()',context);
    element('#captionSource').value=source;
    context.captionTestChunks=Array.from({length:count},()=>({timestamp:[0,1],text:'인식된 자막'}));
-   const before=evaluate('({state,history,future})'),timer=vm.runInContext('saveTimer',context);
+   const before=evaluate('({state,history,future})'),timer=vm.runInContext('persistence.saveTimer',context);
    await vm.runInContext('generateCaptions()',context);
    if(count>captionModule.MAX_CAPTIONS){
     assert.deepEqual(evaluate('({state,history,future})'),before);
-    assert.equal(vm.runInContext('saveTimer',context),timer);assert.match(element('#toast').textContent,/10,000/);
+    assert.equal(vm.runInContext('persistence.saveTimer',context),timer);assert.match(element('#toast').textContent,/10,000/);
    }else{
     const result=evaluate('state');assert.equal(result.captions.length,count);
     assert.equal(result.captions[0].basis,source==='audio'?'timeline':undefined);
@@ -198,12 +198,12 @@ test('caption workspace, budgets and asynchronous recognition lifecycle', async 
   for(const source of ['video','audio']){
    for(const result of invalidAsrResults){
     setCaptionLimitFixture([shortLimitCaption]);
-    vm.runInContext('videoFile=captionTestFile;audioFile=captionTestFile;state.audioOffset=2;transcription.cancel()',context);
+    vm.runInContext('sources.videoFile=captionTestFile;sources.audioFile=captionTestFile;state.audioOffset=2;transcription.cancel()',context);
     element('#captionSource').value=source;context.captionTestResult=result;
-    const before=evaluate('({state,history,future})'),timer=vm.runInContext('saveTimer',context);
+    const before=evaluate('({state,history,future})'),timer=vm.runInContext('persistence.saveTimer',context);
     await vm.runInContext('generateCaptions()',context);
     assert.deepEqual(evaluate('({state,history,future})'),before,`${source}: invalid ASR must keep the entire previous state`);
-    assert.equal(vm.runInContext('saveTimer',context),timer);
+    assert.equal(vm.runInContext('persistence.saveTimer',context),timer);
     assert.equal(evaluate('transcribing'),false);assert.equal(context.captionTestWorker.onmessage,null);
     assert.doesNotMatch(element('#toast').textContent,/개의 자막을 생성/);
     assert.deepEqual(projectModule.readProjectDocument(projectModule.createProjectDocument(evaluate('state'))),before.state);
@@ -223,7 +223,7 @@ test('caption workspace, budgets and asynchronous recognition lifecycle', async 
    for(const text of ['a'.repeat(2000),'한'.repeat(2000),'🎬'.repeat(1000),'e\u0301'.repeat(1000)]){
     for(const fallback of [false,true]){
      setCaptionLimitFixture([shortLimitCaption]);
-     vm.runInContext('videoFile=captionTestFile;audioFile=captionTestFile;state.audioOffset=2;transcription.cancel()',context);
+     vm.runInContext('sources.videoFile=captionTestFile;sources.audioFile=captionTestFile;state.audioOffset=2;transcription.cancel()',context);
      element('#captionSource').value=source;
      context.captionTestResult=fallback?{chunks:[],text}:{chunks:[{timestamp:[0,null],text}]};
      await vm.runInContext('generateCaptions()',context);
@@ -235,7 +235,7 @@ test('caption workspace, budgets and asynchronous recognition lifecycle', async 
   }
   // Canonical source bounds still reject a finite cue extending beyond the source.
   setCaptionLimitFixture([shortLimitCaption]);
-  vm.runInContext('videoFile=captionTestFile;transcription.cancel()',context);element('#captionSource').value='video';
+  vm.runInContext('sources.videoFile=captionTestFile;transcription.cancel()',context);element('#captionSource').value='video';
   context.captionTestResult={chunks:[{timestamp:[0,13],text:'outside source'}]};
   const beforeOutOfBounds=evaluate('({state,history,future})');
   await vm.runInContext('generateCaptions()',context);assert.deepEqual(evaluate('({state,history,future})'),beforeOutOfBounds);
@@ -254,7 +254,7 @@ test('caption workspace, budgets and asynchronous recognition lifecycle', async 
   context.AudioContext=class {async decodeAudioData(){return {duration:1};}async close(){}};
   context.asrSourceFile={name:'synthetic.wav',arrayBuffer:async()=>new ArrayBuffer(0)};
   vm.runInContext('globalThis.asrScheduleSave=scheduleSave;globalThis.asrSaves=0;scheduleSave=()=>asrSaves++;',context);
-  function resetAsr(){vm.runInContext('state=initial();state.audioName=asrSourceFile.name;state.audioOffset=2;timelineCache=null;history=[];future=[JSON.stringify(state)];current=0;selected=0;videoFile=asrSourceFile;audioFile=asrSourceFile;transcription.cancel();transcribing=false;asrSaves=0;saveTimer={pending:true};panel="captions";renderPanel();',context);}
+  function resetAsr(){vm.runInContext('state=initial();state.audioName=asrSourceFile.name;state.audioOffset=2;timelineCache=null;history=[];future=[JSON.stringify(state)];current=0;selected=0;sources.videoFile=asrSourceFile;sources.audioFile=asrSourceFile;transcription.cancel();transcribing=false;asrSaves=0;persistence.saveTimer={pending:true};panel="captions";renderPanel();',context);}
   async function startAsr(source){
    element('#captionSource').value=source;
    const posted=new Promise(resolve=>{workerPosted=resolve;});
@@ -273,15 +273,15 @@ test('caption workspace, budgets and asynchronous recognition lifecycle', async 
     'edit(()=>state.zoom=1.5);undo()',
     'edit(()=>state.zoom=1.5);undo();undo(true)',
     'state=structuredClone(state);timelineCache=null',
-    source==='audio'?'audioFile={...asrSourceFile}':'videoFile={...asrSourceFile}',
+    source==='audio'?'sources.audioFile={...asrSourceFile}':'sources.videoFile={...asrSourceFile}',
     'edit(()=>{state.duration=10;state.clips=[{start:0,end:10}];})',
     ...(source==='audio'?['edit(()=>state.audioOffset=3)','edit(()=>state.clips[0].end=8)']:[]),
    ]){
     resetAsr();const task=await startAsr(source);vm.runInContext(mutation,context);
-    const before=asrSnapshot(),timer=vm.runInContext('saveTimer',context);
+    const before=asrSnapshot(),timer=vm.runInContext('persistence.saveTimer',context);
     asrResult(task.worker);await task.pending;
     assert.deepEqual(asrSnapshot(),before,`${source}: conflict preserves current edits/history/redo/saves`);
-    assert.equal(vm.runInContext('saveTimer',context),timer);assert.match(element('#toast').textContent,/변경되어/);
+    assert.equal(vm.runInContext('persistence.saveTimer',context),timer);assert.match(element('#toast').textContent,/변경되어/);
     assert.equal(evaluate('transcribing'),false);assert.equal(asrWorkers.at(-1).onmessage,null);
    }
    resetAsr();const allowed=await startAsr(source);
@@ -299,7 +299,7 @@ test('caption workspace, budgets and asynchronous recognition lifecycle', async 
   assert.deepEqual(asrSnapshot(),removedBefore);assert.equal(evaluate('state.audioName'),'');assert.match(element('#toast').textContent,/변경되어/);
   // A conflict during decoding does not submit work to a model worker.
   resetAsr();let releaseAsrRead;context.asrDelayedFile={arrayBuffer:()=>new Promise(resolve=>{releaseAsrRead=resolve;})};
-  vm.runInContext('videoFile=asrDelayedFile',context);element('#captionSource').value='video';
+  vm.runInContext('sources.videoFile=asrDelayedFile',context);element('#captionSource').value='video';
   const decoding=vm.runInContext('generateCaptions()',context),workerCount=asrWorkers.length;
   vm.runInContext('edit(()=>state.captions[0].text="edited during read")',context);const decodeBefore=asrSnapshot();
   releaseAsrRead(new ArrayBuffer(0));await decoding;
@@ -351,7 +351,7 @@ test('caption workspace, budgets and asynchronous recognition lifecycle', async 
   vm.runInContext('scheduleSave=asrScheduleSave;',context);
   console.log('PASS: synthetic ASR conflicts preserve edits/history/redo/saves; source removal, time maps, decode/worker delays, cancellation/late responses, provider errors, retry and unaffected appearance edits are covered.');
   console.log('PASS: synthetic worker startup/native/postMessage failures retire only their instance; explicit retry, warm reuse, job errors, idle failure and stale message/error callbacks preserve state.');
-  vm.runInContext('videoFile=null;audioFile=null;transcription.cancel()',context);
+  vm.runInContext('sources.videoFile=null;sources.audioFile=null;transcription.cancel()',context);
   delete context.AudioContext;delete context.OfflineAudioContext;delete context.Worker;delete context.captionTestFile;delete context.captionTestChunks;
   vm.runInContext('state=initial();timelineCache=null;history=[];future=[];renderPanel()',context);
   delete context.captionLimitFixture;

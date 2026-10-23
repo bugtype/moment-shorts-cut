@@ -119,7 +119,7 @@ test('app editing, selection, input history and keyboard boundaries', async () =
   console.log('PASS: caption occurrence navigation, duplicate text, trim/repeat/narration/speed, deletion/undo, focus and busy guards.');
   
   // All direct range callers share keyboard/pointer history without changing seek semantics.
-  vm.runInContext('state=initial();history=[];future=[];inputHistory.reset();audioFile={name:"synthetic.wav"};switchPanel("audio");switchPanel("settings")',context);
+  vm.runInContext('state=initial();history=[];future=[];inputHistory.reset();sources.audioFile={name:"synthetic.wav"};switchPanel("audio");switchPanel("settings")',context);
   for(const [id,key,next] of [['zoom','zoom',1.2],['volume','volume',.7],['audioVolume','audioVolume',.6],['mobileZoom','zoom',1.4],['captionSize','captionSize',35],['captionY','captionY',.7],['panelVolume','volume',.5]]){
    const control=element('#'+id),before=evaluate('state.'+key),count=evaluate('history.length'),step=id==='captionSize'?1:.01;
    control.value=String(before);control.oninput();assert.equal(evaluate('history.length'),count,'No-op must not add history');
@@ -130,7 +130,7 @@ test('app editing, selection, input history and keyboard boundaries', async () =
    control.value=String(next+step*2);control.oninput();assert.equal(evaluate('history.length'),count+2,'Undo/redo ends an old group');
    control.onblur();
   }
-  vm.runInContext('state=initial();history=[];future=[];inputHistory.reset();audioFile=null;changed()',context);
+  vm.runInContext('state=initial();history=[];future=[];inputHistory.reset();sources.audioFile=null;changed()',context);
   const zoomControl=element('#zoom');zoomControl.onpointerdown();zoomControl.value='1.5';zoomControl.oninput();zoomControl.value='1.8';zoomControl.oninput();zoomControl.onpointerup();
   assert.equal(evaluate('history.length'),1);vm.runInContext('undo()',context);assert.equal(evaluate('state.zoom'),1);
   zoomControl.onpointerdown();zoomControl.value='1';zoomControl.oninput();zoomControl.onpointerup();assert.equal(evaluate('future.length'),1,'No-op pointer interaction preserves redo');

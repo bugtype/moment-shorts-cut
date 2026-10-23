@@ -127,9 +127,9 @@ test('browser command API, imports and subtitle output guards', async () => {
    await pending;unchanged();vm.runInContext('exporting=false',context);
    // A failed protected restore must remain protected after decoding valid bytes.
    context.utf8File=new Blob([validBytes]);
-   vm.runInContext('restorePhase="failed";recoveryValid=false;',context);
+   vm.runInContext('persistence.restorePhase="failed";persistence.recoveryValid=false;',context);
    await vm.runInContext(`${entry.handler}(utf8File)`,context);unchanged();
-   vm.runInContext('restorePhase="ready";',context);
+   vm.runInContext('persistence.restorePhase="ready";',context);
    // Exact limits include the BOM; trailing JSON/subtitle whitespace is valid.
    const atLimit=Buffer.alloc(entry.limit,0x20);validBytes.copy(atLimit);
    context.utf8File=new Blob([atLimit]);

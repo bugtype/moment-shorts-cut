@@ -48,14 +48,14 @@ test('media persistence, recording and export ownership', async () => {
    context.localStorage.setItem=(key,value)=>{assert.equal(key,'moment-state-v1');savedJson=value;jsonWrites++;};
    context.fixtureVideo={name:'new.mp4'};context.fixtureAudio={name:'voice.wav'};
    mediaFixture.failures.push(new Error('synthetic quota failure'));
-   await vm.runInContext('state=initial();state.kind="video";state.fileName=fixtureVideo.name;videoFile=fixtureVideo;audioFile=null;persistMedia();audioFile=fixtureAudio;state.audioName=fixtureAudio.name;persistMedia();saveProject()',context);
+   await vm.runInContext('state=initial();state.kind="video";state.fileName=fixtureVideo.name;sources.videoFile=fixtureVideo;sources.audioFile=null;persistMedia();sources.audioFile=fixtureAudio;state.audioName=fixtureAudio.name;persistMedia();saveProject()',context);
    assert.deepEqual(Object.fromEntries(mediaFixture.records),{video:context.fixtureVideo,audio:context.fixtureAudio});
    assert.equal(JSON.parse(savedJson).fileName,'new.mp4');assert.equal(JSON.parse(savedJson).audioName,'voice.wav');
    assert.equal(jsonWrites,1);assert.ok(element('#saveStatus').innerHTML.includes('이 브라우저에 저장됨'));
    const committedJson=savedJson;
    context.fixtureVideo={name:'replacement.mp4'};
    mediaFixture.failures.push(new Error('latest media write failed'));
-   await vm.runInContext('videoFile=fixtureVideo;state.fileName=fixtureVideo.name;persistMedia();saveProject()',context);
+   await vm.runInContext('sources.videoFile=fixtureVideo;state.fileName=fixtureVideo.name;persistMedia();saveProject()',context);
    assert.equal(savedJson,committedJson);assert.equal(jsonWrites,1,'Failed media must not advance project JSON');
    assert.equal(mediaFixture.records.get('video').name,'new.mp4');
    assert.ok(element('#saveStatus').innerHTML.includes('저장 공간을 확인하세요'));
@@ -65,7 +65,7 @@ test('media persistence, recording and export ownership', async () => {
    assert.ok(element('#saveStatus').innerHTML.includes('이 브라우저에 저장됨'));
   }finally{
    Object.assign(appStore,originalStore);context.localStorage.setItem=originalSetItem;
-   vm.runInContext('pendingSave=Promise.resolve();videoFile=null;audioFile=null;state=initial();timelineCache=null;',context);
+   vm.runInContext('persistence.pendingSave=Promise.resolve();sources.videoFile=null;sources.audioFile=null;state=initial();timelineCache=null;',context);
    delete context.fixtureVideo;delete context.fixtureAudio;
   }
   console.log('PASS: queued media recovery precedes JSON success; latest failure preserves JSON and retry restores saving.');
@@ -152,13 +152,13 @@ test('media persistence, recording and export ownership', async () => {
   for(let i=0;i<181;i++)timedTick();assert.equal(timedRecorder.stopCalls,1);assert.equal(recordTimers.size,0);await timedStop();assert.equal(timedRecorder.stream.track.stops,1);
   vm.runInContext('loadAudio=savedRecordingAudio;delete globalThis.savedRecordingAudio;',context);context.setInterval=oldInterval;context.clearInterval=oldClearInterval;
   // Exercise the actual audio metadata handoff with synthetic bytes, never a native decoder.
-  vm.runInContext('globalThis.savedRecordingMedia={waitForMedia,persistMedia,scheduleSave};globalThis.recordingWrites=0;persistMedia=()=>recordingWrites++;scheduleSave=()=>recordingWrites++;',context);
+  vm.runInContext('globalThis.savedRecordingMedia={waitForMedia:sources.waitForMedia,persistMedia,scheduleSave};globalThis.recordingWrites=0;persistMedia=()=>recordingWrites++;scheduleSave=()=>recordingWrites++;',context);
   context.Audio=class {removeAttribute(){}load(){}};
   let settleMetadata,rejectMetadata;
   context.recordingMetadata=()=>new Promise((resolve,reject)=>{settleMetadata=resolve;rejectMetadata=reject;});
-  vm.runInContext('waitForMedia=recordingMetadata;',context);
+  vm.runInContext('sources.waitForMedia=recordingMetadata;',context);
   for(const outcome of ['resolve','reject']){
-   vm.runInContext("state=initial();state.audioName='original.wav';audioFile={name:'original.wav'};panel='audio';renderPanel();recordingWrites=0;",context);
+   vm.runInContext("state=initial();state.audioName='original.wav';sources.audioFile={name:'original.wav'};panel='audio';renderPanel();recordingWrites=0;",context);
    await vm.runInContext('toggleRecording()',context);const recorder=sessions.at(-1);
    recorder.ondataavailable({data:new Blob(['synthetic audio'])});await vm.runInContext('toggleRecording()',context);
    const completing=recorder.onstop();assert.equal(evaluate('loadingMedia'),true);
@@ -166,11 +166,11 @@ test('media persistence, recording and export ownership', async () => {
    if(outcome==='reject')rejectMetadata(new Error('synthetic decode failure'));else settleMetadata();await completing;
    assert.equal(evaluate('audioRecording.current'),null);assert.equal(evaluate('loadingMedia'),false);
    assert.equal(evaluate('state.audioName'),outcome==='resolve'?'내 목소리.webm':'original.wav');
-   assert.equal(evaluate('audioFile.name'),outcome==='resolve'?'내 목소리.webm':'original.wav');
+   assert.equal(evaluate('sources.audioFile.name'),outcome==='resolve'?'내 목소리.webm':'original.wav');
    assert.equal(evaluate('recordingWrites'),outcome==='resolve'?2:0);
    assert.equal(recorder.stream.track.stops,1);
   }
-  vm.runInContext('waitForMedia=savedRecordingMedia.waitForMedia;persistMedia=savedRecordingMedia.persistMedia;scheduleSave=savedRecordingMedia.scheduleSave;delete globalThis.savedRecordingMedia;audioFile=null;if(audioURL)URL.revokeObjectURL(audioURL);audioURL="";audio.removeAttribute("src");state=initial();',context);
+  vm.runInContext('sources.waitForMedia=savedRecordingMedia.waitForMedia;persistMedia=savedRecordingMedia.persistMedia;scheduleSave=savedRecordingMedia.scheduleSave;delete globalThis.savedRecordingMedia;sources.audioFile=null;if(sources.audioURL)URL.revokeObjectURL(sources.audioURL);sources.audioURL="";audio.removeAttribute("src");state=initial();',context);
   // A delayed acquisition cannot attach to a project replaced by undo/import/reset.
   context.navigator.mediaDevices.getUserMedia=()=>new Promise(resolve=>finishPermission=resolve);
   const pendingAcquisition=vm.runInContext('toggleRecording()',context),recordersBefore=sessions.length;

@@ -232,11 +232,11 @@ for(const moved of [false,true]){
  preview.onpointermove(pointer(300,300));preview.onpointerup();
  assert.deepEqual(evaluate('({state,history,future,dragSaves})'),replacement,'A stale gesture cannot mutate a replaced/undone project');
 }
-for(const flag of ["exporting=true","restorePhase='restoring'"]){
+for(const flag of ["exporting=true","persistence.restorePhase='restoring'"]){
  vm.runInContext(`state=initial();panel='settings';history=[];future=['retained'];dragSaves=0;${flag};`,context);
  const before=evaluate('({state,history,future})');preview.onpointerdown(pointer());preview.onpointermove(pointer(300,300));preview.onpointercancel();
  assert.deepEqual(evaluate('({state,history,future})'),before);assert.equal(evaluate('dragSaves'),0);
- vm.runInContext("exporting=false;restorePhase='ready';",context);
+ vm.runInContext("exporting=false;persistence.restorePhase='ready';",context);
 }
 vm.runInContext('scheduleSave=originalDragSave;delete globalThis.originalDragSave;delete globalThis.dragSaves;state=initial();history=[];future=[];',context);
 console.log('PASS: preview no-op/cancel/boundary gestures preserve redo, actual drags group history, all layer targets undo/redo.');

@@ -12,6 +12,7 @@ import { mountTemplateGallery } from './dist/template-gallery.mjs';
 import { mountEffectsPanel } from './dist/effects-panel.mjs';
 import * as typographyModule from './dist/typography.mjs';
 import { createProjectStore } from './dist/project-store.mjs';
+import { createMediaStorageFixture } from './tests/fixtures/media-storage.mjs';
 import { mountDesignPanel } from './dist/design-panel.mjs';
 import fs from 'node:fs';
 import vm from 'node:vm';
@@ -561,6 +562,38 @@ let syncAttempts=0;
 const syncStore=createProjectStore({open(){syncAttempts++;if(syncAttempts===1)throw new Error('temporary');const request={};queueMicrotask(()=>{request.result=db;request.onsuccess();});return request;}});
 await assert.rejects(syncStore.setMedia(v,a),/temporary/);await syncStore.setMedia(v,a);assert.equal(syncAttempts,2);
 console.log('PASS: asynchronous and synchronous storage failures can be retried.');
+
+// Exercise the real save coordinator with isolated media and JSON stores.
+const mediaFixture=createMediaStorageFixture([['video',{name:'old.mp4'}]]);
+const appStore=vm.runInContext('projectStore',context),originalStore={...appStore};
+const originalSetItem=context.localStorage.setItem;
+let savedJson=JSON.stringify({fileName:'old.mp4'}),jsonWrites=0;
+try{
+ Object.assign(appStore,createProjectStore(mediaFixture.factory));
+ context.localStorage.setItem=(key,value)=>{assert.equal(key,'moment-state-v1');savedJson=value;jsonWrites++;};
+ context.fixtureVideo={name:'new.mp4'};context.fixtureAudio={name:'voice.wav'};
+ mediaFixture.failures.push(new Error('synthetic quota failure'));
+ await vm.runInContext('state=initial();state.kind="video";state.fileName=fixtureVideo.name;videoFile=fixtureVideo;audioFile=null;persistMedia();audioFile=fixtureAudio;state.audioName=fixtureAudio.name;persistMedia();saveProject()',context);
+ assert.deepEqual(Object.fromEntries(mediaFixture.records),{video:context.fixtureVideo,audio:context.fixtureAudio});
+ assert.equal(JSON.parse(savedJson).fileName,'new.mp4');assert.equal(JSON.parse(savedJson).audioName,'voice.wav');
+ assert.equal(jsonWrites,1);assert.ok(element('#saveStatus').innerHTML.includes('이 브라우저에 저장됨'));
+ const committedJson=savedJson;
+ context.fixtureVideo={name:'replacement.mp4'};
+ mediaFixture.failures.push(new Error('latest media write failed'));
+ await vm.runInContext('videoFile=fixtureVideo;state.fileName=fixtureVideo.name;persistMedia();saveProject()',context);
+ assert.equal(savedJson,committedJson);assert.equal(jsonWrites,1,'Failed media must not advance project JSON');
+ assert.equal(mediaFixture.records.get('video').name,'new.mp4');
+ assert.ok(element('#saveStatus').innerHTML.includes('저장 공간을 확인하세요'));
+ await vm.runInContext('persistMedia();saveProject()',context);
+ assert.equal(JSON.parse(savedJson).fileName,'replacement.mp4');assert.equal(jsonWrites,2);
+ assert.deepEqual(mediaFixture.records.get('video'),context.fixtureVideo);
+ assert.ok(element('#saveStatus').innerHTML.includes('이 브라우저에 저장됨'));
+}finally{
+ Object.assign(appStore,originalStore);context.localStorage.setItem=originalSetItem;
+ vm.runInContext('pendingSave=Promise.resolve();videoFile=null;audioFile=null;state=initial();timelineCache=null;',context);
+ delete context.fixtureVideo;delete context.fixtureAudio;
+}
+console.log('PASS: queued media recovery precedes JSON success; latest failure preserves JSON and retry restores saving.');
 
 // Validate rejected uploads and unsupported export before requesting native media APIs.
 vm.runInContext('state=initial();timelineCache=null;',context);

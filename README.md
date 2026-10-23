@@ -109,7 +109,7 @@ npm test
 node examples/use-editor-service.mjs
 ```
 
-`npm test` runs syntax checks, editor regression checks, and Node tests for CLI file I/O, project validation, MCP request isolation, subtitle parsing, and the local HTTP server. CI is configured for Node 20/22/24 on Linux and Node 24 on Windows; the badge links to actual results.
+`npm test` runs syntax checks, editor regression checks, and Node tests for CLI file I/O, project validation, MCP request isolation, subtitle parsing, and the local HTTP server. Each `tests/app-*.test.mjs` suite uses its own synthetic app VM and DOM; `verify.mjs` retains composition and gesture checks. Run `npm test` for the complete regression set. CI is configured for Node 20/22/24 on Linux and Node 24 on Windows; the badge links to actual results.
 
 Storage tests inject synthetic transaction failures to check cancellation, queued retries, and save status. They do not verify real browser quota failures, eviction, or crash recovery.
 
@@ -123,7 +123,7 @@ cli/                Node.js project JSON/SRT command-line interface
 scripts/            Local preview server
 examples/           Command arguments and a runnable integration example
 tests/              Node test suites
-verify.mjs          Editor regression harness
+verify.mjs          Composition and preview-gesture regression checks
 ```
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for changes and bug reports, [ROADMAP.md](ROADMAP.md) for planned work, and [SECURITY.md](SECURITY.md) for private vulnerability reporting. Supporting documents are currently in Korean.

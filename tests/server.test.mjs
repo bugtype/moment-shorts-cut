@@ -48,7 +48,7 @@ test('preview serves modules with correct MIME types and never serves repository
   assert.match(stylesheet.headers.get('content-type'), /text\/css/);
   const css = await stylesheet.text();
   const imports = [...css.matchAll(/@import url\("(\.\/styles\/[^"\n]+)"\);/g)].map(match => match[1]);
-  assert.deepEqual(imports, ['shell-library', 'preview-timeline', 'inspector-dialogs', 'responsive', 'design', 'templates', 'workspace-state', 'mobile-shell'].map(name => `./styles/${name}.css`), 'Keep the existing cascade order');
+  assert.deepEqual(imports, ['shell-library', 'preview-timeline', 'inspector-dialogs', 'responsive', 'design', 'templates', 'workspace-state', 'mobile-shell', 'shell-fit'].map(name => `./styles/${name}.css`), 'Keep the existing cascade order');
   for (const path of imports) {
     const response = await fetch(new URL(path, `${origin}/style.css`));
     assert.equal(response.status, 200, path);

@@ -1,0 +1,7 @@
+/* The editing shell owns the viewport. The preview yields height before the
+   timeline is pushed out of the workspace or the page starts scrolling. */
+@media(min-width:701px) {
+  .workspace,.stage {
+    min-height:0
+  }
+}

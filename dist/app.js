@@ -254,7 +254,10 @@ const app = {
     draw: () => draw(), requestDraw: () => requestDraw(),
     ensureAudio: () => ensureAudio(), seekVideo: time => seekVideo(time),
     loadVideo: file => loadVideo(file), loadAudio: (file, recording) => loadAudio(file, recording),
-    toggleRecording: () => toggleRecording(), switchPanel: next => switchPanel(next),
+    toggleRecording: () => toggleRecording(), switchPanel: (next, options) => switchPanel(next, options),
+    closePanelSheet: () => workspacePanels.closePanelSheet(),
+    togglePanelSheet: () => workspacePanels.togglePanelSheet(),
+    syncPanelSheet: () => workspacePanels.syncPanelSheet(),
     navigateCaption: event => navigateCaption(event), focusCaption: index => focusCaption(index),
     renderDesignPanel: target => renderDesignPanel(target),
     renderEffects: target => renderEffects(target),
@@ -418,7 +421,7 @@ function loadVideo(file) { return mediaLoader.loadVideo(file); }
 function loadAudio(file, recording) { return mediaLoader.loadAudio(file, recording); }
 function toggleRecording() { return mediaLoader.toggleRecording(); }
 function renderPanel() { workspacePanels.renderPanel(); }
-function switchPanel(next) { workspacePanels.switchPanel(next); }
+function switchPanel(next, options) { workspacePanels.switchPanel(next, options); }
 function navigateCaption(event) { workspacePanels.navigateCaption(event); }
 function focusCaption(index) { workspacePanels.focusCaption(index); }
 function renderDesignPanel(target) { designWorkspace.renderDesignPanel(target); }
@@ -476,7 +479,7 @@ async function init() {
     renderInspector();
     renderTimeline();
     resizePreview();
-    switchPanel(panel);
+    switchPanel(panel, { openSheet: false });
     document.fonts.ready.then(() => {
         composition.clear();
         requestDraw();

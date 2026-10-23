@@ -6,6 +6,54 @@ const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
 // media lifetime stay in the app; this module only wires the current panel controls.
 export function createWorkspacePanels(app) {
     const { query: $, queryAll: $$ } = app;
+    let sheetOpen = false;
+
+    // Compact layouts keep the preview visible and turn the side panel into a
+    // sheet above the bottom tool rail. Desktop keeps the panel permanently docked.
+    const isCompact = () => app.window.matchMedia?.('(max-width: 700px)').matches === true;
+
+    function syncSheet() {
+        const library = $('#libraryPanel');
+        if (!isCompact()) {
+            sheetOpen = false;
+            if (library)
+                library.hidden = false;
+            app.document.body.classList.remove('panel-sheet-open');
+            setExpanded();
+            return;
+        }
+        if (library)
+            library.hidden = !sheetOpen;
+        app.document.body.classList.toggle('panel-sheet-open', sheetOpen);
+        setExpanded();
+    }
+
+    function setExpanded() {
+        $$('[data-panel]').forEach(button => {
+            const active = button.dataset.panel === app.panel;
+            button.setAttribute('aria-expanded', String(active && (!isCompact() || sheetOpen)));
+        });
+    }
+
+    function setSheetOpen(open) {
+        sheetOpen = !!open && isCompact();
+        syncSheet();
+    }
+
+    function closePanelSheet() {
+        if (!isCompact() || !sheetOpen)
+            return;
+        setSheetOpen(false);
+        $$('[data-panel]').find(button => button.dataset.panel === app.panel)?.focus();
+    }
+
+    function togglePanelSheet() {
+        if (!isCompact())
+            return;
+        setSheetOpen(!sheetOpen);
+        if (sheetOpen)
+            $('#panelClose')?.focus();
+    }
 
     function renderCaptionsPanel(target) {
         app.captionPanel.render(target, {
@@ -129,7 +177,7 @@ export function createWorkspacePanels(app) {
         app.updateLayerGuide();
     }
 
-    function switchPanel(next) {
+    function switchPanel(next, { openSheet = true } = {}) {
         if (app.audioRecording.current && next !== 'audio') {
             app.toast('녹음을 먼저 완료해 주세요.');
             return;
@@ -144,7 +192,11 @@ export function createWorkspacePanels(app) {
             button.setAttribute('aria-pressed', button.dataset.panel === app.panel);
         });
         renderPanel();
+        if (openSheet)
+            setSheetOpen(true);
+        else
+            syncSheet();
     }
 
-    return { renderPanel, switchPanel, renderCaptionsPanel, navigateCaption, focusCaption };
+    return { renderPanel, switchPanel, renderCaptionsPanel, navigateCaption, focusCaption, closePanelSheet, togglePanelSheet, syncPanelSheet: syncSheet };
 }

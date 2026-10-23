@@ -8,7 +8,17 @@ const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
 export function bindUi(app) {
     const { query: $, queryAll: $$ } = app;
     app.icons();
-    $$('[data-panel]').forEach(button => button.onclick = () => app.switchPanel(button.dataset.panel));
+    $$('[data-panel]').forEach(button => button.onclick = () => {
+        if (button.dataset.panel === app.panel)
+            app.togglePanelSheet();
+        else
+            app.switchPanel(button.dataset.panel);
+    });
+    $('#panelClose')?.addEventListener('click', () => app.closePanelSheet());
+    app.document.addEventListener('keydown', event => {
+        if (event.key === 'Escape')
+            app.closePanelSheet();
+    });
     app.document.addEventListener('click', event => {
         const ratio = event.target.closest('[data-ratio]'), fit = event.target.closest('[data-fit]'), style = event.target.closest('[data-style]');
         if (ratio)
@@ -161,7 +171,10 @@ export function bindUi(app) {
             app.seekTo(app.current + delta);
         },
     });
-    app.window.addEventListener('resize', app.resizePreview);
+    app.window.addEventListener('resize', () => {
+        app.resizePreview();
+        app.syncPanelSheet();
+    });
     app.document.addEventListener('visibilitychange', () => {
         if (app.document.hidden) {
             if (app.exporting) {

@@ -1,3 +1,4 @@
+import { createTemplatePreview } from '../../dist/template-preview.mjs';
 import { createVideoExport } from '../../dist/video-export.mjs';
 import { createAudioRecording } from '../../dist/audio-recording.mjs';
 import { createTranscriptionClient } from '../../dist/transcription-client.mjs';
@@ -27,7 +28,7 @@ import assert from 'node:assert/strict';
 // Synthetic DOM/media only. Each call owns a separate VM, controls and event queues.
 export async function createAppFixture() {
   const source=fs.readFileSync(new URL('../../dist/app.js',import.meta.url),'utf8');
-  const panelSource=['design-panel.mjs','effects-panel.mjs','template-gallery.mjs','panel-markup.mjs'].map(f=>fs.readFileSync(new URL('../../dist/'+f,import.meta.url),'utf8')).join('\n');
+  const panelSource=['design-panel.mjs','effects-panel.mjs','template-gallery.mjs','panel-markup.mjs','template-preview.mjs'].map(f=>fs.readFileSync(new URL('../../dist/'+f,import.meta.url),'utf8')).join('\n');
   const html=fs.readFileSync(new URL('../../dist/index.html',import.meta.url),'utf8');
   const ids=new Set([...`${html}\n${source}\n${panelSource}`.matchAll(/id="([\w-]+)"/g)].map(m=>m[1]));
   const selectors=[...source.matchAll(/\$\('#([\w-]+)'\)/g)].map(m=>m[1]);
@@ -100,6 +101,11 @@ export async function createAppFixture() {
     ...effectsModule, ...templateModule, readTemplateLibrary, validateTemplateLibrary,
     mountTemplateGallery, mountEffectsPanel, ...typographyModule, createCompositionRenderer,
     createProjectStore, createTranscriptionClient, createVideoExport,
+    createTemplatePreview: options => createTemplatePreview(options, {
+      requestFrame: callback => context.requestAnimationFrame(callback),
+      cancelFrame: id => context.cancelAnimationFrame(id),
+      clock: () => context.performance.now(),
+    }),
     createAudioRecording: callbacks => createAudioRecording(callbacks, {
       acquireStream: () => context.navigator.mediaDevices.getUserMedia({ audio: true }),
       createRecorder: stream => new context.MediaRecorder(stream),

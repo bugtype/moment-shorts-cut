@@ -1,3 +1,4 @@
+import { createTemplatePreview } from '../dist/template-preview.mjs';
 import { createAudioRecording } from '../dist/audio-recording.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -24,6 +25,11 @@ test('restore protection and isolated template library failures', async () => {
    const f={raw,media:structuredClone(media),jsonWrites:0,mediaWrites:0,reads:0,downloads:[],events:new Map(),timers:[],micCalls:0,libraryWrites:[],library:{'moment-templates-v1':templateRaw,'moment-favorites-v1':favoritesRaw}};
    const audioEvents=new Map(),fixtureAudio={duration:audioDuration,paused:true,pause(){this.paused=true;},removeAttribute(){},addEventListener(name,handler){audioEvents.set(name,handler);},removeEventListener(name){audioEvents.delete(name);},set src(value){queueMicrotask(()=>audioEvents.get(audioResult)?.());}};
    const app=vm.createContext({...context,
+    createTemplatePreview: options => createTemplatePreview(options, {
+      requestFrame: callback => app.requestAnimationFrame(callback),
+      cancelFrame: id => app.cancelAnimationFrame(id),
+      clock: () => app.performance.now(),
+    }),
     createAudioRecording: callbacks => createAudioRecording(callbacks, {
       acquireStream: () => app.navigator.mediaDevices.getUserMedia({audio:true}),
       createRecorder: stream => new app.MediaRecorder(stream),
@@ -149,7 +155,7 @@ test('restore protection and isolated template library failures', async () => {
    const r=recoveryApp({templateRaw:JSON.stringify([validLibraryTemplate]),favoritesRaw:'["reference"]',libraryWriteError:writeFailure?new Error('synthetic quota'):null});let api;
    r.app.mountTemplateGallery=(root,value)=>{api=value;mountTemplateGallery(root,value);};
    await r.init();assert.equal(r.value('templateLibraryError'),'');assert.equal(r.value('savedTemplates.length'),1);
-   r.run('templateProject(savedTemplates[0])'); // exercises the same preview preparation, without a canvas/browser
+   r.run('templatePreview.draw(document.createElement("canvas"),savedTemplates[0])'); // synthetic canvas only
    api.favorite('clean');assert.equal(r.value('favoriteTemplates.includes("clean")'),!writeFailure);
    if(!writeFailure){assert.equal(JSON.parse(r.f.library['moment-favorites-v1']).includes('clean'),true);}
    else {assert.equal(r.f.libraryWrites.length,0);assert.deepEqual(r.value('favoriteTemplates'),['reference']);}

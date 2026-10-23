@@ -1,3 +1,4 @@
+import { createTemplatePreview } from './template-preview.mjs';
 import { createVideoExport } from './video-export.mjs';
 import { createAudioRecording } from './audio-recording.mjs';
 import { createTranscriptionClient } from './transcription-client.mjs';
@@ -11,7 +12,7 @@ import { captionOccurrences, editedCaptions, mapAudioCaptions, parseSubtitles, M
 import { renderCaptionTrack, renderCaptionTrackError, updateTimelineMarkup } from './timeline-view.mjs';
 import { createInputHistory } from './input-history.mjs';
 import { defaultEnhancements, newCard, splitCaptionText, retimeOutputLayers, activeSceneLayers, sceneBounds } from './effects.mjs';
-import { TEMPLATES, REFERENCE_SOURCES, applyTemplate, visualPreset, saveCustomTemplate } from './template-catalog.mjs';
+import { applyTemplate, visualPreset, saveCustomTemplate } from './template-catalog.mjs';
 import { readTemplateLibrary, validateTemplateLibrary } from './template-library.mjs';
 import { mountTemplateGallery } from './template-gallery.mjs';
 import { mountEffectsPanel } from './effects-panel.mjs';
@@ -36,7 +37,7 @@ function initial() {
 let state = initial(), current = 0, selected = 0, playing = false, panel = 'templates', textLayer = 'title', videoFile = null, audioFile = null, sourceURL = '', audioURL = '', thumbnail = '', history = [], future = [], exporting = false, muted = false, transcriptionCancelled = false, transcribing = false, transcriptionStatus = '', saveTimer, pendingSave = Promise.resolve();
 const video = $('#sourceVideo'), audio = $('#sourceAudio'), canvas = $('#preview'), ctx = canvas.getContext('2d'), sample = new Image(), modal = $('#modal');
 let audioCtx, videoNode, audioNode, videoGain, audioGain, destination, exportCancelled = false, lastTick = 0;
-let sampleRaster = null, lastSaveStatus = '', effectTab = 'cards', selectedCard = null, templatePreviewFrame = 0, cardPlaybackEnd = null;
+let sampleRaster = null, lastSaveStatus = '', effectTab = 'cards', selectedCard = null, cardPlaybackEnd = null;
 const galleryUI = { query: '', category: '전체' };
 let savedTemplates = [], favoriteTemplates = [], templateLibraryError = '';
 try {
@@ -48,6 +49,24 @@ catch {
     templateLibraryError = '저장된 템플릿·즐겨찾기를 읽을 수 없습니다. 원본 저장값은 유지되며 이번 세션의 템플릿 저장·삭제·즐겨찾기 변경은 차단됩니다. 기본 템플릿과 프로젝트 편집은 사용할 수 있습니다. 새로고침은 읽기를 다시 시도합니다.';
 }
 const composition = createCompositionRenderer(() => document.createElement('canvas'));
+const templatePreview = createTemplatePreview({
+    composition,
+    getMedia: () => ({ source: sampleRaster || sample, ready: sample.complete }),
+    modal,
+    openModal: (title, body, foot) => modalOpen(title, body, foot),
+    query: $,
+    onApply: (template, withContent) => {
+        if (template.custom)
+            edit(() => applyTemplate(state, template, withContent));
+        else if (!runEditorCommand('template.apply', { templateId: template.id, withContent }))
+            return;
+        modal.close();
+        selectedCard = state.overlays[0]?.id;
+        renderPanel();
+        seekTo(0);
+        toast(withContent ? '예시 타이틀과 구간별 문구를 적용했습니다. 문구를 내 영상에 맞게 수정하세요.' : '스타일을 적용했습니다. 기존 문구와 자막은 유지했습니다.');
+    },
+});
 const projectStore = createProjectStore();
 const videoExport = createVideoExport({
     createCanvas: () => document.createElement('canvas'),
@@ -511,33 +530,6 @@ function persistTemplateLibrary() {
         return false;
     }
 }
-const templateDemos = new WeakMap();
-function templateProject(template) {
-    if (templateDemos.has(template))
-        return templateDemos.get(template);
-    const p = initial();
-    applyTemplate(p, template, true);
-    p.globalKeywords = p.globalKeywords || '순간, 속도';
-    if (template.id === 'interview')
-        p.captions.forEach((cap, i) => cap.speaker = String(i % 2));
-    templateDemos.set(template, p);
-    return p;
-}
-function renderTemplateCanvas(target, template, fraction = .4) {
-    const p = templateProject(template), t = clamp(fraction, 0, .999) * 12;
-    composition.draw(target.getContext('2d'), target.width, target.height, p, {
-        source: sampleRaster || sample,
-        sw: 540,
-        sh: 960,
-        ready: sample.complete,
-        sourceTime: t,
-        time: t,
-        total: 12,
-        elapsed: t,
-        remaining: 12 - t,
-        progress: t / 12
-    });
-}
 function renderGallery(target) {
     mountTemplateGallery(target, {
         ui: galleryUI,
@@ -545,8 +537,11 @@ function renderGallery(target) {
         custom: savedTemplates,
         favorites: favoriteTemplates,
         error: templateLibraryError,
-        thumbnail: renderTemplateCanvas,
-        preview: openTemplatePreview,
+        thumbnail: templatePreview.draw,
+        preview: template => {
+            pause();
+            templatePreview.open(template);
+        },
         save: saveTemplateDialog,
         favorite(id) {
             if (templateLibraryBlocked())
@@ -602,58 +597,6 @@ function saveTemplateDialog() {
         switchPanel('templates');
         toast('내 템플릿을 저장했습니다.');
     };
-}
-function openTemplatePreview(template) {
-    pause();
-    const reference = REFERENCE_SOURCES[template.source];
-    modalOpen(esc(template.name), `<div class="template-preview-layout"><div class="template-demo-stage"><canvas id="templateDemo" width="432" height="768"></canvas><button class="button" id="toggleTemplateDemo">▶ 예시 재생</button><small>샘플 그래픽 · 12초 미리보기</small></div><div class="template-details"><span class="template-category">${esc(template.category)}</span><p class="modal-copy">${esc(template.description)}</p><div class="template-flow">${template.flow.map((line, i) => `<div><b>${i + 1}</b><span>${esc(line)}</span></div>`).join('')}</div><div class="notice"><strong>스타일만 적용</strong><br>기존 타이틀 문구·자막·카드를 유지합니다.<br><br><strong>예시 구성까지 적용</strong><br>예시 타이틀·크레딧·구간별 문구로 교체합니다. 대사 자막과 영상은 유지됩니다. 실행 취소할 수 있습니다.</div>${reference ? `<a class="reference-link" href="${reference.url}" target="_blank" rel="noopener noreferrer">참고한 공식 자료 ↗</a>` : ''}</div></div>`, '<div class="modal-foot"><button class="button" id="applyTemplateStructure">예시 구성까지 적용</button><button class="button primary" id="applyTemplateStyle">스타일만 적용</button></div>');
-    modal.classList.add('template-modal');
-    renderTemplateCanvas($('#templateDemo'), template, .4);
-    let started = 0, running = false, lastPreview = -Infinity;
-    const stop = () => {
-        running = false;
-        if (templatePreviewFrame)
-            cancelAnimationFrame(templatePreviewFrame);
-        templatePreviewFrame = 0;
-    };
-    const animate = now => {
-        if (!modal.open || !running) {
-            stop();
-            return;
-        }
-        if (now - lastPreview >= 1000 / 30) {
-            renderTemplateCanvas($('#templateDemo'), template, ((now - started) % 12000) / 12000);
-            lastPreview = now;
-        }
-        templatePreviewFrame = requestAnimationFrame(animate);
-    };
-    $('#toggleTemplateDemo').onclick = () => {
-        if (running) {
-            stop();
-            $('#toggleTemplateDemo').textContent = '▶ 예시 재생';
-        }
-        else {
-            running = true;
-            started = performance.now();
-            $('#toggleTemplateDemo').textContent = 'Ⅱ 일시정지';
-            templatePreviewFrame = requestAnimationFrame(animate);
-        }
-    };
-    modal.onclose = stop;
-    const apply = withContent => {
-        stop();
-        if (template.custom)
-            edit(() => applyTemplate(state, template, withContent));
-        else if (!runEditorCommand('template.apply', { templateId: template.id, withContent }))
-            return;
-        modal.close();
-        selectedCard = state.overlays[0]?.id;
-        renderPanel();
-        seekTo(0);
-        toast(withContent ? '예시 타이틀과 구간별 문구를 적용했습니다. 문구를 내 영상에 맞게 수정하세요.' : '스타일을 적용했습니다. 기존 문구와 자막은 유지했습니다.');
-    };
-    $('#applyTemplateStyle').onclick = () => apply(false);
-    $('#applyTemplateStructure').onclick = () => apply(true);
 }
 function renderEffects(target) {
     mountEffectsPanel(target, {

@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "moment": {
+      "command": "node",
+      "args": ["/absolute/path/to/moment-shorts-cut/cli/mcp.mjs"]
+    }
+  }
+}

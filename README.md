@@ -133,3 +133,7 @@ The [browser verification report](docs/BROWSER_QA.md) records a Chromium/macOS t
 ## License
 
 Project code and documentation are licensed under [MIT](LICENSE). Downloaded fonts, libraries, and models retain their own terms; see [THIRD_PARTY.md](THIRD_PARTY.md).
+
+## AI / MCP
+
+[Repository skill and local stdio MCP setup](docs/MCP.md). Edit project metadata with AI; changes stay in memory until your client saves the exported document. No media upload or unattended rendering.

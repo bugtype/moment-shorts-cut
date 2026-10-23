@@ -7,7 +7,7 @@
   },
   "scripts": {
     "start": "node scripts/serve.mjs",
-    "check": "node --check dist/app.js && node --check dist/transcribe-worker.js && node --check cli/moment.mjs",
+    "check": "node --check dist/app.js && node --check dist/transcribe-worker.js && node --check cli/moment.mjs && node --check cli/mcp.mjs",
     "test": "npm run check && node verify.mjs && node --test",
     "moment": "node cli/moment.mjs"
   },

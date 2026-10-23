@@ -855,9 +855,10 @@ async function loadAudio(file, recording = null) {
         return;
     }
     loadingMedia = true;
-    const nextURL = URL.createObjectURL(file);
-    const probe = new Audio();
+    let nextURL, probe;
     try {
+        nextURL = URL.createObjectURL(file);
+        probe = new Audio();
         const loaded = sources.waitForMedia(probe, 'loadedmetadata', '지원하지 않는 오디오 형식입니다.');
         probe.src = nextURL;
         await loaded;
@@ -879,13 +880,14 @@ async function loadAudio(file, recording = null) {
         toast('오디오를 연결했습니다. 재생해서 소리를 확인하세요.');
     }
     catch (e) {
-        URL.revokeObjectURL(nextURL);
+        if (nextURL)
+            URL.revokeObjectURL(nextURL);
         toast(e.message);
     }
     finally {
         loadingMedia = false;
-        probe.removeAttribute('src');
-        probe.load();
+        probe?.removeAttribute('src');
+        probe?.load();
     }
     $('#audioInput').value = '';
 }

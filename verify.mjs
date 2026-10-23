@@ -567,6 +567,22 @@ assert.deepEqual(evaluate('state'),subtitleOriginal);
 assert.equal(element('#srtInput').value,'');
 console.log('PASS: bounded subtitle imports, escaped text export/reimport, read failure recovery, export guard and undo.');
 
+// Invalid SRT text stays editable and must never produce a partial download.
+context.blankLineCaption='first\n\nsecond';
+vm.runInContext('edit(()=>state.captions[0].text=blankLineCaption);',context);
+const beforeRejectedSrt=evaluate('[state,history,future]'),beforeSrtDownloads=downloads;
+assert.doesNotThrow(()=>vm.runInContext('downloadSrt();',context));
+assert.equal(downloads,beforeSrtDownloads);
+assert.match(element('#toast').textContent,/1번째 자막.*빈 줄/);
+assert.deepEqual(evaluate('[state,history,future]'),beforeRejectedSrt);
+context.correctedCaption='first\nsecond';
+vm.runInContext('edit(()=>state.captions[0].text=correctedCaption);downloadSrt();',context);
+assert.equal(downloads,beforeSrtDownloads+1,'corrected text can be downloaded');
+vm.runInContext('undo();downloadSrt();',context);
+assert.equal(evaluate('state.captions[0].text'),context.blankLineCaption);
+assert.equal(downloads,beforeSrtDownloads+1,'undo preserves the original text and export validation');
+console.log('PASS: SRT blank-line validation displays an error without download/history changes; correction and undo recover.');
+
 // A 60 Hz display must not turn a 30 fps target into ~20 fps through rounding drift.
 vm.runInContext('globalThis.savedDraw=draw;globalThis.frameCount=0;draw=()=>frameCount++;state=initial();timelineCache=null;current=0;lastTick=0;lastDrawTime=-Infinity;playing=true;',context);
 for(let i=1;i<=120;i++)vm.runInContext(`tick(${i*1000/60})`,context);

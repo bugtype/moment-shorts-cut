@@ -68,6 +68,21 @@ test('SRT uses clip repetition and output speed; render plan does not claim an e
  const plan=await f.service.execute('render.plan',{quality:720,format:'webm'});
  assert.deepEqual(plan.data.output,{width:720,height:1280,fps:30,format:'webm',duration:2});assert.equal(plan.data.rendered,false);
 });
+test('ambiguous SRT fails through service and MCP while project JSON retains the authored text',async()=>{
+ const f=fixture();
+ const captions=[{start:0,end:1,text:'valid'},{start:1,end:3,text:'first\n\nsecond'}];
+ assert.equal((await f.service.execute('captions.replace',{captions})).ok,true);
+ const before=structuredClone(f.state),commits=f.commits;
+ const result=await f.service.execute('captions.export');
+ assert.equal(result.ok,false);assert.equal(result.error.code,'INVALID_ARGUMENT');assert.match(result.error.message,/2번째 자막.*빈 줄/);
+ const adapter=createMcpToolAdapter({resolveService:async()=>f.service});
+ const response=await adapter.callTool('moment_captions_export',{projectId:'fixture'});
+ assert.equal(response.isError,true);assert.deepEqual(response.structuredContent,result);
+ assert.deepEqual(readProjectDocument((await f.service.execute('project.get')).data),before);
+ assert.deepEqual(f.state,before);assert.equal(f.commits,commits);
+ assert.equal((await f.service.execute('captions.replace',{captions:[{start:1,end:3,text:'first\nsecond'}]})).ok,true);
+ assert.equal((await f.service.execute('captions.export')).ok,true,'correction recovers without resetting the service');
+});
 test('unconfigured media jobs fail explicitly; provider submission/status/cancellation share the contract',async()=>{
  const empty=fixture();assert.equal(empty.service.capabilities().mediaJobs,false);
  assert.equal(empty.service.describe().some(c=>c.name.startsWith('jobs.')),false);
@@ -105,5 +120,16 @@ test('CLI writes real documents/SRT, refuses accidental overwrite, and leaves fa
   assert.equal(run('exec','project.update','--project',edited,'--json','{"patch":{"speed":0}}','--out',edited,'--overwrite').status,1);assert.equal(await fs.readFile(edited,'utf8'),before);
   const dry=run('exec','project.update','--project',edited,'--json','{"patch":{"name":"시험"}}','--dry-run');assert.equal(dry.status,0);assert.equal(JSON.parse(dry.stdout).preview.project.name,'시험');assert.equal(await fs.readFile(edited,'utf8'),before);
   assert.equal(run('exec','project.update','--project',edited,'--json','{"patch":{"name":"저장"}}','--out',edited,'--overwrite').status,0);assert.equal(JSON.parse(await fs.readFile(edited,'utf8')).project.name,'저장');
+  const invalid=createProjectDocument(createDemoProject());invalid.project.captions=[{start:0,end:2,text:'first\n\nsecond'}];
+  const invalidFile=path.join(directory,'invalid-srt-project.json'),missingOutput=path.join(directory,'not-created.srt');
+  await fs.writeFile(invalidFile,JSON.stringify(invalid));
+  const savedSrt=await fs.readFile(captions,'utf8'),savedProject=await fs.readFile(invalidFile,'utf8');
+  for(const output of [captions,missingOutput]){
+   const failed=run('exec','captions.export','--project',invalidFile,'--out',output,'--overwrite');
+   assert.equal(failed.status,1);assert.equal(JSON.parse(failed.stderr).error.code,'INVALID_ARGUMENT');
+  }
+  assert.equal(await fs.readFile(captions,'utf8'),savedSrt);
+  assert.equal(await fs.readFile(invalidFile,'utf8'),savedProject);
+  await assert.rejects(fs.stat(missingOutput),error=>error.code==='ENOENT');
  }finally{await fs.rm(directory,{recursive:true,force:true});}
 });

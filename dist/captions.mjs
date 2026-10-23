@@ -40,7 +40,8 @@ export function parseSubtitles(text, duration) {
   if (typeof text !== 'string' || text.length > MAX_SUBTITLE_BYTES) throw new Error('자막 파일은 2 MB 이하만 지원합니다.');
   if (!Number.isFinite(duration) || duration <= 0) throw new Error('영상 길이를 확인하세요.');
   const normalized = text.replace(/^\uFEFF/, '').replace(/\r/g, '');
-  const pattern = /^(?:(\d{1,2}):)?([0-5]\d):([0-5]\d)[,.](\d{3})[ \t]*-->[ \t]*(?:(\d{1,2}):)?([0-5]\d):([0-5]\d)[,.](\d{3})[^\n]*\n([\s\S]*?)(?=\n[ \t]*\n|(?![\s\S]))/gm;
+  // An empty first payload line ends the cue; never absorb the next cue's timing.
+  const pattern = /^(?:(\d{1,2}):)?([0-5]\d):([0-5]\d)[,.](\d{3})[ \t]*-->[ \t]*(?:(\d{1,2}):)?([0-5]\d):([0-5]\d)[,.](\d{3})[^\n]*\n(?![ \t]*(?:\n|$))([\s\S]*?)(?=\n[ \t]*\n|(?![\s\S]))/gm;
   const captions = [];
   for (const match of normalized.matchAll(pattern)) {
     const start = (+match[1] || 0) * 3600 + (+match[2]) * 60 + (+match[3]) + (+match[4]) / 1000;

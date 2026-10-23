@@ -341,7 +341,11 @@ function confirmReset(){if(transcribing||record?.state==='recording'){toast('진
 function download(blob,name){const url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=name;document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),60000);}
 function srtTime(t){return srtTimestamp(t);}
 function outputCaptions(){return editedCaptions(state.captions,state.clips,state.speed);}
-function downloadSrt(){const out=outputCaptions();if(!out.length){toast('저장할 자막이 없습니다.');return;}const srt=projectSrt(state);download(new Blob(['\ufeff'+srt],{type:'text/plain;charset=utf-8'}),state.name+'.srt');}
+function downloadSrt(){
+ const out=outputCaptions();if(!out.length){toast('저장할 자막이 없습니다.');return;}
+ try{const srt=projectSrt(state);download(new Blob(['\ufeff'+srt],{type:'text/plain;charset=utf-8'}),state.name+'.srt');}
+ catch(error){toast(error.message||'자막을 저장하지 못했습니다.');}
+}
 async function importSrt(file){
  try{
   if(file.size>MAX_SUBTITLE_BYTES)throw new Error('자막 파일은 2 MB 이하만 지원합니다.');

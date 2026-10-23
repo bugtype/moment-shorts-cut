@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {parseSubtitles, MAX_SUBTITLE_BYTES} from '../dist/captions.mjs';
 import {createDemoProject, projectSrt} from '../dist/core/project.mjs';
+import {CommandError} from '../dist/core/validation.mjs';
 
 test('SRT/VTT imports support CRLF, cue IDs, settings, multiline text and end clipping', () => {
   assert.deepEqual(parseSubtitles('1\r\n00:00:01,250 --> 00:00:03,000\r\n첫째\r\n둘째\r\n', 2), [{start:1.25,end:2,text:'첫째\n둘째'}]);
@@ -53,4 +54,39 @@ test('SRT export/reimport preserves literal text through repeated clips and spee
   assert.deepEqual(project, before, 'export must not modify project text');
   const imported = {...project,clips:[{start:0,end:2}],speed:1,captions:expected};
   assert.deepEqual(parseSubtitles(projectSrt(imported), 2), expected, 'a second round trip must not decode text again');
+});
+
+test('SRT export rejects ambiguous blank lines without changing authored text or timing', () => {
+  for (const text of ['', ' \t', '\nfirst', 'first\n', 'first\n\nsecond', 'first\n \t\nsecond', 'first\n\n\nsecond', 'first\r\n\r\nsecond', 'first\r\rsecond']) {
+    const project=createDemoProject();
+    project.captions=[{start:0,end:2,text}];
+    const before=structuredClone(project);
+    assert.throws(()=>projectSrt(project), error=>error instanceof CommandError && error.code==='INVALID_ARGUMENT' && /빈 줄/.test(error.message), JSON.stringify(text));
+    assert.deepEqual(project,before);
+  }
+  const project=createDemoProject();
+  project.clips=[{start:2,end:4}];
+  project.captions=[{start:0,end:1,text:'not\n\nexported'}];
+  assert.equal(projectSrt(project),'','removed cues do not block an empty export');
+});
+
+test('ordinary multiline SRT retains numeric and timestamp-looking text without inventing cues', () => {
+  for (const newline of ['\n','\r\n','\r']) {
+    const project=createDemoProject();
+    const lines=['first & <b>literal</b>','2','00:00:03,000 --> 00:00:04,000','last'];
+    project.captions=[{start:0,end:2,text:lines.join(newline)}];
+    const srt=projectSrt(project);
+    assert.ok(!srt.includes('\r'));
+    assert.deepEqual(parseSubtitles(srt,12),[{start:0,end:2,text:lines.join('\n')}]);
+    assert.equal(project.captions[0].text,lines.join(newline));
+  }
+});
+
+test('empty and malformed imported cues never consume the following valid cue', () => {
+  for (const newline of ['\n','\r\n']) {
+    for (const blank of ['', ' \t']) {
+      const content=['1','00:00:00,000 --> 00:00:01,000',blank,'2','00:00:02,000 --> 00:00:03,000','Keep me','','','3','00:99:00,000 --> 00:99:01,000','invalid','','4','00:00:04,000 --> 00:00:05,000','123','00:00:06,000 --> 00:00:07,000','literal text'].join(newline);
+      assert.deepEqual(parseSubtitles(content,12),[{start:2,end:3,text:'Keep me'},{start:4,end:5,text:'123\n00:00:06,000 --> 00:00:07,000\nliteral text'}]);
+    }
+  }
 });

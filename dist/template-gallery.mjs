@@ -5,6 +5,7 @@ const searchTerms = {recipe:'요리 음식 쿠킹 레시피',interview:'인터�
 export function mountTemplateGallery(root, api) {
   const ui = api.ui;
   root.innerHTML = `<div class="gallery-heading"><span class="eyebrow">TEMPLATE STUDIO</span><h1 class="panel-heading">이야기에 맞는 시작점</h1><p class="panel-intro">구성, 자막, 움직임까지.<br>내 영상에 맞춰 골라보세요.</p></div>
+    ${api.error?`<p class="notice" role="alert">${esc(api.error)}</p>`:''}
     <div class="template-search"><input id="templateSearch" placeholder="요리, 인터뷰, 퀴즈…" aria-label="템플릿 검색" value="${esc(ui.query)}"></div>
     <div class="template-filters" role="group" aria-label="템플릿 분류">${['전체','리뷰','정보','라이프','대화','참여','즐겨찾기','내 템플릿'].map(category=>`<button data-category="${category}" class="${ui.category===category?'active':''}" aria-pressed="${ui.category===category}">${category}</button>`).join('')}</div>
     <div class="gallery-summary"><span id="templateCount"></span><button class="text-button" id="saveMyTemplate">+ 내 스타일 저장</button></div>

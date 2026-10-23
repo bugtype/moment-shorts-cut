@@ -8,6 +8,7 @@ import { createInputHistory } from './dist/input-history.mjs';
 import { createTrack } from './tests/fixtures/timeline-dom.mjs';
 import * as effectsModule from './dist/effects.mjs';
 import * as templateModule from './dist/template-catalog.mjs';
+import {readTemplateLibrary,validateTemplateLibrary} from './dist/template-library.mjs';
 import { mountTemplateGallery } from './dist/template-gallery.mjs';
 import { mountEffectsPanel } from './dist/effects-panel.mjs';
 import * as typographyModule from './dist/typography.mjs';
@@ -46,7 +47,7 @@ for(const id of ['trimStart','trimEnd','panelTrimStart','panelTrimEnd']){
 }
 const documentEvents=new Map();
 const doc={querySelector:element,querySelectorAll:()=>[],addEventListener(name,handler){documentEvents.set(name,handler);},body:element('body'),fonts:{ready:Promise.resolve()},createElement:()=>element('canvas-'+(++canvasCount))};
-const context=vm.createContext({document:doc,window:{addEventListener(){}},Image:class{complete=false;},localStorage:{getItem:()=>null,setItem(){}},requestAnimationFrame(callback){pendingFrames.set(++rafCounter,callback);return rafCounter;},cancelAnimationFrame(id){pendingFrames.delete(id);},setTimeout(){},clearTimeout(){},setInterval(){},clearInterval(){},console,URL,Blob,TextDecoder,performance,Number,Math,Promise,structuredClone,...projectModule,prepareCommand,CommandError,createEditorService,...captionModule,renderCaptionTrack,renderCaptionTrackError,updateTimelineMarkup,createInputHistory,...effectsModule,...templateModule,mountTemplateGallery,mountEffectsPanel,...typographyModule,createProjectStore,mountDesignPanel});
+const context=vm.createContext({document:doc,window:{addEventListener(){}},Image:class{complete=false;},localStorage:{getItem:()=>null,setItem(){}},requestAnimationFrame(callback){pendingFrames.set(++rafCounter,callback);return rafCounter;},cancelAnimationFrame(id){pendingFrames.delete(id);},setTimeout(){},clearTimeout(){},setInterval(){},clearInterval(){},console,URL,Blob,TextDecoder,performance,Number,Math,Promise,structuredClone,...projectModule,prepareCommand,CommandError,createEditorService,...captionModule,renderCaptionTrack,renderCaptionTrackError,updateTimelineMarkup,createInputHistory,...effectsModule,...templateModule,readTemplateLibrary,validateTemplateLibrary,mountTemplateGallery,mountEffectsPanel,...typographyModule,createProjectStore,mountDesignPanel});
 vm.runInContext(source.replace(/^import .*;$/gm,'').replace(/init\(\);\s*$/,'globalThis.ready=init();'),context);
 await context.ready;
 for(const [id,cb] of pendingFrames){pendingFrames.delete(id);cb(performance.now());}
@@ -1597,13 +1598,13 @@ context.localStorage.getItem=originalGetItem;
 console.log('PASS: corrupt browser storage is rejected before rendering.');
 
 // Each recovery scenario gets a fresh app VM and synthetic storage/media only.
-function recoveryApp({raw=null,media={},readError=null,mediaError=null,decodeError=null,audioResult='loadeddata',audioDuration=5,readGate=null}={}){
- const f={raw,media:structuredClone(media),jsonWrites:0,mediaWrites:0,reads:0,downloads:[],events:new Map(),timers:[],micCalls:0};
+function recoveryApp({raw=null,media={},readError=null,mediaError=null,decodeError=null,audioResult='loadeddata',audioDuration=5,readGate=null,templateRaw=null,favoritesRaw=null,libraryReadError=null,libraryWriteError=null}={}){
+ const f={raw,media:structuredClone(media),jsonWrites:0,mediaWrites:0,reads:0,downloads:[],events:new Map(),timers:[],micCalls:0,libraryWrites:[],library:{'moment-templates-v1':templateRaw,'moment-favorites-v1':favoritesRaw}};
  const audioEvents=new Map(),fixtureAudio={duration:audioDuration,paused:true,pause(){this.paused=true;},removeAttribute(){},addEventListener(name,handler){audioEvents.set(name,handler);},removeEventListener(name){audioEvents.delete(name);},set src(value){queueMicrotask(()=>audioEvents.get(audioResult)?.());}};
  const app=vm.createContext({...context,
   document:{...context.document,querySelector:selector=>selector==='#sourceAudio'?fixtureAudio:context.document.querySelector(selector)},
   window:{addEventListener:(name,handler)=>f.events.set(name,handler)},
-  localStorage:{getItem(key){if(key!=='moment-state-v1')return null;if(readError)throw readError;return f.raw;},setItem(key,value){assert.equal(key,'moment-state-v1');f.jsonWrites++;f.raw=value;}},
+  localStorage:{getItem(key){if(key in f.library){if(libraryReadError)throw libraryReadError;return f.library[key];}if(key!=='moment-state-v1')return null;if(readError)throw readError;return f.raw;},setItem(key,value){if(key in f.library){if(libraryWriteError)throw libraryWriteError;f.libraryWrites.push(key);f.library[key]=value;return;}assert.equal(key,'moment-state-v1');f.jsonWrites++;f.raw=value;}},
   createProjectStore:()=>({async get(key){f.reads++;if(readGate)await readGate;if(mediaError)throw mediaError;return structuredClone(f.media[key]);},setMedia(video,audio){f.mediaWrites++;f.media={video,audio};return Promise.resolve();}}),
   URL:{createObjectURL:()=> 'blob:synthetic-recovery',revokeObjectURL(){}},
   navigator:{mediaDevices:{getUserMedia(){f.micCalls++;throw new Error('Unexpected microphone call');}}},
@@ -1692,3 +1693,42 @@ assert.equal(staleTimer.cancelled,true);finishSave();await saving;await staleTim
 assert.equal(stale.f.jsonWrites,0);assert.equal(stale.f.mediaWrites,0);assert.equal(stale.f.raw,'null');
 assert.match(element('#saveStatus').innerHTML,/변경사항은 저장되지 않습니다/);
 console.log('PASS: protected restore preserves settings/metadata/export, blocks writes and media actions, distinguishes absent/invalid storage, guards stale callbacks, warns on memory-only edits and retries in a fresh app instance.');
+
+// Library faults are isolated from project startup; all storage here is synthetic.
+const libraryProject=projectModule.createDemoProject();templateModule.applyTemplate(libraryProject,templateModule.TEMPLATES[3],true);
+const validLibraryTemplate=templateModule.saveCustomTemplate('Fixture template',libraryProject);
+for(const options of [
+ {templateRaw:'[null]'},{templateRaw:'[1]'}, {templateRaw:'{}'}, {templateRaw:''}, {templateRaw:'null'},
+ {templateRaw:JSON.stringify([validLibraryTemplate,null])},
+ {templateRaw:JSON.stringify([{...validLibraryTemplate,settings:{}}])},
+ {templateRaw:JSON.stringify([validLibraryTemplate]),favoritesRaw:'[null]'},
+ {libraryReadError:new Error('synthetic library read failure')},
+]){
+ const r=recoveryApp({...options,raw:JSON.stringify({...projectModule.createDemoProject(),name:'preserved project'})});let api;
+ r.app.mountTemplateGallery=(root,value)=>{api=value;mountTemplateGallery(root,value);};
+ await r.init();assert.equal(r.value('editorReady'),true);assert.equal(r.value('restorePhase'),'ready');assert.equal(r.value('state.name'),'preserved project');
+ assert.match(r.value('templateLibraryError'),/원본 저장값은 유지/);assert.ok(element('#panelContent').innerHTML.includes('role="alert"'));
+ const stored=structuredClone(r.f.library),before=r.value('({savedTemplates,favoriteTemplates,state,history,future})');
+ api.favorite('reference');api.remove('unknown');r.run('saveTemplateDialog();persistTemplateLibrary();');
+ assert.deepEqual(r.value('({savedTemplates,favoriteTemplates,state,history,future})'),before);
+ assert.deepEqual(r.f.library,stored);assert.equal(r.f.libraryWrites.length,0);assert.equal(r.f.jsonWrites,0);assert.equal(r.f.mediaWrites,0);
+ assert.equal((await r.app.window.moment.execute('template.apply',{templateId:'clean'})).ok,true);
+ assert.equal((await r.app.window.moment.execute('project.update',{patch:{name:'still editable'}})).ok,true);
+ assert.equal(r.value('state.name'),'still editable');assert.deepEqual(r.f.library,stored);
+}
+for(const writeFailure of [false,true]){
+ const r=recoveryApp({templateRaw:JSON.stringify([validLibraryTemplate]),favoritesRaw:'["reference"]',libraryWriteError:writeFailure?new Error('synthetic quota'):null});let api;
+ r.app.mountTemplateGallery=(root,value)=>{api=value;mountTemplateGallery(root,value);};
+ await r.init();assert.equal(r.value('templateLibraryError'),'');assert.equal(r.value('savedTemplates.length'),1);
+ r.run('templateProject(savedTemplates[0])'); // exercises the same preview preparation, without a canvas/browser
+ api.favorite('clean');assert.equal(r.value('favoriteTemplates.includes("clean")'),!writeFailure);
+ if(!writeFailure){assert.equal(JSON.parse(r.f.library['moment-favorites-v1']).includes('clean'),true);}
+ else {assert.equal(r.f.libraryWrites.length,0);assert.deepEqual(r.value('favoriteTemplates'),['reference']);}
+ r.run('saveTemplateDialog()');element('#customTemplateName').value='Second fixture';element('#saveCustomTemplate').onclick();
+ assert.equal(r.value('savedTemplates.length'),writeFailure?1:2);
+ api.remove(validLibraryTemplate.id);element('#confirmRemoveTemplate').onclick();
+ assert.equal(r.value('savedTemplates.length'),1);assert.equal(r.value('savedTemplates[0].id')===validLibraryTemplate.id,writeFailure);
+ if(writeFailure)assert.equal(r.f.libraryWrites.length,0);
+ else assert.equal(JSON.parse(r.f.library['moment-templates-v1']).length,1);
+}
+console.log('PASS: malformed template/favorites data and read failures preserve raw storage, isolate library writes and keep startup/built-in editing usable; valid reload and write rollback pass.');

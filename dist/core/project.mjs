@@ -5,6 +5,7 @@ import { assertJson, validate, object, string, number, choice, array, fail, Comm
 
 export function createDemoProject(){return {...defaultEnhancements(),name:'나의 첫 번째 쇼츠',kind:'demo',fileName:'느리게 걷는 하루 · 샘플',duration:12,clips:[{start:0,end:12}],ratio:'9:16',fit:'cover',zoom:1,panX:0,panY:0,volume:1,speed:1,schemaVersion:4,design:defaultDesign(),style:'impact',captionSize:36,captionY:.55,captionX:.47,captionColor:'#ffffff',captionAccent:'#b5ff00',captionStroke:3,captionItalic:true,captionAnimation:'pop',captions:[{start:0,end:4,text:'잠깐, 쉬어가도 괜찮아'},{start:4,end:8,text:'나만의 속도로 걷는 하루'},{start:8,end:12,text:'오늘의 순간을 기록해요'}],audioName:'',audioOffset:0,audioVolume:.7};}
 
+export const MAX_CLIPS=1000;
 export const FORMAT='moment-project';
 export const FORMAT_VERSION=1;
 export const timelineDuration=p=>p.clips.reduce((sum,c)=>sum+c.end-c.start,0);
@@ -27,7 +28,7 @@ export function validateProject(project){
   if(project.schemaVersion!==DESIGN_VERSION)throw new CommandError('UNSUPPORTED_VERSION','지원하지 않는 프로젝트 버전입니다.');
   compatible(project,createDemoProject(),'project');
   const p=project;
-  validate(object({duration:number(.001,86400),speed:number(.25,4),ratio:choice('9:16','1:1','16:9'),fit:choice('cover','contain'),kind:choice('demo','video'),clips:array(clipSchema,1000,1)},['duration','speed','ratio','fit','kind','clips']),{duration:p.duration,speed:p.speed,ratio:p.ratio,fit:p.fit,kind:p.kind,clips:p.clips},'project');
+  validate(object({duration:number(.001,86400),speed:number(.25,4),ratio:choice('9:16','1:1','16:9'),fit:choice('cover','contain'),kind:choice('demo','video'),clips:array(clipSchema,MAX_CLIPS,1)},['duration','speed','ratio','fit','kind','clips']),{duration:p.duration,speed:p.speed,ratio:p.ratio,fit:p.fit,kind:p.kind,clips:p.clips},'project');
   for(const [i,c] of p.clips.entries())if(c.end<=c.start||c.end>p.duration)fail('클립 구간이 원본 영상 범위를 벗어났습니다.',`project.clips[${i}]`);
   const bounded={zoom:[1,3],panX:[-1,1],panY:[-1,1],volume:[0,1],audioVolume:[0,1],audioOffset:[0,86400],captionSize:[10,120],captionX:[0,1],captionY:[0,1],captionStroke:[0,20]};
   for(const [key,[min,max]] of Object.entries(bounded))validate(number(min,max),p[key],`project.${key}`);

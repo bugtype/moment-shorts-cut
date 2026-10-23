@@ -1,7 +1,7 @@
 import { TEMPLATES, applyTemplate } from '../template-catalog.mjs';
 import { retimeOutputLayers } from '../effects.mjs';
 import { MAX_CAPTIONS } from '../captions.mjs';
-import { outputDuration, timelineDuration, validateProject, createProjectDocument, readProjectDocument, projectSrt, clipSchema, captionSchema } from './project.mjs';
+import { outputDuration, timelineDuration, validateProject, createProjectDocument, readProjectDocument, projectSrt, clipSchema, captionSchema, MAX_CLIPS } from './project.mjs';
 import { object, string, number, choice, boolean, array, validate, assertJson, fail, CommandError } from './validation.mjs';
 
 export const API_VERSION=1;
@@ -14,7 +14,7 @@ const definitions=[
   command('project.import','검증된 편집 설정 JSON을 적용합니다. 미디어 파일은 별도로 연결해야 합니다.',object({document:{type:'object'}},['document']),true),
   command('templates.list','기본 템플릿 목록을 읽습니다.',object()),
   command('template.apply','기본 템플릿을 적용합니다. withContent=true는 제목과 구간 문구를 예시로 교체합니다.',object({templateId:string(100),withContent:boolean},['templateId']),true),
-  command('timeline.replace','원본 영상 시간 기준 클립 목록을 교체합니다.',object({clips:array(clipSchema,1000,1)},['clips']),true),
+  command('timeline.replace','원본 영상 시간 기준 클립 목록을 교체합니다.',object({clips:array(clipSchema,MAX_CLIPS,1)},['clips']),true),
   command('title.update','기본 제목의 두 줄 문구와 스타일을 수정합니다.',object({patch:titleSchema},['patch']),true),
   command('captions.replace','자막을 교체합니다. source는 원본, timeline은 배속 전 편집 시간입니다.',object({captions:array(captionSchema,MAX_CAPTIONS)},['captions']),true),
   command('captions.export','편집 구간과 배속을 반영한 SRT 문자열을 반환합니다.',object()),

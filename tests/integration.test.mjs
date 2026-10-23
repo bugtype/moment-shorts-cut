@@ -4,7 +4,7 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
-import { createDemoProject, createProjectDocument, readProjectDocument, validateProject } from '../dist/core/project.mjs';
+import { createDemoProject, createProjectDocument, readProjectDocument, validateProject, MAX_CLIPS } from '../dist/core/project.mjs';
 import { prepareCommand } from '../dist/core/commands.mjs';
 import { CommandError } from '../dist/core/validation.mjs';
 import { createEditorService } from '../dist/integration/editor-service.mjs';
@@ -16,6 +16,22 @@ function fixture(options={}){
  const service=createEditorService({getProject:()=>state,commitProject:p=>{state=p;commits++;},...options});
  return {service,get state(){return state;},get commits(){return commits;}};
 }
+test('clip limit is shared by command discovery, mutations and project import',async()=>{
+ assert.equal(MAX_CLIPS,1000);
+ const f=fixture(),clips=Array.from({length:MAX_CLIPS},()=>({start:0,end:1}));
+ assert.equal(f.service.describe().find(c=>c.name==='timeline.replace').inputSchema.properties.clips.maxItems,MAX_CLIPS);
+ assert.equal((await f.service.execute('timeline.replace',{clips})).ok,true);
+ assert.equal((await f.service.execute('project.update',{patch:{zoom:1.5}})).ok,true);
+ const before=structuredClone(f.state),commits=f.commits,document=createProjectDocument(before);
+ assert.deepEqual(readProjectDocument(JSON.parse(JSON.stringify(document))),before);
+ clips.push({start:0,end:1});document.project.clips=clips;
+ for(const [command,args] of [['timeline.replace',{clips}],['project.import',{document}]]){
+  const result=await f.service.execute(command,args);assert.equal(result.ok,false);assert.equal(result.error.code,'INVALID_ARGUMENT');
+  assert.deepEqual(f.state,before);assert.equal(f.commits,commits);
+ }
+ assert.equal((await f.service.execute('timeline.replace',{clips:clips.slice(0,MAX_CLIPS-1)})).ok,true);
+ assert.equal(f.state.clips.length,MAX_CLIPS-1);
+});
 test('all templates round-trip; speed and clip edits retime output text exactly once',async()=>{
  for(const template of TEMPLATES){
   const f=fixture();assert.equal((await f.service.execute('template.apply',{templateId:template.id,withContent:true})).ok,true);

@@ -68,6 +68,29 @@ vm.runInContext('undo();',context);
 assert.deepEqual(evaluate('state.clips'),[{start:0,end:12}]);
 console.log('PASS: DOM IDs, all panel initializations, trim mapping, split/undo, caption clipping, speed-adjusted SRT, SRT parsing.');
 
+// A split must stay within the same clip budget enforced by project JSON and commands.
+vm.runInContext('globalThis.splitSave=scheduleSave;globalThis.splitSaves=0;scheduleSave=()=>splitSaves++;',context);
+for(const speed of [.25,1,4]){
+ vm.runInContext(`state=initial();state.speed=${speed};state.clips=Array.from({length:999},(_,i)=>i%2?{start:2,end:3}:{start:8,end:9});timelineCache=null;current=.5;selected=0;history=[];future=[];splitSaves=0;`,context);
+ const before=evaluate('state');element('#splitButton').onclick();
+ assert.equal(evaluate('state.clips.length'),1000);assert.equal(evaluate('selected'),1);assert.equal(evaluate('splitSaves'),1);
+ assert.deepEqual(evaluate('state.clips.slice(0,2)'),[{start:8,end:8.5},{start:8.5,end:9}]);
+ const splitState=evaluate('state');assert.deepEqual(projectModule.readProjectDocument(JSON.parse(JSON.stringify(projectModule.createProjectDocument(splitState)))),splitState);
+ vm.runInContext('undo()',context);assert.deepEqual(evaluate('state'),before);
+ vm.runInContext('undo(true);edit(()=>state.zoom=1.5);undo();current=1.5;splitSaves=0;',context);
+ const atLimit=evaluate('({state,history,future,current,selected})');element('#splitButton').onclick();
+ assert.deepEqual(evaluate('({state,history,future,current,selected})'),atLimit,'Rejected split preserves project, selection and undo/redo');
+ assert.equal(evaluate('splitSaves'),0);assert.match(element('#toast').textContent,/1,000/);
+ vm.runInContext('selected=0;trim(8,8.4)',context);assert.equal(evaluate('state.clips.length'),1000);
+ element('#moveRight').onclick();assert.equal(evaluate('state.clips.length'),1000);
+ assert.doesNotThrow(()=>projectModule.createProjectDocument(evaluate('state')));
+ element('#deleteButton').onclick();assert.equal(evaluate('state.clips.length'),999);
+ vm.runInContext('current=.25;split()',context);assert.equal(evaluate('state.clips.length'),1000);
+ assert.doesNotThrow(()=>projectModule.createProjectDocument(evaluate('state')));
+}
+vm.runInContext('scheduleSave=splitSave;delete globalThis.splitSave;delete globalThis.splitSaves;state=initial();timelineCache=null;current=0;selected=0;history=[];future=[];',context);
+console.log('PASS: split clip budget, exact boundary, rejected no-op, JSON round-trip, speed/source mapping, undo/redo and trim/reorder/delete at the limit.');
+
 // Context changes reveal the relevant controls without editing the project.
 const inspectorState=evaluate('state'),inspectorHistory=evaluate('history.length');
 function assertInspector(section){

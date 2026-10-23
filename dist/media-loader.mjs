@@ -1,0 +1,143 @@
+import { retimeOutputLayers } from './effects.mjs';
+
+// Owns guarded video/audio imports and recording hand-off. Project replacement and
+// persistence remain explicit app callbacks so no partial media state is committed.
+export function createMediaLoader(app, {
+    createObjectURL = file => URL.createObjectURL(file),
+    revokeObjectURL = url => URL.revokeObjectURL(url),
+    createAudio = () => new Audio(),
+} = {}) {
+    async function loadVideo(file) {
+        if (app.recoveryBlocked())
+            return;
+        if (app.loadingMedia || app.exporting || app.transcribing || app.audioRecording.requesting || app.audioRecording.current) {
+            app.toast('진행 중인 작업을 먼저 완료해 주세요.');
+            return;
+        }
+        if (!file.type.startsWith('video/') && !/\.(mp4|mov|webm|m4v)$/i.test(file.name)) {
+            app.toast('동영상 파일을 선택해 주세요.');
+            return;
+        }
+        if (file.size > 500 * 1024 * 1024) {
+            app.toast('500 MB 이하의 동영상을 선택해 주세요.');
+            return;
+        }
+        app.loadingMedia = true;
+        app.pause();
+        const old = app.sources.videoFile, previousOutput = app.duration() / app.state.speed;
+        app.toast('영상을 불러오는 중입니다…');
+        try {
+            await app.sources.setVideoFile(file);
+            if (app.recoveryBlocked())
+                return;
+            app.sources.videoFile = file;
+            app.state = {
+                ...app.initial(),
+                ...app.visualSettings(),
+                kind: 'video',
+                name: file.name.replace(/\.[^.]+$/, ''),
+                fileName: file.name,
+                duration: app.video.duration,
+                clips: [{ start: 0, end: app.video.duration }],
+                captions: []
+            };
+            retimeOutputLayers(app.state, previousOutput, app.state.duration);
+            app.current = 0;
+            app.selected = 0;
+            app.sources.audioFile = null;
+            app.audio.pause();
+            app.audio.removeAttribute('src');
+            if (app.sources.audioURL)
+                revokeObjectURL(app.sources.audioURL);
+            app.sources.audioURL = '';
+            app.history = [];
+            app.future = [];
+            app.inputHistory.reset();
+            app.persistMedia();
+            app.changed();
+            app.renderPanel();
+            app.resizePreview();
+            app.toast('영상을 불러왔습니다. 9:16 세로 화면이 적용되었습니다.');
+        }
+        catch (e) {
+            app.sources.videoFile = old;
+            if (old)
+                await app.sources.setVideoFile(old).catch(() => {
+                });
+            else {
+                if (app.sources.sourceURL)
+                    revokeObjectURL(app.sources.sourceURL);
+                app.sources.sourceURL = '';
+                app.video.removeAttribute('src');
+            }
+            app.toast(e.message);
+        }
+        finally {
+            app.loadingMedia = false;
+        }
+        app.query('#videoInput').value = '';
+    }
+
+    async function loadAudio(file, recording = null) {
+        if (app.recoveryBlocked())
+            return;
+        if (app.loadingMedia || app.exporting || app.transcribing || app.audioRecording.requesting || (app.audioRecording.current && app.audioRecording.current !== recording))
+            return;
+        if (file.size > 100 * 1024 * 1024) {
+            app.toast('100 MB 이하의 오디오를 선택해 주세요.');
+            return;
+        }
+        app.loadingMedia = true;
+        let nextURL, probe;
+        try {
+            nextURL = createObjectURL(file);
+            probe = createAudio();
+            const loaded = app.sources.waitForMedia(probe, 'loadedmetadata', '지원하지 않는 오디오 형식입니다.');
+            probe.src = nextURL;
+            await loaded;
+            if (app.recoveryBlocked() || (recording && app.audioRecording.current !== recording)) {
+                revokeObjectURL(nextURL);
+                return;
+            }
+            app.pause();
+            if (app.sources.audioURL)
+                revokeObjectURL(app.sources.audioURL);
+            app.sources.audioURL = nextURL;
+            app.audio.src = app.sources.audioURL;
+            app.sources.audioFile = file;
+            app.state.audioName = file.name;
+            app.state.audioOffset = 0;
+            app.persistMedia();
+            app.changed();
+            app.renderPanel();
+            app.toast('오디오를 연결했습니다. 재생해서 소리를 확인하세요.');
+        }
+        catch (e) {
+            if (nextURL)
+                revokeObjectURL(nextURL);
+            app.toast(e.message);
+        }
+        finally {
+            app.loadingMedia = false;
+            probe?.removeAttribute('src');
+            probe?.load();
+        }
+        app.query('#audioInput').value = '';
+    }
+
+    async function toggleRecording() {
+        if (app.recoveryBlocked())
+            return;
+        const recording = app.audioRecording;
+        if (recording.current?.state === 'recording') {
+            recording.stop();
+            return;
+        }
+        if (recording.current || app.loadingMedia || app.exporting || app.transcribing || recording.requesting)
+            return;
+        const project = app.state;
+        await recording.start(() => app.persistence.restorePhase === 'ready' && app.state === project && app.panel === 'audio' && !app.loadingMedia && !app.exporting && !app.transcribing);
+    }
+
+    return { loadVideo, loadAudio, toggleRecording };
+}

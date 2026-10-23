@@ -34,7 +34,7 @@ import assert from 'node:assert/strict';
 // Synthetic DOM/media only. Each call owns a separate VM, controls and event queues.
 export async function createAppFixture() {
   const source=fs.readFileSync(new URL('../../dist/app.js',import.meta.url),'utf8');
-  const panelSource=['design-panel.mjs','effects-panel.mjs','template-gallery.mjs','template-workspace.mjs','panel-markup.mjs','template-preview.mjs','inspector-view.mjs','timeline-view.mjs','caption-panel.mjs'].map(f=>fs.readFileSync(new URL('../../dist/'+f,import.meta.url),'utf8')).join('\n');
+  const panelSource=['design-panel.mjs','effects-panel.mjs','template-gallery.mjs','template-workspace.mjs','panel-markup.mjs','template-preview.mjs','inspector-view.mjs','timeline-view.mjs','caption-panel.mjs','playback.mjs','export-flow.mjs','media-loader.mjs','design-workspace.mjs','workspace-panels.mjs','app-bindings.mjs','editing-actions.mjs','caption-flow.mjs'].map(f=>fs.readFileSync(new URL('../../dist/'+f,import.meta.url),'utf8')).join('\n');
   const html=fs.readFileSync(new URL('../../dist/index.html',import.meta.url),'utf8');
   const ids=new Set([...`${html}\n${source}\n${panelSource}`.matchAll(/id="([\w-]+)"/g)].map(m=>m[1]));
   const selectors=[...source.matchAll(/\$\('#([\w-]+)'\)/g)].map(m=>m[1]);
@@ -148,6 +148,20 @@ export async function createAppFixture() {
   // Preserve the parser fault injection without adding a production-only dependency hook.
   const textWorkflowSource=fs.readFileSync(new URL('../../dist/text-file-workflow.mjs',import.meta.url),'utf8');
   context.createTextFileWorkflow=vm.runInContext('(()=>{'+textWorkflowSource.replace(/^import .*;$/gm,'').replace('export function','function')+';return createTextFileWorkflow;})()',context);
+  // Load extracted app modules in this VM so timers, promises and DOM access keep the
+  // same realm semantics the browser app has (the host realm would add microtask hops).
+  const loadFactory=(file,name)=>{
+    const moduleSource=fs.readFileSync(new URL('../../dist/'+file,import.meta.url),'utf8');
+    context[name]=vm.runInContext('(()=>{'+moduleSource.replace(/^import .*;$/gm,'').replace('export function','function')+';return '+name+';})()',context);
+  };
+  loadFactory('playback.mjs','createPlayback');
+  loadFactory('export-flow.mjs','createExportFlow');
+  loadFactory('media-loader.mjs','createMediaLoader');
+  loadFactory('design-workspace.mjs','createDesignWorkspace');
+  loadFactory('workspace-panels.mjs','createWorkspacePanels');
+  loadFactory('app-bindings.mjs','bindUi');
+  loadFactory('editing-actions.mjs','createEditingActions');
+  loadFactory('caption-flow.mjs','createCaptionFlow');
   vm.runInContext(source.replace(/^import .*;$/gm,'').replace(/init\(\);\s*$/,'globalThis.ready=init();'),context);
   await context.ready;
   for(const [id,cb] of pendingFrames){pendingFrames.delete(id);cb(performance.now());}

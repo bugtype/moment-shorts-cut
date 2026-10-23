@@ -25,13 +25,13 @@ assert.deepEqual([...new Set(selectors.filter(id=>!ids.has(id)))],[], 'Every fix
 const htmlIds=[...html.matchAll(/id="([\w-]+)"/g)].map(m=>m[1]);
 assert.equal(htmlIds.length,new Set(htmlIds).size,'No duplicate IDs in the page');
 
-const elements=new Map();
+const elements=new Map(),focusEvents=[];
 let measurementCalls=0;
 const context2d=new Proxy({}, {get:(target,key)=>key==='createRadialGradient'?()=>({addColorStop(){}}):key==='measureText'?text=>{measurementCalls++;return {width:text.length*10};}:()=>{}});
 function element(key=''){
  if(elements.has(key))return elements.get(key);
  const e={value:'',innerHTML:'',textContent:'',hidden:false,style:{},dataset:{},clientWidth:700,clientHeight:500,width:540,height:960,currentTime:0,duration:12,readyState:4,videoWidth:1920,videoHeight:1080,
- classList:{add(){},remove(){},toggle(){}},setAttribute(){},setPointerCapture(){},removeAttribute(){},addEventListener(){},removeEventListener(){},insertAdjacentHTML(){},getContext(){return context2d;},querySelector(selector){return selector==='.icon'?null:element(key+' '+selector);},querySelectorAll(){return [];},focus(){doc.activeElement=this;},pause(){},play(){return Promise.resolve();},getBoundingClientRect(){return {left:0,top:0,width:540,height:960};},showModal(){this.open=true;},close(){this.open=false;}};
+ classList:{add(){},remove(){},toggle(){}},setAttribute(){},setPointerCapture(){},removeAttribute(){},addEventListener(){},removeEventListener(){},insertAdjacentHTML(){},getContext(){return context2d;},querySelector(selector){return selector==='.icon'?null:element(key+' '+selector);},querySelectorAll(){return [];},focus(options){doc.activeElement=this;focusEvents.push({target:this,action:"focus",options});},scrollIntoView(options){focusEvents.push({target:this,action:"scroll",options});},pause(){},play(){return Promise.resolve();},getBoundingClientRect(){return {left:0,top:0,width:540,height:960};},showModal(){this.open=true;},close(){this.open=false;}};
  elements.set(key,e);return e;
 }
 let canvasCount=0,rafCounter=0;const pendingFrames=new Map();
@@ -89,6 +89,15 @@ console.log('PASS: selection-aware inspector, split selection, unchanged project
 vm.runInContext(`state=initial();state.clips=[{start:8,end:12},{start:2,end:5},{start:8,end:10}];state.speed=2;
  state.captions=[{start:1,end:3,text:'same'},{start:9,end:11,text:'same'},{start:0,end:2,text:'same',basis:'timeline'}];changed();`,context);
 const navigationState=evaluate('state'),navigationHistory=evaluate('history.length');
+function assertCaptionVisibleTarget(target){
+ assert.equal(doc.activeElement,target);
+ const events=focusEvents.slice(-2);
+ assert.deepEqual(events.map(event=>event.target),[target,target]);
+ assert.deepEqual(JSON.parse(JSON.stringify(events.map(({action,options})=>({action,options})))),[
+  {action:'focus',options:{preventScroll:true}},
+  {action:'scroll',options:{block:'nearest',inline:'nearest',behavior:'instant'}}
+ ]);
+}
 function clickCaptionBlock(index){
  const blocks=element('#captionTrack').children;
  const block=blocks[index];assert.ok(block,'Expected a rendered caption occurrence');
@@ -97,7 +106,7 @@ function clickCaptionBlock(index){
 }
 assert.equal(clickCaptionBlock(3),1);
 assert.equal(evaluate('current'),8,'Repeated source caption seeks to its clicked edited occurrence before speed');
-assert.equal(doc.activeElement,element('[data-caption-text="1"]'));
+assertCaptionVisibleTarget(element('[data-caption-text="1"]'));
 assert.equal(element('#captionTrack').children[3].attributes['aria-label'],'자막 2, 4.0초: same');
 assert.equal(clickCaptionBlock(2),0);assert.equal(evaluate('current'),4,'Trimmed caption seeks to its visible start');
 assert.equal(clickCaptionBlock(0),2);assert.equal(evaluate('current'),0,'Narration uses the edited clock');
@@ -105,7 +114,7 @@ assert.equal(doc.activeElement,element('[data-caption-text="2"]'));
 assert.deepEqual(evaluate('state'),navigationState);assert.equal(evaluate('history.length'),navigationHistory);
 vm.runInContext("edit(()=>state.captions.splice(0,1),true)",context);
 assert.equal(clickCaptionBlock(2),0,'Deletion rebuilds references to the surviving row');
-assert.equal(doc.activeElement,element('[data-caption-text="0"]'));
+assertCaptionVisibleTarget(element('[data-caption-text="0"]'));
 vm.runInContext('undo()',context);assert.equal(clickCaptionBlock(3),1,'Undo restores row mapping');
 vm.runInContext("switchPanel('audio');record={state:'recording'};current=3",context);
 clickCaptionBlock(3);assert.equal(evaluate('current'),3);assert.equal(evaluate('panel'),'audio');
@@ -289,17 +298,17 @@ assert.equal(createIsOpen(),false);
 assert.ok(captionMarkup().includes('role="region" aria-label="자막 목록" tabindex="0"'));
 vm.runInContext('state.captions=[];renderPanel()',context);assert.equal(createIsOpen(),true);
 element('#addCaption').onclick();assert.equal(evaluate('state.captions.length'),1);
-assert.equal(doc.activeElement,element('[data-caption-text="0"]'));
+assertCaptionVisibleTarget(element('[data-caption-text="0"]'));
 assert.equal(createIsOpen(),false);
 const captionDelete={dataset:{deleteCaption:'0'}};
 doc.querySelectorAll=selector=>selector==='[data-delete-caption]'?[captionDelete]:[];
 vm.runInContext('renderPanel()',context);captionDelete.onclick();
 doc.querySelectorAll=()=>[];
 assert.equal(evaluate('state.captions.length'),0);assert.equal(createIsOpen(),true);
-assert.equal(doc.activeElement,element('#addCaption'));
+assertCaptionVisibleTarget(element('#addCaption'));
 await vm.runInContext('importSrt({size:50,text:async()=>"1\\n00:00:00,000 --> 00:00:02,000\\nImported caption"})',context);
 assert.equal(evaluate('state.captions[0].text'),'Imported caption');assert.equal(createIsOpen(),false);
-assert.equal(doc.activeElement,element('[data-caption-text="0"]'));
+assertCaptionVisibleTarget(element('[data-caption-text="0"]'));
 vm.runInContext('state.captions[0].timing="estimated";state.captions[0].basis="timeline";renderPanel()',context);
 assert.ok(captionMarkup().includes('시간 추정 · 음성과 확인 필요'));
 assert.ok(captionMarkup().includes('추가 오디오 · 편집 타임라인'));

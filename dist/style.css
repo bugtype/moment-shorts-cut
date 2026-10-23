@@ -34,6 +34,7 @@
 .caption-workspace>.panel-actions{margin:0 0 12px}
 .caption-workspace #captionRows{max-height:52dvh;min-height:80px;overflow-y:auto;scrollbar-width:thin;padding:2px 3px}
 .caption-workspace #captionRows:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+.caption-workspace textarea,.caption-workspace #addCaption{scroll-margin:4px}
 .caption-workspace .caption-row:first-child{margin-top:0}
 .caption-workspace .caption-row:last-child{margin-bottom:0}
 .caption-disclosure{border-top:1px solid var(--line);margin-top:14px}

@@ -278,13 +278,23 @@ input[type=range] {
 }
 .ruler {
   height:34px;
-  display:flex;
-  justify-content:space-between;
+  position:relative;
   font-size:8px;
   color:#adb2a4;
-  align-items:center;
   cursor:pointer;
   background:repeating-linear-gradient(90deg,#e9ede1 0,#e9ede1 1px,transparent 1px,transparent 2.5%) bottom/100% 5px no-repeat
+}
+.ruler span {
+  position:absolute;
+  top:50%;
+  transform:translate(-50%,-50%);
+  white-space:nowrap
+}
+.ruler span:first-child {
+  transform:translate(0,-50%)
+}
+.ruler span:last-child {
+  transform:translate(-100%,-50%)
 }
 .video-track {
   height:45px;

@@ -99,7 +99,16 @@ export function createTimelineView($, clock = () => performance.now()) {
         ).join('');
         updateTimelineMarkup($('#videoTrack'), clips);
         renderCaptions(state, len);
-        $('#ruler').innerHTML = Array.from({ length: 6 }, (_, i) => `<span>${fmt(len * i / 5 / state.speed)}</span>`).join('');
+        const total = len / state.speed;
+        const step = [1, 2, 3, 5, 10, 15, 30, 60, 120, 300, 600].find(value => total / value <= 5) || 600;
+        const marks = [];
+        for (let at = 0; at < total - 1e-6; at += step)
+            marks.push(at);
+        if (total > 0)
+            marks.push(total);
+        $('#ruler').innerHTML = marks.map(at =>
+            `<span style="left:${total > 0 ? at / total * 100 : 0}%">${fmt(at)}</span>`
+        ).join('');
         $('#audioTrack').classList.toggle('has-audio', hasAudio);
         $('#audioTrack').textContent = hasAudio ? `♫ ${state.audioName} · ${(state.audioOffset / state.speed).toFixed(1)}초부터` : '+ 오디오를 추가해 보세요';
     }

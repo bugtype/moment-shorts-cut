@@ -57,6 +57,22 @@ test('timeline collapse hands space to the preview and updates its toggle', () =
   assert.equal(toggle.attributes['aria-label'], '타임라인 접기');
 });
 
+test('ruler labels land on round intervals without repeating', () => {
+  const { query } = controls(), view = createTimelineView(query), state = createDemoProject();
+  state.captions = [];
+  state.clips = [{ start: 0, end: 4 }];
+  view.render(state, 4, { selected: 0, thumbnail: '', hasAudio: false });
+  const labels = () => [...query('#ruler').innerHTML.matchAll(/>([^<]+)<\/span>/g)].map(match => match[1]);
+  const lefts = () => [...query('#ruler').innerHTML.matchAll(/left:([\d.]+)%/g)].map(match => match[1]);
+  assert.deepEqual(labels(), ['00:00', '00:01', '00:02', '00:03', '00:04']);
+  assert.deepEqual(lefts(), ['0', '25', '50', '75', '100']);
+
+  state.clips = [{ start: 0, end: 12 }];
+  state.speed = 2;
+  view.render(state, 12, { selected: 0, thumbnail: '', hasAudio: false });
+  assert.deepEqual(labels(), ['00:00', '00:02', '00:04', '00:06']);
+});
+
 test('timeline presentation retains occurrence nodes and edits only display state', () => {
   const { query } = controls(), view = createTimelineView(query), state = createDemoProject();
   state.clips = [{ start: 0, end: 4 }, { start: 0, end: 4 }];state.fileName = '<source>';

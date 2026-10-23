@@ -58,54 +58,46 @@ export function captionsPanelMarkup({ captions, speakerLabels }, { toolsOpen, tr
 
 export function mediaPanelMarkup({ kind, duration, fileName }, thumbnail) {
     return (
-        `<h1 class="panel-heading">미디어 라이브러리</h1>` +
-        `<p class="panel-intro">좋은 이야기는 하나의 영상에서 시작해요.</p>` +
+        `<section class="asset-workspace" aria-labelledby="mediaPanelHeading">` +
+        `<h1 class="panel-heading" id="mediaPanelHeading">미디어</h1>` +
+        `<section class="asset-section" aria-label="프로젝트 영상">` +
+        `<button class="asset-card full" id="assetSelect">` +
+        `<span class="asset-thumb">` +
+        `<img src="${thumbnail || './sample.svg'}" alt="${kind === 'demo' ? '바닷가 산책 샘플 일러스트' : '업로드한 영상 썸네일'}">` +
+        `<span class="duration">${fmt(duration)}</span>` +
+        `</span>` +
+        `<span class="asset-info">${icon('video')}<span>` +
+        `<strong>${esc(fileName)}</strong>` +
+        `<small>${kind === 'demo' ? '모션 그래픽 · 샘플 자막 포함' : '내 기기 · 원본 영상'}</small>` +
+        `</span></span></button>` +
+        `<button class="sample-link" id="loadDemo">${icon('reset')} 샘플 프로젝트 열기</button>` +
+        `</section>` +
+        `<section class="asset-section" aria-label="영상 불러오기">` +
         `<div class="dropzone" id="dropzone">` +
         `<span class="upload-circle">${icon('upload')}</span>` +
         `<strong>영상을 여기에 놓아주세요</strong>` +
-        `<p>또는 기기에서 파일을 선택하세요</p>` +
-        `<button class="button dark" id="chooseVideo">영상 업로드</button>` +
+        `<button class="button dark" id="chooseVideo" aria-describedby="videoFormats">영상 선택</button>` +
         `</div>` +
-        `<p class="formats">MP4, MOV, WebM · 최대 500 MB<br>브라우저에서 재생 가능한 코덱 지원</p>` +
-        `<div class="section-label">프로젝트 미디어 <span class="asset-count">1</span>` +
-        `<span class="muted">${icon('folder')}</span>` +
-        `</div>` +
-        `<button class="asset-card full" style="width:100%;text-align:left" id="assetSelect">` +
-        `<div class="asset-thumb">` +
-        `<img src="${thumbnail || './sample.svg'}" alt="${kind === 'demo' ? '바닷가 산책 샘플 일러스트' : '업로드한 영상 썸네일'}">` +
-        `<span class="duration">${fmt(duration)}</span>` +
-        `</div>` +
-        `<div class="asset-info">${icon('video')}<div>` +
-        `<strong>${esc(fileName)}</strong>` +
-        `<small>${kind === 'demo' ? '모션 그래픽 · 샘플 자막 포함' : '내 기기 · 원본 영상'}</small>` +
-        `</div>` +
-        `</button>` +
-        `<button class="sample-link" id="loadDemo">${icon('reset')} 샘플 프로젝트로 둘러보기</button>` +
-        `<div class="workflow-note">` +
-        `<h4>쇼츠 완성까지, 간단하게</h4>` +
-        `<div class="workflow-step">` +
-        `<b>1</b> 영상을 올리고 세로로 맞추기</div>` +
-        `<div class="workflow-step">` +
-        `<b>2</b> 자막과 나만의 목소리 더하기</div>` +
-        `<div class="workflow-step">` +
-        `<b>3</b> 가장 좋은 순간만 내보내기</div>` +
-        `</div>`
+        `<p class="formats" id="videoFormats">MP4, MOV, WebM · 최대 500 MB<br>브라우저에서 재생 가능한 코덱 지원</p>` +
+        `</section></section>`
     );
 }
 
 export function audioPanelMarkup({ audioName, audioOffset, audioVolume, speed }, hasAudio, timelineDuration) {
     const connection = hasAudio
-        ? audioConnectionMarkup({ audioName, audioOffset, audioVolume, speed }, timelineDuration)
-        : '<p class="empty-text">아직 연결된 오디오가 없어요.<br>나만의 목소리를 더해 보세요.</p>';
+        ? `<section class="asset-section" aria-label="추가 오디오 설정">${audioConnectionMarkup({ audioName, audioOffset, audioVolume, speed }, timelineDuration)}</section>`
+        : '';
     return (
-        `<h1 class="panel-heading">목소리로 더하는 분위기</h1>` +
-        `<p class="panel-intro">음성이나 배경음악을 연결하고<br>영상과 함께 자연스럽게 재생하세요.</p>` +
-        `<button class="button dark full" id="chooseAudio">${icon('upload')} 오디오 업로드</button>` +
-        `<button class="button full" style="margin-top:10px" id="recordButton">${icon('mic')} 마이크로 직접 녹음</button>` +
-        `<div class="notice">녹음에는 마이크 권한이 필요합니다. 녹음 및 업로드한 소리는 원본 음성과 함께 내보내기에 포함됩니다.</div>${connection}<div class="workflow-note">` +
-        `<h4>소리를 더 깔끔하게</h4>` +
-        `<p class="panel-intro">원본 볼륨을 줄이고 녹음 볼륨을 조절하면 내레이션이 더 잘 들려요.</p>` +
-        `</div>`
+        `<section class="asset-workspace" aria-labelledby="audioPanelHeading">` +
+        `<h1 class="panel-heading" id="audioPanelHeading">오디오</h1>` +
+        connection +
+        `<section class="asset-section" aria-label="오디오 불러오기 및 녹음">` +
+        `<div class="asset-actions">` +
+        `<button class="button dark full" id="chooseAudio">${icon('upload')} ${hasAudio ? '오디오 교체' : '오디오 선택'}</button>` +
+        `<button class="button full" id="recordButton" aria-describedby="recordingNotice">${icon('mic')} 마이크로 직접 녹음</button>` +
+        `</div>` +
+        `<p class="notice" id="recordingNotice">녹음에는 마이크 권한이 필요합니다. 녹음 및 업로드한 소리는 원본 음성과 함께 내보내기에 포함됩니다.</p>` +
+        `</section></section>`
     );
 }
 

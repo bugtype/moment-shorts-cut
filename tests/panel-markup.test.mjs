@@ -78,3 +78,41 @@ test('shared display helpers preserve escaping, clock formatting and decorative 
   assert.equal(icon('unknown'), icon('plus'));
   assert.match(icon('trash'), /aria-hidden="true"/);
 });
+
+test('media workspace leads with the current asset, groups import controls and keeps format guidance', () => {
+  const html = mediaPanelMarkup(frozenProject(), '');
+  assert.match(html, /<section class="asset-workspace" aria-labelledby="mediaPanelHeading">/);
+  assert.ok(html.indexOf('id="assetSelect"') < html.indexOf('id="dropzone"'));
+  assert.match(html, /aria-label="프로젝트 영상"/);
+  assert.match(html, /aria-label="영상 불러오기"/);
+  assert.match(html, /id="chooseVideo" aria-describedby="videoFormats"/);
+  assert.match(html, /id="videoFormats">MP4, MOV, WebM · 최대 500 MB/);
+  assert.match(html, /브라우저에서 재생 가능한 코덱 지원/);
+  assert.doesNotMatch(html, /panel-intro|workflow-step|workflow-note|asset-count/);
+  const button = html.match(/<button class="asset-card[\s\S]*?<\/button>/)[0];
+  assert.doesNotMatch(button, /<div/);
+  assert.equal((button.match(/<span\b/g) || []).length, (button.match(/<\/span>/g) || []).length);
+});
+
+test('audio workspace groups connected controls before replacement actions without hiding the recording warning', () => {
+  for (const hasAudio of [false, true]) {
+    const html = audioPanelMarkup(frozenProject(), hasAudio, 12);
+    assert.match(html, /aria-labelledby="audioPanelHeading"/);
+    assert.match(html, /class="asset-actions"/);
+    assert.match(html, /id="recordButton" aria-describedby="recordingNotice"/);
+    assert.match(html, /id="recordingNotice">녹음에는 마이크 권한이 필요합니다/);
+    assert.match(html, /원본 음성과 함께 내보내기에 포함됩니다/);
+    assert.doesNotMatch(html, /panel-intro|workflow-note/);
+    if (hasAudio) {
+      assert.ok(html.indexOf('id="audioVolume"') < html.indexOf('id="chooseAudio"'));
+      assert.match(html, /오디오 교체/);
+      assert.match(html, /aria-label="추가 오디오 볼륨"/);
+    } else {
+      assert.match(html, /오디오 선택/);
+      assert.doesNotMatch(html, /id="removeAudio"|id="audioVolume"/);
+    }
+    const ids = [...html.matchAll(/\bid="([^"]+)"/g)].map(match => match[1]);
+    assert.equal(new Set(ids).size, ids.length);
+    assert.equal((html.match(/<section\b/g) || []).length, (html.match(/<\/section>/g) || []).length);
+  }
+});

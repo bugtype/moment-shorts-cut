@@ -168,9 +168,6 @@
   .asset-thumb {
     height:130px
   }
-  .workflow-note {
-    display:none
-  }
   .dropzone {
     padding:17px
   }
@@ -231,10 +228,6 @@
 .formats {
   font-size:10px;
   color:#87917b
-}
-.workflow-step {
-  font-size:11px;
-  color:#808b72
 }
 .tiny-note {
   font-size:9px;

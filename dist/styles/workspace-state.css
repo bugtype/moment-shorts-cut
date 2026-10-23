@@ -145,3 +145,29 @@ body.restore-failed #saveStatus i {
   line-height:20px;
   color:#874d32
 }
+
+.asset-workspace>.panel-heading {
+  margin-bottom:18px
+}
+.asset-section+.asset-section {
+  margin-top:22px;
+  padding-top:22px;
+  border-top:1px solid var(--line)
+}
+.asset-workspace .dropzone .button {
+  margin-top:16px
+}
+.asset-workspace .formats {
+  margin-bottom:0
+}
+.asset-actions {
+  display:grid;
+  gap:10px
+}
+.asset-workspace .audio-file {
+  margin-top:0;
+  overflow-wrap:anywhere
+}
+.asset-workspace .asset-info>span {
+  min-width:0
+}

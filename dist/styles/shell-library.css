@@ -312,16 +312,9 @@ a {
 .muted {
   color:#979c93
 }
-.asset-count {
-  background:#f0f2eb;
-  padding:2px 6px;
-  border-radius:4px;
-  font-size:9px;
-  color:#858e7c;
-  margin-right:auto;
-  margin-left:7px
-}
 .asset-card {
+  width:100%;
+  text-align:left;
   border:1px solid #d6ddcf;
   border-radius:9px;
   padding:7px;
@@ -329,6 +322,7 @@ a {
   cursor:pointer
 }
 .asset-thumb {
+  display:block;
   height:112px;
   border-radius:5px;
   overflow:hidden;
@@ -386,35 +380,6 @@ a {
 }
 .sample-link .icon {
   width:13px
-}
-.workflow-note {
-  margin-top:30px;
-  padding-top:19px;
-  border-top:1px solid var(--line)
-}
-.workflow-note h4 {
-  margin:0 0 14px;
-  font-size:11px;
-  font-weight:500
-}
-.workflow-step {
-  display:flex;
-  align-items:center;
-  gap:9px;
-  color:#8f9589;
-  font-size:10px;
-  margin:12px 0
-}
-.workflow-step b {
-  font-size:9px;
-  width:17px;
-  height:17px;
-  background:#f1f3ed;
-  color:#7c8973;
-  display:grid;
-  place-items:center;
-  border-radius:50%;
-  font-weight:500
 }
 .privacy-note {
   margin-top:auto;

@@ -1,3 +1,5 @@
+import * as panelMarkup from '../../dist/panel-markup.mjs';
+import { icon, esc, fmt } from '../../dist/ui-format.mjs';
 import * as projectModule from '../../dist/core/project.mjs';
 import { prepareCommand } from '../../dist/core/commands.mjs';
 import { CommandError } from '../../dist/core/validation.mjs';
@@ -22,7 +24,7 @@ import assert from 'node:assert/strict';
 // Synthetic DOM/media only. Each call owns a separate VM, controls and event queues.
 export async function createAppFixture() {
   const source=fs.readFileSync(new URL('../../dist/app.js',import.meta.url),'utf8');
-  const panelSource=['design-panel.mjs','effects-panel.mjs','template-gallery.mjs'].map(f=>fs.readFileSync(new URL('../../dist/'+f,import.meta.url),'utf8')).join('\n');
+  const panelSource=['design-panel.mjs','effects-panel.mjs','template-gallery.mjs','panel-markup.mjs'].map(f=>fs.readFileSync(new URL('../../dist/'+f,import.meta.url),'utf8')).join('\n');
   const html=fs.readFileSync(new URL('../../dist/index.html',import.meta.url),'utf8');
   const ids=new Set([...`${html}\n${source}\n${panelSource}`.matchAll(/id="([\w-]+)"/g)].map(m=>m[1]));
   const selectors=[...source.matchAll(/\$\('#([\w-]+)'\)/g)].map(m=>m[1]);
@@ -94,7 +96,7 @@ export async function createAppFixture() {
     renderCaptionTrack, renderCaptionTrackError, updateTimelineMarkup, createInputHistory,
     ...effectsModule, ...templateModule, readTemplateLibrary, validateTemplateLibrary,
     mountTemplateGallery, mountEffectsPanel, ...typographyModule, createCompositionRenderer,
-    createProjectStore, mountDesignPanel,
+    createProjectStore, mountDesignPanel, ...panelMarkup, icon, esc, fmt,
   });
   vm.runInContext(source.replace(/^import .*;$/gm,'').replace(/init\(\);\s*$/,'globalThis.ready=init();'),context);
   await context.ready;

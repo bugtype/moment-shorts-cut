@@ -1,0 +1,178 @@
+import { icon, esc, fmt } from './ui-format.mjs';
+
+// Pure markup: the app retains current state, event bindings and edit history.
+export function captionsPanelMarkup({ captions, speakerLabels }, { toolsOpen, transcribing, hasAudio, transcriptionStatus }) {
+    const rows = captions.map((c, i) => captionRowMarkup(c, i, speakerLabels)).join('');
+    return (
+        `<section class="caption-workspace">` +
+        `\n <h1 class="panel-heading">자막 ${captions.length}개</h1>` +
+        `\n <div class="panel-actions">` +
+        `<button class="button" id="addCaption">+ 직접 추가</button>` +
+        `<button class="button" id="downloadSrt">SRT 저장</button>` +
+        `</div>` +
+        `\n <div id="captionRows" role="region" aria-label="자막 목록" tabindex="0">${rows || '<p class="empty-text">자동으로 만들거나<br>첫 자막을 직접 추가해 보세요.</p>'}</div>` +
+        `\n <details class="caption-disclosure" id="captionCreate" ${!captions.length || transcribing ? 'open' : ''}>` +
+        `\n  <summary>자동 생성 · 불러오기<span data-icon="chevron">` +
+        `</span>` +
+        `</summary>` +
+        `\n  <div class="caption-disclosure-body">` +
+        `<button class="button full" id="importSrt">SRT 불러오기</button>` +
+        `\n  <label class="panel-label" for="captionSource">인식할 오디오</label>` +
+        `<select class="panel-select" id="captionSource">` +
+        `<option value="video">원본 영상의 음성</option>` +
+        `<option value="audio" ${hasAudio ? '' : 'disabled'}>추가한 오디오 / 녹음</option>` +
+        `</select>` +
+        `<label class="panel-label" for="language">음성 언어</label>` +
+        `<select class="panel-select" id="language">` +
+        `<option value="korean">한국어</option>` +
+        `<option value="english">English</option>` +
+        `<option value="japanese">日本語</option>` +
+        `<option value="chinese">中文</option>` +
+        `</select>` +
+        `<button class="button dark full" id="generateCaptions">${transcribing ? '<span class="spinner"></span> 인식 중 · 취소' : icon('sparkle') + ' 자동 자막 생성'}</button>` +
+        `<div class="notice">첫 실행 시 음성 인식 모델을 다운로드합니다. 인터넷 연결이 필요하며, 음성 인식은 기기에서 처리됩니다. 최대 3분의 원본을 지원합니다.</div>` +
+        `\n  <p id="asrStatus" role="status" aria-live="polite" ${transcribing ? '' : 'hidden'}>${esc(transcriptionStatus)}</p>` +
+        `</div>` +
+        `\n </details>` +
+        `\n <details class="caption-disclosure" id="captionTools" ${toolsOpen ? 'open' : ''}>` +
+        `\n  <summary>자막 도구<span data-icon="chevron">` +
+        `</span>` +
+        `</summary>` +
+        `\n  <div class="caption-disclosure-body">` +
+        `<div class="caption-split-tool">` +
+        `<select id="captionChunkSize" aria-label="자막 분할 길이">` +
+        `<option value="12">짧게 · 12자</option>` +
+        `<option value="18" selected>보통 · 18자</option>` +
+        `<option value="24">길게 · 24자</option>` +
+        `</select>` +
+        `<button class="button compact" id="splitLongCaptions">긴 자막 나누기</button>` +
+        `</div>` +
+        `<p class="tiny-note">분할 시간은 글자 수로 추정합니다. 음성을 듣고 조절해 주세요.</p>` +
+        `<button class="text-button" id="captionDesignShortcut">강조어 · 화자 색상 설정 →</button>` +
+        `\n  <p class="tiny-note">원본 음성은 원본 시간, 추가 오디오는 편집 타임라인 시간 기준입니다. 모두 배속 적용 전 초 단위입니다.</p>` +
+        `</div>` +
+        `\n </details>` +
+        `</section>`
+    );
+}
+
+export function mediaPanelMarkup({ kind, duration, fileName }, thumbnail) {
+    return (
+        `<h1 class="panel-heading">미디어 라이브러리</h1>` +
+        `<p class="panel-intro">좋은 이야기는 하나의 영상에서 시작해요.</p>` +
+        `<div class="dropzone" id="dropzone">` +
+        `<span class="upload-circle">${icon('upload')}</span>` +
+        `<strong>영상을 여기에 놓아주세요</strong>` +
+        `<p>또는 기기에서 파일을 선택하세요</p>` +
+        `<button class="button dark" id="chooseVideo">영상 업로드</button>` +
+        `</div>` +
+        `<p class="formats">MP4, MOV, WebM · 최대 500 MB<br>브라우저에서 재생 가능한 코덱 지원</p>` +
+        `<div class="section-label">프로젝트 미디어 <span class="asset-count">1</span>` +
+        `<span class="muted">${icon('folder')}</span>` +
+        `</div>` +
+        `<button class="asset-card full" style="width:100%;text-align:left" id="assetSelect">` +
+        `<div class="asset-thumb">` +
+        `<img src="${thumbnail || './sample.svg'}" alt="${kind === 'demo' ? '바닷가 산책 샘플 일러스트' : '업로드한 영상 썸네일'}">` +
+        `<span class="duration">${fmt(duration)}</span>` +
+        `</div>` +
+        `<div class="asset-info">${icon('video')}<div>` +
+        `<strong>${esc(fileName)}</strong>` +
+        `<small>${kind === 'demo' ? '모션 그래픽 · 샘플 자막 포함' : '내 기기 · 원본 영상'}</small>` +
+        `</div>` +
+        `</button>` +
+        `<button class="sample-link" id="loadDemo">${icon('reset')} 샘플 프로젝트로 둘러보기</button>` +
+        `<div class="workflow-note">` +
+        `<h4>쇼츠 완성까지, 간단하게</h4>` +
+        `<div class="workflow-step">` +
+        `<b>1</b> 영상을 올리고 세로로 맞추기</div>` +
+        `<div class="workflow-step">` +
+        `<b>2</b> 자막과 나만의 목소리 더하기</div>` +
+        `<div class="workflow-step">` +
+        `<b>3</b> 가장 좋은 순간만 내보내기</div>` +
+        `</div>`
+    );
+}
+
+export function audioPanelMarkup({ audioName, audioOffset, audioVolume, speed }, hasAudio, timelineDuration) {
+    const connection = hasAudio
+        ? audioConnectionMarkup({ audioName, audioOffset, audioVolume, speed }, timelineDuration)
+        : '<p class="empty-text">아직 연결된 오디오가 없어요.<br>나만의 목소리를 더해 보세요.</p>';
+    return (
+        `<h1 class="panel-heading">목소리로 더하는 분위기</h1>` +
+        `<p class="panel-intro">음성이나 배경음악을 연결하고<br>영상과 함께 자연스럽게 재생하세요.</p>` +
+        `<button class="button dark full" id="chooseAudio">${icon('upload')} 오디오 업로드</button>` +
+        `<button class="button full" style="margin-top:10px" id="recordButton">${icon('mic')} 마이크로 직접 녹음</button>` +
+        `<div class="notice">녹음에는 마이크 권한이 필요합니다. 녹음 및 업로드한 소리는 원본 음성과 함께 내보내기에 포함됩니다.</div>${connection}<div class="workflow-note">` +
+        `<h4>소리를 더 깔끔하게</h4>` +
+        `<p class="panel-intro">원본 볼륨을 줄이고 녹음 볼륨을 조절하면 내레이션이 더 잘 들려요.</p>` +
+        `</div>`
+    );
+}
+
+export function settingsPanelMarkup({ ratio, fit, zoom, captionSize, captionY, volume }, clip) {
+    return (
+        `<h1 class="panel-heading">내 영상에 맞는 화면</h1>` +
+        `<p class="panel-intro">비율과 구도를 조정해<br>중요한 장면을 화면에 담으세요.</p>` +
+        `<div class="settings-mirror">` +
+        `<div class="section-label">화면 비율</div>` +
+        `<div class="ratio-grid">${['9:16', '1:1', '16:9'].map(r => (
+            `<button class="ratio-option ${ratio === r ? 'active' : ''}" data-ratio="${r}">` +
+            `<strong>${r}</strong>` +
+            `<small>${r === '9:16' ? '쇼츠' : r === '1:1' ? '피드' : '가로'}</small>` +
+            `</button>`
+        )).join('')}</div>` +
+        `<div class="field-label">화면 채우기</div>` +
+        `<div class="segmented">` +
+        `<button data-fit="cover" class="${fit === 'cover' ? 'active' : ''}">채우기</button>` +
+        `<button data-fit="contain" class="${fit === 'contain' ? 'active' : ''}">전체 보기</button>` +
+        `</div>` +
+        `<label class="panel-label" for="mobileZoom">확대</label>` +
+        `<input id="mobileZoom" type="range" min="1" max="3" step=".01" value="${zoom}" style="width:100%">` +
+        `<p class="tiny-note">미리보기를 드래그해 위치를 조절하세요.</p>` +
+        `<label class="panel-label" for="captionSize">자막 크기</label>` +
+        `<input id="captionSize" type="range" min="18" max="52" value="${captionSize}" style="width:100%">` +
+        `<label class="panel-label" for="captionY">자막 세로 위치</label>` +
+        `<input id="captionY" type="range" min=".15" max=".9" step=".01" value="${captionY}" style="width:100%">` +
+        `<div class="section-label" style="margin-top:25px">선택 클립 자르기</div>` +
+        `<div class="time-fields">` +
+        `<label>시작 (초)<input id="panelTrimStart" type="number" min="0" step=".1" value="${clip.start}">` +
+        `</label>` +
+        `<label>끝 (초)<input id="panelTrimEnd" type="number" min="0" step=".1" value="${clip.end}">` +
+        `</label>` +
+        `</div>` +
+        `<button class="button full" id="panelTrimApply">구간 적용</button>` +
+        `<label class="panel-label" for="panelVolume">원본 볼륨</label>` +
+        `<input id="panelVolume" type="range" min="0" max="1" step=".01" value="${volume}" style="width:100%">` +
+        `<button class="button full" style="margin-top:25px" id="resetPosition">${icon('reset')} 화면 위치 초기화</button>` +
+        `</div>`
+    );
+}
+
+function captionRowMarkup(c, i, speakerLabels) {
+    return `<div class="caption-row">` +
+        `<small class="caption-clock">${c.basis === 'timeline' ? '추가 오디오 · 편집 타임라인' : '원본 영상 시간'}</small>` +
+        `<div class="caption-row-head">` +
+        `<input type="number" min="0" step="0.1" value="${c.start.toFixed(1)}" data-caption-start="${i}" aria-label="자막 ${i + 1} 시작 초">` +
+        `<span class="muted">–</span>` +
+        `<input type="number" min="0" step="0.1" value="${c.end.toFixed(1)}" data-caption-end="${i}" aria-label="자막 ${i + 1} 끝 초">` +
+        `<button class="icon-button" data-delete-caption="${i}" aria-label="자막 ${i + 1} 삭제">${icon('trash')}</button>` +
+        `</div>` +
+        `<textarea data-caption-text="${i}" aria-label="자막 ${i + 1} 내용">${esc(c.text)}</textarea>` +
+        `<div class="caption-extra">` +
+        `<input data-caption-keywords="${i}" value="${esc(c.keywords || '')}" maxlength="150" placeholder="강조 단어, 쉼표로 구분" aria-label="자막 ${i + 1} 강조 단어">` +
+        `<select data-caption-speaker="${i}" aria-label="자막 ${i + 1} 화자">` +
+        `<option value="">화자 없음</option>${speakerLabels.map((name, n) =>
+            `<option value="${n}" ${String(c.speaker) === String(n) ? 'selected' : ''}>${esc(name)}</option>`
+        ).join('')}</select>` +
+        `</div>${c.timing === 'estimated' ? '<small class="estimated-timing">시간 추정 · 음성과 확인 필요</small>' : ''}</div>`;
+}
+
+function audioConnectionMarkup({ audioName, audioOffset, audioVolume, speed }, timelineDuration) {
+    return `<div class="audio-file">${icon('audio')} ${esc(audioName)}<button class="text-button" id="removeAudio">연결 해제</button>` +
+        `</div>` +
+        `<label class="panel-label" for="audioOffset">시작 위치 (출력 영상 기준 초)</label>` +
+        `<input class="panel-input" id="audioOffset" type="number" min="0" max="${timelineDuration / speed}" step="0.1" value="${audioOffset / speed}">` +
+        `<label class="slider-label">오디오 볼륨 <output id="audioVolumeOutput">${Math.round(audioVolume * 100)}%</output>` +
+        `</label>` +
+        `<input id="audioVolume" type="range" min="0" max="1" step="0.01" value="${audioVolume}" style="width:100%" aria-label="추가 오디오 볼륨">`;
+}

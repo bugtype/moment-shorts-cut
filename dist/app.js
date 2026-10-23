@@ -1,3 +1,5 @@
+import { icon, esc, fmt } from './ui-format.mjs';
+import { captionsPanelMarkup, mediaPanelMarkup, audioPanelMarkup, settingsPanelMarkup } from './panel-markup.mjs';
 import { createDemoProject, createProjectDocument, srtTimestamp, projectSrt, readProjectDocument, MAX_CLIPS } from './core/project.mjs';
 import { prepareCommand } from './core/commands.mjs';
 import { CommandError } from './core/validation.mjs';
@@ -16,60 +18,14 @@ import { createProjectStore } from './project-store.mjs';
 import { mountDesignPanel } from './design-panel.mjs';
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
-const paths = {
-    grid: 'M3 3h7v7H3zM14 3h7v7h-7zM3 14h7v7H3zM14 14h7v7h-7z',
-    media: 'M3 5h18v14H3zM8 5v14M3 10h5M3 15h5M12 9l5 3-5 3z',
-    video: 'M3 6h13v12H3zM16 10l5-3v10l-5-3',
-    captions: 'M3 5h18v14H3zM6 10h4M6 14h4M14 10h4M14 14h4',
-    audio: 'M9 18V5l11-2v13M9 8l11-2M9 18c0 4-6 4-6 1s6-4 6-1M20 16c0 4-6 4-6 1s6-4 6-1',
-    text: 'M4 5h16M12 5v15M8 20h8',
-    sliders: 'M4 7h6M14 7h6M4 17h10M18 17h2M10 4v6M14 14v6',
-    plus: 'M12 5v14M5 12h14',
-    upload: 'M12 16V3M7 8l5-5 5 5M4 15v5h16v-5',
-    export: 'M12 15V3M8 7l4-4 4 4M4 13v7h16v-7',
-    save: 'M4 3h13l4 4v14H3V3zM7 3v6h10V3M7 21v-8h10v8',
-    help: 'M9 8a3 3 0 1 1 5 3c-2 1-2 2-2 3M12 17h.01M22 12a10 10 0 1 1-20 0 10 10 0 0 1 20 0',
-    shield: 'M12 3l8 3v6c0 5-8 9-8 9s-8-4-8-9V6zM8 12l3 3 5-6',
-    portrait: 'M6 2h12v20H6z',
-    chevron: 'M7 10l5 5 5-5',
-    safe: 'M8 3H3v5M16 3h5v5M3 16v5h5M16 21h5v-5M7 7h10v10H7z',
-    play: 'M8 5l11 7-11 7z',
-    pause: 'M8 5v14M16 5v14',
-    skip: 'M6 5v14M18 5L8 12l10 7z',
-    volume: 'M3 9h4l5-5v16l-5-5H3zM16 8q5 4 0 8M19 5q7 7 0 14',
-    mute: 'M3 9h4l5-5v16l-5-5H3zM16 9l6 6M22 9l-6 6',
-    undo: 'M9 4L4 9l5 5M4 9h10a6 6 0 0 1 0 12',
-    redo: 'M15 4l5 5-5 5M20 9H10a6 6 0 0 0 0 12',
-    scissors: 'M14 14l7 7M14 10l7-7M6 9l9 6M6 15l9-6M8 6a3 3 0 1 1-6 0 3 3 0 0 1 6 0M8 18a3 3 0 1 1-6 0 3 3 0 0 1 6 0',
-    trash: 'M3 6h18M9 6V3h6v3M5 6l1 15h12l1-15M10 10v7M14 10v7',
-    left: 'M15 5l-7 7 7 7',
-    right: 'M9 5l7 7-7 7',
-    sparkle: 'M12 3l3 6 6 3-6 3-3 6-3-6-6-3 6-3zM20 2v4M18 4h4',
-    mic: 'M8 5a4 4 0 0 1 8 0v7a4 4 0 0 1-8 0zM5 10v2a7 7 0 0 0 14 0v-2M12 19v3M8 22h8',
-    close: 'M6 6l12 12M18 6L6 18',
-    check: 'M5 12l4 4L19 6',
-    download: 'M12 3v13M7 11l5 5 5-5M4 17v4h16v-4',
-    reset: 'M4 10a8 8 0 1 1 2 8M4 4v6h6',
-    folder: 'M3 5h7l2 3h9v12H3z'
-};
-function icon(name) {
-    return `<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="${paths[name] || paths.plus}"/></svg>`;
-}
 function icons(root = document) {
     $$('[data-icon]', root).forEach(el => {
         if (!el.querySelector('.icon'))
             el.insertAdjacentHTML('afterbegin', icon(el.dataset.icon));
     });
 }
-function esc(v) {
-    return String(v).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-}
 function clamp(v, a, b) {
     return Math.max(a, Math.min(b, v));
-}
-function fmt(t) {
-    t = Math.max(0, Number(t) || 0);
-    return `${Math.floor(t / 60).toString().padStart(2, '0')}:${Math.floor(t % 60).toString().padStart(2, '0')}`;
 }
 function initial() {
     return createDemoProject();
@@ -759,21 +715,7 @@ function splitLongCaptions() {
 }
 function renderCaptionsPanel(target) {
     const toolsOpen = target.querySelector('#captionTools')?.open;
-    target.innerHTML = `<section class="caption-workspace">
- <h1 class="panel-heading">자막 ${state.captions.length}개</h1>
- <div class="panel-actions"><button class="button" id="addCaption">+ 직접 추가</button><button class="button" id="downloadSrt">SRT 저장</button></div>
- <div id="captionRows" role="region" aria-label="자막 목록" tabindex="0">${state.captions.map((c, i) => `<div class="caption-row"><small class="caption-clock">${c.basis === 'timeline' ? '추가 오디오 · 편집 타임라인' : '원본 영상 시간'}</small><div class="caption-row-head"><input type="number" min="0" step="0.1" value="${c.start.toFixed(1)}" data-caption-start="${i}" aria-label="자막 ${i + 1} 시작 초"><span class="muted">–</span><input type="number" min="0" step="0.1" value="${c.end.toFixed(1)}" data-caption-end="${i}" aria-label="자막 ${i + 1} 끝 초"><button class="icon-button" data-delete-caption="${i}" aria-label="자막 ${i + 1} 삭제">${icon('trash')}</button></div><textarea data-caption-text="${i}" aria-label="자막 ${i + 1} 내용">${esc(c.text)}</textarea><div class="caption-extra"><input data-caption-keywords="${i}" value="${esc(c.keywords || '')}" maxlength="150" placeholder="강조 단어, 쉼표로 구분" aria-label="자막 ${i + 1} 강조 단어"><select data-caption-speaker="${i}" aria-label="자막 ${i + 1} 화자"><option value="">화자 없음</option>${state.speakerLabels.map((name, n) => `<option value="${n}" ${String(c.speaker) === String(n) ? 'selected' : ''}>${esc(name)}</option>`).join('')}</select></div>${c.timing === 'estimated' ? '<small class="estimated-timing">시간 추정 · 음성과 확인 필요</small>' : ''}</div>`).join('') || '<p class="empty-text">자동으로 만들거나<br>첫 자막을 직접 추가해 보세요.</p>'}</div>
- <details class="caption-disclosure" id="captionCreate" ${!state.captions.length || transcribing ? 'open' : ''}>
-  <summary>자동 생성 · 불러오기<span data-icon="chevron"></span></summary>
-  <div class="caption-disclosure-body"><button class="button full" id="importSrt">SRT 불러오기</button>
-  <label class="panel-label" for="captionSource">인식할 오디오</label><select class="panel-select" id="captionSource"><option value="video">원본 영상의 음성</option><option value="audio" ${audioFile ? '' : 'disabled'}>추가한 오디오 / 녹음</option></select><label class="panel-label" for="language">음성 언어</label><select class="panel-select" id="language"><option value="korean">한국어</option><option value="english">English</option><option value="japanese">日本語</option><option value="chinese">中文</option></select><button class="button dark full" id="generateCaptions">${transcribing ? '<span class="spinner"></span> 인식 중 · 취소' : icon('sparkle') + ' 자동 자막 생성'}</button><div class="notice">첫 실행 시 음성 인식 모델을 다운로드합니다. 인터넷 연결이 필요하며, 음성 인식은 기기에서 처리됩니다. 최대 3분의 원본을 지원합니다.</div>
-  <p id="asrStatus" role="status" aria-live="polite" ${transcribing ? '' : 'hidden'}>${esc(transcriptionStatus)}</p></div>
- </details>
- <details class="caption-disclosure" id="captionTools" ${toolsOpen ? 'open' : ''}>
-  <summary>자막 도구<span data-icon="chevron"></span></summary>
-  <div class="caption-disclosure-body"><div class="caption-split-tool"><select id="captionChunkSize" aria-label="자막 분할 길이"><option value="12">짧게 · 12자</option><option value="18" selected>보통 · 18자</option><option value="24">길게 · 24자</option></select><button class="button compact" id="splitLongCaptions">긴 자막 나누기</button></div><p class="tiny-note">분할 시간은 글자 수로 추정합니다. 음성을 듣고 조절해 주세요.</p><button class="text-button" id="captionDesignShortcut">강조어 · 화자 색상 설정 →</button>
-  <p class="tiny-note">원본 음성은 원본 시간, 추가 오디오는 편집 타임라인 시간 기준입니다. 모두 배속 적용 전 초 단위입니다.</p></div>
- </details></section>`;
+    target.innerHTML = captionsPanelMarkup(state, { toolsOpen, transcribing, hasAudio: !!audioFile, transcriptionStatus });
     $('#captionDesignShortcut').onclick = () => {
         textLayer = 'caption';
         switchPanel('text');
@@ -839,7 +781,7 @@ function renderPanel() {
         renderEffects(target);
     }
     else if (panel === 'media') {
-        target.innerHTML = `<h1 class="panel-heading">미디어 라이브러리</h1><p class="panel-intro">좋은 이야기는 하나의 영상에서 시작해요.</p><div class="dropzone" id="dropzone"><span class="upload-circle">${icon('upload')}</span><strong>영상을 여기에 놓아주세요</strong><p>또는 기기에서 파일을 선택하세요</p><button class="button dark" id="chooseVideo">영상 업로드</button></div><p class="formats">MP4, MOV, WebM · 최대 500 MB<br>브라우저에서 재생 가능한 코덱 지원</p><div class="section-label">프로젝트 미디어 <span class="asset-count">1</span><span class="muted">${icon('folder')}</span></div><button class="asset-card full" style="width:100%;text-align:left" id="assetSelect"><div class="asset-thumb"><img src="${thumbnail || './sample.svg'}" alt="${state.kind === 'demo' ? '바닷가 산책 샘플 일러스트' : '업로드한 영상 썸네일'}"><span class="duration">${fmt(state.duration)}</span></div><div class="asset-info">${icon('video')}<div><strong>${esc(state.fileName)}</strong><small>${state.kind === 'demo' ? '모션 그래픽 · 샘플 자막 포함' : '내 기기 · 원본 영상'}</small></div></button><button class="sample-link" id="loadDemo">${icon('reset')} 샘플 프로젝트로 둘러보기</button><div class="workflow-note"><h4>쇼츠 완성까지, 간단하게</h4><div class="workflow-step"><b>1</b> 영상을 올리고 세로로 맞추기</div><div class="workflow-step"><b>2</b> 자막과 나만의 목소리 더하기</div><div class="workflow-step"><b>3</b> 가장 좋은 순간만 내보내기</div></div>`;
+        target.innerHTML = mediaPanelMarkup(state, thumbnail);
         $('#chooseVideo').onclick = () => $('#videoInput').click();
         $('#assetSelect').onclick = () => {
             seekTo(0);
@@ -862,7 +804,7 @@ function renderPanel() {
         renderCaptionsPanel(target);
     }
     else if (panel === 'audio') {
-        target.innerHTML = `<h1 class="panel-heading">목소리로 더하는 분위기</h1><p class="panel-intro">음성이나 배경음악을 연결하고<br>영상과 함께 자연스럽게 재생하세요.</p><button class="button dark full" id="chooseAudio">${icon('upload')} 오디오 업로드</button><button class="button full" style="margin-top:10px" id="recordButton">${icon('mic')} 마이크로 직접 녹음</button><div class="notice">녹음에는 마이크 권한이 필요합니다. 녹음 및 업로드한 소리는 원본 음성과 함께 내보내기에 포함됩니다.</div>${audioFile ? `<div class="audio-file">${icon('audio')} ${esc(state.audioName)}<button class="text-button" id="removeAudio">연결 해제</button></div><label class="panel-label" for="audioOffset">시작 위치 (출력 영상 기준 초)</label><input class="panel-input" id="audioOffset" type="number" min="0" max="${duration() / state.speed}" step="0.1" value="${state.audioOffset / state.speed}"><label class="slider-label">오디오 볼륨 <output id="audioVolumeOutput">${Math.round(state.audioVolume * 100)}%</output></label><input id="audioVolume" type="range" min="0" max="1" step="0.01" value="${state.audioVolume}" style="width:100%" aria-label="추가 오디오 볼륨">` : '<p class="empty-text">아직 연결된 오디오가 없어요.<br>나만의 목소리를 더해 보세요.</p>'}<div class="workflow-note"><h4>소리를 더 깔끔하게</h4><p class="panel-intro">원본 볼륨을 줄이고 녹음 볼륨을 조절하면 내레이션이 더 잘 들려요.</p></div>`;
+        target.innerHTML = audioPanelMarkup(state, !!audioFile, audioFile ? duration() : 0);
         $('#chooseAudio').onclick = () => $('#audioInput').click();
         $('#recordButton').onclick = toggleRecording;
         if (audioFile) {
@@ -896,7 +838,7 @@ function renderPanel() {
         renderDesignPanel(target);
     }
     else {
-        target.innerHTML = `<h1 class="panel-heading">내 영상에 맞는 화면</h1><p class="panel-intro">비율과 구도를 조정해<br>중요한 장면을 화면에 담으세요.</p><div class="settings-mirror"><div class="section-label">화면 비율</div><div class="ratio-grid">${['9:16', '1:1', '16:9'].map(r => `<button class="ratio-option ${state.ratio === r ? 'active' : ''}" data-ratio="${r}"><strong>${r}</strong><small>${r === '9:16' ? '쇼츠' : r === '1:1' ? '피드' : '가로'}</small></button>`).join('')}</div><div class="field-label">화면 채우기</div><div class="segmented"><button data-fit="cover" class="${state.fit === 'cover' ? 'active' : ''}">채우기</button><button data-fit="contain" class="${state.fit === 'contain' ? 'active' : ''}">전체 보기</button></div><label class="panel-label" for="mobileZoom">확대</label><input id="mobileZoom" type="range" min="1" max="3" step=".01" value="${state.zoom}" style="width:100%"><p class="tiny-note">미리보기를 드래그해 위치를 조절하세요.</p><label class="panel-label" for="captionSize">자막 크기</label><input id="captionSize" type="range" min="18" max="52" value="${state.captionSize}" style="width:100%"><label class="panel-label" for="captionY">자막 세로 위치</label><input id="captionY" type="range" min=".15" max=".9" step=".01" value="${state.captionY}" style="width:100%"><div class="section-label" style="margin-top:25px">선택 클립 자르기</div><div class="time-fields"><label>시작 (초)<input id="panelTrimStart" type="number" min="0" step=".1" value="${state.clips[selected].start}"></label><label>끝 (초)<input id="panelTrimEnd" type="number" min="0" step=".1" value="${state.clips[selected].end}"></label></div><button class="button full" id="panelTrimApply">구간 적용</button><label class="panel-label" for="panelVolume">원본 볼륨</label><input id="panelVolume" type="range" min="0" max="1" step=".01" value="${state.volume}" style="width:100%"><button class="button full" style="margin-top:25px" id="resetPosition">${icon('reset')} 화면 위치 초기화</button></div>`;
+        target.innerHTML = settingsPanelMarkup(state, state.clips[selected]);
         for (const [id, key] of [['mobileZoom', 'zoom'], ['captionSize', 'captionSize'], ['captionY', 'captionY'], ['panelVolume', 'volume']]) {
             const el = $('#' + id);
             inputHistory.bind(el, () => state[key], value => {

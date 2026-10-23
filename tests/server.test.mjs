@@ -16,6 +16,25 @@ test('preview serves modules with correct MIME types and never serves repository
   assert.equal(module.status, 200);
   assert.match(module.headers.get('content-type'), /text\/javascript/);
   assert.equal(module.headers.get('x-content-type-options'), 'nosniff');
+  // Fetch the complete static module graph through the same entry URL as the page.
+  const modules = new Map();
+  async function checkModule(path, ancestors = []) {
+    assert.ok(!ancestors.includes(path), `Circular module dependency: ${[...ancestors, path].join(' → ')}`);
+    if (modules.has(path)) return;
+    const response = await fetch(origin + path);
+    assert.equal(response.status, 200, path);
+    assert.match(response.headers.get('content-type'), /text\/javascript/, path);
+    assert.equal(response.headers.get('x-content-type-options'), 'nosniff');
+    const source = await response.text();
+    modules.set(path, source);
+    for (const match of source.matchAll(/^(?:import|export)\b[^;\n]*\bfrom\s*['"](\.[^'"]+)['"]/gm)) {
+      const importedPath = new URL(match[1], origin + path).pathname;
+      await checkModule(importedPath, [...ancestors, path]);
+    }
+  }
+  await checkModule('/app.js');
+  assert.ok(modules.has('/panel-markup.mjs'));
+  assert.ok(modules.has('/ui-format.mjs'));
   const stylesheet = await fetch(`${origin}/style.css`);
   assert.equal(stylesheet.status, 200);
   assert.match(stylesheet.headers.get('content-type'), /text\/css/);

@@ -1,11 +1,13 @@
 import { API_VERSION, commandDefinitions, prepareCommand } from '../core/commands.mjs';
 import { createProjectDocument } from '../core/project.mjs';
-import { assertJson, validate, object, string, choice, CommandError } from '../core/validation.mjs';
+import { assertJson, validate, object, string, choice, fail, CommandError } from '../core/validation.mjs';
 
+const jobIdSchema=string(200);
+const jobResultSchema={...object({id:jobIdSchema,status:choice('queued','running','succeeded','failed','cancelled')},['id','status']),additionalProperties:true};
 const jobCommands=[
   {name:'jobs.submit',description:'연결된 작업 제공자에 미디어 가져오기·음성 인식·렌더 작업을 제출합니다.',inputSchema:object({operation:choice('media.import','captions.transcribe','video.render'),assetId:string(200),source:choice('video','audio'),language:string(20),quality:choice(720,1080),format:choice('mp4','webm')},['operation']),mutates:true},
-  {name:'jobs.get',description:'연결된 작업 제공자의 작업 상태를 읽습니다.',inputSchema:object({jobId:string(200)},['jobId']),mutates:false},
-  {name:'jobs.cancel',description:'연결된 작업 제공자에 작업 취소를 요청합니다.',inputSchema:object({jobId:string(200)},['jobId']),mutates:true},
+  {name:'jobs.get',description:'연결된 작업 제공자의 작업 상태를 읽습니다.',inputSchema:object({jobId:jobIdSchema},['jobId']),mutates:false},
+  {name:'jobs.cancel',description:'연결된 작업 제공자에 작업 취소를 요청합니다.',inputSchema:object({jobId:jobIdSchema},['jobId']),mutates:true},
 ];
 export function errorResult(command,error){
   const known=error instanceof CommandError;
@@ -39,8 +41,12 @@ export function createEditorService({getProject,commitProject,jobs}={}){
           if(!args.jobId.trim())throw new CommandError('INVALID_ARGUMENT','jobId가 필요합니다.');
           data=await jobs[name==='jobs.get'?'get':'cancel'](args.jobId);
         }
-        assertJson(data);
-        if(!data||typeof data.id!=='string'||!data.id||!['queued','running','succeeded','failed','cancelled'].includes(data.status))throw new CommandError('INVALID_PROVIDER_RESULT','작업 제공자가 유효한 작업 상태를 반환하지 않았습니다.');
+        try{
+          assertJson(data);validate(jobResultSchema,data);
+          if(!data.id.trim())fail('작업 ID가 비어 있습니다.');
+        }catch{
+          throw new CommandError('INVALID_PROVIDER_RESULT','작업 제공자가 유효한 작업 상태를 반환하지 않았습니다.');
+        }
       }else{
         // Keep synchronous snapshots and local commits in one uninterrupted job.
         // Read then once: custom thenable accessors can throw or have side effects.

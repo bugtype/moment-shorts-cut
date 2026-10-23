@@ -1,3 +1,4 @@
+import { bindPreviewDrag, bindEditorKeyboard } from '../../dist/editor-interactions.mjs';
 import { createTemplatePreview } from '../../dist/template-preview.mjs';
 import { createVideoExport } from '../../dist/video-export.mjs';
 import { createAudioRecording } from '../../dist/audio-recording.mjs';
@@ -100,7 +101,7 @@ export async function createAppFixture() {
     renderCaptionTrack, renderCaptionTrackError, updateTimelineMarkup, createInputHistory,
     ...effectsModule, ...templateModule, readTemplateLibrary, validateTemplateLibrary,
     mountTemplateGallery, mountEffectsPanel, ...typographyModule, createCompositionRenderer,
-    createProjectStore, createTranscriptionClient, createVideoExport,
+    createProjectStore, createTranscriptionClient, createVideoExport, bindPreviewDrag, bindEditorKeyboard,
     createTemplatePreview: options => createTemplatePreview(options, {
       requestFrame: callback => context.requestAnimationFrame(callback),
       cancelFrame: id => context.cancelAnimationFrame(id),

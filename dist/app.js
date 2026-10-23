@@ -1,3 +1,4 @@
+import { bindPreviewDrag, bindEditorKeyboard } from './editor-interactions.mjs';
 import { createTemplatePreview } from './template-preview.mjs';
 import { createVideoExport } from './video-export.mjs';
 import { createAudioRecording } from './audio-recording.mjs';
@@ -1701,85 +1702,33 @@ function bind() {
         if (exporting)
             e.preventDefault();
     });
-    let drag = null;
-    canvas.onpointerdown = e => {
-        if (exporting || restorePhase === 'restoring')
-            return;
-        pause();
-        const scene = selectedSceneLayer(), mode = scene ? 'scene' : panel === 'text' && textLayer !== 'frame' ? textLayer : 'video';
-        const l = scene || (mode === 'caption' ? { x: state.captionX, y: state.captionY } : state.design[mode]);
-        if (mode !== 'video' && l?.enabled === false)
-            return;
-        drag = {
-            x: e.clientX,
-            y: e.clientY,
-            px: mode === 'video' ? state.panX : l.x,
-            py: mode === 'video' ? state.panY : l.y,
-            mode,
-            sceneId: scene?.id,
-            project: state,
-            changed: false
-        };
-        canvas.setPointerCapture(e.pointerId);
-    };
-    canvas.onpointermove = e => {
-        if (!drag)
-            return;
-        if (drag.project !== state) {
-            drag = null;
-            return;
-        }
-        const r = canvas.getBoundingClientRect(), x = drag.px + (e.clientX - drag.x) / r.width, y = drag.py + (e.clientY - drag.y) / r.height;
-        const mode = drag.mode, target = mode === 'video' || mode === 'caption' ? state : mode === 'scene' ? state.overlays.find(c => c.id === drag.sceneId) : state.design[mode];
-        if (!target)
-            return;
-        const xKey = mode === 'video' ? 'panX' : mode === 'caption' ? 'captionX' : 'x', yKey = mode === 'video' ? 'panY' : mode === 'caption' ? 'captionY' : 'y';
-        const nextX = clamp(x, mode === 'video' ? -1 : .1, mode === 'video' ? 1 : .9), nextY = mode === 'video' ? clamp(y, -1, 1) : mode === 'scene' ? clamp(y, .08, .8) : mode === 'caption' ? clamp(y, .1, .9) : clamp(y, .06, .93);
-        if (target[xKey] === nextX && target[yKey] === nextY)
-            return;
-        if (!drag.changed) {
-            snapshot();
-            drag.changed = true;
-        }
-        target[xKey] = nextX;
-        target[yKey] = nextY;
-        updateLayerGuide();
-        requestDraw();
-    };
-    const endDrag = () => {
-        if (!drag)
-            return;
-        const edited = drag.changed && drag.project === state;
-        drag = null;
-        if (!edited)
-            return;
-        changed();
-        if (panel === 'text' || panel === 'effects')
-            renderPanel();
-    };
-    canvas.onpointerup = endDrag;
-    canvas.onpointercancel = endDrag;
-    document.addEventListener('keydown', e => {
-        if (/INPUT|TEXTAREA|SELECT|SUMMARY/.test(e.target.tagName) || modal.open || exporting)
-            return;
-        if (e.code === 'Space') {
-            if (e.target.tagName === 'BUTTON')
-                return;
-            e.preventDefault();
-            playing ? pause() : play();
-        }
-        if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') {
-            e.preventDefault();
-            undo(e.shiftKey);
-        }
-        if (e.key === 'ArrowLeft') {
+    bindPreviewDrag(canvas, {
+        getProject: () => state,
+        blocked: () => exporting || restorePhase === 'restoring',
+        pause: () => pause(),
+        selection: () => {
+            const scene = selectedSceneLayer();
+            return { scene, mode: scene ? 'scene' : panel === 'text' && textLayer !== 'frame' ? textLayer : 'video' };
+        },
+        snapshot: () => snapshot(),
+        preview: () => {
+            updateLayerGuide();
+            requestDraw();
+        },
+        commit: () => {
+            changed();
+            if (panel === 'text' || panel === 'effects')
+                renderPanel();
+        },
+    });
+    bindEditorKeyboard(document, {
+        blocked: () => modal.open || exporting,
+        togglePlayback: () => playing ? pause() : play(),
+        undo: redo => undo(redo),
+        seekBy: delta => {
             pause();
-            seekTo(current - 1);
-        }
-        if (e.key === 'ArrowRight') {
-            pause();
-            seekTo(current + 1);
-        }
+            seekTo(current + delta);
+        },
     });
     window.addEventListener('resize', resizePreview);
     document.addEventListener('visibilitychange', () => {

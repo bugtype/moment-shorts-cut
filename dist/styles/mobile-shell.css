@@ -181,4 +181,23 @@
     height:calc(100dvh - 66px - 58px - 56px - 45px - env(safe-area-inset-bottom));
     min-height:0
   }
+  /* Expanding on a landscape phone becomes a timeline focus mode: the canvas has
+     no room left, so the player and all tracks share the height above the rail. */
+  .editor-area:has(.timeline:not(.collapsed)) .stage {
+    display:none
+  }
+  .editor-area:has(.timeline:not(.collapsed)) .timeline {
+    height:calc(100dvh - 66px - 58px - 56px - env(safe-area-inset-bottom));
+    display:flex;
+    flex-direction:column
+  }
+  .editor-area:has(.timeline:not(.collapsed)) .timeline-tools {
+    flex:0 0 45px
+  }
+  .editor-area:has(.timeline:not(.collapsed)) .timeline-body {
+    flex:1;
+    min-height:0;
+    overflow-y:auto;
+    overscroll-behavior:contain
+  }
 }

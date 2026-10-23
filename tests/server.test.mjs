@@ -67,6 +67,11 @@ test('preview serves modules with correct MIME types and never serves repository
   // Phones trade the wordmark for the project name so it stays editable.
   assert.match(responsive, /\.brand>span:last-child \{\s*display:none\s*\}/);
   assert.match(responsive, /\.project-title \{\s*display:flex;\s*flex:1 1 auto;\s*min-width:0\s*\}/);
+  const compactShell = await (await fetch(`${origin}/styles/mobile-shell.css`)).text();
+  // Expanding the timeline on a short landscape screen focuses the tracks and
+  // hands them the height above the fixed rail instead of scrolling the page.
+  assert.match(compactShell, /\.editor-area:has\(\.timeline:not\(\.collapsed\)\) \.stage \{\s*display:none\s*\}/);
+  assert.match(compactShell, /\.editor-area:has\(\.timeline:not\(\.collapsed\)\) \.timeline-body \{\s*flex:1;\s*min-height:0;\s*overflow-y:auto;/);
   for (const pathname of ['/package.json', '/.git/config', '/%2e%2e/package.json', '/..%2fpackage.json', '/missing.js']) {
     assert.equal((await fetch(origin + pathname)).status, 404, pathname);
   }

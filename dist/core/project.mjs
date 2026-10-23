@@ -79,9 +79,11 @@ export function readProjectDocument(document){
 export function srtTimestamp(t){const ms=Math.round(t*1000);return `${String(Math.floor(ms/3600000)).padStart(2,'0')}:${String(Math.floor(ms/60000)%60).padStart(2,'0')}:${String(Math.floor(ms/1000)%60).padStart(2,'0')},${String(ms%1000).padStart(3,'0')}`;}
 export function projectSrt(p){
   return editedCaptions(p.captions,p.clips,p.speed).map((c,i)=>{
+    const start=srtTimestamp(c.start),end=srtTimestamp(c.end);
+    if(start===end)fail(`SRT 출력 ${i+1}번째 자막의 시작과 끝이 밀리초 단위에서 같습니다. 자막 구간이나 배속을 조정한 뒤 다시 저장하세요.`);
     const lines=c.text.replace(/\r\n?/g,'\n');
     if(/^[ \t]*$/m.test(lines))fail(`SRT 출력 ${i+1}번째 자막에 빈 줄이 있습니다. 빈 줄을 제거한 뒤 다시 저장하세요.`);
     const text=lines.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\u00a0/g,'&nbsp;');
-    return `${i+1}\n${srtTimestamp(c.start)} --> ${srtTimestamp(c.end)}\n${text}\n`;
+    return `${i+1}\n${start} --> ${end}\n${text}\n`;
   }).join('\n');
 }

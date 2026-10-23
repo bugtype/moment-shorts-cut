@@ -90,3 +90,27 @@ test('empty and malformed imported cues never consume the following valid cue', 
     }
   }
 });
+
+test('SRT rejects rounded zero-duration cues after speed, trim and repeat mapping without changing the project', () => {
+  const cases=[
+    {speed:4,captions:[{start:0,end:.001,text:'tiny'}]},
+    {speed:4,clips:[{start:0,end:2}],captions:[{start:1.999,end:4,text:'trimmed speech'}]},
+    {speed:4,clips:[{start:0,end:2}],captions:[{start:1.999,end:4,text:'narration tail',basis:'timeline'}]},
+    {speed:4,clips:[{start:2,end:4},{start:0,end:2}],captions:[{start:1.999,end:4,text:'repeated speech'}]},
+  ];
+  for(const patch of cases){
+    const project=Object.assign(createDemoProject(),patch),before=structuredClone(project);
+    assert.throws(()=>projectSrt(project),error=>error instanceof CommandError && error.code==='INVALID_ARGUMENT' && /밀리초/.test(error.message));
+    assert.deepEqual(project,before);
+  }
+});
+
+test('SRT accepts distinct rounded boundaries without expanding short cues or shifting adjacent cues', () => {
+  const project=createDemoProject();
+  project.captions=[{start:.0004,end:.0006,text:'submillisecond'},{start:.0006,end:.0015,text:'adjacent'}];
+  assert.deepEqual(parseSubtitles(projectSrt(project),12),[{start:0,end:.001,text:'submillisecond'},{start:.001,end:.002,text:'adjacent'}]);
+  project.speed=4;project.clips=[{start:0,end:2}];project.captions=[{start:1.98,end:4,text:'trimmed speech'}];
+  assert.deepEqual(parseSubtitles(projectSrt(project),12),[{start:.495,end:.5,text:'trimmed speech'}]);
+  project.duration=120;project.speed=1;project.clips=[{start:0,end:120}];project.captions=[{start:59.9996,end:60.001,text:'minute boundary'}];
+  assert.deepEqual(parseSubtitles(projectSrt(project),120),[{start:60,end:60.001,text:'minute boundary'}]);
+});

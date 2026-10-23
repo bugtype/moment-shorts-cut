@@ -583,6 +583,19 @@ assert.equal(evaluate('state.captions[0].text'),context.blankLineCaption);
 assert.equal(downloads,beforeSrtDownloads+1,'undo preserves the original text and export validation');
 console.log('PASS: SRT blank-line validation displays an error without download/history changes; correction and undo recover.');
 
+vm.runInContext('state=initial();state.clips=[{start:0,end:2}];state.speed=4;state.captions=[{start:1.999,end:4,text:"trimmed speech"}];timelineCache=null;',context);
+const beforePrecisionExport=evaluate('[state,history,future]'),beforePrecisionDownloads=downloads;
+assert.doesNotThrow(()=>vm.runInContext('downloadSrt();',context));
+assert.equal(downloads,beforePrecisionDownloads);
+assert.match(element('#toast').textContent,/1번째 자막.*밀리초/);
+assert.deepEqual(evaluate('[state,history,future]'),beforePrecisionExport);
+await context.window.moment.execute('project.update',{patch:{speed:1}});
+vm.runInContext('downloadSrt();',context);
+assert.equal(downloads,beforePrecisionDownloads+1);
+vm.runInContext('undo();downloadSrt();',context);
+assert.equal(evaluate('state.speed'),4);assert.equal(downloads,beforePrecisionDownloads+1);
+console.log('PASS: SRT precision failure preserves state/history and prevents download; speed correction and undo recover.');
+
 // A 60 Hz display must not turn a 30 fps target into ~20 fps through rounding drift.
 vm.runInContext('globalThis.savedDraw=draw;globalThis.frameCount=0;draw=()=>frameCount++;state=initial();timelineCache=null;current=0;lastTick=0;lastDrawTime=-Infinity;playing=true;',context);
 for(let i=1;i<=120;i++)vm.runInContext(`tick(${i*1000/60})`,context);

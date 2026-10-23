@@ -83,6 +83,21 @@ test('ambiguous SRT fails through service and MCP while project JSON retains the
  assert.equal((await f.service.execute('captions.replace',{captions:[{start:1,end:3,text:'first\nsecond'}]})).ok,true);
  assert.equal((await f.service.execute('captions.export')).ok,true,'correction recovers without resetting the service');
 });
+test('rounded SRT timing errors preserve service/MCP state and recover after correcting speed',async()=>{
+ const f=fixture();
+ await f.service.execute('captions.replace',{captions:[{start:1.999,end:4,text:'trimmed speech'}]});
+ await f.service.execute('timeline.replace',{clips:[{start:0,end:2}]});
+ await f.service.execute('project.update',{patch:{speed:4}});
+ const before=structuredClone(f.state),commits=f.commits;
+ const result=await f.service.execute('captions.export');
+ assert.equal(result.ok,false);assert.equal(result.error.code,'INVALID_ARGUMENT');assert.match(result.error.message,/1번째 자막.*밀리초/);
+ const adapter=createMcpToolAdapter({resolveService:async()=>f.service});
+ assert.deepEqual((await adapter.callTool('moment_captions_export',{projectId:'fixture'})).structuredContent,result);
+ assert.deepEqual(readProjectDocument((await f.service.execute('project.get')).data),before);
+ assert.deepEqual(f.state,before);assert.equal(f.commits,commits);
+ await f.service.execute('project.update',{patch:{speed:1}});
+ assert.equal((await f.service.execute('captions.export')).ok,true);
+});
 test('unconfigured media jobs fail explicitly; provider submission/status/cancellation share the contract',async()=>{
  const empty=fixture();assert.equal(empty.service.capabilities().mediaJobs,false);
  assert.equal(empty.service.describe().some(c=>c.name.startsWith('jobs.')),false);
@@ -130,6 +145,16 @@ test('CLI writes real documents/SRT, refuses accidental overwrite, and leaves fa
   }
   assert.equal(await fs.readFile(captions,'utf8'),savedSrt);
   assert.equal(await fs.readFile(invalidFile,'utf8'),savedProject);
+  await assert.rejects(fs.stat(missingOutput),error=>error.code==='ENOENT');
+  invalid.project.speed=4;invalid.project.clips=[{start:0,end:2}];invalid.project.captions=[{start:1.999,end:4,text:'trimmed speech'}];
+  const preciseProject=JSON.stringify(invalid);await fs.writeFile(invalidFile,preciseProject);
+  for(const output of [captions,missingOutput]){
+   const failed=run('exec','captions.export','--project',invalidFile,'--out',output,'--overwrite');
+   assert.equal(failed.status,1);const error=JSON.parse(failed.stderr).error;
+   assert.equal(error.code,'INVALID_ARGUMENT');assert.match(error.message,/밀리초/);
+  }
+  assert.equal(await fs.readFile(captions,'utf8'),savedSrt);
+  assert.equal(await fs.readFile(invalidFile,'utf8'),preciseProject);
   await assert.rejects(fs.stat(missingOutput),error=>error.code==='ENOENT');
  }finally{await fs.rm(directory,{recursive:true,force:true});}
 });

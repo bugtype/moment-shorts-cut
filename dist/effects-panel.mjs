@@ -14,8 +14,10 @@ export function mountEffectsPanel(root, api) {
       ${select('진행 막대 위치','progressPosition',effects.progressPosition,[['top','상단'],['bottom','하단']])}<label class="design-color">막대 색<input type="color" data-effect="progressColor" value="${effects.progressColor}"></label>
       <button class="button full" id="resetEffects">움직임·색감 초기화</button>`;
     target.querySelectorAll('[data-effect]').forEach(input=>{
-      const continuous=['range','color'].includes(input.type);if(continuous)input.onfocus=api.snapshot;
-      input[continuous?'oninput':'onchange']=()=>{if(!continuous)api.snapshot();let value=input.type==='checkbox'?input.checked:input.type==='range'?Number(input.value):input.value;api.update(p=>p.effects[input.dataset.effect]=value);const output=target.querySelector(`[data-effect-output="${input.dataset.effect}"]`);if(output)output.textContent=input.value;};
+      const continuous=['range','color'].includes(input.type);if(continuous&&input.type!=='range')input.onfocus=api.snapshot;
+      const update=()=>{if(!continuous)api.snapshot();let value=input.type==='checkbox'?input.checked:input.type==='range'?Number(input.value):input.value;api.update(p=>p.effects[input.dataset.effect]=value);const output=target.querySelector(`[data-effect-output="${input.dataset.effect}"]`);if(output)output.textContent=input.value;};
+      if(input.type==='range')api.range(input,()=>effects[input.dataset.effect],update);
+      else input[continuous?'oninput':'onchange']=update;
     });
     target.querySelector('#resetEffects').onclick=api.reset;
   } else {
@@ -41,8 +43,8 @@ export function mountEffectsPanel(root, api) {
     if(card){
       target.querySelector('#removeSceneCard').onclick=()=>api.remove(card.id);target.querySelector('#duplicateSceneCard').onclick=()=>api.duplicate(card.id);target.querySelector('#previewSceneCard').onclick=()=>api.play(card.start);
       target.querySelectorAll('[data-card]').forEach(input=>{
-        const continuous=['text','range','color','textarea'].includes(input.type);if(continuous)input.onfocus=api.snapshot;
-        input[continuous?'oninput':'onchange']=()=>{
+        const continuous=['text','range','color','textarea'].includes(input.type);if(continuous&&input.type!=='range')input.onfocus=api.snapshot;
+        const update=()=>{
           const key=input.dataset.card,value=input.type==='checkbox'?input.checked:['range','number'].includes(input.type)?Number(input.value):input.value;
           if(key==='start'||key==='end'){
             const start=key==='start'?value:card.start,end=key==='end'?value:card.end;
@@ -53,6 +55,8 @@ export function mountEffectsPanel(root, api) {
           if (item) { item.querySelector('strong').textContent=`${card.label||'카드'} · ${card.text}`; item.querySelector('small').textContent=`${card.start.toFixed(1)}–${card.end.toFixed(1)}초`; }
           const output=target.querySelector(`[data-card-output="${key}"]`);if(output)output.textContent=input.value;
         };
+        if(input.type==='range')api.range(input,()=>card[input.dataset.card],update);
+        else input[continuous?'oninput':'onchange']=update;
       });
     }
   }

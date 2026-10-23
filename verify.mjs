@@ -4,6 +4,7 @@ import { CommandError } from './dist/core/validation.mjs';
 import { createEditorService } from './dist/integration/editor-service.mjs';
 import * as captionModule from './dist/captions.mjs';
 import { renderCaptionTrack, updateTimelineMarkup } from './dist/timeline-view.mjs';
+import { createRangeHistory } from './dist/range-history.mjs';
 import { createTrack } from './tests/fixtures/timeline-dom.mjs';
 import * as effectsModule from './dist/effects.mjs';
 import * as templateModule from './dist/template-catalog.mjs';
@@ -38,7 +39,7 @@ let canvasCount=0,rafCounter=0;const pendingFrames=new Map();
 Object.assign(element('#captionTrack'),createTrack());
 const documentEvents=new Map();
 const doc={querySelector:element,querySelectorAll:()=>[],addEventListener(name,handler){documentEvents.set(name,handler);},body:element('body'),fonts:{ready:Promise.resolve()},createElement:()=>element('canvas-'+(++canvasCount))};
-const context=vm.createContext({document:doc,window:{addEventListener(){}},Image:class{complete=false;},localStorage:{getItem:()=>null,setItem(){}},requestAnimationFrame(callback){pendingFrames.set(++rafCounter,callback);return rafCounter;},cancelAnimationFrame(id){pendingFrames.delete(id);},setTimeout(){},clearTimeout(){},setInterval(){},clearInterval(){},console,URL,Blob,performance,Number,Math,Promise,structuredClone,...projectModule,prepareCommand,CommandError,createEditorService,...captionModule,renderCaptionTrack,updateTimelineMarkup,...effectsModule,...templateModule,mountTemplateGallery,mountEffectsPanel,...typographyModule,createProjectStore,mountDesignPanel});
+const context=vm.createContext({document:doc,window:{addEventListener(){}},Image:class{complete=false;},localStorage:{getItem:()=>null,setItem(){}},requestAnimationFrame(callback){pendingFrames.set(++rafCounter,callback);return rafCounter;},cancelAnimationFrame(id){pendingFrames.delete(id);},setTimeout(){},clearTimeout(){},setInterval(){},clearInterval(){},console,URL,Blob,performance,Number,Math,Promise,structuredClone,...projectModule,prepareCommand,CommandError,createEditorService,...captionModule,renderCaptionTrack,updateTimelineMarkup,createRangeHistory,...effectsModule,...templateModule,mountTemplateGallery,mountEffectsPanel,...typographyModule,createProjectStore,mountDesignPanel});
 vm.runInContext(source.replace(/^import .*;$/gm,'').replace(/init\(\);\s*$/,'globalThis.ready=init();'),context);
 await context.ready;
 for(const [id,cb] of pendingFrames){pendingFrames.delete(id);cb(performance.now());}
@@ -126,6 +127,28 @@ assert.equal(preventedCaption,false,'Space on a caption must use native button a
 assert.equal(evaluate('playing'),false);
 vm.runInContext('state=initial();timelineCache=null;current=0;changed()',context);
 console.log('PASS: caption occurrence navigation, duplicate text, trim/repeat/narration/speed, deletion/undo, focus and busy guards.');
+
+// All direct range callers share keyboard/pointer history without changing seek semantics.
+vm.runInContext('state=initial();history=[];future=[];rangeHistory.reset();audioFile={name:"synthetic.wav"};switchPanel("audio");switchPanel("settings")',context);
+for(const [id,key,next] of [['zoom','zoom',1.2],['volume','volume',.7],['audioVolume','audioVolume',.6],['mobileZoom','zoom',1.4],['captionSize','captionSize',35],['captionY','captionY',.7],['panelVolume','volume',.5]]){
+ const control=element('#'+id),before=evaluate('state.'+key),count=evaluate('history.length'),step=id==='captionSize'?1:.01;
+ control.value=String(before);control.oninput();assert.equal(evaluate('history.length'),count,'No-op must not add history');
+ control.value=String(next);control.oninput();control.value=String(next+step);control.oninput();
+ assert.equal(evaluate('history.length'),count+1,id+' keyboard inputs form one group');
+ vm.runInContext('undo()',context);assert.equal(evaluate('state.'+key),before);
+ vm.runInContext('undo(true)',context);assert.equal(evaluate('state.'+key),next+step);
+ control.value=String(next+step*2);control.oninput();assert.equal(evaluate('history.length'),count+2,'Undo/redo ends an old group');
+ control.onblur();
+}
+vm.runInContext('state=initial();history=[];future=[];rangeHistory.reset();audioFile=null;changed()',context);
+const zoomControl=element('#zoom');zoomControl.onpointerdown();zoomControl.value='1.5';zoomControl.oninput();zoomControl.value='1.8';zoomControl.oninput();zoomControl.onpointerup();
+assert.equal(evaluate('history.length'),1);vm.runInContext('undo()',context);assert.equal(evaluate('state.zoom'),1);
+zoomControl.onpointerdown();zoomControl.value='1';zoomControl.oninput();zoomControl.onpointerup();assert.equal(evaluate('future.length'),1,'No-op pointer interaction preserves redo');
+zoomControl.value='1.2';zoomControl.oninput();vm.runInContext('edit(()=>state.name="Interleaved")',context);zoomControl.value='1.3';zoomControl.oninput();
+assert.equal(evaluate('history.length'),3,'Another edit ends a range group');
+vm.runInContext('exporting=true',context);zoomControl.value='2';zoomControl.oninput();assert.equal(evaluate('state.zoom'),1.3);
+vm.runInContext('exporting=false;state=initial();history=[];future=[];rangeHistory.reset();current=0;changed()',context);
+console.log('PASS: range history across inspector/audio/mirror controls, no-op/redo, interleaved edits and export guard.');
 
 // Space belongs to focused controls; global playback still works elsewhere.
 function keydown(tagName,key,extra={}){
@@ -341,25 +364,27 @@ console.log('PASS: captions-first layout, empty/add/delete/import focus, timing 
 // Panel controls are exercised with supplied DOM controls (not a browser layout test).
 function control(type,dataset,value){return {type,dataset,value,checked:false,setCustomValidity(message){this.error=message;},reportValidity(){this.reported=true;}};}
 function panelRoot(lists={},byId={}){return {innerHTML:'',querySelectorAll(selector){return lists[selector]||[];},querySelector(selector){return byId[selector]||null;}};}
-const inputs=[control('number',{design:'design.title.start'},'5'),control('number',{design:'design.title.end'},'3'),control('text',{design:'speakerLabels.1'},'인터뷰이'),control('text',{design:'globalKeywords'},'순간, C++')];
+const inputs=[control('number',{design:'design.title.start'},'5'),control('number',{design:'design.title.end'},'3'),control('text',{design:'speakerLabels.1'},'인터뷰이'),control('text',{design:'globalKeywords'},'순간, C++'),control('range',{design:'captionY',unit:'%'},'75')];
 let panelProject=structuredClone(defaults),snapshots=0;
-mountDesignPanel(panelRoot({'[data-design]':inputs}),{state:panelProject,layer:'caption',total:12,snapshot(){snapshots++;},update(fn){fn(panelProject);}});
+const panelRanges=createRangeHistory(()=>snapshots++);
+mountDesignPanel(panelRoot({'[data-design]':inputs}),{state:panelProject,layer:'caption',total:12,snapshot(){snapshots++;},range:panelRanges.bind,update(fn){fn(panelProject);}});
 inputs[0].onchange();assert.equal(panelProject.design.title.start,5);
 inputs[1].onchange();assert.equal(panelProject.design.title.end,null);assert.ok(inputs[1].error);
 inputs[1].value='9';inputs[1].onchange();assert.equal(panelProject.design.title.end,9);assert.equal(inputs[1].error,'');
 inputs[2].onfocus();inputs[2].oninput();assert.equal(panelProject.speakerLabels[1],'인터뷰이');
 inputs[3].oninput();assert.equal(panelProject.globalKeywords,'순간, C++');
+inputs[4].oninput();assert.equal(panelProject.captionY,.75);const rangeSnapshots=snapshots;inputs[4].oninput();assert.equal(snapshots,rangeSnapshots);
 const testCard=effectsModule.newCard(12,2);panelProject.overlays=[testCard];
-const cardInputs=[control('number',{card:'start'},'8'),control('number',{card:'end'},'9'),control('text',{card:'text'},'수정한 카드')];
+const cardInputs=[control('number',{card:'start'},'8'),control('number',{card:'end'},'9'),control('text',{card:'text'},'수정한 카드'),control('range',{card:'size'},'42')];
 const buttons=Object.fromEntries(['#addSceneCard','#toggleSceneLayers','#removeSceneCard','#duplicateSceneCard','#previewSceneCard'].map(id=>[id,{}]));
 const cardRoot=panelRoot({'[data-card]':cardInputs},buttons);
-mountEffectsPanel(panelRoot({}, {'#effectControls':cardRoot}),{state:panelProject,total:12,tab:'cards',selected:testCard.id,snapshot(){snapshots++;},update(fn){fn(panelProject);},add(){},remove(){},duplicate(){},play(){}});
+mountEffectsPanel(panelRoot({}, {'#effectControls':cardRoot}),{state:panelProject,total:12,tab:'cards',selected:testCard.id,snapshot(){snapshots++;},range:panelRanges.bind,update(fn){fn(panelProject);},add(){},remove(){},duplicate(){},play(){}});
 cardInputs[0].onchange();assert.equal(testCard.start,2);assert.ok(cardInputs[0].error);
 cardInputs[1].onchange();cardInputs[0].onchange();assert.equal(testCard.start,8);assert.equal(testCard.end,9);
-cardInputs[2].oninput();assert.equal(testCard.text,'수정한 카드');
+cardInputs[2].oninput();assert.equal(testCard.text,'수정한 카드');cardInputs[3].oninput();assert.equal(testCard.size,42);
 const fxInputs=[control('range',{effect:'brightness'},'1.25'),control('select-one',{effect:'motion'},'out'),control('checkbox',{effect:'progress'},'')];fxInputs[2].checked=true;
-mountEffectsPanel(panelRoot({}, {'#effectControls':panelRoot({'[data-effect]':fxInputs},{'#resetEffects':{}})}),{state:panelProject,total:12,tab:'motion',snapshot(){snapshots++;},update(fn){fn(panelProject);},reset(){}});
-fxInputs[0].onfocus();fxInputs[0].oninput();fxInputs[1].onchange();fxInputs[2].onchange();
+mountEffectsPanel(panelRoot({}, {'#effectControls':panelRoot({'[data-effect]':fxInputs},{'#resetEffects':{}})}),{state:panelProject,total:12,tab:'motion',snapshot(){snapshots++;},range:panelRanges.bind,update(fn){fn(panelProject);},reset(){}});
+fxInputs[0].oninput();fxInputs[1].onchange();fxInputs[2].onchange();
 assert.equal(panelProject.effects.brightness,1.25);assert.equal(panelProject.effects.motion,'out');assert.equal(panelProject.effects.progress,true);
 console.log('PASS: actual panel event handlers, invalid timing rejection and correction, speaker/global keyword edits and motion/color controls.');
 

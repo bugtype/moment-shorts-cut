@@ -205,6 +205,54 @@ assert.match(element('#panelContent').innerHTML,/id="panelVolume"[^>]*value="0.7
 vm.runInContext('state=initial();history=[];future=[];inputHistory.reset();current=0;selected=0;changed()',context);
 console.log('PASS: zoom/volume mirrors sync in both directions without live panel replacement, focus/history changes or pending trim loss; commands, undo, reset, import and absent panels work.');
 
+// Inspector trim fields are drafts until Apply, scoped to the selected clip.
+function trimDraft(start,end){element('#trimStart').value=start;element('#trimEnd').value=end;}
+function assertTrimDraft(start,end){assert.deepEqual([element('#trimStart').value,element('#trimEnd').value],[start,end]);}
+function selectTrimClip(index){
+ const clip={dataset:{clip:String(index)},getBoundingClientRect:()=>({left:0,width:100})};
+ element('#videoTrack').onclick({target:{closest:()=>clip},clientX:0});
+}
+vm.runInContext('state=initial();state.clips=[{start:0,end:4},{start:4,end:12}];selected=0;current=2;history=[];future=[];inputHistory.reset();switchPanel("media");renderInspector();',context);
+trimDraft('1.50','3.50');element('#trimStart').focus();
+const trimClipBefore=evaluate('state.clips');
+zoomControl.value='1.4';zoomControl.oninput();zoomControl.onblur();
+assertTrimDraft('1.50','3.50');assert.equal(doc.activeElement,element('#trimStart'));
+element('#volume').focus();element('#volume').value='.6';element('#volume').oninput();element('#volume').onblur();
+assertTrimDraft('1.50','3.50');assert.deepEqual(evaluate('state.clips'),trimClipBefore);
+for(const [command,args] of [['project.update',{patch:{fit:'contain'}}],['title.update',{patch:{lines:['first','second']}}],['captions.replace',{captions:[{start:0,end:2,text:'caption'}]}]]){
+ assert.equal((await context.window.moment.execute(command,args)).ok,true);
+ assertTrimDraft('1.50','3.50');assert.deepEqual(evaluate('state.clips'),trimClipBefore);
+}
+const trimHistory=evaluate('history.length');
+trimDraft('3','2');element('#trimButton').onclick();
+assertTrimDraft('3','2');assert.equal(evaluate('history.length'),trimHistory);assert.match(element('#toast').textContent,/시작·끝/);
+vm.runInContext('renderInspector()',context);assertTrimDraft('3','2');
+trimDraft('1.5','3.5');vm.runInContext('exporting=true',context);element('#trimButton').onclick();
+assertTrimDraft('1.5','3.5');assert.deepEqual(evaluate('state.clips'),trimClipBefore);assert.equal(evaluate('history.length'),trimHistory);
+vm.runInContext('exporting=false',context);element('#trimButton').onclick();
+assert.deepEqual(evaluate('state.clips[0]'),{start:1.5,end:3.5});assertTrimDraft('1.5','3.5');
+trimDraft('2','3');vm.runInContext('undo()',context);assertTrimDraft('0.0','4.0');
+trimDraft('1','2');vm.runInContext('undo(true)',context);assertTrimDraft('1.5','3.5');
+trimDraft('1.50','3.50');element('#trimButton').onclick();assertTrimDraft('1.5','3.5');
+trimDraft('2','3');selectTrimClip(1);assertTrimDraft('4.0','12.0');selectTrimClip(0);assertTrimDraft('1.5','3.5');
+// Equal bounds must not make two different clips share a draft.
+await context.window.moment.execute('timeline.replace',{clips:[{start:0,end:4},{start:0,end:4}]});
+trimDraft('1','3');selectTrimClip(1);assertTrimDraft('0.0','4.0');
+trimDraft('1','3');element('#moveLeft').onclick();assertTrimDraft('0.0','4.0');
+trimDraft('1','3');element('#deleteButton').onclick();assertTrimDraft('0.0','4.0');
+trimDraft('1','3');vm.runInContext('current=2;split()',context);assertTrimDraft('2.0','4.0');
+trimDraft('2.5','3.5');
+const replacementTrimProject=projectModule.createProjectDocument(evaluate('state'));
+const invalidTrimProject=structuredClone(replacementTrimProject);invalidTrimProject.project.clips=[];
+assert.equal((await context.window.moment.execute('project.import',{document:invalidTrimProject})).ok,false);assertTrimDraft('2.5','3.5');
+assert.equal((await context.window.moment.execute('project.import',{document:replacementTrimProject})).ok,true);
+assertTrimDraft('2.0','4.0');
+trimDraft('2.5','3.5');await context.window.moment.execute('timeline.replace',{clips:evaluate('state.clips')});assertTrimDraft('2.0','4.0');
+trimDraft('2.5','3.5');await context.window.moment.execute('template.apply',{templateId:'clean',withContent:false});assertTrimDraft('2.0','4.0');
+trimDraft('2.5','3.5');vm.runInContext('confirmReset()',context);element('#confirmReset').onclick();assertTrimDraft('0.0','12.0');
+vm.runInContext('state=initial();history=[];future=[];inputHistory.reset();selected=0;current=0;changed()',context);
+console.log('PASS: trim drafts survive unrelated edits and failed/blocked Apply; successful Apply, clip selection/structure, undo/redo and project replacement reset their context.');
+
 // Focusing mounted design text/color controls must leave actual project redo intact.
 const titleInput=element('#titleFirst'),titleColor=element('[data-design="design.title.colors.0"]');
 Object.assign(titleInput,{type:'text',dataset:{design:'design.title.lines.0'},value:'평범했던 하루가',setCustomValidity(){}});

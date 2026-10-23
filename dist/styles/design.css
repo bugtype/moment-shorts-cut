@@ -1,0 +1,463 @@
+/* Typography editor: compact controls, a visible layer model, and export-safe guides. */
+.design-presets {
+  margin-top:24px;
+  padding-top:16px;
+  border-top:1px solid #e6e9e0
+}
+.layout-presets {
+  display:flex;
+  gap:7px;
+  margin-bottom:20px
+}
+.layout-presets>button {
+  flex:1;
+  min-width:0;
+  border:1px solid #dfe5d6;
+  border-radius:7px;
+  padding:5px;
+  background:#fff
+}
+.layout-presets>button:hover {
+  border-color:#f18268;
+  background:#fff6f0
+}
+.layout-presets strong {
+  display:block;
+  font-size:10px;
+  font-weight:500;
+  padding-top:7px;
+  padding-bottom:3px
+}
+.preset-art {
+  display:flex;
+  height:108px;
+  background:#090909;
+  color:white;
+  flex-direction:column;
+  align-items:center;
+  overflow:hidden;
+  position:relative;
+  padding:12px 3px 5px;
+  border-radius:3px
+}
+.preset-art b {
+  z-index:1;
+  font-size:6px;
+  font-style:italic;
+  font-weight:900;
+  line-height:1.6;
+  white-space:nowrap
+}
+.preset-art b:nth-child(2) {
+  color:#b5ff00
+}
+.preset-art i {
+  position:absolute;
+  top:40%;
+  left:0;
+  right:0;
+  height:43%;
+  background:url('./sample.svg') center 54%/100% auto
+}
+.preset-art em {
+  position:absolute;
+  top:59%;
+  font-size:6px;
+  font-weight:900;
+  font-style:italic;
+  text-shadow:1px 1px 1px #000,-1px -1px #000
+}
+.preset-art small {
+  position:absolute;
+  bottom:9%;
+  color:#aaa;
+  font-size:5px
+}
+.preset-art.punch,.preset-art.clean {
+  background:url('./sample.svg') center/cover
+}
+.preset-art.punch b:nth-child(2) {
+  color:#ffd13e
+}
+.preset-art.punch b {
+  text-shadow:1px 1px #000,-1px -1px #000
+}
+.preset-art.punch i,.preset-art.clean i {
+  display:none
+}
+.preset-art.clean b {
+  font-style:normal;
+  font-size:6px
+}
+.preset-art.clean em {
+  top:auto;
+  bottom:20%;
+  font-style:normal
+}
+.layer-tabs {
+  display:flex;
+  gap:1px;
+  border-bottom:1px solid #e6e9e0;
+  margin:0 -3px 17px
+}
+.layer-tabs button {
+  flex:1;
+  font-size:10px;
+  padding:9px 3px 11px;
+  color:#8c967e;
+  border-bottom:2px solid transparent
+}
+.layer-tabs button.active {
+  color:#e86646;
+  border-bottom-color:#f2795a;
+  font-weight:700
+}
+.layer-controls .panel-label {
+  margin-top:14px
+}
+.layer-controls .panel-input {
+  margin-bottom:2px;
+  font-size:12px;
+  padding:10px 8px
+}
+.design-check {
+  display:flex;
+  align-items:center;
+  gap:7px;
+  font-size:11px;
+  margin:13px 0;
+  color:#56634a;
+  cursor:pointer
+}
+.design-check input {
+  accent-color:#e97759;
+  margin:0;
+  width:14px;
+  height:14px
+}
+.design-colors {
+  display:flex;
+  gap:10px;
+  margin-top:12px
+}
+.design-color {
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  font-size:10px;
+  gap:9px;
+  flex:1;
+  color:#828d73;
+  padding:4px 0
+}
+.design-color input {
+  width:29px;
+  height:25px;
+  padding:2px;
+  border:1px solid #dbe3d0;
+  border-radius:4px;
+  cursor:pointer;
+  background:white
+}
+.design-range {
+  display:block;
+  margin:18px 0;
+  color:#768269
+}
+.design-range>span {
+  display:flex;
+  justify-content:space-between;
+  font-size:11px;
+  margin-bottom:10px
+}
+.design-range output {
+  font-size:10px;
+  color:#9aa58a;
+  font-variant-numeric:tabular-nums
+}
+.design-range input {
+  width:100%;
+  margin:0
+}
+.design-divider {
+  height:1px;
+  background:#e5eadc;
+  margin:22px 0 15px
+}
+.layer-explanation {
+  font-size:11px;
+  line-height:1.8;
+  color:#859176;
+  margin-bottom:16px
+}
+.design-style-grid {
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:8px
+}
+.design-style {
+  border:1px solid #e0e6d7;
+  border-radius:6px;
+  padding:10px 5px
+}
+.design-style.active {
+  background:#f1f6e9;
+  border-color:#93a77b
+}
+.design-style span {
+  font-weight:900;
+  font-size:13px;
+  padding:8px 2px;
+  display:block;
+  background:#2d3b2c;
+  color:white;
+  border-radius:3px;
+  font-style:italic;
+  text-shadow:1px 1px #000,-1px -1px #000
+}
+.design-style .style-accent {
+  color:#b5ff00
+}
+.design-style .style-highlight {
+  color:#14230c;
+  background:#b5ff00;
+  text-shadow:none;
+  font-style:normal
+}
+.design-style .style-minimal {
+  font-weight:500;
+  font-style:normal;
+  background:#b2c4a2;
+  text-shadow:none
+}
+.design-style small {
+  display:block;
+  margin-top:8px;
+  color:#8e9b7b;
+  font-size:9px
+}
+.design-footnote {
+  margin-top:20px
+}
+.layer-selection {
+  position:absolute;
+  width:84%;
+  border:1px dashed #d6ff99aa;
+  transform:translate(-50%,-50%);
+  pointer-events:none;
+  z-index:3
+}
+.layer-selection:before {
+  content:attr(data-label);
+  position:absolute;
+  top:-19px;
+  left:-1px;
+  font-size:8px;
+  color:#233820;
+  background:#d6ff99;
+  padding:3px 5px;
+  border-radius:3px 3px 0 0
+}
+.layer-selection:after {
+  content:'';
+  position:absolute;
+  width:5px;
+  height:5px;
+  border:1px solid #cffc9c;
+  background:#364830;
+  bottom:-3px;
+  right:-3px
+}
+.layer-selection[hidden],.safe-guide[hidden] {
+  display:none
+}
+.sample-badge {
+  top:auto;
+  bottom:10px;
+  left:10px;
+  font-size:7px;
+  padding:3px 5px;
+  background:#ffffff25;
+  color:#deded5
+}
+.safe-guide {
+  inset:0;
+  border:0;
+  z-index:5;
+  pointer-events:none
+}
+.safe-guide .safe-top {
+  position:absolute;
+  inset:0 0 auto;
+  height:8%;
+  background:#f9b45c30;
+  color:#f9d095;
+  font-size:8px;
+  display:grid;
+  place-items:center;
+  border-bottom:1px dashed #ffd18b99
+}
+.safe-guide .safe-right {
+  position:absolute;
+  right:0;
+  top:35%;
+  bottom:16%;
+  width:12%;
+  background:#f9b45c28;
+  border-left:1px dashed #ffd18b99;
+  display:flex;
+  flex-direction:column;
+  justify-content:space-evenly;
+  align-items:center
+}
+.safe-right i {
+  font-style:normal;
+  font-size:20px;
+  color:#fff9
+}
+.safe-guide .safe-bottom {
+  position:absolute;
+  bottom:0;
+  left:0;
+  right:0;
+  height:16%;
+  background:#f9b45c30;
+  border-top:1px dashed #ffd18b99;
+  font-size:9px;
+  color:#f9d095;
+  display:grid;
+  place-items:center
+}
+.safe-guide>span {
+  font-size:7px;
+  bottom:17%;
+  left:10px;
+  color:#ffdfb4
+}
+.move-hint {
+  font-size:8px;
+  color:#9ba58c;
+  margin-left:8px
+}
+.timeline {
+  height:258px
+}
+.title-track {
+  height:32px;
+  position:relative;
+  background:#faf8f2;
+  margin-bottom:7px;
+  cursor:pointer;
+  border-radius:4px;
+  overflow:hidden
+}
+.title-track-block {
+  position:absolute;
+  height:14px;
+  top:0;
+  padding:0 6px;
+  background:#e9e0f0;
+  color:#8d719c;
+  font-size:8px;
+  border:1px solid #d9cce4;
+  border-radius:3px;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  text-align:left
+}
+.title-track-block.credit {
+  top:17px;
+  background:#e4e9ed;
+  color:#7a8d9a;
+  border-color:#d2dce2
+}
+.empty-layer-track {
+  font-size:9px;
+  color:#b1a88f;
+  display:block;
+  padding:9px
+}
+.track-labels {
+  gap:8px
+}
+.track-labels>span:first-child {
+  height:26px
+}
+.track-labels>span:nth-child(2) {
+  height:31px
+}
+.track-labels>span:nth-child(3) {
+  height:45px
+}
+.track-labels>span:nth-child(4),.track-labels>span:nth-child(5) {
+  height:29px
+}
+.playhead {
+  left:0;
+  will-change:transform
+}
+.library-panel {
+  scrollbar-width:thin;
+  scrollbar-color:#dfe5d6 transparent
+}
+.library-panel .privacy-note {
+  padding-top:25px
+}
+.canvas-wrap canvas {
+  cursor:move
+}
+@media(max-width:1200px) {
+  .timeline {
+    height:258px
+  }
+  .move-hint {
+    display:none
+  }
+}
+@media(max-width:700px) {
+  .editor-area {
+    height:740px
+  }
+  .library-panel {
+    max-height:740px
+  }
+  .layout-presets {
+    max-width:310px
+  }
+  .preset-art {
+    height:130px
+  }
+  .preset-art b,.preset-art em {
+    font-size:9px
+  }
+  .preset-art small {
+    font-size:7px
+  }
+  .layer-tabs button {
+    font-size:12px
+  }
+  .layer-controls {
+    max-width:460px
+  }
+  .layer-tabs {
+    position:sticky;
+    top:-23px;
+    background:white;
+    z-index:2
+  }
+  .design-range>span,.design-check {
+    font-size:12px
+  }
+  .timeline {
+    height:258px
+  }
+  .stage-title {
+    display:none
+  }
+}
+@media(min-width:981px) {
+  .workspace {
+    min-height:710px
+  }
+}

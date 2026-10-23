@@ -1,0 +1,147 @@
+/* Keep the selected object's controls together; other groups remain one click away. */
+.inspector details.inspector-section {
+  padding:0
+}
+.inspector-section>summary {
+  display:flex;
+  align-items:center;
+  gap:8px;
+  min-height:52px;
+  padding:16px 21px;
+  cursor:pointer;
+  list-style:none;
+  font-size:12px;
+  font-weight:600
+}
+.inspector-section>summary::-webkit-details-marker {
+  display:none
+}
+.inspector-section>summary>[data-icon] {
+  margin-left:auto;
+  display:flex;
+  transform:rotate(-90deg);
+  color:#78816f
+}
+.inspector-section[open]>summary>[data-icon] {
+  transform:rotate(0deg)
+}
+.inspector-section>summary:hover {
+  background:#f7f8f3
+}
+.inspector-section>summary:focus-visible {
+  outline:2px solid var(--accent);
+  outline-offset:-3px
+}
+.inspector-controls {
+  padding:5px 21px 24px
+}
+@media(max-width:1200px) {
+  .inspector-section>summary {
+    padding-inline:15px
+  }
+  .inspector-controls {
+    padding-inline:15px
+  }
+}
+.caption-workspace .panel-heading {
+  margin-bottom:14px
+}
+.caption-workspace>.panel-actions {
+  margin:0 0 12px
+}
+.caption-workspace #captionRows {
+  max-height:52dvh;
+  min-height:80px;
+  overflow-y:auto;
+  scrollbar-width:thin;
+  padding:2px 3px
+}
+.caption-workspace #captionRows:focus-visible {
+  outline:2px solid var(--accent);
+  outline-offset:1px
+}
+.caption-workspace textarea,.caption-workspace #addCaption {
+  scroll-margin:4px
+}
+.caption-workspace .caption-row:first-child {
+  margin-top:0
+}
+.caption-workspace .caption-row:last-child {
+  margin-bottom:0
+}
+.caption-disclosure {
+  border-top:1px solid var(--line);
+  margin-top:14px
+}
+.caption-disclosure>summary {
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  min-height:44px;
+  font-size:11px;
+  font-weight:600;
+  cursor:pointer;
+  list-style:none
+}
+.caption-disclosure>summary::-webkit-details-marker {
+  display:none
+}
+.caption-disclosure>summary:focus-visible {
+  outline:2px solid var(--accent);
+  outline-offset:2px
+}
+.caption-disclosure>summary [data-icon] {
+  display:flex;
+  transform:rotate(-90deg)
+}
+.caption-disclosure[open]>summary [data-icon] {
+  transform:rotate(0deg)
+}
+.caption-disclosure-body {
+  padding:6px 0 12px
+}
+.caption-disclosure .caption-split-tool {
+  margin-top:0
+}
+#asrStatus {
+  font-size:11px;
+  line-height:1.7;
+  color:var(--ink)
+}
+/* Keep essential recovery status visible even when normal header details collapse. */
+body.restore-failed .topbar {
+  height:auto;
+  min-height:78px;
+  flex-wrap:wrap;
+  padding-top:12px;
+  padding-bottom:12px;
+  row-gap:8px
+}
+body.restore-failed .project-title {
+  display:contents
+}
+body.restore-failed #saveStatus {
+  display:flex;
+  order:1;
+  flex-basis:100%;
+  font-size:11px;
+  line-height:1.5;
+  color:#874d32
+}
+body.restore-failed #saveStatus i {
+  flex-shrink:0
+}
+@media(max-width:760px) {
+  body.restore-failed .project-title input {
+    display:none
+  }
+}
+.caption-track-error {
+  display:block;
+  height:100%;
+  overflow:auto;
+  padding:4px 6px;
+  font-size:10px;
+  line-height:20px;
+  color:#874d32
+}

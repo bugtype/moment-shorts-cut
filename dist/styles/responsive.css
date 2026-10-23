@@ -1,0 +1,283 @@
+@media(min-width:1600px) {
+  .workspace {
+    grid-template-columns:82px 300px minmax(350px,1fr) 290px
+  }
+  .library-panel {
+    padding:29px
+  }
+  .inspector-section {
+    padding-left:26px;
+    padding-right:26px
+  }
+  .asset-thumb {
+    height:135px
+  }
+}
+@media(max-width:1200px) {
+  .workspace {
+    grid-template-columns:67px 235px minmax(300px,1fr) 226px
+  }
+  .topbar {
+    gap:16px;
+    padding:0 20px
+  }
+  .library-panel {
+    padding:23px 16px
+  }
+  .inspector-section {
+    padding:17px 15px
+  }
+  .inspector-title {
+    padding-left:15px;
+    padding-right:15px
+  }
+  .stage-title {
+    display:none
+  }
+  .project-title>span {
+    display:none
+  }
+  .timeline-hint {
+    display:none
+  }
+  .timeline-tools>button:nth-last-child(2) {
+    margin-left:auto
+  }
+  .stage-toolbar {
+    padding-left:18px;
+    padding-right:18px
+  }
+  .timeline {
+    height:211px
+  }
+}
+@media(max-width:980px) {
+  .workspace {
+    grid-template-columns:66px 230px minmax(300px,1fr)
+  }
+  .inspector {
+    display:none
+  }
+  .stage {
+    min-height:370px
+  }
+  .workspace {
+    min-height:760px
+  }
+  .canvas-wrap {
+    max-height:620px
+  }
+  .header-divider {
+    display:none
+  }
+  .timeline-hint {
+    display:block
+  }
+  .settings-mirror {
+    display:block
+  }
+}
+@media(max-width:700px) {
+  .topbar {
+    height:66px;
+    padding:0 14px;
+    gap:10px
+  }
+  .brand {
+    font-size:24px
+  }
+  .brand-mark {
+    width:28px;
+    height:29px
+  }
+  .project-title {
+    display:none
+  }
+  .header-actions {
+    gap:7px
+  }
+  .header-actions .subtle,.avatar,#helpButton {
+    display:none
+  }
+  .button.primary {
+    font-size:11px;
+    padding:10px 13px
+  }
+  .workspace {
+    height:auto;
+    min-height:calc(100dvh - 94px);
+    display:grid;
+    grid-template-columns:1fr
+  }
+  .rail {
+    grid-row:1;
+    flex-direction:row;
+    padding:7px 12px;
+    gap:7px;
+    justify-content:space-between;
+    border-bottom:1px solid var(--line);
+    border-right:0
+  }
+  .rail-button {
+    min-height:47px;
+    flex-direction:row;
+    width:auto;
+    padding:0 9px;
+    gap:5px;
+    font-size:9px
+  }
+  .rail-button .icon {
+    width:17px;
+    height:17px
+  }
+  .rail-spacer,.rail-bottom,#resetButton {
+    display:none
+  }
+  .library-panel {
+    grid-row:3;
+    border:0;
+    border-top:1px solid var(--line);
+    max-height:500px;
+    padding:23px 20px
+  }
+  .library-panel .privacy-note {
+    display:none
+  }
+  .editor-area {
+    grid-row:2;
+    height:690px
+  }
+  .stage-toolbar {
+    padding-top:12px
+  }
+  .stage {
+    padding-top:6px
+  }
+  .canvas-wrap {
+    max-height:370px
+  }
+  .timeline {
+    height:210px
+  }
+  .stage {
+    min-height:0
+  }
+  .panel-intro {
+    margin-bottom:15px
+  }
+  .asset-thumb {
+    height:130px
+  }
+  .workflow-note {
+    display:none
+  }
+  .dropzone {
+    padding:17px
+  }
+  .upload-circle {
+    display:none
+  }
+  .formats {
+    margin-bottom:15px
+  }
+  .statusbar {
+    height:28px;
+    padding:0 12px
+  }
+  .statusbar>span:last-child {
+    display:none
+  }
+  .player-bar {
+    padding:0 12px;
+    gap:8px
+  }
+  .timeline-hint {
+    display:none
+  }
+  .stage-title {
+    display:block;
+    font-size:10px
+  }
+  .timecode {
+    font-size:9px;
+    min-width:76px
+  }
+  .toast {
+    bottom:20px;
+    font-size:11px
+  }
+  .library-panel:has(.settings-mirror) {
+    max-height:none
+  }
+}
+@media(prefers-reduced-motion:reduce) {
+  * {
+    transition:none!important;
+    scroll-behavior:auto!important
+  }
+}
+/* Keep secondary Korean copy readable on compact editor panels. */
+.panel-intro {
+  font-size:12px;
+  color:#7f8877
+}
+.section-label {
+  font-size:12px
+}
+.panel-label,.field-label,.slider-label {
+  font-size:11px;
+  color:#78836b
+}
+.formats {
+  font-size:10px;
+  color:#87917b
+}
+.workflow-step {
+  font-size:11px;
+  color:#808b72
+}
+.tiny-note {
+  font-size:9px;
+  color:#8e987e
+}
+.asset-info strong {
+  font-size:11px
+}
+.asset-info small {
+  font-size:10px;
+  color:#8e987f
+}
+.dropzone strong {
+  font-size:13px
+}
+.dropzone p {
+  font-size:11px;
+  color:#89937c
+}
+.rail-button {
+  font-size:11px
+}
+.privacy-note {
+  font-size:10px
+}
+.privacy-note small {
+  font-size:9px
+}
+.caption-style small {
+  font-size:9px
+}
+.caption-style>span {
+  font-size:9px
+}
+.time-fields label {
+  font-size:10px
+}
+.notice {
+  font-size:11px
+}
+.caption-row textarea {
+  font-size:12px
+}
+.button.compact {
+  font-size:11px
+}

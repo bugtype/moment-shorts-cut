@@ -80,7 +80,7 @@ You can also call `window.moment` from the editor page or connect the MCP tool a
 
 **Media stays on your device, but the app is not fully offline.** Fonts load from Google Fonts; automatic captions download code from jsDelivr and model/runtime assets from Hugging Face and related runtime sources. Speech inference runs in a browser worker. See [SECURITY.md](SECURITY.md) for network requests and trust boundaries.
 
-- **Storage:** media is stored in IndexedDB and editing state in localStorage. Storage belongs to the current browser and origin; changing the host or port opens a different storage area. Clearing browser data, private browsing, or storage exhaustion can lose work. There is no cloud sync or remote backup.
+- **Storage:** media is stored in IndexedDB and editing state in localStorage. They are written separately; a failed save can leave them out of sync. Storage belongs to the current browser and origin; changing the host or port opens a different storage area. Clearing browser data, private browsing, or storage exhaustion can lose work. There is no cloud sync or remote backup.
 - **Input limits:** video up to 500 MB, additional audio up to 100 MB, project JSON up to 10 MB, and SRT/VTT up to 2 MB. Subtitles allow at most 10,000 cues and 2,000 characters per cue. These limits do not guarantee enough device memory or codec support.
 - **SRT text:** blank lines separate cues. Export rejects empty cues or blank lines inside an exported caption instead of dropping paragraphs or assigning new times. Remove the blank lines to export SRT; project JSON retains the original text. Ordinary multiline captions are supported, with CRLF/CR normalized to LF in output. Subtitle-player markup support varies; universal compatibility is not claimed.
 - **SRT timing:** timestamps round to milliseconds after trimming and speed changes. Export rejects a cue whose rounded start and end are equal; adjust its interval or playback speed. It does not extend, drop or move cues automatically, and the original project keeps its precise timing.
@@ -103,6 +103,8 @@ node examples/use-editor-service.mjs
 ```
 
 `npm test` runs syntax checks, editor regression checks, and Node tests for CLI file I/O, project validation, MCP request isolation, subtitle parsing, and the local HTTP server. CI is configured for Node 20/22/24 on Linux and Node 24 on Windows; the badge links to actual results.
+
+Storage tests inject synthetic transaction failures to check cancellation, queued retries, and save status. They do not verify real browser quota failures, eviction, or crash recovery.
 
 `dist/` contains the **maintained application source**, not generated build output:
 

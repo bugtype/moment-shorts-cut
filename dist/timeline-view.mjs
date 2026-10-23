@@ -135,17 +135,29 @@ export function createTimelineView($, clock = () => performance.now()) {
         updateTimelineMarkup($('#videoTrack'), clips);
         renderCaptions(state, len);
         const total = len / state.speed;
-        // Aim for a label roughly every 90px; zooming then reveals finer marks.
+        // Aim for a label roughly every 90px; zooming then reveals finer marks,
+        // including sub-second steps once a whole second becomes too coarse.
         const width = $('#tracksArea').clientWidth || 600;
         const target = clamp(Math.round(width / 90), 4, 12);
-        const step = [1, 2, 3, 5, 10, 15, 30, 60, 120, 300, 600].find(value => total / value <= target) || 600;
+        const step = [.1, .2, .5, 1, 2, 3, 5, 10, 15, 30, 60, 120, 300, 600].find(value => total / value <= target) || 600;
+        const decimals = (String(step).split('.')[1] || '').length;
+        const rulerLabel = at => {
+            if (!decimals) return fmt(at);
+            const frac = at.toFixed(decimals).split('.')[1].replace(/0+$/, '');
+            return frac ? `${fmt(Math.floor(at + 1e-9))}.${frac}` : fmt(at);
+        };
         const marks = [];
-        for (let at = 0; at < total - 1e-6; at += step)
-            marks.push(at);
-        if (total > 0)
-            marks.push(total);
+        const count = Math.floor(total / step + 1e-9);
+        for (let i = 0; i < count; i++)
+            marks.push(i * step);
+        // Only a round multiple earns the closing label; a floored label at the
+        // right edge would claim a time the project does not actually end on.
+        if (total > 0 && Math.abs(total - count * step) < 1e-6)
+            marks.push(count * step);
+        if (!marks.length)
+            marks.push(0);
         $('#ruler').innerHTML = marks.map(at =>
-            `<span style="left:${total > 0 ? at / total * 100 : 0}%">${fmt(at)}</span>`
+            `<span style="left:${total > 0 ? Number((at / total * 100).toFixed(4)) : 0}%">${rulerLabel(at)}</span>`
         ).join('');
         $('#audioTrack').classList.toggle('has-audio', hasAudio);
         $('#audioTrack').textContent = hasAudio ? `♫ ${state.audioName} · ${(state.audioOffset / state.speed).toFixed(1)}초부터` : '+ 오디오를 추가해 보세요';

@@ -107,6 +107,25 @@ test('ruler labels land on round intervals without repeating', () => {
   view.render(state, 120, { selected: 0, thumbnail: '', hasAudio: false });
   assert.equal(labels().length, 13);
   assert.equal(labels()[1], '00:10');
+
+  // Once zoom makes a second too coarse, the ruler reveals sub-second marks.
+  state.clips = [{ start: 0, end: .8 }];
+  state.speed = 1;
+  query('#tracksArea').clientWidth = 600;
+  view.render(state, .8, { selected: 0, thumbnail: '', hasAudio: false });
+  assert.deepEqual(labels(), ['00:00', '00:00.2', '00:00.4', '00:00.6', '00:00.8']);
+  assert.deepEqual(lefts(), ['0', '25', '50', '75', '100']);
+  query('#tracksArea').clientWidth = 2400;
+  view.render(state, .8, { selected: 0, thumbnail: '', hasAudio: false });
+  assert.equal(labels().length, 9);
+  assert.equal(labels()[1], '00:00.1');
+
+  // A project that ends between marks keeps every label on a round time.
+  state.clips = [{ start: 0, end: 12.5 }];
+  query('#tracksArea').clientWidth = 600;
+  view.render(state, 12.5, { selected: 0, thumbnail: '', hasAudio: false });
+  assert.deepEqual(labels(), ['00:00', '00:02', '00:04', '00:06', '00:08', '00:10']);
+  assert.deepEqual(lefts(), ['0', '16', '32', '48', '64', '80']);
 });
 
 test('timeline presentation retains occurrence nodes and edits only display state', () => {

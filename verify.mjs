@@ -652,7 +652,7 @@ console.log('PASS: ASR validation preserves prior state/redo/save on invalid chu
 
 // Synthetic delayed worker/decode responses; no model, real audio or storage.
 const asrWorkers=[];let workerPosted;
-context.Worker=class {constructor(){asrWorkers.push(this);}postMessage(){workerPosted(this);}terminate(){this.terminated=true;}};
+context.Worker=class {constructor(){asrWorkers.push(this);}postMessage(){workerPosted(this);}terminate(){this.terminated=true;this.terminateCalls=(this.terminateCalls||0)+1;}};
 context.AudioContext=class {async decodeAudioData(){return {duration:1};}async close(){}};
 context.asrSourceFile={name:'synthetic.wav',arrayBuffer:async()=>new ArrayBuffer(0)};
 vm.runInContext('globalThis.asrScheduleSave=scheduleSave;globalThis.asrSaves=0;scheduleSave=()=>asrSaves++;',context);
@@ -709,16 +709,42 @@ assert.deepEqual(asrSnapshot(),decodeBefore);assert.equal(asrWorkers.length,work
 // Provider-reported errors leave the job retryable without applying any result.
 for(const failure of ['message','worker']){
  resetAsr();const task=await startAsr('video'),before=asrSnapshot();
+ const oldMessage=task.worker.onmessage,oldError=task.worker.onerror,oldReject=vm.runInContext('pendingTranscriptionReject',context);
  if(failure==='message')task.worker.onmessage({data:{type:'error',message:'synthetic provider failure'}});else task.worker.onerror();
  await task.pending;assert.deepEqual(asrSnapshot(),before);assert.equal(evaluate('transcribing'),false);
- if(failure==='message'){const retry=await startAsr('video');asrResult(retry.worker,'retried');await retry.pending;assert.equal(evaluate('state.captions[0].text'),'retried');}
+ if(failure==='worker'){assert.equal(task.worker.terminateCalls,1);assert.equal(vm.runInContext('recognitionWorker',context),null);oldError();assert.equal(task.worker.terminateCalls,1);}
+ else{assert.equal(task.worker.terminateCalls,undefined);assert.equal(vm.runInContext('recognitionWorker',context),task.worker);}
+ const retry=await startAsr('video');assert.equal(retry.worker===task.worker,failure==='message');
+ const status=evaluate('transcriptionStatus');oldMessage({data:{type:'progress',message:'stale progress'}});oldMessage({data:{type:'result',result:{text:'stale result'}}});oldError();oldReject(new Error('stale cancellation'));
+ assert.equal(evaluate('transcriptionStatus'),status);assert.equal(evaluate('transcribing'),true);assert.equal(vm.runInContext('recognitionWorker',context),retry.worker);
+ assert.deepEqual(asrSnapshot(),before);assert.equal(retry.worker.terminated,undefined);
+ asrResult(retry.worker,'retried');await retry.pending;assert.equal(evaluate('state.captions[0].text'),'retried');
+}
+// Healthy completed workers are reused; an idle native failure retires the cache.
+resetAsr();const healthy=await startAsr('video');asrResult(healthy.worker);await healthy.pending;
+const warm=await startAsr('video');assert.equal(warm.worker,healthy.worker);asrResult(warm.worker,'warm result');await warm.pending;
+const idleBefore=asrSnapshot(),idleFailure=warm.worker.onerror;idleFailure();idleFailure();
+assert.deepEqual(asrSnapshot(),idleBefore);assert.equal(warm.worker.terminateCalls,1);assert.equal(vm.runInContext('recognitionWorker',context),null);
+const afterIdle=await startAsr('video');assert.notEqual(afterIdle.worker,warm.worker);idleFailure();
+assert.equal(vm.runInContext('recognitionWorker',context),afterIdle.worker);asrResult(afterIdle.worker);await afterIdle.pending;
+// Startup and synchronous transport failures never leave an unusable cached worker.
+const workingWorker=context.Worker;
+for(const failure of ['constructor','postMessage']){
+ resetAsr();const before=asrSnapshot(),count=asrWorkers.length;
+ context.Worker=failure==='constructor'?class {constructor(){throw new Error('synthetic constructor failure');}}:class extends workingWorker {postMessage(){throw new Error('synthetic postMessage failure');}};
+ element('#captionSource').value='video';await vm.runInContext('generateCaptions()',context);
+ assert.deepEqual(asrSnapshot(),before);assert.equal(evaluate('transcribing'),false);assert.equal(vm.runInContext('recognitionWorker',context),null);
+ if(failure==='postMessage')assert.equal(asrWorkers.at(-1).terminateCalls,1);else assert.equal(asrWorkers.length,count);
+ context.Worker=workingWorker;const retry=await startAsr('video');asrResult(retry.worker);await retry.pending;assert.equal(evaluate('state.captions[0].text'),'recognized');
 }
 // A second request cancels, never creates concurrent work. Late old results stay inert.
-resetAsr();const cancelled=await startAsr('video'),cancelBefore=asrSnapshot(),lateResult=cancelled.worker.onmessage;
+resetAsr();const cancelled=await startAsr('video'),cancelBefore=asrSnapshot(),lateResult=cancelled.worker.onmessage,lateError=cancelled.worker.onerror;
 await vm.runInContext('generateCaptions()',context);await cancelled.pending;
 assert.equal(cancelled.worker.terminated,true);assert.deepEqual(asrSnapshot(),cancelBefore);
 const retryAfterCancel=await startAsr('video');assert.notEqual(retryAfterCancel.worker,cancelled.worker);
 lateResult({data:{type:'result',result:{text:'stale cancelled result'}}});assert.deepEqual(asrSnapshot(),cancelBefore);
+const retryStatus=evaluate('transcriptionStatus');lateResult({data:{type:'progress',message:'cancelled progress'}});lateError();
+assert.equal(evaluate('transcriptionStatus'),retryStatus);assert.equal(vm.runInContext('recognitionWorker',context),retryAfterCancel.worker);assert.equal(cancelled.worker.terminateCalls,1);
 asrResult(retryAfterCancel.worker,'new job');await retryAfterCancel.pending;assert.equal(evaluate('state.captions[0].text'),'new job');
 // Cancel can arrive after the result promise resolves but before it is consumed.
 resetAsr();const resolved=await startAsr('video'),resolvedBefore=asrSnapshot();
@@ -726,6 +752,7 @@ asrResult(resolved.worker);await vm.runInContext('generateCaptions()',context);a
 assert.deepEqual(asrSnapshot(),resolvedBefore);assert.match(element('#toast').textContent,/취소/);
 vm.runInContext('scheduleSave=asrScheduleSave;',context);
 console.log('PASS: synthetic ASR conflicts preserve edits/history/redo/saves; source removal, time maps, decode/worker delays, cancellation/late responses, provider errors, retry and unaffected appearance edits are covered.');
+console.log('PASS: synthetic worker startup/native/postMessage failures retire only their instance; explicit retry, warm reuse, job errors, idle failure and stale message/error/reject callbacks preserve state.');
 vm.runInContext('videoFile=null;audioFile=null;recognitionWorker=null',context);
 delete context.AudioContext;delete context.OfflineAudioContext;delete context.Worker;delete context.captionTestFile;delete context.captionTestChunks;
 vm.runInContext('state=initial();timelineCache=null;history=[];future=[];renderPanel()',context);

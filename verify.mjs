@@ -151,6 +151,60 @@ vm.runInContext('exporting=true',context);zoomControl.value='2';zoomControl.onin
 vm.runInContext('exporting=false;state=initial();history=[];future=[];inputHistory.reset();current=0;changed()',context);
 console.log('PASS: range history across inspector/audio/mirror controls, no-op/redo, interleaved edits and export guard.');
 
+// Live mirrors must share the model without rebuilding focused settings controls.
+vm.runInContext('state=initial();state.clips=[{start:0,end:4},{start:4,end:12}];selected=1;current=5;history=[];future=[];inputHistory.reset();switchPanel("settings");renderInspector();',context);
+const mirrorZoom=element('#mobileZoom'),mirrorVolume=element('#panelVolume');
+// This fixture does not parse native input values from generated HTML.
+mirrorZoom.value='1';mirrorVolume.value='1';
+const settingsMarkup=element('#panelContent').innerHTML,mirrorHandlers=[mirrorZoom.oninput,mirrorVolume.oninput];
+element('#panelTrimStart').value='4.5';element('#panelTrimEnd').value='11.5';
+function assertRangeCopies(zoom,volume){
+ assert.deepEqual([Number(element('#zoom').value),Number(mirrorZoom.value),Number(element('#volume').value),Number(mirrorVolume.value)],[zoom,zoom,volume,volume]);
+ assert.deepEqual(evaluate('[state.zoom,state.volume]'),[zoom,volume]);
+}
+zoomControl.focus();zoomControl.value='1.5';zoomControl.oninput();zoomControl.value='1.75';zoomControl.oninput();
+assertRangeCopies(1.75,1);assert.equal(evaluate('history.length'),1);
+assert.equal(doc.activeElement,zoomControl);zoomControl.onblur();
+mirrorVolume.focus();mirrorVolume.onpointerdown();mirrorVolume.value='.5';mirrorVolume.oninput();mirrorVolume.value='.35';mirrorVolume.oninput();mirrorVolume.onpointerup();
+assertRangeCopies(1.75,.35);assert.equal(evaluate('history.length'),2);
+assert.equal(doc.activeElement,mirrorVolume);
+assert.equal(element('#panelContent').innerHTML,settingsMarkup,'live sync must not rebuild the panel');
+assert.deepEqual([mirrorZoom.oninput,mirrorVolume.oninput],mirrorHandlers);
+assert.deepEqual([element('#panelTrimStart').value,element('#panelTrimEnd').value],['4.5','11.5']);
+assert.deepEqual(evaluate('[selected,current]'),[1,5]);
+vm.runInContext('undo()',context);assertRangeCopies(1.75,1);
+const mirrorHistory=evaluate('[history.length,future.length]');
+const mirrorValueDescriptor=Object.getOwnPropertyDescriptor(mirrorVolume,'value');
+let mirrorValue=mirrorVolume.value,mirrorWrites=0;
+Object.defineProperty(mirrorVolume,'value',{configurable:true,get:()=>mirrorValue,set:value=>{mirrorValue=value;mirrorWrites++;}});
+vm.runInContext('renderInspector();renderInspector();',context);
+assert.equal(mirrorWrites,0,'unchanged mirror values should not be assigned again');
+Object.defineProperty(mirrorVolume,'value',{...mirrorValueDescriptor,value:mirrorValue});
+assert.deepEqual(evaluate('[history.length,future.length]'),mirrorHistory);
+vm.runInContext('undo(true)',context);assertRangeCopies(1.75,.35);
+mirrorZoom.focus();mirrorZoom.value='2';mirrorZoom.oninput();mirrorZoom.value='2.25';mirrorZoom.oninput();mirrorZoom.onblur();
+assertRangeCopies(2.25,.35);assert.equal(evaluate('history.length'),3);
+element('#volume').onpointerdown();element('#volume').value='.6';element('#volume').oninput();element('#volume').onpointerup();
+assertRangeCopies(2.25,.6);assert.equal(evaluate('history.length'),4);
+assert.equal((await context.window.moment.execute('project.update',{patch:{zoom:1.6,volume:.4}})).ok,true);
+assertRangeCopies(1.6,.4);
+element('#resetPosition').onclick();assertRangeCopies(1,.4);
+const mirrorImport=projectModule.createProjectDocument(projectModule.createDemoProject());
+mirrorImport.project.zoom=2.1;mirrorImport.project.volume=.2;
+assert.equal((await context.window.moment.execute('project.import',{document:mirrorImport})).ok,true);
+assertRangeCopies(2.1,.2);
+vm.runInContext('confirmReset()',context);element('#confirmReset').onclick();assertRangeCopies(1,1);
+const mirrorQueries=doc.querySelector;
+doc.querySelector=selector=>['#mobileZoom','#panelVolume'].includes(selector)?null:mirrorQueries(selector);
+assert.doesNotThrow(()=>vm.runInContext('switchPanel("media");renderInspector();',context));
+assert.equal((await context.window.moment.execute('project.update',{patch:{zoom:1.3,volume:.7}})).ok,true);
+doc.querySelector=mirrorQueries;
+vm.runInContext('switchPanel("settings");renderInspector();',context);assertRangeCopies(1.3,.7);
+assert.match(element('#panelContent').innerHTML,/id="mobileZoom"[^>]*value="1.3"/);
+assert.match(element('#panelContent').innerHTML,/id="panelVolume"[^>]*value="0.7"/);
+vm.runInContext('state=initial();history=[];future=[];inputHistory.reset();current=0;selected=0;changed()',context);
+console.log('PASS: zoom/volume mirrors sync in both directions without live panel replacement, focus/history changes or pending trim loss; commands, undo, reset, import and absent panels work.');
+
 // Focusing mounted design text/color controls must leave actual project redo intact.
 const titleInput=element('#titleFirst'),titleColor=element('[data-design="design.title.colors.0"]');
 Object.assign(titleInput,{type:'text',dataset:{design:'design.title.lines.0'},value:'평범했던 하루가',setCustomValidity(){}});

@@ -1,3 +1,4 @@
+import { createTranscriptionClient } from '../../dist/transcription-client.mjs';
 import * as panelMarkup from '../../dist/panel-markup.mjs';
 import { icon, esc, fmt } from '../../dist/ui-format.mjs';
 import * as projectModule from '../../dist/core/project.mjs';
@@ -96,7 +97,7 @@ export async function createAppFixture() {
     renderCaptionTrack, renderCaptionTrackError, updateTimelineMarkup, createInputHistory,
     ...effectsModule, ...templateModule, readTemplateLibrary, validateTemplateLibrary,
     mountTemplateGallery, mountEffectsPanel, ...typographyModule, createCompositionRenderer,
-    createProjectStore, mountDesignPanel, ...panelMarkup, icon, esc, fmt,
+    createProjectStore, createTranscriptionClient, mountDesignPanel, ...panelMarkup, icon, esc, fmt,
   });
   vm.runInContext(source.replace(/^import .*;$/gm,'').replace(/init\(\);\s*$/,'globalThis.ready=init();'),context);
   await context.ready;

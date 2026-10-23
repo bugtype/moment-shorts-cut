@@ -168,10 +168,10 @@ test('caption workspace, budgets and asynchronous recognition lifecycle', async 
   context.AudioContext=class {async decodeAudioData(){return {duration:1};}async close(){}};
   context.OfflineAudioContext=class {createBufferSource(){return {connect(){},start(){}};}async startRendering(){return {getChannelData:()=>new Float32Array([.1])};}};
   context.captionTestFile={arrayBuffer:async()=>new ArrayBuffer(0)};
-  context.Worker=class {postMessage(){queueMicrotask(()=>this.onmessage({data:{type:'result',result:context.captionTestResult??{chunks:context.captionTestChunks}}}));}};
+  context.Worker=class {constructor(){context.captionTestWorker=this;}terminate(){}postMessage(){queueMicrotask(()=>this.onmessage({data:{type:'result',result:context.captionTestResult??{chunks:context.captionTestChunks}}}));}};
   for(const source of ['video','audio'])for(const count of [captionModule.MAX_CAPTIONS,captionModule.MAX_CAPTIONS+1]){
    setCaptionLimitFixture([shortLimitCaption]);
-   vm.runInContext('videoFile=captionTestFile;audioFile=captionTestFile;recognitionWorker=null',context);
+   vm.runInContext('videoFile=captionTestFile;audioFile=captionTestFile;transcription.cancel()',context);
    element('#captionSource').value=source;
    context.captionTestChunks=Array.from({length:count},()=>({timestamp:[0,1],text:'인식된 자막'}));
    const before=evaluate('({state,history,future})'),timer=vm.runInContext('saveTimer',context);
@@ -199,13 +199,13 @@ test('caption workspace, budgets and asynchronous recognition lifecycle', async 
   for(const source of ['video','audio']){
    for(const result of invalidAsrResults){
     setCaptionLimitFixture([shortLimitCaption]);
-    vm.runInContext('videoFile=captionTestFile;audioFile=captionTestFile;state.audioOffset=2;recognitionWorker=null',context);
+    vm.runInContext('videoFile=captionTestFile;audioFile=captionTestFile;state.audioOffset=2;transcription.cancel()',context);
     element('#captionSource').value=source;context.captionTestResult=result;
     const before=evaluate('({state,history,future})'),timer=vm.runInContext('saveTimer',context);
     await vm.runInContext('generateCaptions()',context);
     assert.deepEqual(evaluate('({state,history,future})'),before,`${source}: invalid ASR must keep the entire previous state`);
     assert.equal(vm.runInContext('saveTimer',context),timer);
-    assert.equal(evaluate('transcribing'),false);assert.equal(vm.runInContext('pendingTranscriptionReject',context),null);
+    assert.equal(evaluate('transcribing'),false);assert.equal(context.captionTestWorker.onmessage,null);
     assert.doesNotMatch(element('#toast').textContent,/개의 자막을 생성/);
     assert.deepEqual(projectModule.readProjectDocument(projectModule.createProjectDocument(evaluate('state'))),before.state);
     // Retry on the existing worker, then check exact mapped payload and undo metadata.
@@ -224,7 +224,7 @@ test('caption workspace, budgets and asynchronous recognition lifecycle', async 
    for(const text of ['a'.repeat(2000),'한'.repeat(2000),'🎬'.repeat(1000),'e\u0301'.repeat(1000)]){
     for(const fallback of [false,true]){
      setCaptionLimitFixture([shortLimitCaption]);
-     vm.runInContext('videoFile=captionTestFile;audioFile=captionTestFile;state.audioOffset=2;recognitionWorker=null',context);
+     vm.runInContext('videoFile=captionTestFile;audioFile=captionTestFile;state.audioOffset=2;transcription.cancel()',context);
      element('#captionSource').value=source;
      context.captionTestResult=fallback?{chunks:[],text}:{chunks:[{timestamp:[0,null],text}]};
      await vm.runInContext('generateCaptions()',context);
@@ -236,7 +236,7 @@ test('caption workspace, budgets and asynchronous recognition lifecycle', async 
   }
   // Canonical source bounds still reject a finite cue extending beyond the source.
   setCaptionLimitFixture([shortLimitCaption]);
-  vm.runInContext('videoFile=captionTestFile;recognitionWorker=null',context);element('#captionSource').value='video';
+  vm.runInContext('videoFile=captionTestFile;transcription.cancel()',context);element('#captionSource').value='video';
   context.captionTestResult={chunks:[{timestamp:[0,13],text:'outside source'}]};
   const beforeOutOfBounds=evaluate('({state,history,future})');
   await vm.runInContext('generateCaptions()',context);assert.deepEqual(evaluate('({state,history,future})'),beforeOutOfBounds);
@@ -254,7 +254,7 @@ test('caption workspace, budgets and asynchronous recognition lifecycle', async 
   context.AudioContext=class {async decodeAudioData(){return {duration:1};}async close(){}};
   context.asrSourceFile={name:'synthetic.wav',arrayBuffer:async()=>new ArrayBuffer(0)};
   vm.runInContext('globalThis.asrScheduleSave=scheduleSave;globalThis.asrSaves=0;scheduleSave=()=>asrSaves++;',context);
-  function resetAsr(){vm.runInContext('state=initial();state.audioName=asrSourceFile.name;state.audioOffset=2;timelineCache=null;history=[];future=[JSON.stringify(state)];current=0;selected=0;videoFile=asrSourceFile;audioFile=asrSourceFile;recognitionWorker=null;transcribing=false;asrSaves=0;saveTimer={pending:true};panel="captions";renderPanel();',context);}
+  function resetAsr(){vm.runInContext('state=initial();state.audioName=asrSourceFile.name;state.audioOffset=2;timelineCache=null;history=[];future=[JSON.stringify(state)];current=0;selected=0;videoFile=asrSourceFile;audioFile=asrSourceFile;transcription.cancel();transcribing=false;asrSaves=0;saveTimer={pending:true};panel="captions";renderPanel();',context);}
   async function startAsr(source){
    element('#captionSource').value=source;
    const posted=new Promise(resolve=>{workerPosted=resolve;});
@@ -282,7 +282,7 @@ test('caption workspace, budgets and asynchronous recognition lifecycle', async 
     asrResult(task.worker);await task.pending;
     assert.deepEqual(asrSnapshot(),before,`${source}: conflict preserves current edits/history/redo/saves`);
     assert.equal(vm.runInContext('saveTimer',context),timer);assert.match(element('#toast').textContent,/변경되어/);
-    assert.equal(evaluate('transcribing'),false);assert.equal(vm.runInContext('pendingTranscriptionReject',context),null);
+    assert.equal(evaluate('transcribing'),false);assert.equal(asrWorkers.at(-1).onmessage,null);
    }
    resetAsr();const allowed=await startAsr(source);
    vm.runInContext('edit(()=>{state.zoom=1.5;state.volume=.4;state.captionColor="#123456";});current=2;',context);
@@ -307,14 +307,14 @@ test('caption workspace, budgets and asynchronous recognition lifecycle', async 
   // Provider-reported errors leave the job retryable without applying any result.
   for(const failure of ['message','worker']){
    resetAsr();const task=await startAsr('video'),before=asrSnapshot();
-   const oldMessage=task.worker.onmessage,oldError=task.worker.onerror,oldReject=vm.runInContext('pendingTranscriptionReject',context);
+   const oldMessage=task.worker.onmessage,oldError=task.worker.onerror;
    if(failure==='message')task.worker.onmessage({data:{type:'error',message:'synthetic provider failure'}});else task.worker.onerror();
    await task.pending;assert.deepEqual(asrSnapshot(),before);assert.equal(evaluate('transcribing'),false);
-   if(failure==='worker'){assert.equal(task.worker.terminateCalls,1);assert.equal(vm.runInContext('recognitionWorker',context),null);oldError();assert.equal(task.worker.terminateCalls,1);}
-   else{assert.equal(task.worker.terminateCalls,undefined);assert.equal(vm.runInContext('recognitionWorker',context),task.worker);}
+   if(failure==='worker'){assert.equal(task.worker.terminateCalls,1);assert.equal(task.worker.onmessage,null);oldError();assert.equal(task.worker.terminateCalls,1);}
+   else{assert.equal(task.worker.terminateCalls,undefined);assert.equal(task.worker.onmessage,null);}
    const retry=await startAsr('video');assert.equal(retry.worker===task.worker,failure==='message');
-   const status=evaluate('transcriptionStatus');oldMessage({data:{type:'progress',message:'stale progress'}});oldMessage({data:{type:'result',result:{text:'stale result'}}});oldError();oldReject(new Error('stale cancellation'));
-   assert.equal(evaluate('transcriptionStatus'),status);assert.equal(evaluate('transcribing'),true);assert.equal(vm.runInContext('recognitionWorker',context),retry.worker);
+   const status=evaluate('transcriptionStatus');oldMessage({data:{type:'progress',message:'stale progress'}});oldMessage({data:{type:'result',result:{text:'stale result'}}});oldError();
+   assert.equal(evaluate('transcriptionStatus'),status);assert.equal(evaluate('transcribing'),true);assert.equal(typeof retry.worker.onmessage,'function');
    assert.deepEqual(asrSnapshot(),before);assert.equal(retry.worker.terminated,undefined);
    asrResult(retry.worker,'retried');await retry.pending;assert.equal(evaluate('state.captions[0].text'),'retried');
   }
@@ -322,16 +322,16 @@ test('caption workspace, budgets and asynchronous recognition lifecycle', async 
   resetAsr();const healthy=await startAsr('video');asrResult(healthy.worker);await healthy.pending;
   const warm=await startAsr('video');assert.equal(warm.worker,healthy.worker);asrResult(warm.worker,'warm result');await warm.pending;
   const idleBefore=asrSnapshot(),idleFailure=warm.worker.onerror;idleFailure();idleFailure();
-  assert.deepEqual(asrSnapshot(),idleBefore);assert.equal(warm.worker.terminateCalls,1);assert.equal(vm.runInContext('recognitionWorker',context),null);
+  assert.deepEqual(asrSnapshot(),idleBefore);assert.equal(warm.worker.terminateCalls,1);assert.equal(warm.worker.onmessage,null);
   const afterIdle=await startAsr('video');assert.notEqual(afterIdle.worker,warm.worker);idleFailure();
-  assert.equal(vm.runInContext('recognitionWorker',context),afterIdle.worker);asrResult(afterIdle.worker);await afterIdle.pending;
+  assert.equal(typeof afterIdle.worker.onmessage,'function');asrResult(afterIdle.worker);await afterIdle.pending;
   // Startup and synchronous transport failures never leave an unusable cached worker.
   const workingWorker=context.Worker;
   for(const failure of ['constructor','postMessage']){
    resetAsr();const before=asrSnapshot(),count=asrWorkers.length;
    context.Worker=failure==='constructor'?class {constructor(){throw new Error('synthetic constructor failure');}}:class extends workingWorker {postMessage(){throw new Error('synthetic postMessage failure');}};
    element('#captionSource').value='video';await vm.runInContext('generateCaptions()',context);
-   assert.deepEqual(asrSnapshot(),before);assert.equal(evaluate('transcribing'),false);assert.equal(vm.runInContext('recognitionWorker',context),null);
+   assert.deepEqual(asrSnapshot(),before);assert.equal(evaluate('transcribing'),false);
    if(failure==='postMessage')assert.equal(asrWorkers.at(-1).terminateCalls,1);else assert.equal(asrWorkers.length,count);
    context.Worker=workingWorker;const retry=await startAsr('video');asrResult(retry.worker);await retry.pending;assert.equal(evaluate('state.captions[0].text'),'recognized');
   }
@@ -342,7 +342,7 @@ test('caption workspace, budgets and asynchronous recognition lifecycle', async 
   const retryAfterCancel=await startAsr('video');assert.notEqual(retryAfterCancel.worker,cancelled.worker);
   lateResult({data:{type:'result',result:{text:'stale cancelled result'}}});assert.deepEqual(asrSnapshot(),cancelBefore);
   const retryStatus=evaluate('transcriptionStatus');lateResult({data:{type:'progress',message:'cancelled progress'}});lateError();
-  assert.equal(evaluate('transcriptionStatus'),retryStatus);assert.equal(vm.runInContext('recognitionWorker',context),retryAfterCancel.worker);assert.equal(cancelled.worker.terminateCalls,1);
+  assert.equal(evaluate('transcriptionStatus'),retryStatus);assert.equal(typeof retryAfterCancel.worker.onmessage,'function');assert.equal(cancelled.worker.terminateCalls,1);
   asrResult(retryAfterCancel.worker,'new job');await retryAfterCancel.pending;assert.equal(evaluate('state.captions[0].text'),'new job');
   // Cancel can arrive after the result promise resolves but before it is consumed.
   resetAsr();const resolved=await startAsr('video'),resolvedBefore=asrSnapshot();
@@ -350,8 +350,8 @@ test('caption workspace, budgets and asynchronous recognition lifecycle', async 
   assert.deepEqual(asrSnapshot(),resolvedBefore);assert.match(element('#toast').textContent,/취소/);
   vm.runInContext('scheduleSave=asrScheduleSave;',context);
   console.log('PASS: synthetic ASR conflicts preserve edits/history/redo/saves; source removal, time maps, decode/worker delays, cancellation/late responses, provider errors, retry and unaffected appearance edits are covered.');
-  console.log('PASS: synthetic worker startup/native/postMessage failures retire only their instance; explicit retry, warm reuse, job errors, idle failure and stale message/error/reject callbacks preserve state.');
-  vm.runInContext('videoFile=null;audioFile=null;recognitionWorker=null',context);
+  console.log('PASS: synthetic worker startup/native/postMessage failures retire only their instance; explicit retry, warm reuse, job errors, idle failure and stale message/error callbacks preserve state.');
+  vm.runInContext('videoFile=null;audioFile=null;transcription.cancel()',context);
   delete context.AudioContext;delete context.OfflineAudioContext;delete context.Worker;delete context.captionTestFile;delete context.captionTestChunks;
   vm.runInContext('state=initial();timelineCache=null;history=[];future=[];renderPanel()',context);
   delete context.captionLimitFixture;

@@ -1,3 +1,4 @@
+import { createTranscriptionClient } from './transcription-client.mjs';
 import { icon, esc, fmt } from './ui-format.mjs';
 import { captionsPanelMarkup, mediaPanelMarkup, audioPanelMarkup, settingsPanelMarkup } from './panel-markup.mjs';
 import { createDemoProject, createProjectDocument, srtTimestamp, projectSrt, readProjectDocument, MAX_CLIPS } from './core/project.mjs';
@@ -30,7 +31,7 @@ function clamp(v, a, b) {
 function initial() {
     return createDemoProject();
 }
-let state = initial(), current = 0, selected = 0, playing = false, panel = 'templates', textLayer = 'title', videoFile = null, audioFile = null, sourceURL = '', audioURL = '', thumbnail = '', history = [], future = [], exporting = false, muted = false, record = null, recognitionWorker = null, pendingTranscriptionReject = null, transcriptionCancelled = false, transcribing = false, transcriptionStatus = '', saveTimer, recordTimer, pendingSave = Promise.resolve();
+let state = initial(), current = 0, selected = 0, playing = false, panel = 'templates', textLayer = 'title', videoFile = null, audioFile = null, sourceURL = '', audioURL = '', thumbnail = '', history = [], future = [], exporting = false, muted = false, record = null, transcriptionCancelled = false, transcribing = false, transcriptionStatus = '', saveTimer, recordTimer, pendingSave = Promise.resolve();
 const video = $('#sourceVideo'), audio = $('#sourceAudio'), canvas = $('#preview'), ctx = canvas.getContext('2d'), sample = new Image(), modal = $('#modal');
 let audioCtx, videoNode, audioNode, videoGain, audioGain, destination, exportRecorder, exportStream, exportCanvas, exportContext, exportChunks = [], exportCancelled = false, exportRequest = 0, lastTick = 0;
 let sampleRaster = null, lastSaveStatus = '', effectTab = 'cards', selectedCard = null, templatePreviewFrame = 0, cardPlaybackEnd = null, requestingMic = false;
@@ -46,6 +47,7 @@ catch {
 }
 const composition = createCompositionRenderer(() => document.createElement('canvas'));
 const projectStore = createProjectStore();
+const transcription = createTranscriptionClient(() => new Worker('./transcribe-worker.js', { type: 'module' }));
 // Session-only protection: never overwrite a project whose restore is incomplete.
 let restorePhase = 'restoring', restoreMessage = '프로젝트를 불러오는 중…', recoveryValid = false, recoveryBaseline = '';
 function recoveryBlocked(show = true) {
@@ -1482,48 +1484,6 @@ async function importSrt(file) {
         $('#srtInput').value = '';
     }
 }
-function transcribeAudio(pcm, language, status) {
-    if (!recognitionWorker)
-        recognitionWorker = new Worker('./transcribe-worker.js', { type: 'module' });
-    const worker = recognitionWorker;
-    return new Promise((resolve, reject) => {
-        let pending = true;
-        const finish = (error, result) => {
-            if (!pending)
-                return;
-            pending = false;
-            worker.onmessage = null;
-            error ? reject(error) : resolve(result);
-        };
-        const retire = error => {
-            if (recognitionWorker !== worker || worker.onerror !== onError)
-                return;
-            recognitionWorker = null;
-            worker.terminate();
-            finish(error);
-        };
-        const onError = () => retire(new Error('음성 인식 모듈에 연결하지 못했습니다. 인터넷 연결을 확인하거나 SRT를 불러오세요.'));
-        pendingTranscriptionReject = error => finish(error);
-        worker.onmessage = e => {
-            if (!pending || recognitionWorker !== worker)
-                return;
-            if (e.data.type === 'progress')
-                status(e.data.message);
-            if (e.data.type === 'result')
-                finish(null, e.data.result);
-            if (e.data.type === 'error')
-                finish(new Error(e.data.message));
-        };
-        // Keep observing idle failures; a new job replaces this handler before reuse.
-        worker.onerror = onError;
-        try {
-            worker.postMessage({ audio: pcm, language }, [pcm.buffer]);
-        }
-        catch (error) {
-            retire(error);
-        }
-    });
-}
 function guardTranscription(source, file) {
     const original = state, captions = state.captions;
     const context = () => JSON.stringify([state.captions, state.duration, source === 'audio' ? [state.audioOffset, duration()] : null]);
@@ -1540,10 +1500,7 @@ async function generateCaptions() {
         return;
     if (transcribing) {
         transcriptionCancelled = true;
-        recognitionWorker?.terminate();
-        recognitionWorker = null;
-        if (pendingTranscriptionReject)
-            pendingTranscriptionReject(new Error('자동 자막 생성을 취소했습니다.'));
+        transcription.cancel();
         return;
     }
     if (record || requestingMic || loadingMedia || exporting) {
@@ -1596,7 +1553,7 @@ async function generateCaptions() {
         if (peak < .002)
             throw new Error('음성을 찾지 못했습니다. 소리가 있는 영상이나 오디오를 선택하세요.');
         status('음성 인식 모델을 준비합니다. 첫 실행은 다운로드에 시간이 걸릴 수 있습니다.');
-        const result = await transcribeAudio(pcm, language, status);
+        const result = await transcription.transcribe(pcm, language, status);
         let caps = (result.chunks || []).map(c => ({ start: c.timestamp[0] ?? 0, end: c.timestamp[1] ?? length, text: c.text.trim() }));
         // Check raw times before audio mapping can clamp them or discard reversed spans.
         for (const c of caps)
@@ -1620,7 +1577,6 @@ async function generateCaptions() {
         toast(e.message || '자막 생성에 실패했습니다. SRT 불러오기나 직접 입력을 사용할 수 있습니다.');
     }
     finally {
-        pendingTranscriptionReject = null;
         transcribing = false;
         if (panel === 'captions') {
             const restoreFocus = document.activeElement?.id === 'generateCaptions';

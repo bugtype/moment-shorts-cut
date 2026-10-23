@@ -1,3 +1,4 @@
+import { createVideoExport } from '../../dist/video-export.mjs';
 import { createAudioRecording } from '../../dist/audio-recording.mjs';
 import { createTranscriptionClient } from '../../dist/transcription-client.mjs';
 import * as panelMarkup from '../../dist/panel-markup.mjs';
@@ -98,7 +99,7 @@ export async function createAppFixture() {
     renderCaptionTrack, renderCaptionTrackError, updateTimelineMarkup, createInputHistory,
     ...effectsModule, ...templateModule, readTemplateLibrary, validateTemplateLibrary,
     mountTemplateGallery, mountEffectsPanel, ...typographyModule, createCompositionRenderer,
-    createProjectStore, createTranscriptionClient,
+    createProjectStore, createTranscriptionClient, createVideoExport,
     createAudioRecording: callbacks => createAudioRecording(callbacks, {
       acquireStream: () => context.navigator.mediaDevices.getUserMedia({ audio: true }),
       createRecorder: stream => new context.MediaRecorder(stream),

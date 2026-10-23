@@ -197,7 +197,7 @@ test('media persistence, recording and export ownership', async () => {
   vm.runInContext('stopExport(true)',context);
   assert.equal(evaluate('exporting'),false);assert.equal(evaluate('playing'),false);assert.equal(stoppedExportTracks,2);assert.equal(downloads,0,'cancelled exports never download');
   await vm.runInContext('startExport({mime:"video/webm;codecs=vp8,opus",ext:"webm"},1080)',context);
-  assert.deepEqual(evaluate('[exportCanvas.width,exportCanvas.height]'),[1080,1920]);
+  assert.deepEqual(evaluate('[videoExport.canvas.width,videoExport.canvas.height]'),[1080,1920]);
   vm.runInContext('current=duration();stopExport(false);',context);
   assert.equal(downloads,1);assert.equal(evaluate('exporting'),false);assert.equal(stoppedExportTracks,4);
   console.log('PASS: export start/double-click guard/cancel/restart/completion, output dimensions and media-track cleanup with mocked codecs.');
@@ -246,7 +246,7 @@ test('media persistence, recording and export ownership', async () => {
    assert.deepEqual(evaluate('({exporting,exportCancelled,playing,frameHandle,mediaPauses})'),before,`${outcome} cannot affect ${phase} export`);
    assert.equal(stoppedExportTracks,beforeStops);assert.equal(downloads,beforeDownloads);assert.equal(element('#toast').textContent,'new export');
    if(phase==='preparing'){readyExport();await exportingNow;}
-   assert.equal(evaluate('playing'),true);assert.equal(evaluate('exportRecorder.state'),'recording');
+   assert.equal(evaluate('playing'),true);assert.equal(evaluate('videoExport.recorder.state'),'recording');
    vm.runInContext('stopExport(true)',context);assert.equal(evaluate('exporting'),false);assert.equal(downloads,beforeDownloads);
   }
   vm.runInContext("state=initial();state.kind='video';current=0;video.currentTime=0;ensureAudio=async()=>{};seekVideo=async()=>{};video.play=currentMediaFailure;",context);
@@ -283,11 +283,11 @@ test('media persistence, recording and export ownership', async () => {
    for(let i=0;i<5;i++)await Promise.resolve();assert.equal(entered,true,stage+' await reached');
    vm.runInContext('stopExport(true);ensureAudio=async()=>{};seekVideo=async()=>{};',context);doc.fonts.ready=Promise.resolve();
    if(retry)await vm.runInContext('startExport({mime:"video/webm;codecs=vp8,opus",ext:"webm"},1080)',context);
-   const active=vm.runInContext('exportRecorder',context),before=evaluate('({state,exporting,exportCancelled,playing})'),counts=[recorderStarts,stoppedExportTracks,downloads];
+   const active=vm.runInContext('videoExport.recorder',context),before=evaluate('({state,exporting,exportCancelled,playing})'),counts=[recorderStarts,stoppedExportTracks,downloads];
    element('#toast').textContent='current state';
    if(outcome==='reject')fail(new Error('old preparation'));else finish();await old;
    assert.deepEqual(evaluate('({state,exporting,exportCancelled,playing})'),before,`${stage} ${outcome} after cancel/retry`);
-   assert.equal(vm.runInContext('exportRecorder',context),active);assert.deepEqual([recorderStarts,stoppedExportTracks,downloads],counts);
+   assert.equal(vm.runInContext('videoExport.recorder',context),active);assert.deepEqual([recorderStarts,stoppedExportTracks,downloads],counts);
    assert.equal(element('#toast').textContent,'current state');
    if(retry)vm.runInContext('stopExport(true)',context);
   }
@@ -298,7 +298,7 @@ test('media persistence, recording and export ownership', async () => {
    else vm.runInContext(stage==='audio'?'ensureAudio=failedPreparation':'seekVideo=failedPreparation',context);
    const counts=[recorderStarts,stoppedExportTracks,downloads];
    await vm.runInContext('startExport({mime:"video/webm;codecs=vp8,opus",ext:"webm"},720)',context);
-   assert.equal(evaluate('exporting'),false);assert.equal(evaluate('exportCanvas'),null);assert.match(element('#toast').textContent,/시작하지 못했습니다/);
+   assert.equal(evaluate('exporting'),false);assert.equal(evaluate('videoExport.canvas'),null);assert.match(element('#toast').textContent,/시작하지 못했습니다/);
    assert.deepEqual([recorderStarts,stoppedExportTracks,downloads],counts);doc.fonts.ready=Promise.resolve();
   }
   vm.runInContext('ensureAudio=savedExportPreparation.ensureAudio;seekVideo=savedExportPreparation.seekVideo;delete globalThis.savedExportPreparation;state=initial();',context);doc.fonts.ready=savedFontReady;
@@ -316,10 +316,10 @@ test('media persistence, recording and export ownership', async () => {
   await exportStart();let previous=delayedRecorders.at(-1),oldCallbacks=callbacks(previous),oldCancel=element('#cancelRunningExport').onclick;
   let exportStops=stoppedExportTracks,exportDownloads=downloads;
   vm.runInContext('stopExport(true);stopExport(true)',context);
-  assert.equal(previous.stopCalls,1);assert.equal(stoppedExportTracks,exportStops+2);assert.equal(evaluate('exportRecorder'),null);
+  assert.equal(previous.stopCalls,1);assert.equal(stoppedExportTracks,exportStops+2);assert.equal(evaluate('videoExport.recorder'),null);
   assert.equal(previous.onstop,null);await exportStart();const replacement=delayedRecorders.at(-1);
   oldCallbacks.data(dataEvent);oldCallbacks.error();oldCallbacks.stop();oldCancel();
-  assert.equal(vm.runInContext('exportRecorder',context),replacement);assert.equal(replacement.state,'recording');assert.equal(downloads,exportDownloads);assert.equal(stoppedExportTracks,exportStops+2);
+  assert.equal(vm.runInContext('videoExport.recorder',context),replacement);assert.equal(replacement.state,'recording');assert.equal(downloads,exportDownloads);assert.equal(stoppedExportTracks,exportStops+2);
   let finalCallbacks=callbacks(replacement);finalCallbacks.data(dataEvent);
   vm.runInContext('stopExport(false);stopExport(false)',context);
   assert.equal(replacement.stopCalls,1);assert.equal(evaluate('exporting'),true,'Wait for final data and stop, including repeated stop calls');
@@ -338,9 +338,9 @@ test('media persistence, recording and export ownership', async () => {
    exportStops=stoppedExportTracks;exportDownloads=downloads;await exportStart();
    if(failure==='stop')vm.runInContext('stopExport(false)',context);
    if(failure==='cancel-stop')vm.runInContext('stopExport(true)',context);
-   if(failure==='error')vm.runInContext('exportRecorder.onerror()',context);
-   if(failure==='empty')vm.runInContext('exportRecorder.onstop()',context);
-   assert.equal(evaluate('exporting'),false,failure+' releases export');assert.equal(evaluate('exportRecorder'),null);
+   if(failure==='error')vm.runInContext('videoExport.recorder.onerror()',context);
+   if(failure==='empty')vm.runInContext('videoExport.recorder.onstop()',context);
+   assert.equal(evaluate('exporting'),false,failure+' releases export');assert.equal(evaluate('videoExport.recorder'),null);
    assert.equal(stoppedExportTracks,exportStops+2,failure+' releases tracks once');assert.equal(downloads,exportDownloads);
    if(failure==='error')assert.match(element('#toast').textContent,/영상 저장 중 오류/);
   }

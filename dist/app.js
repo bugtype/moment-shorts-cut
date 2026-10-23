@@ -1,3 +1,4 @@
+import { createVideoExport } from './video-export.mjs';
 import { createAudioRecording } from './audio-recording.mjs';
 import { createTranscriptionClient } from './transcription-client.mjs';
 import { icon, esc, fmt } from './ui-format.mjs';
@@ -34,7 +35,7 @@ function initial() {
 }
 let state = initial(), current = 0, selected = 0, playing = false, panel = 'templates', textLayer = 'title', videoFile = null, audioFile = null, sourceURL = '', audioURL = '', thumbnail = '', history = [], future = [], exporting = false, muted = false, transcriptionCancelled = false, transcribing = false, transcriptionStatus = '', saveTimer, pendingSave = Promise.resolve();
 const video = $('#sourceVideo'), audio = $('#sourceAudio'), canvas = $('#preview'), ctx = canvas.getContext('2d'), sample = new Image(), modal = $('#modal');
-let audioCtx, videoNode, audioNode, videoGain, audioGain, destination, exportRecorder, exportStream, exportCanvas, exportContext, exportChunks = [], exportCancelled = false, exportRequest = 0, lastTick = 0;
+let audioCtx, videoNode, audioNode, videoGain, audioGain, destination, exportCancelled = false, lastTick = 0;
 let sampleRaster = null, lastSaveStatus = '', effectTab = 'cards', selectedCard = null, templatePreviewFrame = 0, cardPlaybackEnd = null;
 const galleryUI = { query: '', category: '전체' };
 let savedTemplates = [], favoriteTemplates = [], templateLibraryError = '';
@@ -48,6 +49,14 @@ catch {
 }
 const composition = createCompositionRenderer(() => document.createElement('canvas'));
 const projectStore = createProjectStore();
+const videoExport = createVideoExport({
+    createCanvas: () => document.createElement('canvas'),
+    createRecorder: (stream, options) => new MediaRecorder(stream, options),
+    onRelease: () => {
+        exporting = false;
+        document.body.classList.remove('exporting');
+    },
+});
 const transcription = createTranscriptionClient(() => new Worker('./transcribe-worker.js', { type: 'module' }));
 const audioRecording = createAudioRecording({
     prepare: () => pause(),
@@ -911,9 +920,9 @@ function paint(c, w, h) {
     });
 }
 function draw() {
-    if (exporting && exportContext) {
-        paint(exportContext, exportCanvas.width, exportCanvas.height);
-        ctx.drawImage(exportCanvas, 0, 0, canvas.width, canvas.height);
+    if (exporting && videoExport.context) {
+        paint(videoExport.context, videoExport.canvas.width, videoExport.canvas.height);
+        ctx.drawImage(videoExport.canvas, 0, 0, canvas.width, canvas.height);
     }
     else
         paint(ctx, canvas.width, canvas.height);
@@ -1530,65 +1539,48 @@ async function startExport(type, quality) {
     if (recoveryBlocked() || exporting || audioRecording.current || audioRecording.requesting || loadingMedia || transcribing)
         return;
     pause();
-    const request = ++exportRequest;
+    const request = videoExport.begin();
     try {
         exporting = true;
         exportCancelled = false;
         document.body.classList.add('exporting');
         await ensureAudio();
-        if (request !== exportRequest)
+        if (request !== videoExport.request)
             return;
         await document.fonts.ready;
-        if (request !== exportRequest)
+        if (request !== videoExport.request)
             return;
         if (recoveryBlocked()) {
             stopExport(true);
             return;
         }
-        const [rw, rh] = state.ratio.split(':').map(Number);
-        exportCanvas = document.createElement('canvas');
-        exportCanvas.width = rw > rh ? Math.round(quality * rw / rh) : quality;
-        exportCanvas.height = rh > rw ? Math.round(quality * rh / rw) : quality;
-        exportContext = exportCanvas.getContext('2d');
+        videoExport.createSurface(state.ratio, quality);
         seekTo(0);
         if (state.kind === 'video')
             await seekVideo(state.clips[0].start);
-        if (request !== exportRequest)
+        if (request !== videoExport.request)
             return;
         draw();
-        exportStream = exportCanvas.captureStream(30);
-        destination.stream.getAudioTracks().forEach(track => exportStream.addTrack(track.clone()));
-        const chunks = exportChunks = [], recorder = exportRecorder = new MediaRecorder(exportStream, {
-            mimeType: type.mime,
-            videoBitsPerSecond: quality === 1080 ? 8000000 : 4500000,
-            audioBitsPerSecond: 128000 });
-        recorder.ondataavailable = e => {
-            if (request === exportRequest && e.data.size)
-                chunks.push(e.data);
-        };
-        recorder.onerror = () => {
-            if (request !== exportRequest)
-                return;
-            stopExport(true);
-            toast('영상 저장 중 오류가 발생했습니다. 더 낮은 해상도로 다시 시도하세요.');
-        };
-        recorder.onstop = () => {
-            if (request !== exportRequest)
-                return;
-            const blob = new Blob(chunks, { type: recorder.mimeType });
-            pause();
-            cleanupExport(request);
-            if (!blob.size) {
-                toast('출력 파일이 비어 있습니다. 다시 시도해 주세요.');
-                return;
-            }
-            download(blob, `${state.name || 'moment-shorts'}.${type.ext}`);
-            modal.innerHTML = `<div class="modal-head"><h2>당신의 쇼츠가 완성됐어요.</h2></div><p class="modal-copy">${esc(state.name)}<br>${quality}p · ${type.ext.toUpperCase()} · ${fmt(duration() / state.speed)}</p><div class="notice">다운로드한 파일을 재생해 영상과 자막을 확인한 뒤 YouTube에 업로드하세요.</div><div class="modal-foot"><button class="button primary" id="exportDone">편집으로 돌아가기</button></div>`;
-            $('#exportDone').onclick = () => modal.close();
-        };
+        const recorder = videoExport.capture(request, type, quality, destination.stream, {
+            onError: () => {
+                stopExport(true);
+                toast('영상 저장 중 오류가 발생했습니다. 더 낮은 해상도로 다시 시도하세요.');
+            },
+            onStop: blob => {
+                pause();
+                cleanupExport(request);
+                if (!blob.size) {
+                    toast('출력 파일이 비어 있습니다. 다시 시도해 주세요.');
+                    return;
+                }
+                download(blob, `${state.name || 'moment-shorts'}.${type.ext}`);
+                modal.innerHTML = `<div class="modal-head"><h2>당신의 쇼츠가 완성됐어요.</h2></div><p class="modal-copy">${esc(state.name)}<br>${quality}p · ${type.ext.toUpperCase()} · ${fmt(duration() / state.speed)}</p><div class="notice">다운로드한 파일을 재생해 영상과 자막을 확인한 뒤 YouTube에 업로드하세요.</div><div class="modal-foot"><button class="button primary" id="exportDone">편집으로 돌아가기</button></div>`;
+                $('#exportDone').onclick = () => modal.close();
+            },
+        });
         modal.innerHTML = '<div class="modal-head"><h2>순간을 담는 중…</h2><strong id="exportPercent">0%</strong></div><p class="modal-copy">이 탭을 열어두면 완성된 영상이 다운로드됩니다.</p><div class="progress"><i id="exportProgress"></i></div><button class="button full" id="cancelRunningExport">내보내기 취소</button>';
         $('#cancelRunningExport').onclick = () => {
-            if (request === exportRequest)
+            if (request === videoExport.request)
                 stopExport(true);
         };
         muted = false;
@@ -1597,7 +1589,7 @@ async function startExport(type, quality) {
         await play();
     }
     catch (e) {
-        if (request !== exportRequest)
+        if (request !== videoExport.request)
             return;
         stopExport(true);
         toast('내보내기를 시작하지 못했습니다. 브라우저와 영상 형식을 확인하세요.');
@@ -1608,7 +1600,7 @@ function stopExport(cancelled) {
         return;
     exportCancelled = cancelled;
     pause();
-    const request = exportRequest, recorder = exportRecorder;
+    const request = videoExport.request, recorder = videoExport.recorder;
     if (cancelled) {
         // Invalidate before stop: even synchronous or retained callbacks no longer own the UI/resources.
         cleanupExport(request);
@@ -1637,19 +1629,7 @@ function stopExport(cancelled) {
         cleanupExport(request);
 }
 function cleanupExport(request) {
-    if (request !== exportRequest)
-        return;
-    ++exportRequest;
-    exporting = false;
-    document.body.classList.remove('exporting');
-    if (exportRecorder)
-        exportRecorder.ondataavailable = exportRecorder.onerror = exportRecorder.onstop = null;
-    exportStream?.getTracks().forEach(t => t.stop());
-    exportRecorder = null;
-    exportStream = null;
-    exportContext = null;
-    exportCanvas = null;
-    exportChunks = [];
+    videoExport.release(request);
 }
 function bind() {
     icons();

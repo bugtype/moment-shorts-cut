@@ -649,6 +649,83 @@ await vm.runInContext('generateCaptions()',context);
 assert.deepEqual(evaluate('state.captions'),[{start:0,end:12,text:'valid fallback'}]);context.prepareCommand=prepareCommand;
 delete context.captionTestResult;
 console.log('PASS: ASR validation preserves prior state/redo/save on invalid chunks or fallback; Unicode boundaries, both clocks, cleanup, retry and canonical JSON succeed.');
+
+// Synthetic delayed worker/decode responses; no model, real audio or storage.
+const asrWorkers=[];let workerPosted;
+context.Worker=class {constructor(){asrWorkers.push(this);}postMessage(){workerPosted(this);}terminate(){this.terminated=true;}};
+context.AudioContext=class {async decodeAudioData(){return {duration:1};}async close(){}};
+context.asrSourceFile={name:'synthetic.wav',arrayBuffer:async()=>new ArrayBuffer(0)};
+vm.runInContext('globalThis.asrScheduleSave=scheduleSave;globalThis.asrSaves=0;scheduleSave=()=>asrSaves++;',context);
+function resetAsr(){vm.runInContext('state=initial();state.audioName=asrSourceFile.name;state.audioOffset=2;timelineCache=null;history=[];future=[JSON.stringify(state)];current=0;selected=0;videoFile=asrSourceFile;audioFile=asrSourceFile;recognitionWorker=null;transcribing=false;asrSaves=0;saveTimer={pending:true};panel="captions";renderPanel();',context);}
+async function startAsr(source){
+ element('#captionSource').value=source;
+ const posted=new Promise(resolve=>{workerPosted=resolve;});
+ const pending=vm.runInContext('generateCaptions()',context),worker=await posted;
+ return {pending,worker};
+}
+function asrResult(worker,text='recognized'){worker.onmessage({data:{type:'result',result:{chunks:[{timestamp:[0,1],text}]}}});}
+const asrSnapshot=()=>evaluate('[state,history,future,asrSaves]');
+for(const source of ['video','audio']){
+ for(const mutation of [
+  'edit(()=>state.captions[0].text="manual correction")',
+  'edit(()=>state.captions[0].speaker="1")',
+  'edit(()=>state.captions.push({start:1,end:2,text:"added"}))',
+  'edit(()=>state.captions.splice(0,1))',
+  'edit(()=>state.captions=structuredClone(state.captions))',
+  'edit(()=>state.zoom=1.5);undo()',
+  'edit(()=>state.zoom=1.5);undo();undo(true)',
+  'state=structuredClone(state);timelineCache=null',
+  source==='audio'?'audioFile={...asrSourceFile}':'videoFile={...asrSourceFile}',
+  'edit(()=>{state.duration=10;state.clips=[{start:0,end:10}];})',
+  ...(source==='audio'?['edit(()=>state.audioOffset=3)','edit(()=>state.clips[0].end=8)']:[]),
+ ]){
+  resetAsr();const task=await startAsr(source);vm.runInContext(mutation,context);
+  const before=asrSnapshot(),timer=vm.runInContext('saveTimer',context);
+  asrResult(task.worker);await task.pending;
+  assert.deepEqual(asrSnapshot(),before,`${source}: conflict preserves current edits/history/redo/saves`);
+  assert.equal(vm.runInContext('saveTimer',context),timer);assert.match(element('#toast').textContent,/변경되어/);
+  assert.equal(evaluate('transcribing'),false);assert.equal(vm.runInContext('pendingTranscriptionReject',context),null);
+ }
+ resetAsr();const allowed=await startAsr(source);
+ vm.runInContext('edit(()=>{state.zoom=1.5;state.volume=.4;state.captionColor="#123456";});current=2;',context);
+ vm.runInContext(source==='video'?'edit(()=>state.clips[0].end=8)':'edit(()=>state.clips=[{start:6,end:12},{start:0,end:6}])',context);
+ const before=evaluate('state'),historyLength=evaluate('history.length');asrResult(allowed.worker);await allowed.pending;
+ assert.equal(evaluate('state.zoom'),1.5);assert.equal(evaluate('state.volume'),.4);
+ assert.deepEqual(evaluate('state.clips'),before.clips);
+ assert.deepEqual(evaluate('state.captions'),source==='audio'?[{start:2,end:3,text:'recognized',basis:'timeline'}]:[{start:0,end:1,text:'recognized'}]);
+ assert.equal(evaluate('history.length'),historyLength+1);
+ vm.runInContext('undo()',context);assert.deepEqual(evaluate('state'),before);
+}
+resetAsr();const removedAudio=await startAsr('audio');vm.runInContext('switchPanel("audio")',context);element('#removeAudio').onclick();
+const removedBefore=asrSnapshot();asrResult(removedAudio.worker);await removedAudio.pending;
+assert.deepEqual(asrSnapshot(),removedBefore);assert.equal(evaluate('state.audioName'),'');assert.match(element('#toast').textContent,/변경되어/);
+// A conflict during decoding does not submit work to a model worker.
+resetAsr();let releaseAsrRead;context.asrDelayedFile={arrayBuffer:()=>new Promise(resolve=>{releaseAsrRead=resolve;})};
+vm.runInContext('videoFile=asrDelayedFile',context);element('#captionSource').value='video';
+const decoding=vm.runInContext('generateCaptions()',context),workerCount=asrWorkers.length;
+vm.runInContext('edit(()=>state.captions[0].text="edited during read")',context);const decodeBefore=asrSnapshot();
+releaseAsrRead(new ArrayBuffer(0));await decoding;
+assert.deepEqual(asrSnapshot(),decodeBefore);assert.equal(asrWorkers.length,workerCount);
+// Provider-reported errors leave the job retryable without applying any result.
+for(const failure of ['message','worker']){
+ resetAsr();const task=await startAsr('video'),before=asrSnapshot();
+ if(failure==='message')task.worker.onmessage({data:{type:'error',message:'synthetic provider failure'}});else task.worker.onerror();
+ await task.pending;assert.deepEqual(asrSnapshot(),before);assert.equal(evaluate('transcribing'),false);
+ if(failure==='message'){const retry=await startAsr('video');asrResult(retry.worker,'retried');await retry.pending;assert.equal(evaluate('state.captions[0].text'),'retried');}
+}
+// A second request cancels, never creates concurrent work. Late old results stay inert.
+resetAsr();const cancelled=await startAsr('video'),cancelBefore=asrSnapshot(),lateResult=cancelled.worker.onmessage;
+await vm.runInContext('generateCaptions()',context);await cancelled.pending;
+assert.equal(cancelled.worker.terminated,true);assert.deepEqual(asrSnapshot(),cancelBefore);
+const retryAfterCancel=await startAsr('video');assert.notEqual(retryAfterCancel.worker,cancelled.worker);
+lateResult({data:{type:'result',result:{text:'stale cancelled result'}}});assert.deepEqual(asrSnapshot(),cancelBefore);
+asrResult(retryAfterCancel.worker,'new job');await retryAfterCancel.pending;assert.equal(evaluate('state.captions[0].text'),'new job');
+// Cancel can arrive after the result promise resolves but before it is consumed.
+resetAsr();const resolved=await startAsr('video'),resolvedBefore=asrSnapshot();
+asrResult(resolved.worker);await vm.runInContext('generateCaptions()',context);await resolved.pending;
+assert.deepEqual(asrSnapshot(),resolvedBefore);assert.match(element('#toast').textContent,/취소/);
+vm.runInContext('scheduleSave=asrScheduleSave;',context);
+console.log('PASS: synthetic ASR conflicts preserve edits/history/redo/saves; source removal, time maps, decode/worker delays, cancellation/late responses, provider errors, retry and unaffected appearance edits are covered.');
 vm.runInContext('videoFile=null;audioFile=null;recognitionWorker=null',context);
 delete context.AudioContext;delete context.OfflineAudioContext;delete context.Worker;delete context.captionTestFile;delete context.captionTestChunks;
 vm.runInContext('state=initial();timelineCache=null;history=[];future=[];renderPanel()',context);

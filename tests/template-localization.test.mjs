@@ -66,8 +66,8 @@ test('real app modal renders template descriptors and escapes custom heading onc
   try {
     f.evaluate('templatePreview.open(TEMPLATES[0]); true');
     const modal=f.element('#modal'), markup=modal.innerHTML;
-    assert.match(markup, /<h2><span data-i18n="templates.builtin.reference.name"/);
-    assert.doesNotMatch(markup, /<h2>&lt;span/);
+    assert.match(markup, /<h2 id="modalTitle"><span data-i18n="templates.builtin.reference.name"/);
+    assert.doesNotMatch(markup, /<h2 id="modalTitle">&lt;span/);
     // This synthetic DOM does not parse innerHTML: model its actual marked heading
     // leaf so locale updates exercise the shared in-place translation path.
     const heading=f.element('#modal h2 span');
@@ -80,10 +80,10 @@ test('real app modal renders template descriptors and escapes custom heading onc
     assert.equal(heading.textContent,messages['zh-CN']['templates.builtin.reference.name']);
     assert.equal(modal.innerHTML,markup,'Locale updates do not replace the modal tree');
     f.evaluate("templatePreview.open(saveCustomTemplate('<img src=x>&名字',createDemoProject())); true");
-    assert.match(modal.innerHTML, /<h2>&lt;img src=x&gt;&amp;名字<\/h2>/);
-    assert.doesNotMatch(modal.innerHTML, /<h2>&amp;lt;|<h2><img/);
+    assert.match(modal.innerHTML, /<h2 id="modalTitle">&lt;img src=x&gt;&amp;名字<\/h2>/);
+    assert.doesNotMatch(modal.innerHTML, /<h2 id="modalTitle">&amp;lt;|<h2 id="modalTitle"><img/);
     // New custom heading is literal data, not a translation key.
-    assert.doesNotMatch(modal.innerHTML.match(/<h2>(.*?)<\/h2>/s)[1],/data-i18n/);
+    assert.doesNotMatch(modal.innerHTML.match(/<h2 id="modalTitle">(.*?)<\/h2>/s)[1],/data-i18n/);
   } finally { setLocale('ko',{persist:false}); }
 });
 

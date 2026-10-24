@@ -1,3 +1,4 @@
+import { LocalizedError } from './core/validation.mjs';
 import { t, text, formatError, message } from './i18n.mjs';
 import { readTemplateLibrary, validateTemplateLibrary, createTemplateDocument, readTemplateDocument, MAX_TEMPLATE_FILE_BYTES } from './template-library.mjs';
 import { createTemplateCollectionDocument, readTemplateCollectionDocument, MAX_TEMPLATE_COLLECTION_BYTES } from './template-collection.mjs';
@@ -65,7 +66,12 @@ export function createTemplateWorkspace({
             let text;
             try { text = new TextDecoder('utf-8', { fatal: true }).decode(bytes); }
             catch { throw templateError('templates.utf8'); }
-            const document = JSON.parse(text);
+            let document;
+            try { document = JSON.parse(text); }
+            catch (error) {
+                if (error instanceof SyntaxError) throw new LocalizedError(message('templates.invalidFile'));
+                throw error;
+            }
             const collection = document?.format === 'moment-template-collection';
             if (!collection && (file.size > MAX_TEMPLATE_FILE_BYTES || bytes.byteLength > MAX_TEMPLATE_FILE_BYTES))
                 throw templateError('templates.importSize');

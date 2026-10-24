@@ -35,7 +35,14 @@ export function createTextFileWorkflow({
         try {
             const beforeCommit = guardTextImport();
             assertProjectFileSize(file.size);
-            const result = await execute('project.import', { document: JSON.parse(await readUtf8File(file, true)) }, beforeCommit);
+            const text = await readUtf8File(file, true);
+            let document;
+            try { document = JSON.parse(text); }
+            catch (error) {
+                if (error instanceof SyntaxError) throw new LocalizedError(msg('errors.settingsCheck'));
+                throw error;
+            }
+            const result = await execute('project.import', { document }, beforeCommit);
             if (!result.ok)
                 throw new Error(result.error.message);
             closeImportedDialog();

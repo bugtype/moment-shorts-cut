@@ -90,7 +90,7 @@ export function createShellPresentation({query: $, queryAll, document, modal,
         modal.onclose?.();
         modal.onclose = null;
         modal.className = '';
-        modal.innerHTML = `<div class="modal-head"><h2>${title?.messageKey ? text(title.messageKey, title.messageParams) : esc(title)}</h2><button class="icon-button" id="closeModal" ${attrs("aria-label", "shell.close")}>${icon('close')}</button></div>${body}${footer}`;
+        modal.innerHTML = `<div class="modal-head"><h2 id="modalTitle">${title?.messageKey ? text(title.messageKey, title.messageParams) : esc(title)}</h2><button class="icon-button" id="closeModal" ${attrs("aria-label", "shell.close")}>${icon('close')}</button></div>${body}${footer}`;
         $('#closeModal').onclick = () => modal.close();
         modal.showModal();
     }

@@ -65,7 +65,7 @@ export function createExportFlow(app, {
                 if (request === videoExport.request)
                     stopExport(true);
             };
-            modal.innerHTML = `<div class="modal-head"><h2>${text("shell.exportPreparing")}</h2></div><button class="button full" id="cancelRunningExport">${text("shell.exportCancel")}</button>`;
+            modal.innerHTML = `<div class="modal-head"><h2 id="modalTitle">${text("shell.exportPreparing")}</h2></div><button class="button full" id="cancelRunningExport">${text("shell.exportCancel")}</button>`;
             $('#cancelRunningExport').onclick = cancel;
             await app.ensureAudio();
             if (request !== videoExport.request)
@@ -98,11 +98,11 @@ export function createExportFlow(app, {
                         return;
                     }
                     app.download(blob, `${app.state.name || 'moment-shorts'}.${type.ext}`);
-                    modal.innerHTML = `<div class="modal-head"><h2>${text("shell.exportDone")}</h2></div><p class="modal-copy">${esc(app.state.name)}<br>${quality}p · ${type.ext.toUpperCase()} · ${fmt(app.duration() / app.state.speed)}</p><div class="notice">${text("shell.exportReview")}</div><div class="modal-foot"><button class="button primary" id="exportDone">${text("shell.backToEditor")}</button></div>`;
+                    modal.innerHTML = `<div class="modal-head"><h2 id="modalTitle">${text("shell.exportDone")}</h2></div><p class="modal-copy">${esc(app.state.name)}<br>${quality}p · ${type.ext.toUpperCase()} · ${fmt(app.duration() / app.state.speed)}</p><div class="notice">${text("shell.exportReview")}</div><div class="modal-foot"><button class="button primary" id="exportDone">${text("shell.backToEditor")}</button></div>`;
                     $('#exportDone').onclick = () => modal.close();
                 },
             });
-            modal.innerHTML = `<div class="modal-head"><h2>${text("shell.exportRunning")}</h2><strong id="exportPercent">0%</strong></div><p class="modal-copy">${text("shell.exportKeepOpen")}</p><div class="progress"><i id="exportProgress"></i></div><button class="button full" id="cancelRunningExport">${text("shell.exportCancel")}</button>`;
+            modal.innerHTML = `<div class="modal-head"><h2 id="modalTitle">${text("shell.exportRunning")}</h2><strong id="exportPercent">0%</strong></div><p class="modal-copy">${text("shell.exportKeepOpen")}</p><div class="progress"><i id="exportProgress"></i></div><button class="button full" id="cancelRunningExport">${text("shell.exportCancel")}</button>`;
             $('#cancelRunningExport').onclick = cancel;
             recorder.start(250);
             await app.play();

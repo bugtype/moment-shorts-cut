@@ -56,7 +56,7 @@ Verified with Python **3.12.14** and `mcp` **1.29.0**. From the repository root:
 python examples/use-mcp-sdk.py
 ```
 
-The script resolves the Node server relative to its own file, launches two actual
+The script resolves the Node server relative to its own file, launches three actual
 stdio sessions and closes their contexts. It has a 10-second SDK response timeout
 and a 45-second cancellation deadline (cleanup can take longer). It installs nothing
 and writes no project files. Run without `-O` or `PYTHONOPTIMIZE`: the script refuses
@@ -70,9 +70,10 @@ example above if you do not want a Python dependency.
 | Demo import/edit + invalid speed | `INVALID_ARGUMENT` leaves the document unchanged and the session remains usable |
 | `project.get` + VTT | Full document handoff, distinct from mutation acknowledgment; subtitle text, not media encoding |
 | Fresh session import | JSON handoff in memory restores the edited demo into a new isolated session |
+| Append and append-mode import | Closed acknowledgments, retained out-of-output cues and metadata, and empty-append error recovery |
 
 The JSON summary reports `ok`, SDK/protocol versions, tool count, recovered error,
-`handoffVerified`, `subtitleFormat` and `filesWritten:false`. **The demo is not your
+`handoffVerified`, `subtitleFormat`, `appendVerified` and `filesWritten:false`. **The demo is not your
 browser project.** Use an explicitly supplied project document for real work.
 This is an optional local check, **not part of `npm test` or default CI**; it does
 not verify a desktop client application, browser playback or encoded video.

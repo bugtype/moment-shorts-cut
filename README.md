@@ -407,6 +407,10 @@ Choose **Replace** only after checking the clock; no automatic detection or
 existing-cue migration occurs. Exported subtitles already expand repeated cuts;
 output-clock import keeps those as timeline cues, rather than mapping them back to
 source occurrences. Later cuts/speed changes follow existing timeline-caption rules.
+**Set added-audio offset before importing output-clock subtitles:** the existing
+browser offset control shifts **all timeline-basis cues**, including these imported
+cues, not just audio-generated captions. If moved accidentally, undo the whole
+offset edit; later cuts do not automatically realign the imported file.
 This is not a lossless round trip: exported millisecond rounding, stripped markup
 and missing speaker/style/keyword metadata are not recovered. Cancel or a rejected/
 stale import leaves captions unchanged. CLI/MCP `captions.import` still accepts

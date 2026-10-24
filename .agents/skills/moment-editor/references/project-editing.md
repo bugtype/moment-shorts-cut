@@ -236,7 +236,11 @@ replacement is one browser undo step and keeps the playhead position.
 It does not infer a clock or map repeated output occurrences back to source
 cues. Back up settings first: the entire caption array is replaced. Millisecond
 quantization and missing speaker/style/keyword metadata prevent lossless recovery.
-Later cuts/speed follow existing timeline semantics. Legacy `importSrt(file)` and
+Set added-audio offset before output-clock import: the existing browser control
+shifts **all timeline-basis cues**, including imported ones, not only audio-generated
+cues. Undo the entire offset edit if accidental. Later cuts do not automatically
+realign imported subtitles; speed/cuts keep existing timeline semantics.
+Legacy `importSrt(file)` and
 the hidden picker remain source-only; no new CLI/MCP basis or schema is introduced.
 
 

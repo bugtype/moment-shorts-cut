@@ -678,6 +678,12 @@ This MCP command has **no output-clock import** or automatic inverse speed/trim 
 exported edited SRT/VTT is not a reversible project backup; choose the intended
 clock explicitly rather than importing final-output times as source times.
 
+Browser handoff caution: set the added-audio offset **before** importing output-clock
+subtitles. Its existing offset control shifts **all** `basis:"timeline"` cues,
+including imported cues, not only audio-generated ones. Undo the whole offset edit
+if accidental; later cuts do not automatically realign an imported subtitle file.
+This is existing browser behavior, not a new MCP import option.
+
 The existing plain subtitle parser clamps cue ends to the chosen duration and
 drops out-of-range or nonpositive intervals. It removes markup and decodes known
 character references once; speaker/style/keyword metadata are not imported.

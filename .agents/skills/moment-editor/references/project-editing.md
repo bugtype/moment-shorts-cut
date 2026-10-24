@@ -116,6 +116,20 @@ even when `--out` is supplied. This is not a new project-state schema limit.
 through built-in files or fit a whole 10 MiB MCP input frame. Preserve the original;
 do not silently discard captions to force a backup under the limit.
 
+## Inspect a proposed edit summary
+
+Use read-only `project.preview` / `moment_project_preview` before a related edit
+bundle. Pass the same `operations` as `project.batch` (1–20, current 24-command
+allowlist); MCP adds outer `projectId:"session"`. It returns operationCount,
+wouldCommit, sorted changedFields and before/after counts (clips/captions/cards)
+plus outputDuration. `wouldCommit` is commit intent: change-and-revert operations
+may return true with no changed fields. This is not a full patch or visual preview.
+
+No commit/history/media/provider work occurs. It reserves neither project state
+nor generated IDs; the later batch validates current state again. Do not blindly
+retry uncertain mutations. CLI `--out` saves a report, not a project backup.
+[Exact fields and executable preview→batch recipe](../../../../INTEGRATIONS.md#편집-묶음의-반영-전-요약).
+
 ## Apply related edits together
 
 Use `project.batch` / `moment_project_batch` for 1–20 supported mutations that must

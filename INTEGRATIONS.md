@@ -193,6 +193,7 @@ JavaScript에서 직접 호출할 때도 JSON으로 왕복 가능한 값을 전�
 | 명령 | 주요 입력 | 결과 |
 |---|---|---|
 | `timeline.list` | 선택 `offset`, `limit` | 구간 위치와 원본·편집·출력 시간 페이지 |
+| `project.preview` | `operations` | 읽기 전용 편집 요약; 반영 여부·변경 필드·전후 개수/출력 길이 |
 | `project.get` | 없음 | 편집 설정 문서 |
 | `template.export` | `id`, `name` | 현재 구성의 `moment-template` 문서; 읽기 전용, 라이브러리 저장 아님 |
 | `templates.list` | 없음 | 기본 템플릿 목록 |
@@ -258,7 +259,38 @@ JavaScript에서 직접 호출할 때도 JSON으로 왕복 가능한 값을 전�
 | 자막 | [시간 겹침](#자막-시간-겹침-점검) · [표시 속도 점검](#편집-후-자막-표시-속도-점검) · [가져오기](#srtvtt-본문을-명령으로-가져오기) · [커서 분할](#자막-하나를-커서-위치에서-분할) · [합치기](#인접한-자막-합치기) · [추가·삭제](#자막-하나-추가연속-범위-삭제) · [개별 수정](#자막-하나만-수정) · [문구 교정](#자막-문구-일괄-교정) · [시간 이동](#자막-시간을-앞뒤로-이동) · [스타일](#자막-스타일-수정) |
 | 타임라인 | [클립 분할](#클립-구간-분할) · [클립 복제](#클립-구간-복제) |
 | 구성 | [크레딧](#출처-크레딧-수정) · [영상 효과](#영상-효과-수정) · [카드 수정](#기존-시간별-카드-수정) · [카드 추가·삭제](#스크립트에-맞춰-카드-추가삭제) · [쌓임 순서](#카드-쌓임-순서-변경) |
-| 묶음·템플릿 | [한 번에 편집](#여러-편집을-한-번에-반영) · [템플릿 파일 관리](#개별-사용자-템플릿-파일) · [현재 구성 내보내기](#현재-구성을-템플릿으로-내보내기) · [파일 적용](#내보낸-템플릿을-climcp로-적용) |
+| 묶음·템플릿 | [반영 전 요약](#편집-묶음의-반영-전-요약) · [한 번에 편집](#여러-편집을-한-번에-반영) · [템플릿 파일 관리](#개별-사용자-템플릿-파일) · [현재 구성 내보내기](#현재-구성을-템플릿으로-내보내기) · [파일 적용](#내보낸-템플릿을-climcp로-적용) |
+
+### 편집 묶음의 반영 전 요약
+
+`project.preview`는 `project.batch`와 같은 `operations` 1–20개를 복사본에 순서대로
+검증하고 **반영하지 않은 요약**을 반환합니다. 현재 허용 편집 명령 24개와 개별 입력
+스키마를 그대로 사용하며 읽기 명령·제공자 작업·중첩 묶음은 넣을 수 없습니다.
+
+| 결과 | 의미 |
+|---|---|
+| `operationCount` | 입력 작업 수 |
+| `wouldCommit` | 같은 묶음이 반영을 요청할지 여부; 최종 값의 차이 여부가 아님 |
+| `changedFields` | JSON 내용이 달라진 알려진 최상위 프로젝트 필드(`templateId` 포함), 정렬된 배열; 전체 패치·문구·문서가 아님 |
+| `before`, `after` | 각각 `{clipCount, captionCount, cardCount, outputDuration}`; 출력 길이는 배속 후 초 |
+
+값을 바꿨다가 원래대로 돌리는 묶음은 `wouldCommit:true`, `changedFields:[]`일 수 있습니다.
+시각 미리보기나 인코딩이 아니며 커밋·실행 취소·미디어 접근·제공자 호출을 하지 않습니다.
+미디어 가용성·렌더링·실제 출력 가능 여부를 확인하는 검사도 아닙니다.
+오류는 배치와 같은 코드와 작업 위치 경로를 유지합니다. 스냅샷 토큰·잠금·예약은 없으므로
+후속 `project.batch`는 그때의 상태로 다시 검증합니다. 생성될 카드 ID도 예약하지 않습니다.
+
+```sh
+node cli/moment.mjs init --out preview-source.json
+node -e "require('node:fs').writeFileSync('preview.args.json',JSON.stringify({operations:[{command:'project.update',arguments:{patch:{speed:2}}},{command:'credit.update',arguments:{patch:{text:'Source: Example',start:4,end:6}}}]}))"
+node cli/moment.mjs exec project.preview --project preview-source.json --args-file preview.args.json --out preview-report.json
+node cli/moment.mjs exec project.batch --project preview-source.json --args-file preview.args.json --out preview-edited.json
+```
+
+`preview-report.json`은 요약 보고서이지 복원할 프로젝트 문서가 아닙니다. 보고서를 확인한 뒤
+필요할 때만 마지막 반영 명령을 실행하세요. `--dry-run`은 별도 CLI 파일 쓰기 억제 옵션이며,
+이 읽기 전용 명령을 실행하기 위한 필수 옵션이 아닙니다. 반영 응답이 불확실하면 현재
+문서를 다시 읽고 판단하며 미리보기 성공만 믿고 재시도하지 마세요.
 
 ### 여러 편집을 한 번에 반영
 

@@ -28,6 +28,7 @@ function matches(schema, value) {
 
 const schemaProject=createDemoProject();schemaProject.overlays=[{...newCard(12),id:'schema-card'}];
 const inputs = {
+  'project.preview': {operations:[{command:'project.update',arguments:{patch:{speed:2}}}]},
   'project.batch': {operations:[{command:'project.update',arguments:{patch:{name:'Batch schema'}}}]},
   'project.get': {},
   'project.update': { patch: { name: '스키마 검사' } },

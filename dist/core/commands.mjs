@@ -7,7 +7,7 @@ import { replaceCaptionText } from './caption-text.mjs';
 import { TEMPLATES, applyTemplate, saveCustomTemplate } from '../template-catalog.mjs';
 import { newCard, retimeOutputLayers, splitCaptionAtOffset } from '../effects.mjs';
 import { MAX_CAPTIONS, parseSubtitles } from '../captions.mjs';
-import { outputDuration, timelineDuration, validateProject, createProjectDocument, readProjectDocument, projectSubtitles, clipSchema, captionSchema, MAX_CLIPS } from './project.mjs';
+import { outputDuration, timelineDuration, createDemoProject, validateProject, createProjectDocument, readProjectDocument, projectSubtitles, clipSchema, captionSchema, MAX_CLIPS } from './project.mjs';
 import { object, string, number, choice, boolean, array, validate, assertJson, fail, CommandError, hasMinimumDuration } from './validation.mjs';
 
 export const API_VERSION=1;
@@ -86,12 +86,22 @@ const batchCommands = [
 definitions.push(command('project.batch','최대 20개 편집을 순서대로 검증하고 한 번에 적용합니다. 하나라도 실패하면 적용하지 않습니다.',
   object({operations:array(object({command:choice(...batchCommands),arguments:{type:'object'}},['command','arguments']),20,1)},['operations']),true));
 
+const previewFields = [...new Set([...Object.keys(createDemoProject()), 'templateId'])].sort();
+definitions.push(command('project.preview','편집 묶음을 적용하지 않고 검증하여 변경 필드와 전후 개수·길이를 반환합니다.',definitions.find(c=>c.name==='project.batch').inputSchema));
+
 export function commandDefinitions(){return structuredClone(definitions);}
 export function commandDefinition(name){const value=definitions.find(c=>c.name===name);if(!value)throw new CommandError('UNKNOWN_COMMAND',msg('errors.unknownCommand'));return structuredClone(value);}
 export function prepareCommand(project,name,args={}){
   const definition=commandDefinition(name);assertJson(args);validate(definition.inputSchema,args);
   if(name==='templates.list')return {data:TEMPLATES.map(({id,name,category,description})=>({id,name,category,description}))};
   validateProject(project);
+  if(name==='project.preview'){
+    const prepared=prepareCommand(project,'project.batch',args),next=prepared.project||project;
+    const summary=p=>({clipCount:p.clips.length,captionCount:p.captions.length,cardCount:p.overlays.length,outputDuration:outputDuration(p)});
+    return {data:{operationCount:args.operations.length,wouldCommit:!!prepared.project,
+      changedFields:previewFields.filter(key=>JSON.stringify(project[key])!==JSON.stringify(next[key])),
+      before:summary(project),after:summary(next)}};
+  }
   if(name==='project.batch'){
     let next=project,updated=false;
     for(const [index,operation] of args.operations.entries()){

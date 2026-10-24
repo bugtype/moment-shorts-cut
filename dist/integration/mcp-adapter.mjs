@@ -23,6 +23,11 @@ const mediaReference = {
 function dataSchema(command) {
   switch (command) {
     case 'timeline.move': return record({updated:{type:'boolean'},outputDuration:{type:'number',minimum:0}});
+    case 'project.preview': {
+      const summary=record({clipCount:{type:'integer',minimum:1,maximum:1000},captionCount:{type:'integer',minimum:0,maximum:10000},cardCount:{type:'integer',minimum:0,maximum:12},outputDuration:{type:'number',minimum:0}});
+      return record({operationCount:{type:'integer',minimum:1,maximum:20},wouldCommit:{type:'boolean'},
+        changedFields:{type:'array',maxItems:100,uniqueItems:true,items:{type:'string',maxLength:100}},before:summary,after:structuredClone(summary)});
+    }
     case 'project.batch': return record({updated:{type:'boolean'},operationCount:{type:'integer',minimum:1,maximum:20},outputDuration:{type:'number',minimum:0}});
     case 'project.get': return documentSchema;
     case 'template.export': return templateDocumentSchema();
@@ -142,6 +147,9 @@ function inputSchema(command) {
   if (command.name === 'captions.inspect') {
     p.maxGraphemesPerSecond.description = 'Required positive review threshold, not a universal language/Netflix standard. Count Intl grapheme clusters except whitespace-only clusters; punctuation and literal markup count. Rate uses each derived output occurrence after cuts/repeats/speed, not source duration. Does not assess speech alignment, rendered fit or export validity.';
     p.limit.description = 'Maximum returned issues, default20, integer1..100. Reports all occurrence/flagged totals, then highest rates first with start/occurrenceIndex tie-breaking. No text payload. Use captions.list for nearby authored cue text. No project/history changes.';
+  }
+  if (command.name === 'project.preview') {
+    p.operations.description = 'Read-only metadata preflight using exactly the project.batch closed allowlist, 1..20 sequential operations. No commit, provider calls, rendered validation, reservation or apply token. Later batch application revalidates current state; generated IDs may differ. wouldCommit tracks whether the batch prepares a project, even for redundant/roundtrip edits; changedFields lists sorted changed top-level JSON content, not a patch or complete visual review.';
   }
   if (command.name === 'project.batch') {
     p.operations.description = '1–20 sequential in-memory edit operations, prepared against each preceding result and committed once. All fail together on validation error. Not JSON-RPC batching, not a cross-writer/storage transaction. Reads, provider jobs, project.import and nested batches are forbidden. Indices/times refer to the evolving project; inspect project.get before retrying non-idempotent edits.';

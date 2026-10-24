@@ -32,7 +32,7 @@ test('stdio negotiates its supported version, waits for initialization and lists
   assert.equal(replies[1].result.protocolVersion, '2025-11-25');
   assert.deepEqual(replies[1].result.capabilities, {tools: {}});
   assert.equal(replies[2].error.code, -32600);
-  assert.equal(replies[3].result.tools.length,35);
+  assert.equal(replies[3].result.tools.length,36);
   assert.ok(replies[3].result.tools.some(tool => tool.name === 'moment_project_import'));
   assert.ok(replies[3].result.tools.every(tool => tool.inputSchema.required.includes('projectId')));
   assert.equal(replies[3].result.resultType, undefined);
@@ -125,4 +125,11 @@ test('stdio removes authored ranges atomically and allows removing all remaining
  const replies=run([init,ready,call(2,'captions_remove',{captionIndex:1,count:3}),call(3,'captions_list'),call(4,'captions_remove',{captionIndex:1,count:2}),call(5,'captions_remove',{captionIndex:0,count:1}),call(6,'captions_list')]);
  assert.equal(replies.find(r=>r.id===2).result.structuredContent.error.code,'INVALID_ARGUMENT');assert.equal(replies.find(r=>r.id===3).result.structuredContent.data.totalCaptions,3);
  assert.equal(replies.find(r=>r.id===4).result.structuredContent.data.totalCaptions,1);assert.deepEqual(replies.find(r=>r.id===6).result.structuredContent.data.captions,[]);
+});
+
+test('stdio metadata preflight returns a report without changing the session project',()=>{
+ const operations=[{command:'timeline.duplicate',arguments:{clipIndex:0}}];
+ const replies=run([init,ready,call(2,'project_get'),call(3,'project_preview',{operations}),call(4,'project_get'),call(5,'project_batch',{operations}),call(6,'timeline_list')]);
+ const preview=replies.find(r=>r.id===3).result.structuredContent.data;assert.equal(preview.wouldCommit,true);assert.equal(preview.after.clipCount,2);
+ assert.deepEqual(replies.find(r=>r.id===2).result.structuredContent.data,replies.find(r=>r.id===4).result.structuredContent.data);assert.equal(replies.find(r=>r.id===6).result.structuredContent.data.totalClips,2);
 });

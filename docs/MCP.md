@@ -49,7 +49,7 @@ its supported version, `2025-11-25`, even if the proposed version differs; a cli
 that cannot support that version should disconnect, not continue with another
 wire format. `ping` is supported. Initialize only once per process.
 
-All thirty-five tools require **`projectId: "session"`**. Each process owns one independent
+All thirty-six tools require **`projectId: "session"`**. Each process owns one independent
 in-memory project, initially the demo. This value is neither a path nor a credential.
 Other project IDs return a tool error. A second client process does not share state.
 
@@ -122,6 +122,7 @@ that validation.
 | Tool | Editing input | Successful `structuredContent.data` |
 |---|---|---|
 | `moment_timeline_list` | optional `offset`, `limit` | Paged clip positions with source/timeline/output intervals |
+| `moment_project_preview` | `operations` | Read-only `{operationCount, wouldCommit, changedFields, before, after}` summary |
 | `moment_project_get` | none | Full portable project document |
 | `moment_template_export` | `id`, `name` | Portable `{format:"moment-template", formatVersion:1, template}` document |
 | `moment_templates_list` | none | Built-in template summaries: `id`, `name`, `category`, `description` |
@@ -344,7 +345,38 @@ the example. Discover exact input fields in the [tool catalog](#tool-catalog).
 | Captions | [Check overlaps](#check-caption-time-overlaps) · [Inspect timing density](#inspect-caption-timing-density) · [Import](#import-subtitle-text-with-an-explicit-clock) · [Split](#split-one-caption-at-a-text-boundary) · [Merge](#merge-two-adjacent-authored-captions) · [Insert/remove](#insert-one-caption-or-remove-a-range) · [Edit one cue](#edit-one-authored-caption) · [Correct text](#correct-caption-text-without-replacing-cues) · [Shift timing](#shift-caption-timing-without-replacing-text) · [Style](#adjust-global-caption-appearance) |
 | Timeline | [Read clip clocks](#read-timeline-positions-in-pages) · [Split a clip](#split-one-clip-occurrence) · [Repeat a clip](#repeat-one-clip-occurrence) · [Move a clip](#move-one-clip-to-a-final-position) |
 | Composition | [Credit](#set-a-source-credit-independently) · [Effects](#adjust-video-effects-independently) · [Edit a card](#edit-an-existing-timed-card) · [Add/remove cards](#create-scripted-cards-without-importing-a-whole-project) · [Stacking](#change-card-stacking) |
-| Grouped/template edits | [One commit](#apply-related-edits-in-one-commit) · [Export a composition](#export-the-current-composition-as-a-template) · [Apply a template file](#apply-an-exported-custom-template) |
+| Grouped/template edits | [Preview summary](#preview-an-edit-summary-without-committing) · [One commit](#apply-related-edits-in-one-commit) · [Export a composition](#export-the-current-composition-as-a-template) · [Apply a template file](#apply-an-exported-custom-template) |
+
+### Preview an edit summary without committing
+
+Call `moment_project_preview` with the same closed `operations` schema as
+`moment_project_batch`: 1–20 sequential operations from the 24 allowed editing
+commands. Put `projectId:"session"` only on the outer call. For example:
+
+```json
+{"projectId":"session","operations":[{"command":"project.update","arguments":{"patch":{"speed":2}}},{"command":"credit.update","arguments":{"patch":{"text":"Source: Example","start":4,"end":6}}}]}
+```
+
+| Result field | Meaning |
+|---|---|
+| `operationCount` | Number of supplied operations |
+| `wouldCommit` | Whether batch preparation would request a commit, not whether final values differ |
+| `changedFields` | Sorted known top-level project keys (including `templateId`) whose JSON content changed; no full patch, text or document |
+| `before`, `after` | Each contains `clipCount`, `captionCount`, `cardCount`, `outputDuration` (after-speed seconds) |
+
+A change-and-revert sequence can return `wouldCommit:true` with `changedFields:[]`.
+This is a read-only structural summary, not a rendered preview. It does not commit,
+write history, access media or call providers, and cannot be nested in a batch.
+It does not establish rendering, media availability or export feasibility.
+Validation failures retain batch error codes and indexed operation paths.
+
+There is no revision token, reservation or later-apply guarantee. A subsequent
+`moment_project_batch` revalidates current state; generated card IDs are not
+reserved and may differ. Inspect current state after an uncertain commit instead
+of treating a successful preview as permission to retry blindly. CLI `--out`
+writes this report, not a restorable project. See the [executable preview→batch
+workflow](../INTEGRATIONS.md#편집-묶음의-반영-전-요약); CLI `--dry-run` remains a
+separate no-file-write option, not a requirement for this read-only command.
 
 ### Apply related edits in one commit
 

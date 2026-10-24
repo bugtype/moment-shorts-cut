@@ -49,7 +49,7 @@ its supported version, `2025-11-25`, even if the proposed version differs; a cli
 that cannot support that version should disconnect, not continue with another
 wire format. `ping` is supported. Initialize only once per process.
 
-All twenty-seven tools require **`projectId: "session"`**. Each process owns one independent
+All twenty-eight tools require **`projectId: "session"`**. Each process owns one independent
 in-memory project, initially the demo. This value is neither a path nor a credential.
 Other project IDs return a tool error. A second client process does not share state.
 
@@ -179,6 +179,7 @@ The service emits no BOM.
 | Tool | Editing input | Successful `structuredContent.data` |
 |---|---|---|
 | `moment_captions_replace` | `captions` | Update acknowledgment and output duration |
+| `moment_captions_update` | `captionIndex`, `patch` | `{updated:true, outputDuration, captionIndex}` |
 | `moment_captions_merge` | `captionIndex` | `{updated:true, outputDuration, mergedCaptionIndex}` |
 | `moment_captions_split` | `captionIndex`, `textOffset` | `{updated:true, outputDuration, createdCaptionIndex}` |
 | `moment_captions_import` | `text`, `basis` | `{updated:true, outputDuration, importedCaptions}` |
@@ -312,7 +313,7 @@ the example. Discover exact input fields in the [tool catalog](#tool-catalog).
 
 | Task | Recipes |
 |---|---|
-| Captions | [Inspect timing density](#inspect-caption-timing-density) · [Import](#import-subtitle-text-with-an-explicit-clock) · [Split](#split-one-caption-at-a-text-boundary) · [Merge](#merge-two-adjacent-authored-captions) · [Correct text](#correct-caption-text-without-replacing-cues) · [Shift timing](#shift-caption-timing-without-replacing-text) · [Style](#adjust-global-caption-appearance) |
+| Captions | [Inspect timing density](#inspect-caption-timing-density) · [Import](#import-subtitle-text-with-an-explicit-clock) · [Split](#split-one-caption-at-a-text-boundary) · [Merge](#merge-two-adjacent-authored-captions) · [Edit one cue](#edit-one-authored-caption) · [Correct text](#correct-caption-text-without-replacing-cues) · [Shift timing](#shift-caption-timing-without-replacing-text) · [Style](#adjust-global-caption-appearance) |
 | Timeline | [Split a clip](#split-one-clip-occurrence) · [Repeat a clip](#repeat-one-clip-occurrence) |
 | Composition | [Credit](#set-a-source-credit-independently) · [Effects](#adjust-video-effects-independently) · [Edit a card](#edit-an-existing-timed-card) · [Add/remove cards](#create-scripted-cards-without-importing-a-whole-project) · [Stacking](#change-card-stacking) |
 | Grouped/template edits | [One commit](#apply-related-edits-in-one-commit) · [Apply a template file](#apply-an-exported-custom-template) |
@@ -586,6 +587,38 @@ Read the document to save it. After a lost response, inspect the array before
 retrying: merging again at the same index can consume another row. Browser
 **다음 자막과 합치기** works across page boundaries and is one undo step;
 standalone MCP has no undo tool. See the [complete CLI example](../INTEGRATIONS.md#인접한-자막-합치기).
+
+### Edit one authored caption
+
+Read the current `project.captions`, then use `moment_captions_update` to patch one
+row without resending the whole array:
+
+```json
+{"projectId":"session","captionIndex":0,"patch":{"text":"Start at your own pace","speaker":"0","keywords":"pace"}}
+```
+
+The required `captionIndex` is an existing zero-based array position (`0..9999`),
+not a stable ID or derived output occurrence. Required `patch` accepts only:
+
+| Field | Contract |
+|---|---|
+| `text` | At most 2,000 UTF-16 code units; empty allowed |
+| `speaker` | `""`, `"0"` or `"1"`; empty clears the assignment |
+| `keywords` | String up to 500 UTF-16 code units; empty allowed |
+| `start`, `end` | Finite `0..86400` seconds in the existing cue’s **pre-speed** clock |
+
+Unspecified fields, `basis`, `timing`, array order, other cues and project settings
+remain unchanged. Patching `basis` or `timing` is rejected. If either endpoint is
+supplied, the resulting positive interval must fit the existing source duration
+or pre-speed edited duration. Content-only edits preserve valid existing timing
+outside the current duration. Empty text may still fail SRT/VTT export validation.
+
+Invalid indexes/fields/timing return `INVALID_ARGUMENT` without mutation. The
+result is `{updated:true, outputDuration, captionIndex}`, including empty/redundant
+patches under the existing update contract; read the project separately to save it.
+This command is allowed in `project.batch`. After earlier splits/merges, use the
+resulting index, not the old position. Neither the index nor a batch promises
+protection from another writer changing the project; inspect uncertain state first.
 
 ### Correct caption text without replacing cues
 

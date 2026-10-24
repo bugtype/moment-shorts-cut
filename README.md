@@ -170,6 +170,7 @@ Existing output files are protected; use `--overwrite` only when you intend to r
 
 | Task | Use | Keep in mind |
 |---|---|---|
+| Edit one authored caption | [`captions.update`](INTEGRATIONS.md#자막-하나만-수정) | Patch text, timing, speaker or keywords without resending all cues. Read the current array index first; basis and estimated-timing metadata are preserved. |
 | Correct repeated wording | [`captions.text.replace`](INTEGRATIONS.md#자막-문구-일괄-교정) | Literal, case-sensitive, non-overlapping; no regex/Unicode normalization. Preserves timing, speaker/keyword metadata and order. Blank or overlong results reject the whole edit. Browser UI previews occurrence counts and applies one undo step. |
 | Review matches first | Browser previous/next search controls | Wrap through authored rows, including trimmed-out captions; scroll/focus/select each row’s first match and show current/total rows. One row counts once; replace-all counts occurrences. No playback seek, project edit or save. |
 | Shift a constant subtitle delay | [`captions.timing.shift`](INTEGRATIONS.md#자막-시간을-앞뒤로-이동) | Choose source/timeline and signed seconds **before speed**. All cues in that basis move; any out-of-bounds result rejects the whole edit. Browser caption tools apply a real change as one undo step. |

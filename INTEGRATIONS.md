@@ -178,6 +178,7 @@ JavaScript에서 직접 호출할 때도 JSON으로 왕복 가능한 값을 전�
 | 명령 | 주요 입력 | 결과 |
 |---|---|---|
 | `captions.replace` | `captions` | 대사 자막 교체 |
+| `captions.update` | `captionIndex`, `patch` | 자막 하나 부분 수정; `{updated:true, outputDuration, captionIndex}` |
 | `captions.merge` | `captionIndex` | 다음 저장 행과 병합; `{updated:true, outputDuration, mergedCaptionIndex}` |
 | `captions.split` | `captionIndex`, `textOffset` | 지정 자막을 둘로 분할; `{updated:true, outputDuration, createdCaptionIndex}` |
 | `captions.import` | `text`, `basis` | 전체 교체; `{updated:true, outputDuration, importedCaptions}` |
@@ -192,7 +193,7 @@ JavaScript에서 직접 호출할 때도 JSON으로 왕복 가능한 값을 전�
 
 | 작업 | 예제 |
 |---|---|
-| 자막 | [표시 속도 점검](#편집-후-자막-표시-속도-점검) · [가져오기](#srtvtt-본문을-명령으로-가져오기) · [커서 분할](#자막-하나를-커서-위치에서-분할) · [합치기](#인접한-자막-합치기) · [문구 교정](#자막-문구-일괄-교정) · [시간 이동](#자막-시간을-앞뒤로-이동) · [스타일](#자막-스타일-수정) |
+| 자막 | [표시 속도 점검](#편집-후-자막-표시-속도-점검) · [가져오기](#srtvtt-본문을-명령으로-가져오기) · [커서 분할](#자막-하나를-커서-위치에서-분할) · [합치기](#인접한-자막-합치기) · [개별 수정](#자막-하나만-수정) · [문구 교정](#자막-문구-일괄-교정) · [시간 이동](#자막-시간을-앞뒤로-이동) · [스타일](#자막-스타일-수정) |
 | 타임라인 | [클립 분할](#클립-구간-분할) · [클립 복제](#클립-구간-복제) |
 | 구성 | [크레딧](#출처-크레딧-수정) · [영상 효과](#영상-효과-수정) · [카드 수정](#기존-시간별-카드-수정) · [카드 추가·삭제](#스크립트에-맞춰-카드-추가삭제) · [쌓임 순서](#카드-쌓임-순서-변경) |
 | 묶음·템플릿 | [한 번에 편집](#여러-편집을-한-번에-반영) · [템플릿 파일 관리](#개별-사용자-템플릿-파일) · [파일 적용](#내보낸-템플릿을-climcp로-적용) |
@@ -473,6 +474,37 @@ node cli/moment.mjs exec captions.merge --project merge-ready.json --json '{"cap
 놓치면 배열을 다시 읽으세요. 같은 인덱스로 재시도하면 그다음 행까지 합칠 수
 있습니다. UI의 **다음 자막과 합치기**는 페이지 경계도 처리하며 합친 행에 초점을
 유지하고 한 번에 실행 취소합니다. MCP에는 실행 취소가 없으므로 이전 문서를 보관하세요.
+
+### 자막 하나만 수정
+
+`captions.update`는 현재 `project.captions`의 한 행에서 지정한 필드만 바꿉니다.
+먼저 `project.get`으로 대상 문구와 배열 위치를 확인하세요. `captionIndex`는
+0부터 시작하는 기존 위치(`0..9999`)이며 안정적인 ID나 출력 발생 인덱스가 아닙니다.
+
+| 필수 `patch` 안의 선택 필드 | 계약 |
+|---|---|
+| `text` | 최대 2,000 UTF-16 코드 단위; 빈 문자열도 허용 |
+| `speaker` | `""`, `"0"`, `"1"`; 빈 문자열은 화자 지정 해제 |
+| `keywords` | 최대 500 UTF-16 코드 단위 문자열; 빈 문자열 허용 |
+| `start`, `end` | 유한한 `0..86400`초; 기존 자막의 시간 기준, **배속 적용 전** |
+
+`basis`와 `timing`은 이 패치로 변경할 수 없습니다. 다른 메타데이터·순서·자막과
+프로젝트 필드는 유지합니다. 시간 필드를 하나라도 보내면 최종 `0 <= start < end`
+및 기존 기준의 길이(원본 길이 또는 배속 전 편집 길이) 이내인지 검사합니다.
+문구만 바꾸면 기존에 유효하지만 현재 길이 밖에 있는 시간은 자동 조정하지 않습니다.
+빈 문구도 편집은 가능하지만 SRT/VTT 출력 제한을 우회하지는 않습니다.
+
+```sh
+node cli/moment.mjs init --out cue-edit-source.json
+node cli/moment.mjs exec project.get --project cue-edit-source.json
+node cli/moment.mjs exec captions.update --project cue-edit-source.json --json '{"captionIndex":0,"patch":{"text":"나만의 속도로 시작해요","speaker":"0","keywords":"속도"}}' --out cue-edited.json
+```
+
+성공 결과는 `{updated:true, outputDuration, captionIndex}`이며 전체 문서는 별도
+조회합니다. 빈·같은 패치도 일반 수정처럼 `updated:true`일 수 있습니다. 잘못된
+위치·필드·시간은 `INVALID_ARGUMENT`로 변경 없이 거절합니다. `project.batch`에도
+넣을 수 있지만 앞선 분할·합치기로 인덱스가 달라졌다면 그 변경 후 위치를 써야 합니다.
+오래된 인덱스를 안전한 ID로 취급하거나 다른 작성자와의 충돌 방지를 기대하지 마세요.
 
 ### 자막 문구 일괄 교정
 

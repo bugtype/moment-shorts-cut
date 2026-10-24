@@ -47,6 +47,7 @@ const inputs = {
   'credit.update': {patch:{text:'출처: 테스트',start:0,end:null}},
   'title.update': { patch: { lines: ['첫째 줄', '둘째 줄'] } },
   'captions.import': {text:'1\n00:00:00,000 --> 00:00:01,000\n자막\n\n2\n00:00:01,000 --> 00:00:02,000\n다음',basis:'source'},
+  'captions.update': {captionIndex:0,patch:{text:'개별 자막'}},
   'captions.replace': { captions: [{ start: 0, end: 1, text: '자막' }] },
   'captions.text.replace': {find:'자막',replacement:'교정'},
   'captions.timing.shift': {basis:'source',delta:.1},

@@ -8,7 +8,7 @@
 
 | Workflow | Start here |
 |---|---|
-| Captions | [Inspect timing density](#inspect-caption-timing-density) · [Import](#import-srtvtt-without-constructing-cue-arrays) · [Text correction](#correct-repeated-caption-text) · [Split](#split-one-caption-at-the-caret-boundary) · [Merge](#merge-adjacent-authored-captions) · [Timing](#shift-a-constant-subtitle-delay) · [Style](#adjust-shared-caption-styling) |
+| Captions | [Inspect timing density](#inspect-caption-timing-density) · [Import](#import-srtvtt-without-constructing-cue-arrays) · [Edit one cue](#edit-one-authored-caption) · [Text correction](#correct-repeated-caption-text) · [Split](#split-one-caption-at-the-caret-boundary) · [Merge](#merge-adjacent-authored-captions) · [Timing](#shift-a-constant-subtitle-delay) · [Style](#adjust-shared-caption-styling) |
 | Timeline | [Split/repeat a clip](#split-a-clip-without-rebuilding-the-timeline) |
 | Composition | [Effects](#adjust-video-effects-without-changing-content) · [Existing cards](#edit-an-existing-timed-card-by-id) · [Scripted cards/stacking](#build-a-hook-tip-and-cta-with-individual-cards) · [Credit](../../../../docs/MCP.md#set-a-source-credit-independently) |
 | Grouped/template edits | [One commit](#apply-related-edits-together) · [Browser template sharing](#share-one-browser-custom-template) · [Apply a supplied template](#apply-a-supplied-template-document) |
@@ -145,6 +145,23 @@ is imported. Empty/no-valid input fails without replacing the existing captions.
 The permissive parser may skip malformed cues; it is not a full standard validator.
 Success returns `{updated:true, outputDuration, importedCaptions}`; the last field
 is the applied cue count. Read the project separately to save the document.
+
+## Edit one authored caption
+
+Prefer `captions.update` / `moment_captions_update` for one cue rather than sending
+all captions again. Read the current authored array, then supply its `captionIndex`
+and a `patch` containing only requested `text`, `start`, `end`, `speaker` or `keywords`.
+MCP adds `projectId:"session"`. Basis and estimated-timing metadata cannot be patched;
+all unspecified fields and other cues are retained. Text allows empty strings up
+to 2,000 UTF-16 code units, keywords up to 500; speaker is `""`, `"0"` or `"1"`.
+
+Explicit endpoints must fit the cue’s existing pre-speed source/timeline duration
+and the 86,400-second schema cap with positive length. Content-only edits do not
+clamp old out-of-duration timing. Empty text does not guarantee valid SRT/VTT.
+Check `{updated:true, outputDuration, captionIndex}` and save separately; an empty
+patch can still commit. The index is not a stable ID. Re-read after uncertain edits,
+and account for earlier splits/merges when using this command in `project.batch`.
+See the [CLI example and field table](../../../../INTEGRATIONS.md#자막-하나만-수정).
 
 ## Correct repeated caption text
 

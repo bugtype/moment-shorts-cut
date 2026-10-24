@@ -16,7 +16,7 @@ for (const example of ['use-editor-service.mjs', 'use-mcp-client.mjs']) {
     assert.equal(output.ok, true);
     assert.equal(output.rendered, false);
     if (example === 'use-mcp-client.mjs') {
-      assert.equal(output.tools, 27);
+      assert.equal(output.tools, 28);
       assert.equal(output.recoveredFromInvalidInput, true);
       assert.equal(output.reimported, true);
     }

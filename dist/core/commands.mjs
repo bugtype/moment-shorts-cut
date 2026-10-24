@@ -13,6 +13,7 @@ const patchSchema=object({name:string(200),ratio:choice('9:16','1:1','16:9'),fit
 const titleSchema=object({lines:array(string(200),2,2),colors:array(string(9),2,2),enabled:boolean,x:number(.05,.95),y:number(.06,.93),size:number(18,72),stroke:number(0,12),italic:boolean,start:number(0,86400),end:{type:['number','null'],minimum:0,maximum:86400}});
 const captionColorSchema={...string(9),pattern:'^#[0-9a-fA-F]{6}([0-9a-fA-F]{2})?$'};
 const creditSchema=object({text:string(100),enabled:boolean,italic:boolean,color:captionColorSchema,x:number(0,1),y:number(0,1),size:number(10,120),start:{type:'number',minimum:0},end:{type:['number','null'],minimum:0}});
+const captionPatchSchema=object(Object.fromEntries(['text','start','end','speaker','keywords'].map(key=>[key,captionSchema.properties[key]])));
 const captionStyleSchema=object({
   style:choice('impact','accent','highlight','minimal'),
   captionSize:number(10,120),captionX:number(0,1),captionY:number(0,1),
@@ -55,6 +56,7 @@ const definitions=[
   command('captions.import','SRT/VTT 문자열로 자막 전체를 교체합니다. source 또는 배속 전 timeline 시간 기준을 명시하세요.',object({text:string(100000),basis:choice('source','timeline')},['text','basis']),true),
   command('captions.split','자막 하나를 문자 커서 위치에서 나눕니다. 시간은 문자 수 비례 추정이며 음성과 확인해야 합니다.',object({captionIndex:{type:'integer',minimum:0,maximum:9999},textOffset:{type:'integer',minimum:1,maximum:1999}},['captionIndex','textOffset']),true),
   command('captions.merge','인접한 두 자막을 합칩니다. 시간 기준·화자·강조 단어가 같고 시간이 겹치지 않아야 합니다.',object({captionIndex:{type:'integer',minimum:0,maximum:9998}},['captionIndex']),true),
+  command('captions.update','지정한 자막 하나의 본문·시간·화자·강조 단어만 수정합니다. 시간 기준과 추정 시간 경고는 유지합니다.',object({captionIndex:{type:'integer',minimum:0,maximum:9999},patch:captionPatchSchema},['captionIndex','patch']),true),
   command('captions.replace','자막을 교체합니다. source는 원본, timeline은 배속 전 편집 시간입니다.',object({captions:array(captionSchema,MAX_CAPTIONS)},['captions']),true),
   command('captions.text.replace','자막 본문에서 대소문자를 구분해 같은 문자열을 모두 바꿉니다. 시간과 메타데이터는 유지합니다.',object({find:{...string(2000),minLength:1},replacement:string(2000)},['find','replacement']),true),
   command('captions.timing.shift','선택한 시간 기준의 자막 전체를 배속 전 초 단위로 이동합니다. 범위를 벗어나면 변경하지 않습니다.',object({basis:choice('source','timeline'),delta:{type:'number'}},['basis','delta']),true),
@@ -69,7 +71,7 @@ const batchCommands = [
   'project.update','effects.update','template.apply','template.apply.document',
   'timeline.duplicate','timeline.split','timeline.replace','credit.update','title.update',
   'overlays.move','overlays.add','overlays.remove','overlays.update',
-  'captions.import','captions.split','captions.merge','captions.replace',
+  'captions.import','captions.split','captions.merge','captions.replace','captions.update',
   'captions.text.replace','captions.timing.shift','captions.style.update',
 ];
 definitions.push(command('project.batch','최대 20개 편집을 순서대로 검증하고 한 번에 적용합니다. 하나라도 실패하면 적용하지 않습니다.',
@@ -129,6 +131,20 @@ export function prepareCommand(project,name,args={}){
     if(!data.updated)return {data};
     const next=structuredClone(project),[card]=next.overlays.splice(from,1);
     next.overlays.splice(args.toIndex,0,card);validateProject(next);return {project:next,data};
+  }
+  if(name==='captions.update'){
+    const index=args.captionIndex;
+    if(!Number.isInteger(index)||index<0||index>=project.captions.length)
+      fail('수정할 자막의 위치를 확인하세요.','arguments.captionIndex');
+    const next=structuredClone(project),caption=next.captions[index];
+    Object.assign(caption,args.patch);
+    if(Object.hasOwn(args.patch,'start')||Object.hasOwn(args.patch,'end')){
+      const total=caption.basis==='timeline'?timelineDuration(next):next.duration;
+      if(caption.start<0||caption.end<=caption.start||caption.end>total)
+        fail('자막 구간이 기존 시간 기준의 범위를 벗어났습니다.','arguments.patch');
+    }
+    validateProject(next);
+    return {project:next,data:{updated:true,outputDuration:outputDuration(next),captionIndex:index}};
   }
   if(name==='captions.split'){
     const index=args.captionIndex;

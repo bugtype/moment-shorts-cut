@@ -27,6 +27,7 @@ function dataSchema(command) {
     case 'templates.list': return {
       type: 'array', items: record({ id: text, name: text, category: text, description: text }),
     };
+    case 'captions.update': return record({updated:{const:true},captionIndex:{type:'integer',minimum:0,maximum:9999},outputDuration:{type:'number',minimum:0}});
     case 'captions.split': return record({updated:{const:true},createdCaptionIndex:{type:'integer',minimum:1,maximum:9999},outputDuration:{type:'number',minimum:0}});
     case 'captions.merge': return record({updated:{const:true},mergedCaptionIndex:{type:'integer',minimum:0,maximum:9998},outputDuration:{type:'number',minimum:0}});
     case 'captions.timing.shift': return record({updated:{type:'boolean'},shiftedCaptions:{type:'integer',minimum:0,maximum:10000},outputDuration:{type:'number',minimum:0}});
@@ -205,6 +206,14 @@ function inputSchema(command) {
   if (command.name === 'captions.import') {
     p.text.description = 'SRT or plain WebVTT text, not a path. Replaces all captions using the browser parser: clips cue ends to the chosen duration, skips invalid/empty/out-of-range cues, strips tags and decodes supported entities once. Not full subtitle-standard validation. Runtime limit is 100,000 UTF-16 code units plus the parser’s 2 MiB UTF-8 ceiling; each cue is at most 2,000 units and at most 10,000 cues are accepted.';
     p.basis.description = 'Required clock: source means original media seconds; timeline means edited timeline seconds BEFORE speed. No automatic time conversion. captions.export uses output seconds AFTER speed, so importing it as timeline is not a speed-adjusted round trip.';
+  }
+  if (command.name === 'captions.update') {
+    p.captionIndex.description = 'Existing zero-based authored cue index, not an output occurrence or stable ID. Read current project before updating; preceding structural edits can shift indices.';
+    p.patch.description = 'Only supplied fields change; basis and timing metadata cannot be changed. Empty/redundant patches retain normal updated:true semantics. Content-only changes preserve valid existing out-of-range timing.';
+    p.patch.properties.text.description = 'Literal authored text, maximum 2,000 UTF-16 units; empty/whitespace text is allowed, as in captions.replace. Subtitle export validation still applies.';
+    p.patch.properties.start.description = 'Start seconds in this cue’s EXISTING source or pre-speed timeline clock, never output seconds. Explicit timing edits require 0<=start<end<=that clock duration and the existing 86,400-second schema ceiling.';
+    p.patch.properties.end.description = 'Exclusive end in the same existing pre-speed clock; use with start when changing both endpoints atomically.';
+    p.patch.properties.keywords.description = 'Cue highlight keywords, maximum 500 UTF-16 units; other cues and global keywords are unchanged.';
   }
   if (command.name === 'captions.split') {
     p.captionIndex.description = 'Zero-based authored caption index, not a rendered occurrence. One cue becomes two; maximum 10000 cues. Both preserve metadata and receive timing:estimated. Inspect project.get before retrying this non-idempotent edit.';

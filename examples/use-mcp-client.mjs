@@ -107,6 +107,9 @@ const saved = await withClient(async ({request, call, data}) => {
   const assigned = await data('moment_captions_speaker_assign', {captionIndex: 0, count: 1, speaker: '0'});
   assert.equal(assigned.changedCaptions, 1);
   assert.equal((await data('moment_captions_speaker_assign', {captionIndex: 0, count: 1, speaker: '0'})).updated, false);
+  const review = await data('moment_captions_export', {format: 'txt', review: true});
+  assert.equal(review.format, 'txt');
+  assert.ok(review.text.includes('안녕하세요'));
   const shifted = await data('moment_captions_timing_shift', {basis: 'source', delta: .1});
   assert.equal(shifted.updated, true);
   await data('moment_captions_timing_shift', {basis: 'source', delta: -.1});

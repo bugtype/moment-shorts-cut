@@ -1,3 +1,4 @@
+import { projectCaptionReview } from './caption-review.mjs';
 import { message as msg } from '../i18n.mjs';
 import { defaultEnhancements } from '../effects.mjs';
 import { defaultDesign, migrateProject, DESIGN_VERSION } from '../typography.mjs';
@@ -86,8 +87,11 @@ export function readProjectDocument(document){
   return validateProject(project.schemaVersion===DESIGN_VERSION?project:migrateProject(project,createDemoProject()));
 }
 export function srtTimestamp(t){const ms=Math.round(t*1000);return `${String(Math.floor(ms/3600000)).padStart(2,'0')}:${String(Math.floor(ms/60000)%60).padStart(2,'0')}:${String(Math.floor(ms/1000)%60).padStart(2,'0')},${String(ms%1000).padStart(3,'0')}`;}
-export function projectSubtitles(p,{format='srt',bom=false}={}){
+export function projectSubtitles(p,{format='srt',bom=false,review=false}={}){
   if(!['srt','vtt','txt'].includes(format))fail(msg('errors.subtitleFormat'));
+  if(typeof review!=='boolean')fail(msg('review.boolean'),'arguments.review');
+  if(review&&format!=='txt')fail(msg('review.txtOnly'),'arguments.review');
+  if(review)return projectCaptionReview(p,{bom});
   const label=format.toUpperCase(),header=format==='vtt'?'WEBVTT\n\n':'';
   const chunks=[],encoder=new TextEncoder();let bytes=(bom?3:0)+encoder.encode(header).byteLength;
   const timestamp=t=>format==='vtt'?srtTimestamp(t).replace(',','.'):srtTimestamp(t);

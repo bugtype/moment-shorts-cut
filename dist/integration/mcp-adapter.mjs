@@ -98,7 +98,7 @@ function dataSchema(command) {
       },['occurrenceIndex','captionIndex','start','end','graphemeCount','graphemesPerSecond'])},
     });
     case 'captions.export': return record({ format: { enum: ['srt', 'vtt', 'txt'] }, text: {
-      type: 'string', description: 'SRT/WebVTT uses final output seconds; TXT contains literal edited cue paragraphs without timestamps. Repeated or cut cues may repeat text. Save this string, not the result envelope.',
+      type: 'string', description: 'SRT/WebVTT uses final output seconds; TXT defaults to literal edited cue paragraphs without timestamps; review:true adds output times and assigned speaker names. Repeated or cut cues may repeat text. Save this string, not the result envelope.',
     } });
     case 'render.plan': return record({
       planVersion: { enum: [1] }, project: documentSchema,
@@ -321,8 +321,11 @@ function inputSchema(command) {
     p.replacement.description = 'Literal replacement, including dollar signs. Empty or whitespace-only resulting cues and cues over 2000 characters reject the whole edit. Timing and metadata stay unchanged.';
   }
   if (p.quality) p.quality.description = 'Output short edge in pixels; defaults to 1080. Creates a plan only.';
+  if (command.name === 'captions.export') {
+    p.review.description = 'Optional boolean, default false. True requires format txt and returns a human review transcript with raw output-second ranges and explicitly assigned nonempty speaker labels. No guessed speakers, no import/visibility/diarization guarantee. Repeated and overlapping edited occurrences remain separate. Metadata uses the active UI locale (default Korean in headless clients); authored text and labels are not translated. Existing derived limits and final 2 MiB UTF-8 limit include metadata. False preserves existing output bytes.';
+  }
   if (p.format) p.format.description = command.name === 'captions.export'
-    ? 'Format: srt (default), plain vtt, or txt (edited cue paragraphs, no timestamps/speaker labels). TXT preserves literal text and LF line breaks, rejects NUL, and shares the 2 MiB UTF-8 and 10,000 occurrence limits. The destination filename does not select the format.'
+    ? 'Format: srt (default), plain vtt, or txt (plain edited cue paragraphs by default; review:true adds output times and assigned speaker names). TXT preserves literal text and LF line breaks, rejects NUL, and shares the 2 MiB UTF-8 and 10,000 occurrence limits. The destination filename does not select the format.'
     : 'Planned output container; defaults to mp4, without checking local codec support.';
   return schema;
 }

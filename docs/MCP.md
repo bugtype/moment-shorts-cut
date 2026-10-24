@@ -163,7 +163,7 @@ that validation.
 | `moment_template_export` | `id`, `name` | Portable `{format:"moment-template", formatVersion:1, template}` document |
 | `moment_template_inspect` | `templateId`, optional `withContent` (default false) | Canonical template metadata and detached application content/timing report |
 | `moment_templates_list` | none | Built-in template summaries: `id`, `name`, `category`, `description` |
-| `moment_captions_export` | optional `format: "srt"`, `"vtt"` or `"txt"` | `{format, text}` with the selected format |
+| `moment_captions_export` | optional `format: "srt"`, `"vtt"` or `"txt"`, `review:boolean` | `{format, text}` with the selected format |
 | `moment_captions_list` | optional `offset`, `limit` | Authored cue page with current array indexes |
 | `moment_captions_overlaps` | optional `limit` | Read-only output-time overlap report |
 | `moment_captions_inspect` | `maxGraphemesPerSecond`, optional `limit` | Read-only output-occurrence rate report |
@@ -196,6 +196,39 @@ cue timing. The same 10,000-derived-cue/raw-text budget applies; complete UTF-8
 output including separators must fit 2 MiB. The raw-text budget is checked before
 newline normalization, so a smaller normalized TXT can still fail that guard.
 The service emits no BOM.
+
+### Caption review TXT
+
+Opt in to a human-readable timing/speaker review using the existing export tool:
+
+```json
+{"projectId":"session","format":"txt","review":true}
+```
+
+`review` defaults to `false`; `true` requires `format:"txt"` or fails with
+`INVALID_ARGUMENT` at `arguments.review`. The result remains
+`{format:"txt",text}`. Save the text as UTF-8 `.review.txt`, without a BOM.
+
+| Mode | Content |
+|---|---|
+| Plain TXT (default) | Existing caption paragraphs, without timestamps or speaker names |
+| Review TXT | After-speed output seconds per derived occurrence, an explicitly assigned nonempty speaker label when present, and literal cue text |
+
+Repeated/overlapping occurrences remain separate in stable output order. Numeric
+times use ordinary string conversion, not frame/millisecond rounding. Missing or
+empty labels are omitted, never inferred. Metadata headings use current UI locale;
+the standalone CLI/MCP default is Korean, with no command locale parameter.
+Authored labels/text are not translated; CRLF/CR normalize to LF.
+
+This is not subtitle import, rendered-visibility prediction, an audio-verified
+transcript or project backup. Media/project names, source coordinates, keywords,
+graphics text and styling are excluded. Empty output is `""`; the browser skips
+the file. Existing 10,000-occurrence/raw-text budgets apply, plus a final 2 MiB
+UTF-8 budget including headings, labels and separators. NUL in exported text or
+a used label is rejected with `INVALID_ARGUMENT`, not stripped; unused labels do not block export.
+Exceeding an output budget returns `CAPTION_OUTPUT_LIMIT`.
+`review:false` or omission leaves existing SRT/VTT/plain TXT bytes unchanged.
+[Executable CLI recipe](../INTEGRATIONS.md#자막-검토용-txt)
 
 ### Project and template changes
 
@@ -1087,8 +1120,8 @@ Valid existing cues outside the current edited duration are preserved, not clamp
 | Result | `{updated, changedCaptions, outputDuration}`; count only actually changed cues |
 
 Clearing an assigned speaker writes `speaker:""`. Existing global labels/colors are
-configured separately with `moment_captions_style_update`; subtitle exports still
-contain no speaker names or visual styling. Save the updated document with
+configured separately with `moment_captions_style_update`; plain SRT/VTT/TXT still
+contain no speaker names or visual styling; opt-in [review TXT](#caption-review-txt) can include assigned labels. Save the updated document with
 `moment_project_get`; MCP has no undo tool.
 
 This command is allowed in `moment_project_batch` and `moment_project_preview`.

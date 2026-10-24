@@ -12,7 +12,7 @@ export function captionsPanelMarkup({ captions, speakerLabels }, { toolsOpen, tr
         `\n <h1 class="panel-heading">${text('panels.captionsCount', {count: captions.length})}</h1>` +
         `\n <div class="panel-actions">` +
         `<button class="button" id="addCaption">${text('panels.addCaption')}</button>` +
-        `<select class="panel-select" id="captionExportFormat" ${attrs('aria-label', 'panels.captionExportFormat')}><option value="srt">SRT</option><option value="vtt">VTT</option><option value="txt" ${mark('panels.txtTranscript')}>${esc(t('panels.txtTranscript'))}</option></select>` +
+        `<select class="panel-select" id="captionExportFormat" ${attrs('aria-label', 'panels.captionExportFormat')}><option value="srt">SRT</option><option value="vtt">VTT</option><option value="txt" ${mark('panels.txtTranscript')}>${esc(t('panels.txtTranscript'))}</option><option value="review-txt" ${mark('review.option')}>${esc(t('review.option'))}</option></select>` +
         `<button class="button" id="downloadCaptions">${text('panels.save')}</button>` +
         `</div>` +
         `\n <div id="captionRows" role="region" ${attrs('aria-label', 'panels.captionList')} tabindex="0">${rows || `<p class="empty-text">${text('panels.captionEmpty')}</p>`}</div>` +

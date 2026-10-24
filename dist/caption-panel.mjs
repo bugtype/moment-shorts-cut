@@ -145,7 +145,7 @@ export function createCaptionPanel({
         $('#captionExportFormat').value = exportFormat;
         $('#captionExportFormat').onchange = () => {
             const value = $('#captionExportFormat').value;
-            if (['srt', 'vtt', 'txt'].includes(value)) exportFormat = value;
+            if (['srt', 'vtt', 'txt', 'review-txt'].includes(value)) exportFormat = value;
         };
         $('#downloadCaptions').onclick = () => actions.download(exportFormat);
         $$('[data-view-caption]').forEach(button => button.onclick = event => {

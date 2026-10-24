@@ -78,13 +78,14 @@ export function createTextFileWorkflow({
             return;
         try {
             const project = getProject();
-            const text = projectSubtitles(project, { format, bom: format === 'srt' });
+            const review = format === 'review-txt';
+            const text = projectSubtitles(project, { format: review ? 'txt' : format, bom: format === 'srt', ...(review ? {review: true} : {}) });
             if (!text || (format === 'vtt' && text === 'WEBVTT\n\n')) {
                 toast(msg('errors.noCaptionsSave'));
                 return;
             }
             const type = format === 'vtt' ? 'text/vtt;charset=utf-8' : 'text/plain;charset=utf-8';
-            download(new Blob([text], { type }), `${project.name}.${format}`);
+            download(new Blob([text], { type }), `${project.name}.${review ? 'review.txt' : format}`);
         }
         catch (error) {
             toast((error.messageKey ? error : error.message) || msg('errors.captionSave'));

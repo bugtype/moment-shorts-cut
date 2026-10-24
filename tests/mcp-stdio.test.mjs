@@ -165,3 +165,23 @@ test('stdio assigns speaker ranges, preserves None no-op and recovers from inval
   assert.equal(captions[1].speaker, '');
   assert.equal(Object.hasOwn(captions[2], 'speaker'), false);
 });
+
+test('stdio exports opt-in review TXT without changing default subtitle output or project', () => {
+  const replies = run([
+    init, ready,
+    call(2, 'captions_speaker_assign', { captionIndex: 0, count: 1, speaker: '0' }),
+    call(3, 'project_get'),
+    call(4, 'captions_export', { format: 'txt' }),
+    call(5, 'captions_export', { format: 'txt', review: true }),
+    call(6, 'captions_export', { format: 'vtt', review: true }),
+    call(7, 'captions_export', { format: 'txt', review: false }),
+    call(8, 'project_get'),
+  ]);
+  const response = id => replies.find(item => item.id === id).result.structuredContent;
+  assert.equal(response(5).data.format, 'txt');
+  assert.ok(response(5).data.text.includes(response(3).data.project.speakerLabels[0]));
+  assert.notEqual(response(5).data.text, response(4).data.text);
+  assert.equal(response(6).error.code, 'INVALID_ARGUMENT');
+  assert.deepEqual(response(7).data, response(4).data);
+  assert.deepEqual(response(8).data, response(3).data);
+});

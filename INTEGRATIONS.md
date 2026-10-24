@@ -126,6 +126,39 @@ CLI는 편집 메타데이터와 SRT/VTT/TXT 출력을 다룹니다. MP4 파일�
 아니며 시간 정보를 복원할 수 없습니다. 브라우저는 형식 선택 후 하나의 저장
 버튼을 사용하고 SRT만 BOM을 붙입니다. 빈 결과는 내려받지 않습니다.
 
+### 자막 검토용 TXT
+
+시간과 수동 화자 이름도 검토하려면 `captions.export`에
+`{"format":"txt","review":true}`를 전달하세요. 결과는 여전히 `{format:"txt", text}`이며
+새 형식이나 도구가 아닙니다. `review` 기본값은 `false`; `true`는 TXT에서만 허용하며
+다른 형식은 `INVALID_ARGUMENT`(`arguments.review`)입니다.
+
+| 출력 | 포함 내용 | 용도/경계 |
+|---|---|---|
+| 일반 TXT | 출력 순서의 자막 본문 | 기존 결과 유지, 시간·화자 이름 없음 |
+| 검토용 TXT | 파생 구간별 배속 후 출력 초·명시적으로 배정된 비어 있지 않은 화자 이름·본문 | 사람이 읽는 검토 목록; 가져오기/프로젝트 백업/렌더링 가시성/음성 검증 녹취 아님 |
+
+```sh
+node cli/moment.mjs init --out review-source.json
+node cli/moment.mjs exec captions.speaker.assign --project review-source.json --json '{"captionIndex":0,"count":1,"speaker":"0"}' --out review-ready.json
+node cli/moment.mjs exec captions.export --project review-ready.json --json '{"format":"txt","review":true}' --out captions.review.txt
+```
+
+브라우저 자막 형식의 **검토용 TXT**는 `프로젝트이름.review.txt`로 저장합니다.
+UTF-8, BOM 없음이며 빈 결과는 `""`이고 브라우저는 내려받지 않습니다.
+표제·시간 설명은 현재 UI 언어, CLI/MCP는 기본 한국어이며 명령에 언어 인수는 없습니다.
+작성된 이름·본문은 번역하지 않고 CRLF/CR 줄바꿈만 LF로 정규화합니다.
+
+시간은 현재 컷·배속을 반영한 숫자를 문자열로 표시하며 밀리초/프레임 정렬을 보장하지
+않습니다. 반복·겹침 구간은 각각 기존 순서대로 나열합니다. 화자 배정이나 이름이
+없으면 화자 줄을 생략하며 추측하지 않습니다. 미디어·프로젝트 이름·원본 좌표·키워드·
+그래픽 문구·스타일은 포함하지 않습니다.
+
+기존 파생 10,000개·정규화 전 원문 2 MiB와 함께 최종 표제·이름·구분자까지 2 MiB를
+검사합니다. 출력에 사용되는 이름/본문의 NUL은 거절하며 자동 제거하지 않습니다.
+사용되지 않는 이름의 NUL은 해당 출력을 막지 않습니다. 수정 후 재시도하세요.
+`review:false` 또는 생략 시 기존 SRT/VTT/일반 TXT 결과는 그대로입니다.
+
 ### 그래픽 문구 검토용 TXT
 
 브라우저 **프로젝트 파일 → 그래픽 문구 (.txt)**는 현재 저장 모델의 제목·크레딧·카드를
@@ -248,7 +281,7 @@ JavaScript에서 직접 호출할 때도 JSON으로 왕복 가능한 값을 전�
 | `template.export` | `id`, `name` | 현재 구성의 `moment-template` 문서; 읽기 전용, 라이브러리 저장 아님 |
 | `templates.list` | 없음 | 기본 템플릿 목록 |
 | `template.inspect` | `templateId`, 선택 `withContent`(기본 false) | 적용 전 기본 템플릿 메타데이터·결과 문구/시간 읽기 |
-| `captions.export` | 선택 `format: "srt"`, `"vtt"`, `"txt"` | 편집 구간·배속을 반영한 `{format, text}`; 기본 SRT |
+| `captions.export` | 선택 `format: "srt"`, `"vtt"`, `"txt"`, `review:boolean` | 편집 구간·배속을 반영한 `{format, text}`; 기본 SRT |
 | `captions.list` | 선택 `offset`, `limit` | 저장된 자막 페이지와 현재 배열 위치; 읽기 전용 |
 | `captions.overlaps` | 선택 `limit` | 출력 시간 겹침의 읽기 전용 보고서; 자막 자동 수정 없음 |
 | `captions.inspect` | `maxGraphemesPerSecond`, 선택 `limit` | 편집 후 표시 속도 초과 구간 요약; 프로젝트 변경 없음 |
@@ -941,8 +974,8 @@ MCP에는 실행 취소 도구가 없으므로 이전 프로젝트를 보관하�
 | 결과 | `{updated, changedCaptions, outputDuration}`; 실제 달라진 행만 집계 |
 
 화자 이름·색은 `captions.style.update`의 `speakerLabels`/`speakerColors`로 별도
-설정합니다. 자동 화자 인식이나 새 화자 슬롯이 아니며, SRT/VTT/TXT에 화자 이름을
-추가하지 않습니다. 배정된 화자를 미배정으로 바꾸면 해당 필드는 `""`가 됩니다.
+설정합니다. 자동 화자 인식이나 새 화자 슬롯이 아니며, 기본 SRT/VTT/일반 TXT에 화자 이름을
+추가하지 않습니다. 화자 이름이 필요한 검토 목록은 [검토용 TXT](#자막-검토용-txt)를 명시적으로 선택하세요. 배정된 화자를 미배정으로 바꾸면 해당 필드는 `""`가 됩니다.
 
 ```sh
 node cli/moment.mjs init --out speaker-range-source.json

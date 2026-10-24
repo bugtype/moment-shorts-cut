@@ -15,7 +15,7 @@ const usage=`Moment CLI · Node.js 20+
 --args-file -는 표준 입력에서 UTF-8 JSON 하나를 읽습니다(최대 10 MiB). 파일 이름 -는 ./-로 지정하세요.
 명령과 입력 규격: commands
 수정 명령에는 --out이 필요합니다. 기존 파일 교체는 --overwrite로 지정하세요.
-captions.export는 format(srt/vtt/txt)에 따라 SRT·WebVTT·TXT를 --out으로 저장합니다. 기본값은 SRT입니다.
+captions.export는 format(srt/vtt/txt)에 따라 SRT·WebVTT·TXT를 --out으로 저장합니다. 기본값은 SRT입니다. TXT에서 review:true는 출력 시간과 지정된 화자명을 포함한 검토 대본을 저장합니다.
 영상/음성 파일과 인코더는 포함하지 않습니다.
 `;
 const MAX_JSON_FILE_BYTES=MAX_PROJECT_FILE_BYTES;

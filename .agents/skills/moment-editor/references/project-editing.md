@@ -596,8 +596,8 @@ Only `speaker` changes. Choose existing slots `"0"`/`"1"` or unassigned `""`; no
 automatic identification or additional slots. Missing/empty already-unassigned
 values are a no-op without creating a missing field; clearing an assigned cue writes
 `""`. The result `{updated,changedCaptions,outputDuration}` counts actual changes.
-Text, times, basis, keywords and order remain intact, and subtitle exports do not
-gain speaker names. Set presentation separately with `captions.style.update`.
+Text, times, basis, keywords and order remain intact, and plain subtitle exports do not
+gain speaker names (opt-in review TXT can include them). Set presentation separately with `captions.style.update`.
 
 The operation supports batch and read-only preview, but neither reserves row
 identity. Re-read after structural edits or uncertain outcomes; save a prior
@@ -755,6 +755,23 @@ budgets and a 2 MiB actual UTF-8 file budget including separators. Raw-text byte
 are checked before newline normalization; a smaller final TXT does not bypass
 that limit. TXT cannot be
 reimported as subtitles or recover timing; retain project JSON for reversibility.
+
+For human timing/speaker review, use the same `captions.export` tool with
+`{"format":"txt","review":true}` (plus `projectId:"session"` in MCP).
+The response remains `{format:"txt",text}`. Only TXT accepts `review:true`;
+omitted/false preserves existing output. Review adds ordinary string-form
+**after-speed output seconds** and explicitly assigned nonempty speaker labels.
+Repeated/overlapping occurrences remain separate; no labels are inferred.
+Headings follow current UI locale (standalone CLI/MCP default Korean, no locale
+argument), while authored names/text stay literal with LF newline normalization.
+
+Keep the original project: this is not an import format, visibility guarantee,
+audio-verified transcript or backup. No media/project names, source coordinates,
+keywords, graphics text or styles are included. Exported text/used labels containing
+NUL reject without stripping; unused labels do not block. Existing occurrence/raw
+text limits and final 2 MiB including headings/labels apply. Empty output is `""`;
+browser **Review TXT** skips empty files and otherwise downloads `.review.txt`,
+UTF-8 without BOM. [CLI recipe and comparison](../../../../INTEGRATIONS.md#자막-검토용-txt)
 
 ## Recover without losing work
 

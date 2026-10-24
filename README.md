@@ -608,9 +608,18 @@ subtitle track inside MP4/WebM. CLI/MCP `render.plan` has no new toggle and rema
 
 **Text imports:** save project JSON and SRT/VTT files as UTF-8; a leading UTF-8 BOM is supported. Subtitle LF, CRLF and CR line endings are normalized to LF while preserving payload line breaks. Invalid UTF-8 is rejected without replacing the current project or captions. Other encodings are not detected or converted automatically.
 
-**Caption files:** select **SRT**, **VTT** or **TXT** and use the caption panel’s single save button. SRT is the default; the selection survives paging.
+**Caption files:** select **SRT**, **VTT**, **TXT** or **Review TXT** and use the caption panel’s single save button. SRT is the default; the selection survives paging.
 
 **Plain WebVTT:** select **VTT**, or pass `format: "vtt"` to the CLI/MCP export command. Omitting `format` still exports SRT; a `.vtt` filename alone does not select it. VTT uses a `WEBVTT` header and dot-separated milliseconds, with the same edited timing and text escaping. Rich styles, regions and speaker metadata are not exported. VTT rejects NUL characters. With no cues, CLI/MCP return `WEBVTT\n\n`; the browser does not download an empty caption file.
+
+**Choose a text export:**
+
+| Choice | What you receive |
+|---|---|
+| **TXT** | Existing caption paragraphs, no timing or speaker labels |
+| **Review TXT** | `.review.txt` with after-speed output seconds, explicitly assigned nonempty speaker names and cue text; repeated/overlapping occurrences listed separately |
+
+Review headings follow UI language; authored names/text are not translated. This is human review—not an import format, rendered-visibility guarantee, audio-verified transcript or project backup. Both modes use LF and UTF-8 without BOM; empty output downloads no file. Used labels also count toward the final 2 MiB budget and cannot contain NUL. [CLI/MCP opt-in and limits](INTEGRATIONS.md#자막-검토용-txt)
 
 **Plain TXT:** one paragraph per derived cue, ordered using clips, repetitions and source/timeline captions after speed. Repeated or split clips can repeat words; this is not a deduplicated or word-accurate transcript. No timestamps, IDs, speakers, titles, cards or styling are included. Literal `<>&`, whitespace and multiline text are preserved, with LF line endings, a blank line between cues and a final newline. Blank lines and sub-millisecond cues are allowed; NUL is rejected. Empty export returns `""`. TXT cannot be imported by SRT/VTT import or recover cue timing.
 

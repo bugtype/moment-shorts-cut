@@ -28,13 +28,13 @@ export function createTemplateWorkspace({
         toast(templateLibraryError);
         return true;
     }
-    function persistTemplateLibrary() {
+    function persistTemplateLibrary(key, items) {
         if (templateLibraryBlocked())
             return false;
         try {
             validateTemplateLibrary(savedTemplates, favoriteTemplates);
-            writeStorage('moment-templates-v1', JSON.stringify(savedTemplates));
-            writeStorage('moment-favorites-v1', JSON.stringify(favoriteTemplates));
+            // Each action changes one collection; avoid a second write that could partially fail.
+            writeStorage(key, JSON.stringify(items));
             return true;
         }
         catch {
@@ -59,7 +59,7 @@ export function createTemplateWorkspace({
                     favoriteTemplates.push(id);
                 else
                     favoriteTemplates.splice(i, 1);
-                if (!persistTemplateLibrary())
+                if (!persistTemplateLibrary('moment-favorites-v1', favoriteTemplates))
                     favoriteTemplates.splice(0, favoriteTemplates.length, ...previous);
             },
             remove(id) {
@@ -70,7 +70,7 @@ export function createTemplateWorkspace({
                 $('#confirmRemoveTemplate').onclick = () => {
                     const previous = savedTemplates;
                     savedTemplates = savedTemplates.filter(t => t.id !== id);
-                    if (!persistTemplateLibrary()) {
+                    if (!persistTemplateLibrary('moment-templates-v1', savedTemplates)) {
                         savedTemplates = previous;
                         return;
                     }
@@ -96,7 +96,7 @@ export function createTemplateWorkspace({
             }
             const item = saveCustomTemplate(name, getProject());
             savedTemplates.push(item);
-            if (!persistTemplateLibrary()) {
+            if (!persistTemplateLibrary('moment-templates-v1', savedTemplates)) {
                 savedTemplates.pop();
                 return;
             }

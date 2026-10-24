@@ -289,7 +289,8 @@ JavaScript에서 직접 호출할 때도 JSON으로 왕복 가능한 값을 전�
 |---|---|---|
 | 브라우저 | `dist/app.js`의 `window.moment` | 현재 프로젝트 접근, 실행 취소, 편집 중 상태 확인, 화면 갱신 |
 | CLI | `cli/moment.mjs` | JSON 파일 읽기·쓰기, SRT/VTT/TXT 저장, 기존 파일 보호 |
-| MCP 어댑터 | `dist/integration/mcp-adapter.mjs` | 명령을 도구 목록/호출 결과로 변환, 프로젝트별 서비스 조회 |
+| MCP 어댑터 | `dist/integration/mcp-adapter.mjs` | 도구 이름·프로젝트 조회·호출 전달·결과 매핑과 입력 설명 |
+| MCP 출력 스키마 | `dist/integration/mcp-output-schema.mjs` | 성공/오류 응답과 명령별 data의 출력 스키마; 호출 전달·실행은 어댑터/서비스에 유지 |
 
 화면 비율·배속·기본 템플릿·트림·SRT/VTT/TXT 출력은 기존 UI도 공통 로직을 사용합니다. 타이틀/자막 등의 명령은 동일한 프로젝트 모델을 수정합니다. 미디어 디코딩·녹음·브라우저 인코딩은 기존 브라우저 구현에 남아 있습니다. 모든 화면 이벤트를 서버 코드로 옮긴 구조는 아닙니다.
 

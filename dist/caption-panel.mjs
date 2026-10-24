@@ -5,7 +5,7 @@ import { splitCaptionText } from './effects.mjs';
 import { CAPTION_PAGE_SIZE, captionsPanelMarkup } from './panel-markup.mjs';
 
 export function createCaptionPanel({
-    query: $, queryAll: $$, getProject, getDuration, sourceTime, edit, refresh, toast,
+    query: $, queryAll: $$, getProject, getDuration, sourceTime, edit, refresh, toast, execute,
 }) {
     const timingFields = { basis: 'source', delta: '0' };
     let exportFormat = 'srt';
@@ -195,6 +195,12 @@ export function createCaptionPanel({
             if (['srt', 'vtt', 'txt'].includes(value)) exportFormat = value;
         };
         $('#downloadCaptions').onclick = () => actions.download(exportFormat);
+        $$('[data-merge-caption]').forEach(button => button.onclick = () => {
+            if (composing) return;
+            const index = +button.dataset.mergeCaption;
+            const result = execute('captions.merge', { captionIndex: index });
+            if (result) focusCaption(index);
+        });
         $$('[data-delete-caption]').forEach(b => b.onclick = () => {
             const index = +b.dataset.deleteCaption;
             let applied = false;
@@ -222,7 +228,7 @@ export function createCaptionPanel({
         // Detached controls no longer own the rendered row indices or pager state.
         const controls = [
             ...$$('[data-caption-text]'), ...$$('[data-caption-start]'), ...$$('[data-caption-end]'),
-            ...$$('[data-caption-keywords]'), ...$$('[data-caption-speaker]'), ...$$('[data-delete-caption]'),
+            ...$$('[data-merge-caption]'), ...$$('[data-caption-keywords]'), ...$$('[data-caption-speaker]'), ...$$('[data-delete-caption]'),
             ...['captionFind', 'captionReplacement', 'previousCaptionPage', 'nextCaptionPage',
                 'previousCaptionMatch', 'nextCaptionMatch', 'replaceAllCaptions', 'splitLongCaptions',
                 'addCaption', 'importSrt', 'captionExportFormat', 'downloadCaptions', 'generateCaptions',

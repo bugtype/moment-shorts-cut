@@ -26,6 +26,7 @@ function dataSchema(command) {
     case 'templates.list': return {
       type: 'array', items: record({ id: text, name: text, category: text, description: text }),
     };
+    case 'captions.merge': return record({updated:{const:true},mergedCaptionIndex:{type:'integer',minimum:0,maximum:9998},outputDuration:{type:'number',minimum:0}});
     case 'captions.timing.shift': return record({updated:{type:'boolean'},shiftedCaptions:{type:'integer',minimum:0,maximum:10000},outputDuration:{type:'number',minimum:0}});
     case 'captions.text.replace': return record({
       updated: {type: 'boolean'}, matches: {type: 'integer', minimum: 0},
@@ -185,6 +186,9 @@ function inputSchema(command) {
   if (command.name === 'captions.import') {
     p.text.description = 'SRT or plain WebVTT text, not a path. Replaces all captions using the browser parser: clips cue ends to the chosen duration, skips invalid/empty/out-of-range cues, strips tags and decodes supported entities once. Not full subtitle-standard validation. Runtime limit is 100,000 UTF-16 code units plus the parser’s 2 MiB UTF-8 ceiling; each cue is at most 2,000 units and at most 10,000 cues are accepted.';
     p.basis.description = 'Required clock: source means original media seconds; timeline means edited timeline seconds BEFORE speed. No automatic time conversion. captions.export uses output seconds AFTER speed, so importing it as timeline is not a speed-adjusted round trip.';
+  }
+  if (command.name === 'captions.merge') {
+    p.captionIndex.description = 'Zero-based authored caption array index, not a rendered occurrence. Merge with its next entry in the same pre-speed clock; matching speaker/keywords and non-overlapping chronological times required. Texts join literally with one ASCII space (maximum 2000 UTF-16 units). The merged interval covers any gap; source captions still repeat across clips. Estimated timing warnings survive. This action is not idempotent: inspect project.get before retrying.';
   }
   if (command.name === 'captions.timing.shift') {
     p.basis.description = 'Required scope and clock: source includes cues with omitted basis; timeline includes edited-timeline cues. Both are BEFORE speed. Other-basis cues are unchanged.';

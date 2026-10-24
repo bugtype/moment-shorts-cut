@@ -49,7 +49,7 @@ its supported version, `2025-11-25`, even if the proposed version differs; a cli
 that cannot support that version should disconnect, not continue with another
 wire format. `ping` is supported. Initialize only once per process.
 
-All twenty-three tools require **`projectId: "session"`**. Each process owns one independent
+All twenty-four tools require **`projectId: "session"`**. Each process owns one independent
 in-memory project, initially the demo. This value is neither a path nor a credential.
 Other project IDs return a tool error. A second client process does not share state.
 
@@ -177,6 +177,7 @@ The service emits no BOM.
 | Tool | Editing input | Successful `structuredContent.data` |
 |---|---|---|
 | `moment_captions_replace` | `captions` | Update acknowledgment and output duration |
+| `moment_captions_merge` | `captionIndex` | `{updated:true, outputDuration, mergedCaptionIndex}` |
 | `moment_captions_import` | `text`, `basis` | `{updated:true, outputDuration, importedCaptions}` |
 | `moment_captions_text_replace` | `find`, `replacement` | `{updated:boolean, matches:number, changedCaptions:number}` |
 | `moment_captions_style_update` | `patch` | `{updated:true, outputDuration}` |
@@ -317,6 +318,38 @@ alongside `updated:true` and `outputDuration`.
 The tool does not read files or upload media. Use the [CLI args-file recipe](../INTEGRATIONS.md#srt-파일을-명령-인수로-감싸기)
 for local files, or pass already-read text through your client. Save the edited
 document using `moment_project_get`; the acknowledgment is not the project.
+
+### Merge two adjacent authored captions
+
+Read `moment_project_get` and inspect `project.captions`, then call
+`moment_captions_merge` with the first row’s current index:
+
+```json
+{"projectId":"session","captionIndex":0}
+```
+
+`captionIndex` is a required integer `0..9998`; both it and the next authored row
+must exist. It is not a page index or a derived output occurrence. The cues must
+have matching clock, speaker and keywords, with chronological, non-overlapping
+times (`next.start >= first.end`). Omitted basis means `source`; missing speaker
+or keyword strings compare as empty strings, not null. Invalid indexes, incompatible metadata,
+overlap/reversed order or overlong text return `INVALID_ARGUMENT` atomically.
+
+The result spans the first start to the second end, joins literal texts with one
+ASCII space, and preserves the first cue’s metadata; if either timing is estimated,
+the result has `timing:"estimated"`. Text must fit 2,000 UTF-16 code units.
+Any gap between the cues now displays the merged text too. This is not word-level
+alignment. Source captions can repeat their whole merged text in intersecting
+edited clips; timeline captions retain their absolute pre-speed clock.
+Existing SRT/VTT blank-line rules and export byte/derived-cue limits still apply:
+literal boundary newlines are not cleaned up, so merge success does not guarantee
+that every export format succeeds.
+
+The acknowledgment is `{updated:true, outputDuration, mergedCaptionIndex}`.
+Read the document to save it. After a lost response, inspect the array before
+retrying: merging again at the same index can consume another row. Browser
+**다음 자막과 합치기** works across page boundaries and is one undo step;
+standalone MCP has no undo tool. See the [complete CLI example](../INTEGRATIONS.md#인접한-자막-합치기).
 
 ### Correct caption text without replacing cues
 

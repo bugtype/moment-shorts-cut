@@ -35,7 +35,8 @@ const input=(f,id,value)=>{const n=f.query(id);n.value=value;n.oninput();};
 test('only 50 globally indexed rows mount, pagination/focus are presentation-only and retain cloned-project page',()=>{
  const f=fixture(10000),before=structuredClone(f.project());
  assert.equal(rows(f).length,50);assert.equal(f.query('[data-caption-text="50"]'),null);
- assert.ok(Buffer.byteLength(f.target.innerHTML)<65000);
+ // 50 merge controls bring this estimated-cue fixture to 67,702 bytes, still bounded independently of 10,000 cues.
+ assert.ok(Buffer.byteLength(f.target.innerHTML)<70000);
  f.panel.focus(49);assert.equal(rows(f)[0],0);
  f.panel.focus(50);assert.equal(rows(f)[0],50);assert.equal(f.query('[data-caption-text="49"]'),null);
  assert.match(f.target.innerHTML,/51–100 \/ 10000/);

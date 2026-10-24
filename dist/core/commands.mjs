@@ -52,6 +52,7 @@ const definitions=[
   command('overlays.remove','지정한 ID의 장면 카드 하나를 삭제합니다.',object({id:{...string(2000),minLength:1}},['id']),true),
   command('overlays.update','기존 장면 카드의 지정한 문구·스타일·출력 표시 시간만 수정합니다. 카드 ID와 순서는 유지합니다.',object({id:{...string(2000),minLength:1},patch:overlayPatchSchema},['id','patch']),true),
   command('captions.import','SRT/VTT 문자열로 자막 전체를 교체합니다. source 또는 배속 전 timeline 시간 기준을 명시하세요.',object({text:string(100000),basis:choice('source','timeline')},['text','basis']),true),
+  command('captions.merge','인접한 두 자막을 합칩니다. 시간 기준·화자·강조 단어가 같고 시간이 겹치지 않아야 합니다.',object({captionIndex:{type:'integer',minimum:0,maximum:9998}},['captionIndex']),true),
   command('captions.replace','자막을 교체합니다. source는 원본, timeline은 배속 전 편집 시간입니다.',object({captions:array(captionSchema,MAX_CAPTIONS)},['captions']),true),
   command('captions.text.replace','자막 본문에서 대소문자를 구분해 같은 문자열을 모두 바꿉니다. 시간과 메타데이터는 유지합니다.',object({find:{...string(2000),minLength:1},replacement:string(2000)},['find','replacement']),true),
   command('captions.timing.shift','선택한 시간 기준의 자막 전체를 배속 전 초 단위로 이동합니다. 범위를 벗어나면 변경하지 않습니다.',object({basis:choice('source','timeline'),delta:{type:'number'}},['basis','delta']),true),
@@ -94,6 +95,23 @@ export function prepareCommand(project,name,args={}){
     if(!data.updated)return {data};
     const next=structuredClone(project),[card]=next.overlays.splice(from,1);
     next.overlays.splice(args.toIndex,0,card);validateProject(next);return {project:next,data};
+  }
+  if(name==='captions.merge'){
+    const index=args.captionIndex;
+    if(!Number.isInteger(index)||index<0||index>=project.captions.length-1)
+      fail('다음 자막이 있는 위치를 선택하세요.','arguments.captionIndex');
+    const first=project.captions[index],second=project.captions[index+1];
+    if((first.basis||'source')!==(second.basis||'source') ||
+      (first.speaker||'')!==(second.speaker||'') || (first.keywords||'')!==(second.keywords||''))
+      fail('시간 기준·화자·강조 단어가 같은 자막만 합칠 수 있습니다.','arguments.captionIndex');
+    if(second.start<first.end)fail('시간이 겹치거나 역순인 자막은 합칠 수 없습니다.','arguments.captionIndex');
+    const text=first.text+' '+second.text;
+    if(text.length>2000)fail('합친 자막은 2,000자 이하만 지원합니다.','arguments.captionIndex');
+    const merged={...first,text,end:second.end};
+    if(first.timing==='estimated'||second.timing==='estimated')merged.timing='estimated';
+    const next=structuredClone(project);next.captions.splice(index,2,merged);
+    validateProject(next);
+    return {project:next,data:{updated:true,outputDuration:outputDuration(next),mergedCaptionIndex:index}};
   }
   if(name==='captions.timing.shift'){
     const result=shiftCaptionTiming(project.captions,args,args.basis==='source'?project.duration:timelineDuration(project));

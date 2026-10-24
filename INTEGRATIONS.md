@@ -80,6 +80,7 @@
 | 명령 | 주요 입력 | 결과 |
 |---|---|---|
 | `captions.replace` | `captions` | 대사 자막 교체 |
+| `captions.merge` | `captionIndex` | 다음 저장 행과 병합; `{updated:true, outputDuration, mergedCaptionIndex}` |
 | `captions.import` | `text`, `basis` | 전체 교체; `{updated:true, outputDuration, importedCaptions}` |
 | `captions.text.replace` | `find`, `replacement` | 문구 모두 바꾸기; `{updated, matches, changedCaptions}` |
 | `captions.style.update` | `patch` | 공통 자막 스타일; `{updated:true, outputDuration}` |
@@ -194,6 +195,41 @@ UI의 복제는 새로 넣은 구간을 선택하고 그 시작 위치로 이동
 취소합니다. MCP에는 선택·재생 위치·실행 취소 기능이 없고, 성공 결과
 `{updated:true, outputDuration}` 확인 후 `project.get`으로 문서를 저장해야 합니다.
 응답을 놓치면 현재 배열부터 확인하세요. 무조건 재시도하면 구간이 다시 늘어납니다.
+
+### 인접한 자막 합치기
+
+`captions.merge`는 `project.captions`의 지정 행과 **바로 다음 저장 행**을
+합칩니다. 출력에서 파생된 반복 구간이나 화면 페이지의 위치가 아닙니다.
+먼저 `project.get`으로 현재 배열을 확인하세요.
+
+| 조건 | 동작 |
+|---|---|
+| `captionIndex` | 필수 정수 `0..9998`; 해당 행과 다음 행이 모두 있어야 함 |
+| 시간·메타데이터 | 같은 시간 기준·화자·키워드, `다음.start >= 첫.end`; 생략된 기준은 `source`, 화자·키워드는 빈 문자열로 비교 |
+| 문구 | 원문 두 개 사이 ASCII 공백 하나 삽입; 최대 2,000 UTF-16 코드 단위, 자동 다듬기 없음 |
+| 결과 구간 | 첫 시작부터 둘째 끝까지; 사이에 빈 시간이 있으면 그 시간에도 합친 문구 표시 |
+
+잘못된 위치·겹침·역순·메타데이터 차이·길이 초과는 `INVALID_ARGUMENT`로 전체
+거절합니다. 첫 행의 메타데이터를 유지하며 둘 중 하나가 추정 시간이라면 병합
+결과도 `timing:"estimated"`입니다. 단어별 시간 정렬을 하는 기능이 아닙니다.
+
+```sh
+node cli/moment.mjs init --out merge-source.json
+node cli/moment.mjs exec captions.replace --project merge-source.json --json '{"captions":[{"start":1,"end":2,"text":"Hello"},{"start":2,"end":3,"text":"world"}]}' --out merge-ready.json
+node cli/moment.mjs exec captions.merge --project merge-ready.json --json '{"captionIndex":0}' --out merged.json
+```
+
+이 예제는 새 샘플의 자막을 의도적으로 두 행으로 교체한 뒤 `Hello world`로
+합칩니다. 실제 자막을 유지하려면 교체 단계를 실행하지 말고 현재 인덱스를
+조회하세요. 원본 기준의 병합 문구는 해당 원본과 겹치는 각 편집 구간에서
+반복될 수 있으며 타임라인 기준은 절대 시간을 유지합니다. 원문 줄바꿈을 그대로
+연결하므로 SRT/VTT의 빈 줄 제한이나 기존 출력 바이트·파생 구간 한도가 별도로
+적용됩니다. 병합 성공이 모든 형식의 출력 성공을 보장하지는 않습니다.
+
+성공 결과는 `{updated:true, outputDuration, mergedCaptionIndex}`입니다. 응답을
+놓치면 배열을 다시 읽으세요. 같은 인덱스로 재시도하면 그다음 행까지 합칠 수
+있습니다. UI의 **다음 자막과 합치기**는 페이지 경계도 처리하며 합친 행에 초점을
+유지하고 한 번에 실행 취소합니다. MCP에는 실행 취소가 없으므로 이전 문서를 보관하세요.
 
 ### 자막 문구 일괄 교정
 

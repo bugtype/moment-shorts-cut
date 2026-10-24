@@ -152,6 +152,26 @@ project/history/saved state or playback position. Search, replace-all and long-
 caption splitting still use the full authored list; exports retain full-project
 clip/speed behavior, not visible-page scope. The existing cue/byte limits remain.
 
+## Merge adjacent authored captions
+
+Use `captions.merge` / `moment_captions_merge` with `{captionIndex:0}` (plus MCP
+`projectId:"session"`) only after inspecting the current authored caption array.
+It merges that row with the next, not the next visible/output occurrence. Both
+must share basis (omitted means source), speaker and keywords (missing strings
+compare as empty) and have ordered,
+non-overlapping times. The first start/second end include any gap; the full merged
+text is displayed through that gap. Text is joined literally with one ASCII space,
+limited to 2,000 UTF-16 code units. Metadata is retained from the first cue, with
+estimated timing retained if either cue had it. There is no word-level alignment.
+Source text may repeat in intersecting clips; timeline cues keep their absolute
+clock. Existing export limits, including SRT/VTT blank-line rejection, still apply.
+
+Check `{updated:true, outputDuration, mergedCaptionIndex}` and save separately.
+After a lost response, re-read before retrying: the same index can now merge a third
+cue. Invalid index/timing/metadata/length rejects atomically. See the [CLI example](../../../../INTEGRATIONS.md#인접한-자막-합치기),
+which intentionally replaces demo captions first; do not replace real captions
+unless requested. The browser row action handles page boundaries in one undo step.
+
 ## Shift a constant subtitle delay
 
 Read the current cue times, then use `captions.timing.shift` or MCP

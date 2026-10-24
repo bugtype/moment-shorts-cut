@@ -72,7 +72,7 @@ async function withClient(work) {
 
 const saved = await withClient(async ({request, call, data}) => {
   const {tools} = await request('tools/list', {});
-  assert.equal(tools.length, 23);
+  assert.equal(tools.length, 24);
   assert.ok(tools.some(tool => tool.name === 'moment_project_import'));
   await data('moment_project_import', {document: createProjectDocument(createDemoProject())});
   await data('moment_project_update', {patch: {name: 'MCP 예제', speed: 2}});
@@ -139,6 +139,10 @@ const saved = await withClient(async ({request, call, data}) => {
   const duplicate = await data('moment_timeline_duplicate', {clipIndex: 0});
   assert.equal(duplicate.outputDuration, 3);
   assert.deepEqual((await data('moment_project_get')).project.clips, [{start: 2, end: 4}, {start: 2, end: 4}, {start: 4, end: 6}]);
+  await data('moment_captions_replace', {captions: [{start:0,end:1,text:'Hello'}, {start:1,end:2,text:'world'}]});
+  const merged = await data('moment_captions_merge', {captionIndex:0});
+  assert.equal(merged.mergedCaptionIndex, 0);
+  assert.equal((await data('moment_project_get')).project.captions[0].text, 'Hello world');
   // Save this document through the client's authorized file workflow in a real integration.
   return JSON.parse(JSON.stringify(await data('moment_project_get')));
 });
@@ -147,4 +151,4 @@ await withClient(async ({data}) => {
   await data('moment_project_import', {document: saved});
   assert.deepEqual(await data('moment_project_get'), saved);
 });
-console.log(JSON.stringify({ok: true, tools: 23, recoveredFromInvalidInput: true, reimported: true, rendered: false}));
+console.log(JSON.stringify({ok: true, tools: 24, recoveredFromInvalidInput: true, reimported: true, rendered: false}));

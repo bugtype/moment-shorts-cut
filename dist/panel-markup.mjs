@@ -5,7 +5,7 @@ export const CAPTION_PAGE_SIZE = 50;
 export function captionsPanelMarkup({ captions, speakerLabels }, { toolsOpen, transcribing, hasAudio, transcriptionStatus, page = 0 }) {
     const start = Math.max(0, Math.min(Math.floor(page), Math.ceil(captions.length / CAPTION_PAGE_SIZE) - 1)) * CAPTION_PAGE_SIZE;
     const end = Math.min(captions.length, start + CAPTION_PAGE_SIZE);
-    const rows = captions.slice(start, end).map((c, i) => captionRowMarkup(c, start + i, speakerLabels)).join('');
+    const rows = captions.slice(start, end).map((c, i) => captionRowMarkup(c, start + i, speakerLabels, start + i === captions.length - 1)).join('');
     return (
         `<section class="caption-workspace">` +
         `\n <h1 class="panel-heading">자막 ${captions.length}개</h1>` +
@@ -170,13 +170,14 @@ export function settingsPanelMarkup({ ratio, fit, zoom, captionSize, captionY, v
     );
 }
 
-function captionRowMarkup(c, i, speakerLabels) {
+function captionRowMarkup(c, i, speakerLabels, last) {
     return `<div class="caption-row">` +
         `<small class="caption-clock">${c.basis === 'timeline' ? '추가 오디오 · 편집 타임라인' : '원본 영상 시간'}</small>` +
         `<div class="caption-row-head">` +
         `<input type="number" min="0" step="0.1" value="${c.start.toFixed(1)}" data-caption-start="${i}" aria-label="자막 ${i + 1} 시작 초">` +
         `<span class="muted">–</span>` +
         `<input type="number" min="0" step="0.1" value="${c.end.toFixed(1)}" data-caption-end="${i}" aria-label="자막 ${i + 1} 끝 초">` +
+        `<button class="text-button" data-merge-caption="${i}" aria-label="자막 ${i + 1} 다음 자막과 합치기" title="다음 자막과 합치기" ${last ? 'disabled' : ''}>합치기</button>` +
         `<button class="icon-button" data-delete-caption="${i}" aria-label="자막 ${i + 1} 삭제">${icon('trash')}</button>` +
         `</div>` +
         `<textarea data-caption-text="${i}" aria-label="자막 ${i + 1} 내용">${esc(c.text)}</textarea>` +

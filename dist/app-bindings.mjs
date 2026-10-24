@@ -57,7 +57,7 @@ export function bindUi(app) {
     $('#timeDisplay').onclick = () => app.openSeek();
     const navigateCut = direction => {
         if (!app.editorReady || app.modal.open || app.exporting || app.loadingMedia || app.transcribing ||
-            app.persistence.restorePhase !== 'ready' || app.audioRecording.requesting || app.audioRecording.current) return false;
+            !app.mediaReady() || app.audioRecording.requesting || app.audioRecording.current) return false;
         const next = adjacentCut(app.state.clips, app.current, direction);
         if (next == null) return false;
         app.pause();
@@ -238,7 +238,7 @@ export function bindUi(app) {
     });
     bindEditorKeyboard(app.document, {
         blocked: () => app.modal.open || app.exporting,
-        stepBlocked: () => app.persistence.restorePhase === 'restoring' || app.loadingMedia ||
+        stepBlocked: () => !app.mediaReady() || app.loadingMedia ||
             app.transcribing || app.audioRecording.requesting || app.audioRecording.current,
         stepOutput: direction => {
             app.pause();

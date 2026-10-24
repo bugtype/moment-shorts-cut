@@ -143,7 +143,7 @@ pause and move to the strictly previous/next edited clip boundary, including the
 start and end. At a boundary, the next action goes to the adjacent boundary, not
 back to the same one. Unmodified `[` / `]` do the same; they are ignored in
 editing/form controls, during IME composition, with a dialog open or while blocked
-by busy/recovery state. At an endpoint with no boundary in that direction, nothing
+by busy state or recovery without session media access. At an endpoint with no boundary in that direction, nothing
 changes, including playback. Speed changes displayed output times, not which cuts are
 visited. Navigation does not select another clip, edit, save or add undo history;
 this does not promise source-frame-accurate seeking.
@@ -198,7 +198,7 @@ when clicked**: 540×960 portrait, 960×960 square or 960×540 landscape. It cap
 rendered video, text and effects—not DOM guides/selection handles or audio—and does
 not rerender at 1080p, seek, pause or change project/history. No media is uploaded.
 This works independently of MediaRecorder; it is not source-frame-accurate export.
-Busy/recovery states block capture; a newer request or project/media change cancels
+Busy states and recovery without session media access block capture; a newer request or project/media change cancels
 an outdated pending download. Normal playback advancing does not change the snapshot.
 
 ## Example results
@@ -406,7 +406,30 @@ At 1,000 clips, delete a clip before splitting another.
 - **Automatic captions fail:** use a short original with audible speech, check the selected language and network access, or import SRT/VTT and edit manually. The built-in sample cannot be transcribed.
 - **A project appears empty:** return to the same browser, host, and port. To restore JSON in another browser, first reconnect the original video and any additional audio, then choose **Project files → Import settings**.
 - **Saved templates cannot be read:** malformed custom templates or favorites are isolated for the session, and library save/delete/favorite changes are blocked to preserve the original storage values. Built-in templates and project editing remain available when the project itself loads. Reload retries reading; it does not repair the library. No entries are automatically deleted or salvaged.
-- **Restore fails:** the editor pauses project saving, media replacement, recording, and reset to preserve stored data. If settings were readable, you can edit them in memory and use **Project files → Save settings** before reloading. These edits are not saved in the browser. Reload only retries loading; it cannot recover missing media or guarantee codec support. An exit warning may appear for unsaved edits, but browsers may omit it.
+- **Restore fails:** the editor pauses project saving, media replacement, recording, and reset to preserve stored data. If settings were readable, you can edit them in memory and use **Project files → Save settings** before reloading. These edits are not saved in the browser. Reload only retries loading; it cannot recover missing media or guarantee codec support. An exit warning may appear for unsaved edits, but browsers may omit it. [Relink originals for this tab](#relink-originals-for-this-tab-only) can enable preview/export without repairing storage.
+
+### Relink originals for this tab only
+
+If restoration failed **but valid project settings were readable**, open **Project
+files → Relink original files**. Select every required original
+video/added-audio file, explicitly confirm they are this project's originals, then
+choose **Connect for this tab**. Temporary probes and the actual editor media
+elements must finish loading before playback access is enabled.
+
+| After successful relinking | Boundary |
+|---|---|
+| Preview, seeking, video export and preview PNG | Available in this tab; no automatic playback |
+| In-memory metadata edits, undo and settings backup | Still available; download the settings before reloading |
+| Browser Save/autosave, ordinary import, reset, recording and ASR | Still blocked; storage failure/status is not cleared |
+| Reload | Original files must be supplied again; this is not persistence repair |
+
+Names must match, but matching names/durations **do not prove file identity**.
+Video must cover the stored duration and all clips; it cannot be shorter and may
+exceed the stored duration by at most 0.05 seconds. Added audio must have a finite
+positive duration; no stored audio duration exists for comparison. The existing
+500 MiB video / 100 MiB audio limits apply. Retain the actual originals.
+Relinking itself changes no project JSON, history, IndexedDB or localStorage.
+A project/media-contract change or failed/canceled load cannot grant stale access.
 
 ## Development
 

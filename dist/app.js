@@ -1,3 +1,5 @@
+import { createSessionMedia } from './session-media.mjs';
+import { createSessionMediaDialog } from './session-media-dialog.mjs';
 import { createClipMove } from './clip-move.mjs';
 import { createPreviewExport } from './preview-export.mjs';
 import { createCaptionNavigation } from './caption-navigation.mjs';
@@ -64,6 +66,8 @@ const ctx = canvas.getContext('2d'), sample = new Image(), modal = $('#modal');
 const shellPresentation = createShellPresentation({
     query: $, queryAll: $$, document, modal, openDialog: (...args) => modalOpen(...args),
     downloadSettings: () => downloadProjectSettings(),
+    canRelink: () => persistence.restorePhase === 'failed' && persistence.recoveryValid,
+    relink: () => sessionMediaDialog.open(),
     filesBlocked: () => !editorReady || exporting,
     setTimer: (callback, delay) => setTimeout(callback, delay), clearTimer: timer => clearTimeout(timer),
 });
@@ -113,6 +117,18 @@ const persistence = createProjectPersistence({
     toast: message => toast(message),
     pause: () => pause(),
 });
+const sessionMedia = createSessionMedia({
+    getProject: () => state, persistence, sources, video, audio,
+    blocked: () => !editorReady || exporting || loadingMedia || transcribing || audioRecording.requesting || audioRecording.current,
+    toast: value => toast(value),
+});
+const sessionMediaDialog = createSessionMediaDialog({
+    getProject: () => state, persistence, controller: sessionMedia, query: $, modal,
+    openModal: (...args) => modalOpen(...args), pause,
+    refresh: () => { seekTo(current); renderPanel(); requestDraw(); }, toast: value => toast(value),
+    blocked: () => !editorReady || exporting || loadingMedia || transcribing || audioRecording.requesting || audioRecording.current,
+});
+
 const templatePreview = createTemplatePreview({
     composition,
     getMedia: () => ({ source: sampleRaster || sample, ready: sample.complete }),
@@ -145,14 +161,14 @@ const templateWorkspace = createTemplateWorkspace({
 const savePreview = createPreviewExport({
     getProject: () => state, getMedia: () => [sources.videoFile, sources.audioFile],
     getCanvas: () => canvas, createCanvas: () => document.createElement('canvas'),
-    blocked: () => !editorReady || exporting || loadingMedia || transcribing || persistence.restorePhase !== 'ready' || audioRecording.requesting || audioRecording.current,
+    blocked: () => !editorReady || exporting || loadingMedia || transcribing || !sessionMedia.mediaReady() || audioRecording.requesting || audioRecording.current,
     download: (blob, name) => download(blob, name), toast: value => toast(value),
 });
 const seekDialog = createSeekDialog({
     getProject: () => state, getCurrent: () => current, getDuration: () => duration(),
     getMedia: () => [sources.videoFile, sources.audioFile], query: $, modal,
     openModal: (...args) => modalOpen(...args),
-    blocked: () => !editorReady || exporting || loadingMedia || transcribing || persistence.restorePhase !== 'ready' || audioRecording.requesting || audioRecording.current,
+    blocked: () => !editorReady || exporting || loadingMedia || transcribing || !sessionMedia.mediaReady() || audioRecording.requesting || audioRecording.current,
     pause, seek: time => seekTo(time), toast: message => toast(message),
 });
 const speedDialog = createSpeedDialog({
@@ -164,7 +180,7 @@ const speedDialog = createSpeedDialog({
 const captionInspection = createCaptionInspectionDialog({
     getProject: () => state, query: $, modal,
     openModal: (...args) => modalOpen(...args),
-    blocked: () => !editorReady || exporting || loadingMedia || transcribing || persistence.restorePhase !== 'ready' || audioRecording.requesting || audioRecording.current,
+    blocked: () => !editorReady || exporting || loadingMedia || transcribing || !sessionMedia.mediaReady() || audioRecording.requesting || audioRecording.current,
     pause, seek: time => seekTo(time),
     focusCaption: index => { switchPanel('captions'); focusCaption(index); },
     toast: message => toast(message),
@@ -172,7 +188,7 @@ const captionInspection = createCaptionInspectionDialog({
 const captionRowNavigation = createCaptionNavigation({
     getProject: () => state, getMedia: () => [sources.videoFile, sources.audioFile], query: $, modal,
     openModal: (...args) => modalOpen(...args),
-    blocked: () => panel !== 'captions' || !editorReady || exporting || loadingMedia || transcribing || persistence.restorePhase !== 'ready' || audioRecording.requesting || audioRecording.current,
+    blocked: () => panel !== 'captions' || !editorReady || exporting || loadingMedia || transcribing || !sessionMedia.mediaReady() || audioRecording.requesting || audioRecording.current,
     pause, seek: time => seekTo(time), toast: value => toast(value),
 });
 const captionPanel = createCaptionPanel({
@@ -285,6 +301,7 @@ const app = {
     edit: (change, refresh) => edit(change, refresh), snapshot: () => snapshot(),
     changed: () => changed(), scheduleSave: () => scheduleSave(),
     persistMedia: () => persistMedia(), saveProject: show => saveProject(show),
+    mediaReady: () => sessionMedia.mediaReady(), mediaBlocked: (show = true) => sessionMedia.mediaBlocked(show),
     recoveryBlocked: (show = true) => recoveryBlocked(show),
     settingsUnavailable: () => settingsUnavailable(),
     runEditorCommand: (name, args) => runEditorCommand(name, args),
@@ -506,6 +523,7 @@ function saveProject(show = false) { return persistence.saveProject(show); }
 function persistMedia() { persistence.persistMedia(); }
 
 async function init() {
+    sessionMedia.invalidate();
     let preferenceStorage;
     try { preferenceStorage = localStorage; } catch { /* Language works without storage. */ }
     initLocale({storage: preferenceStorage, languages: globalThis.navigator?.languages || [], document});

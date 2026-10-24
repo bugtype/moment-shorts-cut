@@ -116,6 +116,31 @@ test('restore protection and isolated template library failures', async () => {
    assert.equal(a.f.micCalls,0);assert.equal(a.run('playing'),false);assert.equal(a.run('exporting'),false);
    assert.equal(a.f.jsonWrites,0);assert.equal(a.f.mediaWrites,0);assert.equal(a.f.raw,recoveryRaw);
    assert.match(element('#saveStatus').innerHTML,/변경사항은 저장되지 않습니다/);
+   // Selecting the exact original names is still a normal destructive-load route,
+   // not permission to exit failed recovery or overwrite browser storage.
+   const protectedHistory=a.value('({history,future})');
+   for(let retry=0;retry<2;retry++){
+    await a.run('loadVideo({name:"saved.mp4",type:"video/mp4",size:1})');
+    await a.run('loadAudio({name:"voice.wav",type:"audio/wav",size:1})');
+    a.run('confirmReset();toggleRecording();scheduleSave();persistMedia()');
+    await element('#saveButton').onclick();
+    for(const timer of a.f.timers.filter(timer=>!timer.cancelled)){
+     timer.cancelled=true;await timer.callback();
+    }
+    assert.equal(a.run('persistence.restorePhase'),'failed');
+    assert.equal(a.run('persistence.recoveryValid'),true);
+    assert.deepEqual(a.value('state'),before);
+    assert.deepEqual(a.value('({history,future})'),protectedHistory);
+    assert.deepEqual(a.f.media,files);assert.equal(a.f.raw,recoveryRaw);
+    assert.equal(a.f.jsonWrites,0);assert.equal(a.f.mediaWrites,0);assert.equal(a.f.micCalls,0);
+   }
+   // Re-running the failed restore is a read-only retry, not a persistence bypass.
+   await a.run('persistence.restore()');
+   assert.equal(a.run('persistence.restorePhase'),'failed');
+   assert.equal(a.run('persistence.recoveryValid'),true);
+   assert.deepEqual(a.value('state'),recoveryProject);
+   assert.deepEqual(a.f.media,files);assert.equal(a.f.raw,recoveryRaw);
+   assert.equal(a.f.jsonWrites,0);assert.equal(a.f.mediaWrites,0);
   }
   for(const raw of ['', ' ', 'null', 'false', '42', '[]', '{}', '{broken', JSON.stringify({...recoveryProject,clips:[]}),JSON.stringify({...recoveryProject,design:null})]){
    const a=recoveryApp({raw});await a.init();assert.equal(a.run('persistence.restorePhase'),'failed');

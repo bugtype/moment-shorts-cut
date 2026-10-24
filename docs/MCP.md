@@ -75,6 +75,11 @@ it is not itself a transport or an authentication server.
    video/audio first where required. Matching uses names and video duration, not
    a content hash; retain the actual original media.
 
+Browser storage failure has a separate [session-only original-file relink](../README.md#relink-originals-for-this-tab-only)
+for valid readable settings. It does not resume browser saving or ordinary imports,
+repair storage, or add an MCP tool. CLI/MCP cannot supply files to the open editor's
+media elements; keep exported settings and actual originals separately.
+
 Example request after importing a document:
 
 ```json

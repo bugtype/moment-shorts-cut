@@ -17,7 +17,7 @@ export function createPlayback(app, {
     let audioGraphReady = false;
     let loopPreview = false, pendingRestart = null;
     const canLoop = owner => loopPreview && app.editorReady && !app.exporting && !app.loadingMedia &&
-        !app.transcribing && !app.document.hidden && !app.modal.open && app.persistence.restorePhase === 'ready' &&
+        !app.transcribing && !app.document.hidden && !app.modal.open && app.mediaReady() &&
         !app.audioRecording.requesting && !app.audioRecording.current && (!owner ||
             (app.state === owner.project && app.sources.videoFile === owner.video && app.sources.audioFile === owner.audio &&
              app.state.speed === owner.speed && JSON.stringify(app.state.clips) === owner.clips));
@@ -33,7 +33,7 @@ export function createPlayback(app, {
             source: state.kind === 'demo' ? (app.sampleRaster || app.sample) : app.video,
             sw: state.kind === 'demo' ? 540 : app.video.videoWidth,
             sh: state.kind === 'demo' ? 960 : app.video.videoHeight,
-            ready: state.kind === 'demo' ? app.sample.complete : app.persistence.restorePhase === 'ready' && app.video.readyState >= 2,
+            ready: state.kind === 'demo' ? app.sample.complete : app.mediaReady() && app.video.readyState >= 2,
             sourceTime: pos.source,
             time: current / state.speed,
             total: app.duration() / state.speed,
@@ -90,7 +90,7 @@ export function createPlayback(app, {
     }
 
     function syncAudio(force = false) {
-        if (app.persistence.restorePhase !== 'ready' || !app.sources.audioFile)
+        if (!app.mediaReady() || !app.sources.audioFile)
             return;
         const t = app.current - app.state.audioOffset;
         if (t >= 0 && t < app.audio.duration) {
@@ -108,7 +108,7 @@ export function createPlayback(app, {
         if (pendingRestart && !automatic) pause();
         app.current = clamp(t, 0, app.duration());
         const pos = app.locate(app.current);
-        if (app.persistence.restorePhase === 'ready' && app.state.kind === 'video' && Number.isFinite(app.video.duration))
+        if (app.mediaReady() && app.state.kind === 'video' && Number.isFinite(app.video.duration))
             app.video.currentTime = Math.min(app.video.duration - .001, pos.source);
         syncAudio(true);
         app.updateTime();
@@ -119,7 +119,7 @@ export function createPlayback(app, {
     }
 
     async function play(automatic = null) {
-        if (app.recoveryBlocked() || app.playing)
+        if (app.mediaBlocked() || app.playing)
             return;
         if (!automatic) pendingRestart = null; // A manual Play now owns its own async request.
         const request = ++app.playRequest;
@@ -129,16 +129,19 @@ export function createPlayback(app, {
             if (!owns()) { stale(); return; }
             if (app.current >= app.duration() - .03) seekTo(0, !!automatic);
             await app.ensureAudio();
-            if (!owns() || app.recoveryBlocked()) { stale(); return; }
+            if (!owns()) { stale(); return; }
+            if (app.mediaBlocked()) { pause(); return; }
             if (app.state.kind === 'video') {
                 const pos = app.locate(app.current);
                 if (Math.abs(app.video.currentTime - pos.source) > .08 || (automatic && app.video.seeking))
                     await app.seekVideo(pos.source);
                 if (!owns()) { stale(); return; }
+                if (app.mediaBlocked()) { pause(); return; }
                 app.video.playbackRate = app.state.speed;
                 await app.video.play();
             }
             if (!owns()) { stale(); return; }
+            if (app.mediaBlocked()) { pause(); return; }
             pendingRestart = null;
             app.playing = true;
             app.lastTick = clock();
@@ -177,6 +180,7 @@ export function createPlayback(app, {
         app.frameHandle = 0;
         if (!app.playing)
             return;
+        if (!app.mediaReady()) { app.pause(); if (app.exporting) app.stopExport(true); return; }
         const state = app.state, current = app.current;
         const old = app.locate(current);
         if (state.kind === 'video') {

@@ -1,3 +1,5 @@
+import { createSessionMedia } from '../../dist/session-media.mjs';
+import { createSessionMediaDialog } from '../../dist/session-media-dialog.mjs';
 import { createClipMove } from '../../dist/clip-move.mjs';
 import { createPreviewExport } from '../../dist/preview-export.mjs';
 import { createCaptionNavigation } from '../../dist/caption-navigation.mjs';
@@ -42,7 +44,7 @@ import vm from 'node:vm';
 import assert from 'node:assert/strict';
 
 // Synthetic DOM/media only. Each call owns a separate VM, controls and event queues.
-export async function createAppFixture() {
+export async function createAppFixture({sessionMediaDependencies = {}} = {}) {
   const source=fs.readFileSync(new URL('../../dist/app.js',import.meta.url),'utf8');
   const panelSource=['shell-presentation.mjs','design-panel.mjs','effects-panel.mjs','template-gallery.mjs','template-workspace.mjs','panel-markup.mjs','template-preview.mjs','inspector-view.mjs','timeline-view.mjs','caption-panel.mjs','playback.mjs','export-flow.mjs','media-loader.mjs','design-workspace.mjs','workspace-panels.mjs','app-bindings.mjs','editing-actions.mjs','caption-flow.mjs'].map(f=>fs.readFileSync(new URL('../../dist/'+f,import.meta.url),'utf8')).join('\n');
   const html=fs.readFileSync(new URL('../../dist/index.html',import.meta.url),'utf8');
@@ -121,7 +123,7 @@ export async function createAppFixture() {
     cancelAnimationFrame(id) { pendingFrames.delete(id); },
     setTimeout() {}, clearTimeout() {}, setInterval() {}, clearInterval() {},
     console, URL, Blob, TextDecoder, performance, Number, Math, Promise, structuredClone,
-    ...i18n, createClipMove, createPreviewExport, createCaptionNavigation, createSpeedDialog, createShellPresentation, msg: i18n.message, ...projectModule, createSeekDialog, createCaptionInspectionDialog, replaceCaptionText, prepareCommand, CommandError, LocalizedError, hasMinimumDuration, createEditorService, ...captionModule,
+    ...i18n, createSessionMediaDialog, createClipMove, createPreviewExport, createCaptionNavigation, createSpeedDialog, createShellPresentation, msg: i18n.message, ...projectModule, createSeekDialog, createCaptionInspectionDialog, replaceCaptionText, prepareCommand, CommandError, LocalizedError, hasMinimumDuration, createEditorService, ...captionModule,
     adjacentCut, renderCaptionTrack, renderCaptionTrackError, updateTimelineMarkup, createTimelineView, createInspectorView, createInputHistory,
     ...effectsModule, ...templateModule, readTemplateLibrary, validateTemplateLibrary,
     mountTemplateGallery, mountEffectsPanel, ...typographyModule, createCompositionRenderer,
@@ -137,6 +139,12 @@ export async function createAppFixture() {
       createCanvas: () => context.document.createElement('canvas'),
       setTimer: (callback, delay) => context.setTimeout(callback, delay),
       clearTimer: timer => context.clearTimeout(timer),
+    }),
+    createSessionMedia: options => createSessionMedia(options, {
+      createVideo: () => context.document.createElement('video'), createAudio: () => context.document.createElement('audio'),
+      createURL: file => context.URL.createObjectURL(file), revokeURL: url => context.URL.revokeObjectURL(url),
+      setTimer: (callback, delay) => context.setTimeout(callback, delay), clearTimer: timer => context.clearTimeout(timer),
+      ...sessionMediaDependencies,
     }),
     createProjectPersistence: options => createProjectPersistence(options, {
       readSettings: key => context.localStorage.getItem(key),

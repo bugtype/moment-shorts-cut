@@ -23,7 +23,7 @@ export function createExportFlow(app, {
     }
 
     function exportDialog() {
-        if (app.recoveryBlocked() || app.exporting)
+        if (app.mediaBlocked() || app.exporting)
             return;
         if (app.audioRecording.requesting || app.loadingMedia || app.audioRecording.current || app.transcribing) {
             toast(message("shell.exportBusy"));
@@ -41,7 +41,7 @@ export function createExportFlow(app, {
     }
 
     async function startExport(type, quality) {
-        if (app.recoveryBlocked() || app.exporting || app.audioRecording.current || app.audioRecording.requesting || app.loadingMedia || app.transcribing)
+        if (app.mediaBlocked() || app.exporting || app.audioRecording.current || app.audioRecording.requesting || app.loadingMedia || app.transcribing)
             return;
         app.pause();
         const request = videoExport.begin();
@@ -63,7 +63,7 @@ export function createExportFlow(app, {
             await fontsReady();
             if (request !== videoExport.request)
                 return;
-            if (app.recoveryBlocked()) {
+            if (app.mediaBlocked()) {
                 stopExport(true);
                 return;
             }
@@ -73,6 +73,7 @@ export function createExportFlow(app, {
                 await app.seekVideo(app.state.clips[0].start);
             if (request !== videoExport.request)
                 return;
+            if (app.mediaBlocked()) { stopExport(true); return; }
             app.draw();
             const recorder = videoExport.capture(request, type, quality, app.playback.destination.stream, {
                 onError: () => {

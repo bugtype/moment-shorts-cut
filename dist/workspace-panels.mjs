@@ -212,7 +212,7 @@ export function createWorkspacePanels(app) {
             loop.onchange = () => {
                 if (app.panel !== 'settings' || $('#loopPreview') !== loop) return;
                 if (!app.editorReady || app.exporting || app.loadingMedia || app.transcribing ||
-                    app.persistence.restorePhase !== 'ready' || app.audioRecording.requesting || app.audioRecording.current) {
+                    !app.mediaReady() || app.audioRecording.requesting || app.audioRecording.current) {
                     loop.checked = app.loopPreview;
                     return;
                 }

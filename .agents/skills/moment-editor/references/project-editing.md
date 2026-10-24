@@ -32,7 +32,13 @@ The header folder icon opens **Project files**: **Save settings** downloads a
 Help retains these actions; the ordinary Save button still writes browser storage.
 No media is embedded. Reconnect matching original media before restoration.
 When recovery blocks browser saving but readable settings remain, download that
-backup before reloading; this does not repair storage or recover missing media.
+backup before reloading; this does not repair storage. In valid failed-metadata
+recovery, **Project files → Relink original files** accepts explicitly confirmed
+originals for this tab only. Matching names/durations are compatibility checks,
+not identity proof. It can enable preview/seek/video export/PNG after both probes
+and actual media elements are ready, but browser saving, normal import/reset,
+recording and ASR stay blocked. Relinking changes no project JSON/history/storage;
+reload requires the files again. See [session-only limits](../../../../README.md#relink-originals-for-this-tab-only).
 The existing 10 MiB settings-file limit still applies. MCP cannot open this dialog
 or access browser storage—use the supplied document, not the user's open UI state.
 

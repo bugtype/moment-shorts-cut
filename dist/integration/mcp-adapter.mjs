@@ -30,6 +30,8 @@ function dataSchema(command) {
       updated: {type: 'boolean'}, matches: {type: 'integer', minimum: 0},
       changedCaptions: {type: 'integer', minimum: 0, maximum: 10000},
     });
+    case 'overlays.add':
+    case 'overlays.remove': return record({updated:{enum:[true]},outputDuration:{type:'number',minimum:0},id:{type:'string',minLength:1,maxLength:2000}});
     case 'captions.import': return record({
       updated: { enum: [true] }, importedCaptions: { type: 'integer', minimum: 1, maximum: 10000 },
       outputDuration: { type: 'number', minimum: 0 },
@@ -110,9 +112,14 @@ function inputSchema(command) {
     p.patch.description = 'Only supplied settings change. Changing ratio resets zoom/pan; speed changes retime output text.';
     p.patch.properties.speed.description = 'Playback speed multiplier; output duration is edited timeline duration divided by speed.';
   }
-  if (command.name === 'overlays.update') {
+  if (command.name === 'overlays.remove') p.id.description = 'Exact existing scene-card ID, including legacy whitespace IDs. Removes one card and preserves remaining order. Missing ID returns NOT_FOUND; does not delete media or captions.';
+  if (command.name === 'overlays.update' || command.name === 'overlays.add') {
     p.id.description = 'Exact ID of an existing scene card from project.get.project.overlays. Does not create, delete, reorder or rename IDs.';
     p.patch.description = 'Partial scene-card update. Unspecified fields, other cards, base title, captions, clips and media stay unchanged. Content-only edits do not clamp existing card times.';
+    if (command.name === 'overlays.add') {
+      p.id.description = 'Caller-chosen stable nonblank ID, at most 2,000 UTF-16 code units. Exact duplicates reject with INVALID_ARGUMENT, never upsert. Read project.get before retrying an uncertain result.';
+      p.patch.description = 'Append one scene card with existing new-card visual defaults. text, start and end are required; only supplied optional fields override defaults. Maximum 12 cards including disabled cards. No reorder, caption change or template application.';
+    }
     const fields = p.patch.properties;
     fields.start.description = 'Start in final output seconds AFTER speed. If start or end is supplied, the resulting interval must satisfy 0 <= start < end <= current output duration.';
     fields.end.description = 'Exclusive end in final output seconds AFTER speed, not source time. No fixed 24-hour cap; bounded by the current edited output.';

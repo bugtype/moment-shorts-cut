@@ -59,7 +59,14 @@
 | `timeline.split` | `clipIndex`, `sourceTime` | 지정 클립 구간 분할; `{updated:true, outputDuration}` |
 | `title.update` | `patch` | 기본 제목과 스타일 수정 |
 | `effects.update` | `patch` | 영상 효과 설정; `{updated:true, outputDuration}` |
+
+### 시간별 카드 명령
+
+| 명령 | 주요 입력 | 결과 |
+|---|---|---|
 | `overlays.update` | `id`, `patch` | 기존 시간별 카드 수정; `{updated:true, outputDuration}` |
+| `overlays.add` | `id`, `patch` | 카드 하나 추가; `{updated:true, outputDuration, id}` |
+| `overlays.remove` | `id` | 카드 하나 삭제; `{updated:true, outputDuration, id}` |
 
 ### 자막 변경
 
@@ -262,6 +269,41 @@ node cli/moment.mjs exec effects.update --project effects-source.json --json '{"
 일률적인 86,400초 상한은 없습니다. 문구만 바꾸면 기존의 유효한 프로젝트에
 남아 있는 출력 범위 밖 카드 시간을 자동으로 자르거나 조정하지 않습니다.
 
+### 스크립트에 맞춰 카드 추가·삭제
+
+먼저 `project.get`으로 현재 카드 ID와 출력 길이를 확인하세요. `overlays.add`는
+필수 `id`와 `patch:{text,start,end,...}`를 받아 기존 카드 뒤에 한 개를 추가합니다.
+스타일 옵션은 위 `overlays.update` 표와 같고 생략하면 기존 UI의 새 카드 기본값을
+사용합니다. 일반 `headline` 카드이며 위치 0.47/0.16, 폭 0.78, 크기 34,
+외곽선 3, `slide` 등장 효과를 기본으로 합니다.
+
+| 작업 | 경계와 오류 |
+|---|---|
+| 추가 ID | 공백뿐이 아닌 최대 2,000 UTF-16 코드 단위; 동일 ID는 `INVALID_ARGUMENT`, 덮어쓰기 없음 |
+| 추가 시간 | 필수 `start`, `end`는 배속 적용 후 출력 초; `0 <= start < end <= outputDuration` |
+| 용량 | 비활성 카드를 포함해 최대 12개; 가득 차면 `INVALID_ARGUMENT`, 변경 없음 |
+| 삭제 ID | 비어 있지 않은 정확한 기존 ID; 기존 공백 ID도 그대로 지정 가능, 없으면 `NOT_FOUND` |
+
+아래 예제는 새 12초 샘플에 도입·핵심·마무리를 추가하고 마무리 카드를 삭제해
+보는 완전한 파일 작업입니다. 기존 프로젝트라면 이름이 충돌하지 않는 ID와
+실제 출력 길이에 맞는 시간을 사용하세요.
+
+```sh
+node cli/moment.mjs init --out story-source.json
+node cli/moment.mjs exec project.get --project story-source.json
+node cli/moment.mjs exec overlays.add --project story-source.json --json '{"id":"hook","patch":{"text":"세 가지 팁","start":0,"end":2}}' --out story-hook.json
+node cli/moment.mjs exec overlays.add --project story-hook.json --json '{"id":"tip","patch":{"text":"핵심부터 간단히","start":2,"end":8}}' --out story-tip.json
+node cli/moment.mjs exec overlays.add --project story-tip.json --json '{"id":"cta","patch":{"text":"직접 시도해 보세요","start":8,"end":12}}' --out story.json
+node cli/moment.mjs exec overlays.remove --project story.json --json '{"id":"cta"}' --out story-without-cta.json
+```
+
+**응답을 놓치면 추가부터 반복하지 마세요.** 같은 세션의 `project.get`으로
+지정한 ID가 실제 추가되었는지 확인한 뒤 재시도하거나 `overlays.update`를
+사용합니다. ID는 추가 때마다 바꾸는 임시값이 아니라 요청을 확인할 기준입니다.
+삭제 후 나머지 순서와 자막·기본 제목·효과·클립·미디어는 유지합니다.
+겹치는 headline은 마지막 활성 카드가 우선하며 기본 제목을 가릴 수 있습니다.
+명령별 검증·반영은 한 번씩이며, 여러 명령 전체를 묶는 트랜잭션은 아닙니다.
+
 ### 실제 카드 ID를 조회하는 CLI 예제
 
 ```sh
@@ -312,7 +354,7 @@ JavaScript에서 직접 호출할 때도 JSON으로 왕복 가능한 값을 전�
 
 배속이나 편집 길이 변경 시 출력 글자의 시간은 **한 번만** 비례 조정합니다.
 
-`title.update`는 기본 제목을 수정합니다. 구간별 제목이 나오는 시간에는 기본 제목이 숨겨집니다. 기존 구간별 문구는 `overlays.update`로 수정할 수 있습니다. 카드 추가·삭제·순서 변경은 현재 UI 또는 검증된 전체 문서 가져오기를 사용합니다.
+`title.update`는 기본 제목을 수정합니다. 구간별 제목이 나오는 시간에는 기본 제목이 숨겨집니다. 기존 구간별 문구는 `overlays.update`로 수정할 수 있습니다. 추가·삭제는 `overlays.add`/`overlays.remove`를 사용하며 카드 순서 변경 명령이나 UI는 없으며, 순서를 바꾸려면 검증된 전체 문서 가져오기를 사용합니다.
 
 ## 실제 CLI 사용
 

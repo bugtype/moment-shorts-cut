@@ -190,11 +190,31 @@ card times. Active headlines can hide the base title, with the last active
 headline winning; do not confuse that visibility with deletion. Size/stroke are
 canvas-relative with fitting and safe bounds, not fixed output pixels.
 
+## Build a hook, tip and CTA with individual cards
+
+Use `overlays.add` / `moment_overlays_add` with a stable caller-chosen `id` and
+`patch` requiring `text`, `start` and `end`. Read the current project first to check
+IDs and output duration. The [scripted-card example](../../../../INTEGRATIONS.md#스크립트에-맞춰-카드-추가삭제)
+creates three sequential cards without replacing the project. Times are output
+seconds **after speed** and must satisfy `0 <= start < end <= outputDuration`.
+
+Add appends existing new-card defaults plus supplied styling fields. IDs must be
+nonblank and at most 2,000 UTF-16 code units; duplicates fail with `INVALID_ARGUMENT`,
+not upsert. The 12-card limit includes disabled cards. Remove one using
+`overlays.remove` / `moment_overlays_remove` and its exact nonempty ID; even a
+legacy whitespace-only ID is matched exactly. A missing ID returns `NOT_FOUND`.
+
+Both return `{updated:true, outputDuration, id}`. Save the project with a separate
+read. If a response is lost, check the live project for your ID before retrying;
+do not create a fresh ID blindly. Each call commits independently, not as a batch.
+Other cards/order and unrelated content remain unchanged. Appended overlapping
+headlines take precedence and can hide the base title; avoid accidental overlaps.
+
 ## Replacement operations and styles
 
 - `moment_timeline_replace`: submit the complete desired `clips` list, preserving unrequested clips and their order. Clips may repeat or overlap source ranges. Each must have `end > start` and remain within original media duration; the list must contain 1–1,000 clips.
 - `moment_captions_replace`: submit the complete desired caption array. Preserve `basis`, speaker and keyword fields unless changing them is requested. An empty array intentionally removes all captions. Each text is limited to 2,000 UTF-16 code units; do not silently truncate authored text.
-- `moment_title_update`: `patch.lines` is exactly two strings. To leave the second line blank, use `""`, not an omitted array slot. This edits the base title; timed cards can hide it while active. Use `moment_overlays_update` for an existing card; adding, deleting or reordering cards still requires the UI or a validated full-document import.
+- `moment_title_update`: `patch.lines` is exactly two strings. To leave the second line blank, use `""`, not an omitted array slot. This edits the base title; timed cards can hide it while active. Use `moment_overlays_update` for an existing card and `moment_overlays_add`/`moment_overlays_remove` to add or remove one. There is no card-reordering control or command; changing order requires a validated full-document import.
 - `moment_template_apply`: discover IDs with `moment_templates_list`. Only built-in templates are exposed, not the browser's custom-template localStorage. `withContent: false` preserves authored title, credit and card content; `true` applies template example title, credit and card content.
 - Project updates reset zoom/pan when the aspect ratio changes. Timeline or speed changes retime output layers through the shared command logic; do not separately rescale those fields again.
 

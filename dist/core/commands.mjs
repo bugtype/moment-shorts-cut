@@ -1,7 +1,7 @@
 import { readTemplateDocument } from '../template-library.mjs';
 import { replaceCaptionText } from './caption-text.mjs';
 import { TEMPLATES, applyTemplate } from '../template-catalog.mjs';
-import { retimeOutputLayers } from '../effects.mjs';
+import { newCard, retimeOutputLayers } from '../effects.mjs';
 import { MAX_CAPTIONS, parseSubtitles } from '../captions.mjs';
 import { outputDuration, timelineDuration, validateProject, createProjectDocument, readProjectDocument, projectSubtitles, clipSchema, captionSchema, MAX_CLIPS } from './project.mjs';
 import { object, string, number, choice, boolean, array, validate, assertJson, fail, CommandError, hasMinimumDuration } from './validation.mjs';
@@ -43,6 +43,8 @@ const definitions=[
   command('timeline.split','지정한 클립을 원본 영상 시간에서 둘로 나눕니다. 각 구간은 0.1초 이상이어야 합니다.',object({clipIndex:{type:'integer',minimum:0,maximum:MAX_CLIPS-1},sourceTime:number(0,86400)},['clipIndex','sourceTime']),true),
   command('timeline.replace','원본 영상 시간 기준 클립 목록을 교체합니다.',object({clips:array(clipSchema,MAX_CLIPS,1)},['clips']),true),
   command('title.update','기본 제목의 두 줄 문구와 스타일을 수정합니다.',object({patch:titleSchema},['patch']),true),
+  command('overlays.add','장면 카드를 지정한 ID로 끝에 추가합니다. 표시 시간은 배속 후 출력 초입니다.',object({id:{...string(2000),minLength:1},patch:{...overlayPatchSchema,required:['text','start','end']}},['id','patch']),true),
+  command('overlays.remove','지정한 ID의 장면 카드 하나를 삭제합니다.',object({id:{...string(2000),minLength:1}},['id']),true),
   command('overlays.update','기존 장면 카드의 지정한 문구·스타일·출력 표시 시간만 수정합니다. 카드 ID와 순서는 유지합니다.',object({id:{...string(2000),minLength:1},patch:overlayPatchSchema},['id','patch']),true),
   command('captions.import','SRT/VTT 문자열로 자막 전체를 교체합니다. source 또는 배속 전 timeline 시간 기준을 명시하세요.',object({text:string(100000),basis:choice('source','timeline')},['text','basis']),true),
   command('captions.replace','자막을 교체합니다. source는 원본, timeline은 배속 전 편집 시간입니다.',object({captions:array(captionSchema,MAX_CAPTIONS)},['captions']),true),
@@ -102,6 +104,20 @@ export function prepareCommand(project,name,args={}){
     next.clips.splice(args.clipIndex,1,{start:clip.start,end:args.sourceTime},{start:args.sourceTime,end:clip.end});
   }
   else if(name==='effects.update')Object.assign(next.effects,args.patch);
+  else if(name==='overlays.add'){
+    if(!args.id.trim())fail('새 장면 카드 ID를 입력하세요.','arguments.id');
+    if(next.overlays.some(card=>card.id===args.id))fail('이미 사용 중인 장면 카드 ID입니다.','arguments.id');
+    if(next.overlays.length>=12)fail('구간별 문구는 12개까지 가능합니다.','project.overlays');
+    if(args.patch.end<=args.patch.start||args.patch.end>before)
+      fail('장면 카드의 표시 시간은 출력 영상의 0초부터 끝 사이에서 시작보다 끝이 늦어야 합니다.','arguments.patch');
+    next.overlays.push({...newCard(before),...args.patch,id:args.id});
+  }
+  else if(name==='overlays.remove'){
+    if(!args.id.length)fail('삭제할 장면 카드 ID를 입력하세요.','arguments.id');
+    const index=next.overlays.findIndex(card=>card.id===args.id);
+    if(index<0)throw new CommandError('NOT_FOUND','장면 카드를 찾을 수 없습니다.');
+    next.overlays.splice(index,1);
+  }
   else if(name==='overlays.update'){
     if(!args.id.length)fail('수정할 장면 카드 ID를 입력하세요.','arguments.id');
     const card=next.overlays.find(item=>item.id===args.id);
@@ -121,5 +137,5 @@ export function prepareCommand(project,name,args={}){
   }
   if(name==='project.update'||name==='timeline.replace')retimeOutputLayers(next,before,outputDuration(next));
   validateProject(next);
-  return {project:next,data:{updated:true,outputDuration:outputDuration(next)}};
+  return {project:next,data:{updated:true,outputDuration:outputDuration(next),...(['overlays.add','overlays.remove'].includes(name)?{id:args.id}:{})}};
 }

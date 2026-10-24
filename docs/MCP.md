@@ -48,7 +48,7 @@ its supported version, `2025-11-25`, even if the proposed version differs; a cli
 that cannot support that version should disconnect, not continue with another
 wire format. `ping` is supported. Initialize only once per process.
 
-All seventeen tools require **`projectId: "session"`**. Each process owns one independent
+All nineteen tools require **`projectId: "session"`**. Each process owns one independent
 in-memory project, initially the demo. This value is neither a path nor a credential.
 Other project IDs return a tool error. A second client process does not share state.
 
@@ -140,7 +140,14 @@ Save `structuredContent.data.text` as UTF-8 `.vtt`; the server does not save fil
 | `moment_timeline_split` | `clipIndex`, `sourceTime` | `{updated:true, outputDuration}` |
 | `moment_title_update` | `patch` | Update acknowledgment and output duration |
 | `moment_effects_update` | `patch` | `{updated:true, outputDuration}` |
+
+### Timed card operations
+
+| Tool | Editing input | Successful `structuredContent.data` |
+|---|---|---|
 | `moment_overlays_update` | `id`, `patch` | `{updated:true, outputDuration}` |
+| `moment_overlays_add` | `id`, `patch` requiring `text`, `start`, `end` | `{updated:true, outputDuration, id}` |
+| `moment_overlays_remove` | `id` | `{updated:true, outputDuration, id}` |
 
 ### Caption changes
 
@@ -408,6 +415,41 @@ Do not promise fixed-pixel output from these values.
 The [CLI example](../INTEGRATIONS.md#실제-카드-id를-조회하는-cli-예제) creates recipe
 cards and reads a real ID. Save the edited project via a separate read; no video
 is encoded by this tool.
+
+### Create scripted cards without importing a whole project
+
+Read the current project first. For a 12-second output, call `moment_overlays_add`
+once for each object below, in order:
+
+```json
+[
+  {"projectId":"session","id":"hook","patch":{"text":"세 가지 팁","start":0,"end":2}},
+  {"projectId":"session","id":"tip","patch":{"text":"핵심부터 간단히","start":2,"end":8}},
+  {"projectId":"session","id":"cta","patch":{"text":"직접 시도해 보세요","start":8,"end":12}}
+]
+```
+
+This is **three tool calls**, not one array argument or an atomic batch. Confirm
+the actual output duration and choose IDs absent from the current project first.
+Each call validates and commits one appended card, using existing new-card visual
+defaults plus supplied fields from the [card styling table](#edit-an-existing-timed-card).
+
+| Operation | Contract |
+|---|---|
+| Add ID | Required nonblank string, at most 2,000 UTF-16 code units; duplicate → `INVALID_ARGUMENT`, never upsert |
+| Add patch | Required `text`, `start`, `end`; `0 <= start < end <= outputDuration`, after speed |
+| Capacity | At most 12 cards, including disabled cards; full capacity → `INVALID_ARGUMENT`, no mutation |
+| Remove ID | Exact nonempty ID, including a legacy whitespace-only ID; missing → `NOT_FOUND` |
+
+Remove the example CTA with `moment_overlays_remove` arguments
+`{"projectId":"session","id":"cta"}`. Remaining card order and unrelated project
+content stay intact. Both operations return `{updated:true, outputDuration, id}`;
+retrieve `moment_project_get` to save the result.
+
+Retain caller-chosen IDs across retries. If a response is lost, read the live
+project before adding again: a duplicate error is not permission to overwrite
+or generate another copy. Appended headline cards can hide the base title; when
+headlines overlap, the last active one wins. No media is uploaded or encoded.
 
 ### Time coordinates
 

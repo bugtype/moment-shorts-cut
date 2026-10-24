@@ -72,7 +72,7 @@ async function withClient(work) {
 
 const saved = await withClient(async ({request, call, data}) => {
   const {tools} = await request('tools/list', {});
-  assert.equal(tools.length, 17);
+  assert.equal(tools.length, 19);
   assert.ok(tools.some(tool => tool.name === 'moment_project_import'));
   await data('moment_project_import', {document: createProjectDocument(createDemoProject())});
   await data('moment_project_update', {patch: {name: 'MCP 예제', speed: 2}});
@@ -116,6 +116,12 @@ const saved = await withClient(async ({request, call, data}) => {
   const card = (await data('moment_project_get')).project.overlays[0];
   await data('moment_overlays_update', {id: card.id, patch: {text: 'MCP 장면 문구', start: 0, end: 1}});
   assert.equal((await data('moment_project_get')).project.overlays[0].text, 'MCP 장면 문구');
+  await data('moment_overlays_remove', {id: card.id});
+  const cards = [['hook', '시선을 끄는 시작', 0, .5], ['tip', '핵심 팁', .5, 1.5], ['cta', '다음 편도 함께해요', 1.5, 2]];
+  for (const [id, text, start, end] of cards) {
+    assert.deepEqual(await data('moment_overlays_add', {id, patch: {text, start, end}}), {updated: true, outputDuration: 2, id});
+  }
+  assert.deepEqual((await data('moment_project_get')).project.overlays.map(item => item.id), ['hook', 'tip', 'cta']);
   const plan = await data('moment_render_plan', {quality: 720, format: 'webm'});
   assert.equal(plan.rendered, false);
   assert.equal(plan.output.duration, 2);
@@ -127,4 +133,4 @@ await withClient(async ({data}) => {
   await data('moment_project_import', {document: saved});
   assert.deepEqual(await data('moment_project_get'), saved);
 });
-console.log(JSON.stringify({ok: true, tools: 17, recoveredFromInvalidInput: true, reimported: true, rendered: false}));
+console.log(JSON.stringify({ok: true, tools: 19, recoveredFromInvalidInput: true, reimported: true, rendered: false}));

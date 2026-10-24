@@ -26,7 +26,7 @@ export function createPlayback(app, {
         if (!loopPreview && pendingRestart) pause();
     }
 
-    function paint(target, width, height) {
+    function paint(target, width, height, options) {
         const state = app.state, current = app.current;
         const pos = app.locate(current), clip = state.clips[pos.index];
         app.composition.draw(target, width, height, state, {
@@ -40,12 +40,12 @@ export function createPlayback(app, {
             elapsed: (pos.source - clip.start) / state.speed,
             remaining: (clip.end - pos.source) / state.speed,
             progress: (pos.source - clip.start) / (clip.end - clip.start)
-        });
+        }, options);
     }
 
     function draw() {
         if (app.exporting && app.videoExport.context) {
-            paint(app.videoExport.context, app.videoExport.canvas.width, app.videoExport.canvas.height);
+            paint(app.videoExport.context, app.videoExport.canvas.width, app.videoExport.canvas.height, app.videoExport.renderOptions);
             app.ctx.drawImage(app.videoExport.canvas, 0, 0, app.canvas.width, app.canvas.height);
         }
         else

@@ -6,7 +6,7 @@ import { videoFrame, createTypographyRenderer } from './typography.mjs';
 export function createCompositionRenderer(makeCanvas) {
   const typography = createTypographyRenderer(makeCanvas);
 
-  function draw(context, width, height, project, media) {
+  function draw(context, width, height, project, media, { includeCaptions = true } = {}) {
     const frame = videoFrame(project.design, width, height);
     const effects = project.effects;
     const fx = clipEffects(effects, media.elapsed, media.remaining, media.progress);
@@ -37,7 +37,7 @@ export function createCompositionRenderer(makeCanvas) {
       }
     }
 
-    const caption = findCaption(project.captions, media.sourceTime, media.time * project.speed);
+    const caption = includeCaptions === false ? null : findCaption(project.captions, media.sourceTime, media.time * project.speed);
     const captionTime = caption
       ? captionClock(caption, media.sourceTime, media.time * project.speed)
       : media.sourceTime;

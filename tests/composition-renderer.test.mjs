@@ -1,7 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createCompositionRenderer } from '../dist/composition-renderer.mjs';
+import { projectSubtitles } from '../dist/core/project.mjs';
 import { createDemoProject } from '../dist/core/project.mjs';
+import { newCard } from '../dist/effects.mjs';
 import { createCanvasTrace } from './fixtures/canvas-trace.mjs';
 
 const media = { source: { traceName: 'video' }, sw: 100, sh: 200, ready: true,
@@ -43,4 +45,25 @@ test('unavailable source omits media/vignette while text cache is reused and exp
   renderer.clear();
   renderer.draw(trace.context, 540, 960, project, { ...media, ready: false });
   assert.equal(trace.canvasCount, cached * 2);
+});
+
+test('export caption omission preserves source, title, credit and cards without leaking to later previews', () => {
+  const project = createDemoProject();
+  project.design.title.lines = ['TITLEONLY']; project.design.title.enabled = true;
+  project.design.credit.text = 'CREDITONLY'; project.design.credit.enabled = true;
+  project.captions = [{start:0,end:3,text:'CAPTIONONLY'}];
+  project.overlays = [{...newCard(12),role:'body',text:'CARDONLY'}];
+  const before = structuredClone(project), sidecars = [projectSubtitles(project,{format:"srt"}),projectSubtitles(project,{format:"vtt"})];
+  const render = options => {
+    const trace = createCanvasTrace(), renderer = createCompositionRenderer(trace.makeCanvas);
+    renderer.draw(trace.context, 540, 960, project, media, options);
+    return trace.events;
+  };
+  const clean = render({includeCaptions:false}), normal = render();
+  const has = (events, text) => events.some(event => event.includes(text));
+  assert.equal(has(clean,'CAPTIONONLY'),false);
+  assert.equal(has(normal,'CAPTIONONLY'),true);
+  for (const value of ['TITLEONLY','CREDITONLY','CARDONLY','video']) assert.ok(has(clean,value), value);
+  assert.deepEqual(project,before);
+  assert.deepEqual([projectSubtitles(project,{format:"srt"}),projectSubtitles(project,{format:"vtt"})],sidecars);
 });

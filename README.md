@@ -383,6 +383,21 @@ At 1,000 clips, delete a clip before splitting another.
 
 **Video export:** keep the tab visible; hiding it cancels recording. MP4/WebM support depends on the browser. Recording is real-time, with a 30 fps target rather than a fixed-rate guarantee. The historical 4-second Chromium test averaged about 21.7 fps; see [the measured report](docs/BROWSER_QA.md).
 
+In the export dialog, **Include captions in video** starts checked each time.
+Uncheck it to omit only Moment’s authored caption layer from this video export;
+leave it checked to keep the project's existing caption visibility setting.
+The choice is captured when you start and does not edit/save the project or add history.
+
+| Output | Effect of unchecking |
+|---|---|
+| Recorded video | Omits authored captions; titles, credits, timed cards and source footage remain |
+| Normal editor/PNG/template preview before and after export | Unchanged; PNG capture remains blocked while recording |
+| Preview during recording | Mirrors the chosen recorded output, including omitted captions |
+| SRT/VTT sidecar files | Unchanged; save separately from the caption panel |
+
+This does not remove text already present in source pixels or create a switchable
+subtitle track inside MP4/WebM. CLI/MCP `render.plan` has no new toggle and remains a plan, not video encoding.
+
 <details>
 <summary>Storage, pending imports and transcription conflicts</summary>
 

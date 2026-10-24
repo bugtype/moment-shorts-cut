@@ -11,6 +11,8 @@ export function createExportFlow(app, {
 } = {}) {
     const { query: $, videoExport, toast, modal } = app;
 
+    let dialogGeneration = 0;
+
     function supportedTypes() {
         if (!hasMediaRecorder())
             return [];
@@ -35,16 +37,24 @@ export function createExportFlow(app, {
             toast(message("shell.exportUnsupported"));
             return;
         }
-        app.modalOpen(message("shell.exportTitle"), `<p class="modal-copy">${text("shell.exportDescription")}</p><div class="modal-field"><label for="exportFormat">${text("shell.fileFormat")}</label><select id="exportFormat">${types.map((t, i) => `<option value="${i}">${t.label}</option>`).join('')}</select></div><div class="modal-field"><label for="exportQuality">${text("shell.resolution")}</label><select id="exportQuality"><option value="720" ${mark("shell.quality720")}>${t("shell.quality720")}</option><option value="1080" selected ${mark("shell.quality1080")}>${t("shell.quality1080")}</option></select></div><div class="modal-field"><span>${text("shell.videoLength")}</span><strong>${fmt(app.duration() / app.state.speed)}</strong></div><div class="notice">${text("shell.exportNotice")}</div>`, `<div class="modal-foot"><button class="button" id="cancelExportDialog">${text("shell.cancel")}</button><button class="button primary" id="startExport">${text("shell.exportVideo")}</button></div>`);
-        $('#cancelExportDialog').onclick = () => modal.close();
-        $('#startExport').onclick = () => startExport(types[+$('#exportFormat').value], +$('#exportQuality').value);
+        const generation = ++dialogGeneration;
+        app.modalOpen(message("shell.exportTitle"), `<p class="modal-copy">${text("shell.exportDescription")}</p><div class="modal-field"><label for="exportFormat">${text("shell.fileFormat")}</label><select id="exportFormat">${types.map((t, i) => `<option value="${i}">${t.label}</option>`).join('')}</select></div><div class="modal-field"><label for="exportQuality">${text("shell.resolution")}</label><select id="exportQuality"><option value="720" ${mark("shell.quality720")}>${t("shell.quality720")}</option><option value="1080" selected ${mark("shell.quality1080")}>${t("shell.quality1080")}</option></select></div><div class="modal-field"><label><input type="checkbox" id="exportIncludeCaptions" checked> ${text("shell.exportIncludeCaptions")}</label></div><div class="modal-field"><span>${text("shell.videoLength")}</span><strong>${fmt(app.duration() / app.state.speed)}</strong></div><div class="notice">${text("shell.exportNotice")}</div>`, `<div class="modal-foot"><button class="button" id="cancelExportDialog">${text("shell.cancel")}</button><button class="button primary" id="startExport">${text("shell.exportVideo")}</button></div>`);
+        const start = $('#startExport'), include = $('#exportIncludeCaptions');
+        include.checked = true;
+        const current = () => generation === dialogGeneration && modal.open && $('#startExport') === start;
+        $('#cancelExportDialog').onclick = () => { if (current()) { ++dialogGeneration; modal.close(); } };
+        start.onclick = event => {
+            if (!current() || event?.isComposing || event?.keyCode === 229) return;
+            return startExport(types[+$('#exportFormat').value], +$('#exportQuality').value, { includeCaptions: include.checked });
+        };
     }
 
-    async function startExport(type, quality) {
+    async function startExport(type, quality, options = {}) {
         if (app.mediaBlocked() || app.exporting || app.audioRecording.current || app.audioRecording.requesting || app.loadingMedia || app.transcribing)
             return;
+        ++dialogGeneration;
         app.pause();
-        const request = videoExport.begin();
+        const request = videoExport.begin(options);
         try {
             app.exporting = true;
             app.exportCancelled = false;

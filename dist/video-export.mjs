@@ -1,9 +1,11 @@
 // Owns export generations and native resources; preparation, playback and UI stay in the app.
 export function createVideoExport({ createCanvas, createRecorder, onRelease }) {
     let request = 0, canvas = null, context = null, stream = null, recorder = null;
+    let renderOptions = Object.freeze({ includeCaptions: true });
     const owns = token => token === request;
 
-    function begin() {
+    function begin({ includeCaptions = true } = {}) {
+        renderOptions = Object.freeze({ includeCaptions: includeCaptions !== false });
         return ++request;
     }
 
@@ -42,6 +44,7 @@ export function createVideoExport({ createCanvas, createRecorder, onRelease }) {
         if (!owns(token))
             return;
         ++request;
+        renderOptions = Object.freeze({ includeCaptions: true });
         onRelease();
         if (recorder)
             recorder.ondataavailable = recorder.onerror = recorder.onstop = null;
@@ -58,6 +61,7 @@ export function createVideoExport({ createCanvas, createRecorder, onRelease }) {
         createSurface,
         capture,
         release,
+        get renderOptions() { return renderOptions; },
         get request() { return request; },
         get recorder() { return recorder; },
         get canvas() { return canvas; },

@@ -100,3 +100,16 @@ test('partial native capture failures retain acquired tracks for cleanup', () =>
     assert.equal(f.releases.length, 1);
   }
 });
+
+test('caption rendering choice is copied per request and reset without stale-release leakage', () => {
+  const f = fixture(), options = { includeCaptions: false }, first = f.session.begin(options);
+  options.includeCaptions = true;
+  assert.equal(f.session.renderOptions.includeCaptions, false);
+  assert.ok(Object.isFrozen(f.session.renderOptions));
+  f.session.release(first);
+  assert.equal(f.session.renderOptions.includeCaptions, true);
+  const second = f.session.begin();
+  f.session.release(first);
+  assert.equal(f.session.request, second);
+  assert.equal(f.session.renderOptions.includeCaptions, true);
+});

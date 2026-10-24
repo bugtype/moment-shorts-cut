@@ -41,6 +41,13 @@ The interface is currently in Korean. These labels will help you find each step:
 
 Use **사용 가이드 (Help) → 편집 설정 저장 (Save editing settings)** to back up project JSON. Keep your original video and audio separately: **the JSON does not contain media files**.
 
+**Preview shortcuts:** unmodified `,` / `.` move backward/forward by 1/30 of an
+output second to inspect cut or caption boundaries. Arrow keys still move one
+pre-speed timeline second. The fine step uses the 30 fps output reference—not
+source-frame accuracy or frame-grid snapping—and retains any starting subframe
+offset. It is ignored in editing fields, during IME composition, with modifier
+keys or while busy.
+
 ## Features
 
 | Work on | Available tools | Important boundary |

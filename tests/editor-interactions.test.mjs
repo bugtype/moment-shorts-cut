@@ -97,3 +97,16 @@ test('lost pointer capture finishes once and permits a new preview drag', () => 
   assert.equal(f.history.length, 2);
   assert.equal(f.events.filter(event => event === 'commit').length, 2);
 });
+
+test('output stepping accepts only unmodified punctuation outside editable ancestors and busy states',()=>{
+ let handler,blocked=false,busy=false;const calls=[];
+ bindEditorKeyboard({addEventListener:(_,fn)=>handler=fn},{blocked:()=>blocked,stepBlocked:()=>busy,stepOutput:d=>calls.push(d)});
+ const press=(key,extra={})=>{let prevented=false;handler({key,target:{tagName:'BODY'},preventDefault:()=>prevented=true,...extra});return prevented;};
+ assert.equal(press(','),true);assert.equal(press('.'),true);assert.deepEqual(calls,[-1,1]);
+ for(const extra of [{defaultPrevented:true},{ctrlKey:true},{metaKey:true},{altKey:true},{shiftKey:true},{isComposing:true},{keyCode:229},
+  ...['INPUT','TEXTAREA','SELECT','SUMMARY'].map(tagName=>({target:{tagName}})),
+  {target:{tagName:'SPAN',isContentEditable:true}},{target:{tagName:'SPAN',closest:()=>({tagName:'SUMMARY'})}}]){
+  assert.equal(press(',',extra),false);assert.equal(press('.',extra),false);
+ }
+ blocked=true;assert.equal(press('.'),false);blocked=false;busy=true;assert.equal(press(','),false);assert.deepEqual(calls,[-1,1]);
+});

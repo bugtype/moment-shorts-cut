@@ -370,7 +370,7 @@ function runEditorCommand(name, args) {
 }
 
 function showHelp() {
-    modalOpen('짧게 담고, 오래 기억되게.', `<ol class="guide-steps"><li>영상을 올리고 화면 비율과 구도를 맞추세요.</li><li>템플릿, 타이틀, 대사 자막을 편집하세요.</li><li>필요한 음성을 연결하고 완성된 영상을 내보내세요.</li></ol><p class="modal-copy"><span class="keyboard-key">Space</span> 재생 / 정지 &nbsp; <span class="keyboard-key">Ctrl Z</span> 실행 취소</p><div class="notice">편집 설정 파일에는 제목·자막·클립 구간이 담깁니다. 영상·오디오 파일은 포함하지 않습니다. 다른 브라우저에서 불러올 때는 같은 원본 파일을 먼저 연결하세요.</div>`, '<div class="modal-foot"><button class="button" id="importProjectSettingsButton">편집 설정 불러오기</button><button class="button primary" id="downloadProjectSettingsButton">편집 설정 저장</button></div>');
+    modalOpen('짧게 담고, 오래 기억되게.', `<ol class="guide-steps"><li>영상을 올리고 화면 비율과 구도를 맞추세요.</li><li>템플릿, 타이틀, 대사 자막을 편집하세요.</li><li>필요한 음성을 연결하고 완성된 영상을 내보내세요.</li></ol><p class="modal-copy"><span class="keyboard-key">Space</span> 재생 / 정지 &nbsp; <span class="keyboard-key">Ctrl Z</span> 실행 취소 &nbsp; <span class="keyboard-key">, / .</span> 출력 시간 1/30초 이동</p><div class="notice">편집 설정 파일에는 제목·자막·클립 구간이 담깁니다. 영상·오디오 파일은 포함하지 않습니다. 다른 브라우저에서 불러올 때는 같은 원본 파일을 먼저 연결하세요.</div>`, '<div class="modal-foot"><button class="button" id="importProjectSettingsButton">편집 설정 불러오기</button><button class="button primary" id="downloadProjectSettingsButton">편집 설정 저장</button></div>');
     $('#importProjectSettingsButton').onclick = () => $('#projectInput').click();
     $('#downloadProjectSettingsButton').onclick = downloadProjectSettings;
 }

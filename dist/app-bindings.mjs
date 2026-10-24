@@ -214,6 +214,12 @@ export function bindUi(app) {
     });
     bindEditorKeyboard(app.document, {
         blocked: () => app.modal.open || app.exporting,
+        stepBlocked: () => app.persistence.restorePhase === 'restoring' || app.loadingMedia ||
+            app.transcribing || app.audioRecording.requesting || app.audioRecording.current,
+        stepOutput: direction => {
+            app.pause();
+            app.seekTo(app.current + direction * app.state.speed / 30);
+        },
         togglePlayback: () => app.playing ? app.pause() : app.play(),
         undo: redo => app.undo(redo),
         seekBy: delta => {

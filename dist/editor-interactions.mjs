@@ -71,8 +71,21 @@ export function bindPreviewDrag(canvas, { getProject, blocked, pause, selection,
     canvas.onlostpointercapture = endDrag;
 }
 
-export function bindEditorKeyboard(document, { blocked, togglePlayback, undo, seekBy }) {
+export function bindEditorKeyboard(document, { blocked, togglePlayback, undo, seekBy, stepOutput, stepBlocked = () => false }) {
     document.addEventListener('keydown', e => {
+        if (e.key === ',' || e.key === '.') {
+            const target = e.target;
+            if (e.defaultPrevented || e.ctrlKey || e.metaKey || e.altKey || e.shiftKey ||
+                e.isComposing || e.keyCode === 229 || blocked() || stepBlocked() ||
+                /INPUT|TEXTAREA|SELECT|SUMMARY/.test(target?.tagName) || target?.isContentEditable ||
+                target?.closest?.('input, textarea, select, summary, [contenteditable]:not([contenteditable="false"])'))
+                return;
+            if (stepOutput) {
+                e.preventDefault();
+                stepOutput(e.key === ',' ? -1 : 1);
+            }
+            return;
+        }
         if (/INPUT|TEXTAREA|SELECT|SUMMARY/.test(e.target.tagName) || blocked())
             return;
         if (e.code === 'Space') {

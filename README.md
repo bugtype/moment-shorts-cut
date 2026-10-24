@@ -148,23 +148,24 @@ node cli/moment.mjs commands
 
 Existing output files are protected; use `--overwrite` only when you intend to replace one. Add `--dry-run` to an `exec` command to inspect its result without writing output. JSON inputs are limited to 10 MiB (10,485,760 bytes).
 
-**Caption corrections:** the caption tools show a match preview before replace-all; an applied change is one undo step. Matching is literal, case-sensitive and non-overlapping, with no regex or Unicode normalization. Times, speaker/keyword metadata and cue order stay unchanged. An empty or overlong resulting caption rejects the whole edit rather than deleting/truncating it. See [exact limits and results](INTEGRATIONS.md#자막-문구-일괄-교정).
+### Pick a workflow
 
-**Review before replacing:** previous/next search controls move through matching
-caption rows, show the current/total row count, and focus/select each row’s first
-literal match. They include authored captions outside the trimmed video and wrap
-at either end. One row counts once even if it contains several matches; replace-all
-still counts occurrences. Navigation does not seek playback, edit or save the project.
+**Captions**
 
-**Caption appearance:** `captions.style.update` changes shared caption styling without resubmitting the full project. Only supplied fields change; styling applies to the visual renderer, not plain SRT/VTT files. [Style options](INTEGRATIONS.md#자막-스타일-수정) include size, position, colors and animation.
+| Task | Use | Keep in mind |
+|---|---|---|
+| Correct repeated wording | [`captions.text.replace`](INTEGRATIONS.md#자막-문구-일괄-교정) | Literal, case-sensitive, non-overlapping; no regex/Unicode normalization. Preserves timing, speaker/keyword metadata and order. Blank or overlong results reject the whole edit. Browser UI previews occurrence counts and applies one undo step. |
+| Review matches first | Browser previous/next search controls | Wrap through authored rows, including trimmed-out captions; scroll/focus/select each row’s first match and show current/total rows. One row counts once; replace-all counts occurrences. No playback seek, project edit or save. |
+| Change appearance | [`captions.style.update`](INTEGRATIONS.md#자막-스타일-수정) | Size, position, colors and animation: only supplied fields change, without resubmitting the project. Visual styles are absent from plain SRT/VTT. |
+| Import subtitle text | [`captions.import`](INTEGRATIONS.md#srtvtt-본문을-명령으로-가져오기) | Replaces all captions. Supply contents, not a path, and source/timeline time **before speed**, not output time. API: 100,000 UTF-16 code units; browser files: 2 MiB. |
 
-**Clip splitting:** `timeline.split` divides one indexed clip without replacing the full timeline. It takes original source time, not output time; [the example and limits](INTEGRATIONS.md#클립-구간-분할) explain repeated clips and boundary checks.
+**Clips and composition**
 
-**Video effects:** `effects.update` adjusts brightness, contrast, motion, boundary overlays and progress styling without replacing content or timing. [Options and examples](INTEGRATIONS.md#영상-효과-수정) distinguish boundary fades from crossfades.
-
-**Timed cards:** `overlays.add`, `overlays.update` and `overlays.remove` create, edit or remove individual cards by ID without replacing the project. [Script a hook, tip and CTA](INTEGRATIONS.md#스크립트에-맞춰-카드-추가삭제) using output times after speed; additions append without reordering existing cards.
-
-**Subtitle import for agents:** `captions.import` accepts SRT/VTT text with an explicit source or edited-timeline clock, both before speed, and replaces all captions. Its API string limit is 100,000 UTF-16 code units; browser file import remains 2 MiB. [File-wrapping example and timing rules](INTEGRATIONS.md#srtvtt-본문을-명령으로-가져오기) prevent confusing a path or final-output timestamps with import data.
+| Task | Use | Keep in mind |
+|---|---|---|
+| Split one clip | [`timeline.split`](INTEGRATIONS.md#클립-구간-분할) | Original source time, not output time; identify the intended occurrence and check boundaries. No full-timeline replacement. |
+| Adjust video effects | [`effects.update`](INTEGRATIONS.md#영상-효과-수정) | Brightness, contrast, motion, boundary overlays and progress styling without replacing content or timing. Boundary overlays are not crossfades. |
+| Script timed cards | [`overlays.add`, `overlays.update`, `overlays.remove`](INTEGRATIONS.md#스크립트에-맞춰-카드-추가삭제) | Individual IDs and output time **after speed**, without replacing the project. Additions append and preserve existing order. |
 
 ### Choose an integration
 

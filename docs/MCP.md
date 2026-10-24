@@ -9,7 +9,8 @@ upload media or encode video.
 |---|---|
 | Check the local connection | [Connect a client](#connect-a-client) |
 | Edit and keep a project | [Import, edit, inspect, save](#import-edit-inspect-save) |
-| Find fields or recover an error | [Tool catalog](#tool-catalog) · [Responses and recovery](#responses-and-recovery) |
+| Find fields and choose the correct clock | [Tool catalog](#tool-catalog) · [Time coordinates](#time-coordinates) |
+| Use files or recover safely | [CLI workflow](../INTEGRATIONS.md#실제-cli-사용) · [Responses and recovery](#responses-and-recovery) |
 
 ## Connect a client
 
@@ -499,7 +500,7 @@ project before repeating a mutation.
 | Failure | Meaning and safe next step |
 |---|---|
 | Tool `INVALID_ARGUMENT` | Input validation failed; correct the field indicated by `path`. |
-| Tool `NOT_FOUND` | Inaccessible project or unknown built-in template; use `session` and discover template IDs. |
+| Tool `NOT_FOUND` | Check `session`, rediscover built-in template IDs, or read `project.overlays` for the exact existing card ID. Do not recreate a missing card or silently target another one. |
 | Tool `UNSUPPORTED_VERSION` | Preserve the document and use a compatible editor; do not falsify its version. |
 | Tool `CAPTION_OUTPUT_LIMIT` | Derived SRT/VTT exceeds its cue/byte budget; keep the project and reduce output only as requested. |
 

@@ -2,6 +2,10 @@
 
 **Inspect the supplied document, preview the requested edit, then save a separate result. MCP changes remain in memory until your client saves them.**
 
+**Jump to:** [CLI basics](#apply-a-small-change-preview-and-save) ·
+[Command catalog](../../../../INTEGRATIONS.md#명령-v1) · [Clocks](#time-coordinate-example) ·
+[Recovery](#recover-without-losing-work)
+
 ## Discover and inspect
 
 Run commands from the repository root with Node.js 20+. No package installation is required.
@@ -299,7 +303,7 @@ VTT uses a `WEBVTT` header and dot-separated milliseconds. It exports plain capt
 | Error | Recovery |
 |---|---|
 | `INVALID_ARGUMENT` | Inspect `error.path` and the live schema. Unknown fields and invalid ranges are rejected before commit. |
-| `NOT_FOUND` | Use exactly `session` for local MCP, or rediscover built-in template IDs. Do not silently switch projects/templates. |
+| `NOT_FOUND` | Verify `session`, built-in template IDs, or the exact card ID in `project.overlays`. Do not silently switch targets or recreate a missing card. |
 | `BUSY` | Finish/cancel the browser job before retrying there. Standalone stdio is not that browser session. |
 | `UNSUPPORTED_VERSION` | Use a compatible editor. Do not falsify the document's version number. |
 

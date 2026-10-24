@@ -84,18 +84,28 @@ export function layerVisible(layer, time) {
   return layer.enabled && time >= layer.start && (layer.end == null || time < layer.end);
 }
 
+const lineSegmenter = typeof globalThis.Intl?.Segmenter === 'function'
+  ? new Intl.Segmenter(undefined, { granularity: 'grapheme' }) : null;
+// Older engines retain the previous code-point wrapping behavior without failing
+// drawing. Native segmentation keeps combining marks and joined emoji together.
+const lineUnits = text => lineSegmenter
+  ? Array.from(lineSegmenter.segment(text), part => part.segment) : Array.from(text);
+
 // Keep full sentences. Wrapping never silently drops text or invents word timing.
 export function measureLines(context, text, maxWidth) {
   const lines = [];
   for (const paragraph of String(text).split('\n')) {
-    let line = '';
-    for (const char of paragraph) {
-      if (line && context.measureText(line + char).width > maxWidth) {
-        lines.push(line.trimEnd());
-        line = char.trimStart();
-      } else line += char;
+    let units = [];
+    for (const unit of lineUnits(paragraph)) {
+      if (units.length && context.measureText(units.join('') + unit).width > maxWidth) {
+        // Trim whitespace-only units, not the whitespace inside a grapheme such
+        // as a space followed by a combining mark.
+        while (units.length && /^\s+$/u.test(units.at(-1))) units.pop();
+        lines.push(units.join(''));
+        units = /^\s+$/u.test(unit) ? [] : [unit];
+      } else units.push(unit);
     }
-    lines.push(line);
+    lines.push(units.join(''));
   }
   return lines;
 }

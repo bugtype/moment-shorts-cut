@@ -94,7 +94,7 @@ const document = await window.moment.execute('project.get');
 
 ## MCP 어댑터와 호스트 확장
 
-어댑터는 MCP **2026-07-28 도구 결과 형태**의 `listTools()` / `callTool()`을 제공합니다. 전송, `server/discover`, `_meta`, JSON-RPC 오류 처리, 인증은 구현하지 않습니다. 정식 서버를 연결할 때 해당 프로토콜을 지원하는 호스트/SDK가 맡아야 합니다.
+어댑터는 `listTools()` / `callTool()` 도구 매핑과 내부 `resultType: "complete"` 메타데이터를 제공합니다. 그 자체가 특정 버전의 완전한 MCP 서버는 아닙니다. 로컬 stdio 호스트는 **2025-11-25**를 협상하고 wire 응답에서 `resultType`을 제외합니다. 전송·수명주기·JSON-RPC 오류 처리·인증은 호스트의 책임입니다. 실제 설정, 도구별 입력/결과, 저장·재시도 흐름은 [MCP 안내](docs/MCP.md)를 따르세요.
 
 각 도구에는 `projectId`가 필수입니다. 서비스 객체를 연결별 전역 변수 하나에 고정하지 말고, 요청마다 인증된 사용자와 프로젝트 ID로 조회하세요. `projectId` 자체는 권한이 아닙니다. 어댑터는 중첩된 호출 입력을 복사·검증한 뒤 resolver를 기다리므로, 조회 중 호출자가 입력을 바꾸어도 실행할 명령은 바뀌지 않습니다.
 
@@ -109,13 +109,15 @@ const adapter = createMcpToolAdapter({
 // tools/call → adapter.callTool(params.name, params.arguments, trustedContext)
 ```
 
-`UNKNOWN_TOOL`은 호스트에서 JSON-RPC invalid-params 오류로 변환합니다. 입력/도메인 오류는 `isError:true` 결과로 반환합니다. 실제 작동하는 로컬 연결 예제는 `node examples/use-editor-service.mjs`로 실행할 수 있습니다.
+`UNKNOWN_TOOL`은 호스트에서 JSON-RPC invalid-params 오류로 변환합니다. 입력/도메인 오류는 `isError:true` 결과로 반환합니다. `structuredContent`는 `{ok, apiVersion, command, data}` 또는 오류 결과이며 `tools/list`의 `outputSchema`에서 확인할 수 있습니다. 수정 성공 응답은 전체 문서가 아니므로 `moment_project_get`을 호출해 `structuredContent.data`를 저장하세요.
+
+인프로세스 서비스 예제는 `node examples/use-editor-service.mjs`, 실제 stdio 클라이언트 왕복 예제는 `node examples/use-mcp-client.mjs`입니다. 후자는 외부 SDK 없이 하위 프로세스에서 가져오기·수정·오류 복구·SRT/JSON 추출·새 세션으로 재가져오기를 검증하며 사용자 파일을 읽거나 쓰지 않습니다.
 
 서버 서비스의 저장 콜백은 원자적인 저장과 프로젝트 버전 비교를 맡아야 합니다. 서비스 내부 큐는 한 서비스 인스턴스의 명령만 순서대로 실행하므로, 여러 서버 인스턴스 간 충돌을 막는 데이터베이스 트랜잭션을 대신하지 않습니다.
 
 로컬 stdio 서버는 `node cli/mcp.mjs`로 실행합니다. 현재 사이트는 정적 배포이고 `/mcp`가 없습니다. 별도의 원격 HTTP MCP 서버를 켜려면 서버 런타임과 프로젝트 저장소를 추가하고, Sites의 MCP 기능 선언 및 인증된 엔드포인트를 구현해야 합니다. 이 단계에서 미디어 저장소도 연결해야 브라우저가 닫힌 뒤 작업할 수 있습니다.
 
-공식 규격: https://modelcontextprotocol.io/specification/2026-07-28/server/tools
+로컬 호스트의 공식 규격: https://modelcontextprotocol.io/specification/2025-11-25/server/tools
 
 ## 업로드·음성 인식·렌더 제공자 확장
 

@@ -7,7 +7,7 @@
   },
   "scripts": {
     "start": "node scripts/serve.mjs",
-    "check": "node --check dist/app.js && node --check dist/playback.mjs && node --check dist/export-flow.mjs && node --check dist/media-loader.mjs && node --check dist/design-workspace.mjs && node --check dist/workspace-panels.mjs && node --check dist/app-bindings.mjs && node --check dist/editing-actions.mjs && node --check dist/caption-flow.mjs && node --check dist/transcribe-worker.js && node --check cli/moment.mjs && node --check cli/mcp.mjs",
+    "check": "node --check dist/app.js && node --check dist/playback.mjs && node --check dist/export-flow.mjs && node --check dist/media-loader.mjs && node --check dist/design-workspace.mjs && node --check dist/workspace-panels.mjs && node --check dist/app-bindings.mjs && node --check dist/editing-actions.mjs && node --check dist/caption-flow.mjs && node --check dist/transcribe-worker.js && node --check cli/moment.mjs && node --check cli/mcp.mjs && node --check cli/mcp-session.mjs && node --check examples/use-mcp-client.mjs",
     "test": "npm run check && node verify.mjs && node --test",
     "moment": "node cli/moment.mjs"
   },

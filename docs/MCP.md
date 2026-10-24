@@ -1,80 +1,222 @@
 # Local MCP and AI skill
 
-Moment ships a repository skill and a dependency-free stdio MCP server for editing
-project metadata. Neither installs a background service nor connects to your browser.
+Moment provides a dependency-free **stdio MCP server for project metadata** and a
+repository skill for agents. It does not install a service, connect to your open
+browser, upload media or encode video.
 
 ## Connect a client
 
 Use Node.js 20+ and an MCP client supporting protocol **2025-11-25** and stdio.
 Copy the entry from [mcp-client.json](../examples/mcp-client.json) into that client's
 MCP configuration, replacing the absolute script path. The example uses the common
-`mcpServers` shape; check your client's configuration format. If Node is not on the
+`mcpServers` shape; use your client's configuration format. If Node is not on the
 client's PATH, use its absolute executable path. No working-directory setting,
-package install, API key or HTTP port is needed.
-
-The client launches:
+package installation, API key or HTTP port is needed.
 
 ```sh
 node /absolute/path/to/moment-shorts-cut/cli/mcp.mjs
 ```
 
-The process reads newline-delimited JSON-RPC on stdin and reserves stdout for
-protocol responses. Closing stdin ends the session. The host negotiates
-2025-11-25, requires initialize → notifications/initialized before tools, and
-supports ping, tools/list and tools/call. It does not implement HTTP, resources,
-prompts, background tasks or server-side authentication. Do not expose it as an
-unauthenticated network service.
+The client, not a terminal command typed into the editor, launches and owns this
+process. Starting it alone waits for stdin; it does not print a menu or open a
+browser. The server reserves stdout for newline-delimited JSON-RPC responses.
+Diagnostics go to stderr. Closing stdin ends the process and its project session.
 
-## Edit a project
+For a runnable client without an external SDK or client application:
 
-All tools require `projectId: "session"`. Each process owns one independent
-in-memory project, initially the demo. This identifier selects that project; it is
-not a credential or a path. No other project ID resolves.
+```sh
+node examples/use-mcp-client.mjs
+```
 
-1. Save editing settings from the browser and supply that JSON to your AI client.
-2. Call `moment_project_import` with `{projectId:"session", document:...}`.
-3. Discover current inputs with tools/list, then use tools such as
-   `moment_project_update`, `moment_timeline_replace` or `moment_captions_replace`.
-4. Check `isError` and `structuredContent.ok` after each call.
-5. Call `moment_project_get`. Save **structuredContent.data** as the project JSON
-   through your client's authorized file workflow, then import it in the browser.
-   Save `moment_captions_export`'s `structuredContent.data.text` for SRT.
+This example launches real subprocesses, discovers tools, imports and edits a demo
+document, checks an invalid edit leaves it unchanged, extracts SRT/JSON and a render
+plan, then reimports the document in a fresh session. It uses no user files and
+writes no project files. Its JSON summary is a protocol smoke test, not a video.
 
-**Changes disappear when the process exits.** The server never reads or writes
-project files, and does not synchronize the open browser. Restarting starts a fresh
-demo. For disk-based work, use the existing CLI with a new output path; see
-[INTEGRATIONS.md](../INTEGRATIONS.md). Client-side file saving remains a separate
-action with the client's own permissions.
+## Lifecycle and session identity
 
-The shared service validates changes before committing. Unknown methods/tools
-produce JSON-RPC errors; invalid editing inputs and inaccessible projects return
-tool errors with `isError: true`. Notifications never execute tools. Input frames
-over 10 MiB terminate the process; malformed JSON receives a parse error.
-Requests run serially and output honors stream backpressure.
+The client sends `initialize`, checks the returned `protocolVersion`, then sends
+`notifications/initialized` before listing or calling tools. The server returns
+its supported version, `2025-11-25`, even if the proposed version differs; a client
+that cannot support that version should disconnect, not continue with another
+wire format. `ping` is supported. Initialize only once per process.
 
-Media bytes are never loaded by this host. Render planning is not encoding;
-speech recognition, upload and media-job providers are not configured. A client
-using an external AI provider may send project text to that provider: inspect its
-privacy settings before supplying private captions.
+All ten tools require **`projectId: "session"`**. Each process owns one independent
+in-memory project, initially the demo. This value is neither a path nor a credential.
+Other project IDs return a tool error. A second client process does not share state.
 
-## Repository skill
+The implementation separates [stdio transport](../cli/mcp.mjs) from
+[session dispatch](../cli/mcp-session.mjs). Requests are serialized, output honors
+backpressure, and each transport session has its own project and lifecycle state.
+The reusable [adapter](../dist/integration/mcp-adapter.mjs) supplies tool mapping;
+it is not itself a transport or an authentication server.
 
-[.agents/skills/moment-editor/SKILL.md](../.agents/skills/moment-editor/SKILL.md)
-guides project editing and source changes, including time-coordinate rules,
-validation, local-first boundaries and test commands. Agents supporting repository
-skill discovery can use it directly. Otherwise point the agent to that file;
-no global installation or proprietary agent runtime is required.
+## Import, edit, inspect, save
 
-## Verification and protocol reference
+1. Export editing settings from Moment's browser UI and supply that JSON document
+   to your AI client. Do not send raw video as a tool argument.
+2. Call `moment_project_import` with `{ "projectId": "session", "document": ... }`.
+   `document` is the complete `{format:"moment-project", formatVersion:1, project:{...}}`
+   envelope, not a filename or only its nested project.
+3. Read `tools/list` for current schemas and apply the requested edits. Inspect
+   `isError` and `structuredContent.ok` after every call.
+4. Call `moment_project_get`, review the edited document, and save its
+   **`structuredContent.data`** through the client's authorized file workflow.
+   Keep the original file unless replacement was requested.
+5. Import the saved document back into the browser. Connect matching original
+   video/audio first where required. Matching uses names and video duration, not
+   a content hash; retain the actual original media.
 
-`node --test tests/mcp-stdio.test.mjs` launches actual Node subprocesses and checks
-handshake/version negotiation, tool listing, import/edit/export, isolated sessions,
-errors, notifications and oversized frames. `npm test` runs the complete suite.
-These are synthetic protocol tests, not a claim of verification with every external
-MCP client, live browser or media codec.
+Example request after importing a document:
+
+```json
+{"jsonrpc":"2.0","id":4,"method":"tools/call","params":{"name":"moment_project_update","arguments":{"projectId":"session","patch":{"name":"수정한 쇼츠","ratio":"9:16"}}}}
+```
+
+A successful mutation's `structuredContent.data` is an acknowledgment such as
+`{updated:true, outputDuration:12}` or `{imported:true}`, **not the edited document**.
+Retrieve it with `moment_project_get`. To save SRT, use `moment_captions_export`'s
+`structuredContent.data.text`, not the JSON envelope.
+
+**Changes disappear when the process exits.** The server neither reads nor writes
+project files, autosaves, synchronizes browser IndexedDB, nor exposes an undo tool.
+If saving fails, keep the process alive where possible and retry saving the retrieved
+document. For file-oriented work with protected outputs and `--dry-run`, use the
+[CLI](../INTEGRATIONS.md#실제-cli-사용).
+
+## Tool catalog
+
+Every row below also requires `projectId`. Discover the actual `inputSchema` and
+`outputSchema` with `tools/list`; this overview is not an alternate validator.
+The output schema distinguishes success and error envelopes and each command's
+result shape. Nested project state is intentionally an open object there; the
+shared project validator still checks its version, required fields, types and
+ranges at runtime. Schema discovery does not bypass that validation.
+
+| Tool | Editing input | Successful `structuredContent.data` |
+|---|---|---|
+| `moment_project_get` | none | Full portable project document |
+| `moment_project_update` | `patch` | Update acknowledgment and output duration |
+| `moment_project_import` | `document` | `{imported:true}` |
+| `moment_templates_list` | none | Built-in template summaries: `id`, `name`, `category`, `description` |
+| `moment_template_apply` | `templateId`, optional `withContent` | Update acknowledgment and output duration |
+| `moment_timeline_replace` | `clips: [{start,end}]` | Update acknowledgment and output duration |
+| `moment_title_update` | `patch` | Update acknowledgment and output duration |
+| `moment_captions_replace` | `captions` | Update acknowledgment and output duration |
+| `moment_captions_export` | none | `{format:"srt", text:"..."}` |
+| `moment_render_plan` | optional `quality`, `format` | Plan, project snapshot, output settings, required media and `rendered:false` |
+
+Replacement tools replace the **entire array**. Preserve unrequested clips/captions
+rather than sending only the changed entry. `withContent:true` applies example title, credit
+and card content; use `false` when retaining authored content. `templates_list`
+returns built-ins, not custom templates stored in a browser. `title_update` edits
+the base title, not timed cards; `patch.lines` contains exactly two strings.
+
+Project updates accept name, ratio, fit, zoom, pan, speed and volumes according to
+the discovered schema. Runtime string limits count UTF-16 code units, so non-BMP
+characters such as many emoji use two units; schema checks alone are not the
+entire domain validation. Unknown fields are rejected. Changing ratio resets zoom/pan.
+Timeline and speed changes retime output layers through the shared command logic.
+There is no arbitrary patch path, batch tool, file-save tool, media-upload tool,
+transcription tool or video-rendering tool on this host.
+
+### Time coordinates
+
+- Clip start/end and source captions: original media seconds.
+- Captions with `basis:"timeline"`: edited timeline seconds **before** speed.
+- Title, credit and timed card ranges: output seconds **after** speed.
+- SRT export: final output seconds, including clip ordering/repetition and speed.
+
+For clips `[2,6]` and `[8,12]` at speed 2, edited duration is 8 seconds and output is
+4 seconds. A source caption `[3,5]` appears at output `[0.5,1.5]`. A timeline caption
+`[2,4]` appears at output `[1,2]`. Do not rescale an exported SRT or output-layer range
+again. See the skill's [editing reference](../.agents/skills/moment-editor/references/project-editing.md)
+for replacement and recovery workflows.
+
+## Responses and recovery
+
+Tool calls return `content` containing a JSON text block, the same result in
+`structuredContent`, and `isError`. The structured result is one of:
+
+```js
+{ok:true, apiVersion:1, command:"project.get", data: {/* command result */}}
+{ok:false, apiVersion:1, command:"project.update",
+ error:{code:"INVALID_ARGUMENT", message:"...", path:"arguments.patch.speed"}}
+```
+
+`error.path` is optional. Use error codes and the current schema rather than parsing
+translated error messages. Transport success alone does not mean an edit succeeded.
+Tool annotations are discovery hints, not authorization; validate inputs and inspect
+results regardless of those hints.
+
+| Failure | Meaning and safe next step |
+|---|---|
+| JSON-RPC `-32700` | Malformed JSON or UTF-8; fix the frame. No tool ran. |
+| JSON-RPC `-32600` | Invalid request or tools before initialization; fix the request/lifecycle. |
+| JSON-RPC `-32601` | Unsupported method; use advertised methods. |
+| JSON-RPC `-32602` | Invalid initialization/params, unknown tool or unsupported pagination; rediscover names and schemas. |
+| JSON-RPC `-32603` | Unexpected dispatch failure; inspect current project before repeating a mutation. |
+| Tool `INVALID_ARGUMENT` | Input validation failed; correct the field indicated by `path`. |
+| Tool `NOT_FOUND` | Inaccessible project or unknown built-in template; use `session` and discover template IDs. |
+| Tool `UNSUPPORTED_VERSION` | Preserve the document and use a compatible editor; do not falsify its version. |
+| Tool `CAPTION_OUTPUT_LIMIT` | Derived SRT exceeds its cue/byte budget; keep the project and reduce output only as requested. |
+| Tool `INTERNAL_ERROR` | Do not assume a mutation failed atomically in every host; inspect the session before retrying. |
+| Process exits / response lost | Unsaved state may be gone. If alive, read before replay; otherwise import the last saved document into a new session. |
+
+The shared service validates a copied project before committing. The local host's
+commit replaces its in-memory project; reusable custom hosts must supply their own
+storage atomicity and authorization. There is no automatic retry or rollback of
+an already completed sequence of tool calls.
+
+Input frames exceeding **10 MiB** terminate the process; this includes the whole
+JSON-RPC frame, not only the nested project. A CLI document close to its own 10 MiB
+limit may therefore be too large to wrap in an MCP import request. There is no
+chunked import. Malformed frames receive parse errors and do not become tool calls.
+Notifications never execute tools; cancellation notifications do not cancel work.
+The host handles short metadata requests serially, not background media tasks.
+
+SRT export is limited to 10,000 resulting cues, 2 MiB of repeated raw caption UTF-8
+text and 2 MiB of complete SRT. The service emits SRT without a BOM. A source project
+can still be valid for JSON export even when its repeated SRT exceeds these limits.
+
+## Boundaries and extension points
+
+Supported methods are initialize, ping, tools/list and tools/call plus the initialized
+notification. No HTTP, resources, prompts, pagination, subscriptions, background
+tasks or server-side authentication are advertised. Do not expose this process as
+an unauthenticated network service.
+
+The adapter retains internal `resultType:"complete"` metadata; the stdio host omits
+it from its negotiated 2025-11-25 wire results. Using the adapter alone does not
+implement a later MCP protocol. For a custom host, see
+[INTEGRATIONS.md](../INTEGRATIONS.md#mcp-어댑터와-호스트-확장): resolve an authorized
+service per request, provide transport/lifecycle handling, and keep storage and
+media-provider permissions at the host boundary.
+
+Media bytes are never loaded by this host. `render.plan` is not encoding. The
+optional service job-provider interface is not configured or exposed as MCP tools.
+An external AI client may send project text to its model provider; check that
+client's privacy settings before supplying private captions.
+
+## Repository skill and verification
+
+[The repository skill](../.agents/skills/moment-editor/SKILL.md) routes project
+editing and source changes to focused references. Agents with repository skill
+discovery can load it directly; otherwise point them to that file. No global
+installation or proprietary agent runtime is required.
+
+```sh
+npm test
+node examples/use-editor-service.mjs
+node examples/use-mcp-client.mjs
+node --test tests/mcp-stdio.test.mjs
+```
+
+Protocol tests use actual Node subprocesses for handshake, import/edit/export,
+isolation, errors, notifications and oversized frames. The example verifies the
+client workflow across a restart. These checks do not claim live browser testing,
+external client-app compatibility, microphone access or actual media encoding.
 
 Protocol references: [lifecycle](https://modelcontextprotocol.io/specification/2025-11-25/basic/lifecycle),
 [stdio transport](https://modelcontextprotocol.io/specification/2025-11-25/basic/transports),
 [tools](https://modelcontextprotocol.io/specification/2025-11-25/server/tools).
-The existing reusable adapter retains its complete-result metadata; this host
-maps its results to the negotiated 2025-11-25 wire shape.

@@ -1,3 +1,4 @@
+import { replaceCaptionText } from '../../dist/core/caption-text.mjs';
 import { createTemplateWorkspace } from '../../dist/template-workspace.mjs';
 import { createMediaSources } from '../../dist/media-sources.mjs';
 import { createProjectPersistence } from '../../dist/project-persistence.mjs';
@@ -104,7 +105,7 @@ export async function createAppFixture() {
     cancelAnimationFrame(id) { pendingFrames.delete(id); },
     setTimeout() {}, clearTimeout() {}, setInterval() {}, clearInterval() {},
     console, URL, Blob, TextDecoder, performance, Number, Math, Promise, structuredClone,
-    ...projectModule, prepareCommand, CommandError, createEditorService, ...captionModule,
+    ...projectModule, replaceCaptionText, prepareCommand, CommandError, createEditorService, ...captionModule,
     renderCaptionTrack, renderCaptionTrackError, updateTimelineMarkup, createTimelineView, createInspectorView, createInputHistory,
     ...effectsModule, ...templateModule, readTemplateLibrary, validateTemplateLibrary,
     mountTemplateGallery, mountEffectsPanel, ...typographyModule, createCompositionRenderer,

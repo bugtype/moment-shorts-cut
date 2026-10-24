@@ -52,6 +52,21 @@ For VTT, call `moment_captions_export` with `{"projectId":"session","format":"vt
 
 Do not save the JSON-RPC envelope, text-content wrapper or mutation acknowledgment as a project document.
 
+## Correct repeated caption text
+
+Use `captions.text.replace` instead of rebuilding cue arrays when only wording changes:
+
+```sh
+node cli/moment.mjs exec captions.text.replace --project edited.moment.json --json '{"find":"하루","replacement":"하루의 기록"}' --dry-run
+node cli/moment.mjs exec captions.text.replace --project edited.moment.json --json '{"find":"하루","replacement":"하루의 기록"}' --out corrected.moment.json
+```
+
+For MCP, call `moment_captions_text_replace` with `{"projectId":"session","find":"하루","replacement":"하루의 기록"}`. Both strings are required and limited to 2,000 UTF-16 code units; `find` must be nonempty. Matching is literal, case-sensitive and non-overlapping, without regex or Unicode normalization. Only caption text changes; preserve timings, basis, speaker, keywords and order.
+
+The result is `{updated, matches, changedCaptions}`, not the document. With no match or an identical replacement, `updated` is false and no project change is committed. `matches` counts occurrences; `changedCaptions` counts actually changed cues. Read the document separately to save it.
+
+An empty replacement can remove a substring, not a whole cue: if any changed cue becomes blank after `trim()` or exceeds 2,000 UTF-16 code units, the entire operation fails before commit. Do not bypass this by dropping cues or silently truncating text. Explicit cue deletion uses `captions.replace`; preserve all other entries. UI replace-all is one undo step; MCP has no undo tool.
+
 ## Replacement operations and styles
 
 - `moment_timeline_replace`: submit the complete desired `clips` list, preserving unrequested clips and their order. Clips may repeat or overlap source ranges. Each must have `end > start` and remain within original media duration; the list must contain 1–1,000 clips.
@@ -60,7 +75,7 @@ Do not save the JSON-RPC envelope, text-content wrapper or mutation acknowledgme
 - `moment_template_apply`: discover IDs with `moment_templates_list`. Only built-in templates are exposed, not the browser's custom-template localStorage. `withContent: false` preserves authored title, credit and card content; `true` applies template example title, credit and card content.
 - Project updates reset zoom/pan when the aspect ratio changes. Timeline or speed changes retime output layers through the shared command logic; do not separately rescale those fields again.
 
-Live schemas are authoritative. Examples do not extend the supported fields: there is no arbitrary patch path, batch-edit tool or server-side file-save tool.
+Live schemas are authoritative. Examples do not extend the supported fields: there is no arbitrary patch path, multi-command batch tool or server-side file-save tool.
 
 ## Time-coordinate example
 

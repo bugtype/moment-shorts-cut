@@ -45,7 +45,7 @@ npm start
 | --- | --- | --- |
 | 영상과 타이밍 | 자르기·분할·순서 변경·삭제·배속·위치/확대·실행 취소·다시 실행; 밝기·대비·채도·비네트·느린 줌·진행 막대 | 원본 영상 1개와 영상 트랙 1개. 경계 페이드·플래시는 클립을 겹치는 전환이 아닙니다 |
 | 구성과 문구 | 기본 템플릿 10개, 검색·즐겨찾기, 로컬 사용자 템플릿 최대 20개, 제목·크레딧 스타일, 시간별 문구 12개 | 스타일만 적용하면 문구 유지. 예시 구성은 제목·크레딧·시간별 문구를 교체합니다 |
-| 자막과 오디오 | SRT/VTT 가져오기, 편집 후 SRT/VTT 저장, 강조·등장 효과·수동 화자 2명; 추가 오디오 파일 또는 마이크 녹음 1개 | 기기 내 ASR은 Transformers.js 3.8.1 + `Xenova/whisper-tiny` 사용. 인식 결과와 분할 추정 시간은 검토가 필요합니다 |
+| 자막과 오디오 | SRT/VTT 가져오기, 편집 후 SRT/VTT 저장, 문구 찾기·모두 바꾸기, 강조·등장 효과·수동 화자 2명; 추가 오디오 파일 또는 마이크 녹음 1개 | 기기 내 ASR은 Transformers.js 3.8.1 + `Xenova/whisper-tiny` 사용. 인식 결과와 분할 추정 시간은 검토가 필요합니다 |
 | 저장과 자동화 | 브라우저 저장, 프로젝트 JSON, CLI, 저장소 스킬, stdio MCP; Canvas/Web Audio → MediaRecorder 출력 | JSON에는 미디어가 없습니다. CLI/MCP는 영상을 인코딩하지 않습니다 |
 
 기본 템플릿은 리뷰 스토리, 강한 첫 문장, 브이로그, 설명, 인터뷰, 레시피, 랭킹, 제품 리뷰, 퀴즈, 시네마틱 구성을 제공합니다. 각 템플릿은 움직이는 샘플로 미리 볼 수 있습니다. 퀴즈 선택지와 카운트다운은 영상에 포함되는 그래픽이며 클릭형 투표가 아닙니다.
@@ -98,11 +98,16 @@ node cli/moment.mjs exec template.apply --project project.json --args-file examp
 node cli/moment.mjs exec captions.export --project edited.json --out captions.srt
 node cli/moment.mjs exec captions.export --project edited.json --json '{"format":"vtt"}' --out captions.vtt
 
+# 시간과 화자 정보를 유지하며 자막 문구 교정
+node cli/moment.mjs exec captions.text.replace --project edited.json --json '{"find":"하루","replacement":"하루의 기록"}' --out corrected.json
+
 # 명령 목록과 입력 스키마 확인
 node cli/moment.mjs commands
 ```
 
 기존 출력 파일은 기본적으로 보호합니다. 교체할 때만 `--overwrite`를 지정하세요. `exec`에 `--dry-run`을 붙이면 파일을 쓰지 않고 결과를 확인합니다. JSON 입력은 10 MiB(10,485,760바이트) 이하입니다.
+
+**자막 문구 교정:** 자막 도구에서 일치 개수를 확인하고 모두 바꿀 수 있으며 적용된 변경은 한 번에 실행 취소됩니다. 대소문자를 구분하는 일반 문자열 검색으로, 겹치는 일치·정규식·Unicode 정규화는 지원하지 않습니다. 시간·화자·키워드·구간 순서는 유지합니다. 결과가 빈 문구이거나 너무 길면 전체 변경을 거절하며 삭제하거나 잘라내지 않습니다. [정확한 한도와 결과](INTEGRATIONS.md#자막-문구-일괄-교정)를 확인하세요.
 
 ### 연동 방식 선택
 

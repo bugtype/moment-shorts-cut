@@ -32,6 +32,7 @@ const inputs = {
   'timeline.replace': { clips: [{ start: 0, end: 12 }] },
   'title.update': { patch: { lines: ['첫째 줄', '둘째 줄'] } },
   'captions.replace': { captions: [{ start: 0, end: 1, text: '자막' }] },
+  'captions.text.replace': {find:'자막',replacement:'교정'},
   'captions.export': {},
   'render.plan': { quality: 720, format: 'webm' },
 };

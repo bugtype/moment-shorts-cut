@@ -1,3 +1,4 @@
+import { replaceCaptionText } from './core/caption-text.mjs';
 import { MAX_CAPTIONS } from './captions.mjs';
 import { splitCaptionText } from './effects.mjs';
 import { captionsPanelMarkup } from './panel-markup.mjs';
@@ -5,6 +6,45 @@ import { captionsPanelMarkup } from './panel-markup.mjs';
 export function createCaptionPanel({
     query: $, queryAll: $$, getProject, getDuration, sourceTime, edit, refresh, toast,
 }) {
+    const replacementFields = { find: '', replacement: '' };
+    function previewReplacement() {
+        const button = $('#replaceAllCaptions');
+        button.textContent = '모두 바꾸기';
+        button.disabled = !replacementFields.find;
+        if (!replacementFields.find)
+            return;
+        try {
+            const result = replaceCaptionText(getProject().captions, replacementFields);
+            button.textContent = `모두 바꾸기 · ${result.matches}곳`;
+            button.disabled = !result.changedCaptions;
+        }
+        catch {
+            // Keep the action available so validation can explain the rejected edit.
+            button.disabled = false;
+        }
+    }
+    function replaceAllCaptions() {
+        try {
+            const result = replaceCaptionText(getProject().captions, replacementFields);
+            if (!result.changedCaptions) {
+                previewReplacement();
+                return;
+            }
+            let applied = false;
+            edit(() => {
+                getProject().captions = result.captions;
+                applied = true;
+            }, true);
+            if (!applied)
+                return;
+            previewReplacement();
+            $('#captionFind').focus({ preventScroll: true });
+            toast(`${result.changedCaptions}개 자막을 바꿨습니다.`);
+        }
+        catch (error) {
+            toast(error.message);
+        }
+    }
     function splitLongCaptions() {
         const limit = Number($('#captionChunkSize').value), captions = [];
         try {
@@ -35,6 +75,16 @@ export function createCaptionPanel({
     function render(target, status, actions) {
         const toolsOpen = target.querySelector('#captionTools')?.open;
         target.innerHTML = captionsPanelMarkup(getProject(), { toolsOpen, ...status });
+        for (const [id, key] of [['captionFind', 'find'], ['captionReplacement', 'replacement']]) {
+            const field = $('#' + id);
+            field.value = replacementFields[key];
+            field.oninput = () => {
+                replacementFields[key] = field.value;
+                previewReplacement();
+            };
+        }
+        $('#replaceAllCaptions').onclick = replaceAllCaptions;
+        previewReplacement();
         $('#captionDesignShortcut').onclick = actions.design;
         $('#splitLongCaptions').onclick = splitLongCaptions;
         $$('[data-caption-keywords]').forEach(el => el.onchange = () => edit(() => getProject().captions[+el.dataset.captionKeywords].keywords = el.value));

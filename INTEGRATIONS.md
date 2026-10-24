@@ -57,6 +57,27 @@
 | `timeline.replace` | `clips: [{start,end}]` | 클립 구간/순서 교체 |
 | `title.update` | `patch` | 기본 제목과 스타일 수정 |
 | `captions.replace` | `captions` | 대사 자막 교체 |
+| `captions.text.replace` | `find`, `replacement` | 문구 모두 바꾸기; `{updated, matches, changedCaptions}` |
+
+### 자막 문구 일괄 교정
+
+`captions.text.replace`는 자막 문구만 바꾸고 시간·`basis`·화자·키워드·순서를 유지합니다. 모든 결과를 검증한 뒤 한 번만 반영합니다.
+
+| 항목 | 규칙 |
+|---|---|
+| 입력 | `find`, `replacement` 필수; 각각 최대 2,000 UTF-16 코드 단위, `find`는 빈 문자열 불가 |
+| 일치 | 대소문자를 구분하는 일반 문자열; 겹치지 않는 일치만 계산, 정규식·Unicode 정규화 없음 |
+| 결과 | `{updated:boolean, matches:number, changedCaptions:number}`; 전체 문서가 아님 |
+| 변경 없음 | 일치 없음 또는 동일한 대체 문구이면 `updated:false`; 저장 반영·실행 취소 이력 추가 없음 |
+
+빈 `replacement`는 허용하지만, 바뀐 자막이 `trim()` 후 비거나 2,000 UTF-16 코드 단위를 넘으면 **전체 변경을 거절**합니다. 문구를 조용히 삭제하거나 잘라내지 않습니다. 구간 삭제는 UI의 개별 삭제 또는 명시적인 `captions.replace`를 사용하세요. 제목·크레딧·시간별 문구는 이 명령의 대상이 아닙니다.
+
+```sh
+node cli/moment.mjs exec captions.text.replace --project edited.json --json '{"find":"하루","replacement":"하루의 기록"}' --dry-run
+node cli/moment.mjs exec captions.text.replace --project edited.json --json '{"find":"하루","replacement":"하루의 기록"}' --out corrected.json
+```
+
+`matches`는 일치 횟수, `changedCaptions`는 실제 문구가 바뀐 자막 수입니다. 동일한 문구로 바꾸면 일치가 있어도 변경 수는 0입니다. CLI에서 저장한 출력 파일은 편집 프로젝트 문서이며, 변경 없음 응답도 파일 쓰기 자체를 금지하는 뜻은 아닙니다. UI에서는 미리 표시한 개수를 확인하고 모두 바꾸며, 반영된 변경은 한 번에 실행 취소합니다. MCP에는 실행 취소 도구가 없으므로 이전 문서를 보관하세요.
 
 ### 결과와 검증
 

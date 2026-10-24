@@ -26,6 +26,10 @@ function dataSchema(command) {
     case 'templates.list': return {
       type: 'array', items: record({ id: text, name: text, category: text, description: text }),
     };
+    case 'captions.text.replace': return record({
+      updated: {type: 'boolean'}, matches: {type: 'integer', minimum: 0},
+      changedCaptions: {type: 'integer', minimum: 0, maximum: 10000},
+    });
     case 'captions.export': return record({ format: { enum: ['srt', 'vtt'] }, text: {
       type: 'string', description: 'SRT or plain WebVTT in final output seconds after clips and speed; save this string, not the result envelope.',
     } });
@@ -93,6 +97,10 @@ function inputSchema(command) {
   if (command.name === 'project.update') {
     p.patch.description = 'Only supplied settings change. Changing ratio resets zoom/pan; speed changes retime output text.';
     p.patch.properties.speed.description = 'Playback speed multiplier; output duration is edited timeline duration divided by speed.';
+  }
+  if (command.name === 'captions.text.replace') {
+    p.find.description = 'Nonempty literal, case-sensitive text. No regex or Unicode normalization; matches do not overlap.';
+    p.replacement.description = 'Literal replacement, including dollar signs. Empty or whitespace-only resulting cues and cues over 2000 characters reject the whole edit. Timing and metadata stay unchanged.';
   }
   if (p.quality) p.quality.description = 'Output short edge in pixels; defaults to 1080. Creates a plan only.';
   if (p.format) p.format.description = command.name === 'captions.export'

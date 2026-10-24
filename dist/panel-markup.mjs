@@ -40,6 +40,13 @@ export function captionsPanelMarkup({ captions, speakerLabels }, { toolsOpen, tr
         `</span>` +
         `</summary>` +
         `\n  <div class="caption-disclosure-body">` +
+        `<section aria-label="자막 찾기 및 바꾸기">` +
+        `<label class="panel-label" for="captionFind">찾을 내용</label>` +
+        `<input class="panel-input" id="captionFind" type="text" maxlength="2000" autocomplete="off" spellcheck="false">` +
+        `<label class="panel-label" for="captionReplacement">바꿀 내용</label>` +
+        `<input class="panel-input" id="captionReplacement" type="text" maxlength="2000" autocomplete="off" spellcheck="false">` +
+        `<button class="button full" id="replaceAllCaptions" aria-live="polite" disabled>모두 바꾸기</button>` +
+        `</section>` +
         `<div class="caption-split-tool">` +
         `<select id="captionChunkSize" aria-label="자막 분할 길이">` +
         `<option value="12">짧게 · 12자</option>` +

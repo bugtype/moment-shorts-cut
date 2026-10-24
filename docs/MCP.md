@@ -48,7 +48,7 @@ its supported version, `2025-11-25`, even if the proposed version differs; a cli
 that cannot support that version should disconnect, not continue with another
 wire format. `ping` is supported. Initialize only once per process.
 
-All ten tools require **`projectId: "session"`**. Each process owns one independent
+All eleven tools require **`projectId: "session"`**. Each process owns one independent
 in-memory project, initially the demo. This value is neither a path nor a credential.
 Other project IDs return a tool error. A second client process does not share state.
 
@@ -138,8 +138,9 @@ Save `structuredContent.data.text` as UTF-8 `.vtt`; the server does not save fil
 | `moment_timeline_replace` | `clips: [{start,end}]` | Update acknowledgment and output duration |
 | `moment_title_update` | `patch` | Update acknowledgment and output duration |
 | `moment_captions_replace` | `captions` | Update acknowledgment and output duration |
+| `moment_captions_text_replace` | `find`, `replacement` | `{updated:boolean, matches:number, changedCaptions:number}` |
 
-Replacement tools replace the **entire array**. Preserve unrequested clips/captions
+`moment_timeline_replace` and `moment_captions_replace` replace the **entire array**. Preserve unrequested clips/captions
 rather than sending only the changed entry. `withContent:true` applies example title, credit
 and card content; use `false` when retaining authored content. `templates_list`
 returns built-ins, not custom templates stored in a browser. `title_update` edits
@@ -150,8 +151,34 @@ the discovered schema. Runtime string limits count UTF-16 code units, so non-BMP
 characters such as many emoji use two units; schema checks alone are not the
 entire domain validation. Unknown fields are rejected. Changing ratio resets zoom/pan.
 Timeline and speed changes retime output layers through the shared command logic.
-There is no arbitrary patch path, batch tool, file-save tool, media-upload tool,
+There is no arbitrary patch path, multi-command batch tool, file-save tool, media-upload tool,
 transcription tool or video-rendering tool on this host.
+
+### Correct caption text without replacing cues
+
+Call `moment_captions_text_replace` after importing the intended document:
+
+```json
+{"projectId":"session","find":"하루","replacement":"하루의 기록"}
+```
+
+| Input/result | Meaning |
+|---|---|
+| `find`, `replacement` | Required strings, each at most 2,000 UTF-16 code units; `find` cannot be empty |
+| Matching | Literal, case-sensitive, non-overlapping; no regex or Unicode normalization |
+| `matches` | Total matched occurrences, not cue count |
+| `changedCaptions` | Cues whose text actually changed; timing, basis, speaker, keywords and order are preserved |
+
+No match or an identical replacement returns `updated:false` without committing
+a project change. An empty replacement is allowed only when every changed cue
+remains nonempty after `trim()`. A changed cue that becomes blank or exceeds
+2,000 UTF-16 code units rejects the entire operation before commit. To remove a
+cue, explicitly use `moment_captions_replace`; this tool never deletes cues.
+Title, credit and timed-card text are not searched.
+
+Read `moment_project_get` to save the resulting document. MCP has no undo tool;
+retain a prior export when reversibility matters. The browser groups an applied
+replace-all into one undo step, but is a separate session.
 
 ### Time coordinates
 

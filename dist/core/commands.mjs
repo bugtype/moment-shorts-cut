@@ -1,3 +1,4 @@
+import { replaceCaptionText } from './caption-text.mjs';
 import { TEMPLATES, applyTemplate } from '../template-catalog.mjs';
 import { retimeOutputLayers } from '../effects.mjs';
 import { MAX_CAPTIONS } from '../captions.mjs';
@@ -17,6 +18,7 @@ const definitions=[
   command('timeline.replace','원본 영상 시간 기준 클립 목록을 교체합니다.',object({clips:array(clipSchema,MAX_CLIPS,1)},['clips']),true),
   command('title.update','기본 제목의 두 줄 문구와 스타일을 수정합니다.',object({patch:titleSchema},['patch']),true),
   command('captions.replace','자막을 교체합니다. source는 원본, timeline은 배속 전 편집 시간입니다.',object({captions:array(captionSchema,MAX_CAPTIONS)},['captions']),true),
+  command('captions.text.replace','자막 본문에서 대소문자를 구분해 같은 문자열을 모두 바꿉니다. 시간과 메타데이터는 유지합니다.',object({find:{...string(2000),minLength:1},replacement:string(2000)},['find','replacement']),true),
   command('captions.export','편집 구간과 배속을 반영한 SRT 또는 WebVTT 문자열을 반환합니다.',object({format:choice('srt','vtt')})),
   command('render.plan','렌더러가 사용할 프로젝트 스냅샷과 출력 설정을 반환합니다. 영상을 생성하지 않습니다.',object({quality:choice(720,1080),format:choice('mp4','webm')})),
 ];
@@ -28,6 +30,13 @@ export function prepareCommand(project,name,args={}){
   validateProject(project);
   if(name==='project.get')return {data:createProjectDocument(project)};
   if(name==='captions.export')return {data:{format:args.format||'srt',text:projectSubtitles(project,args)}};
+  if(name==='captions.text.replace'){
+    const result=replaceCaptionText(project.captions,args);
+    const data={updated:result.changedCaptions>0,matches:result.matches,changedCaptions:result.changedCaptions};
+    if(!data.updated)return {data};
+    const next=structuredClone(project);next.captions=structuredClone(result.captions);
+    validateProject(next);return {project:next,data};
+  }
   if(name==='render.plan'){
     const quality=args.quality||1080, [rw,rh]=project.ratio.split(':').map(Number),width=project.ratio==='16:9'?Math.round(quality*rw/rh):quality,height=project.ratio==='16:9'?quality:Math.round(quality*rh/rw);
     return {data:{planVersion:1,project:createProjectDocument(project),output:{width,height,fps:30,format:args.format||'mp4',duration:outputDuration(project)},media:{video:project.kind==='video'?{name:project.fileName,required:true}:null,audio:project.audioName?{name:project.audioName,required:true}:null},rendered:false}};

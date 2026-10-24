@@ -47,7 +47,7 @@ Use **사용 가이드 (Help) → 편집 설정 저장 (Save editing settings)**
 | --- | --- | --- |
 | Video and timing | Trim, split, reorder, delete, speed, pan/zoom, undo/redo; brightness, contrast, saturation, vignette, slow zoom and progress bar | One source video and one video track; boundary fades/flash do not overlap clips |
 | Layout and text | 10 built-in templates, search/favorites, up to 20 local custom templates, title/credit styling and 12 timed text layers | Style-only preserves authored text; example content replaces title, credit and timed cards |
-| Captions and audio | SRT/VTT import, edited SRT/VTT export, highlighting, effects, two manual speakers; one added audio file or microphone narration | On-device ASR uses Transformers.js 3.8.1 + `Xenova/whisper-tiny`; recognition and estimated split timing need review |
+| Captions and audio | SRT/VTT import, edited SRT/VTT export, literal find/replace-all, highlighting, effects, two manual speakers; one added audio file or microphone narration | On-device ASR uses Transformers.js 3.8.1 + `Xenova/whisper-tiny`; recognition and estimated split timing need review |
 | Save and automate | Browser storage, project JSON, CLI, repository skill and stdio MCP; Canvas/Web Audio → MediaRecorder export | Project JSON contains no media; CLI/MCP do not encode video |
 
 The built-in templates cover review stories, bold opening lines, vlogs, explainers, interviews, recipes, rankings, product reviews, quizzes, and cinematic moments. Preview each with its animated sample. Quiz choices and countdowns are video graphics, not interactive polls.
@@ -100,11 +100,16 @@ node cli/moment.mjs exec template.apply --project project.json --args-file examp
 node cli/moment.mjs exec captions.export --project edited.json --out captions.srt
 node cli/moment.mjs exec captions.export --project edited.json --json '{"format":"vtt"}' --out captions.vtt
 
+# Replace matching caption text without changing timing or speaker metadata.
+node cli/moment.mjs exec captions.text.replace --project edited.json --json '{"find":"하루","replacement":"하루의 기록"}' --out corrected.json
+
 # List commands and their input schemas.
 node cli/moment.mjs commands
 ```
 
 Existing output files are protected; use `--overwrite` only when you intend to replace one. Add `--dry-run` to an `exec` command to inspect its result without writing output. JSON inputs are limited to 10 MiB (10,485,760 bytes).
+
+**Caption corrections:** the caption tools show a match preview before replace-all; an applied change is one undo step. Matching is literal, case-sensitive and non-overlapping, with no regex or Unicode normalization. Times, speaker/keyword metadata and cue order stay unchanged. An empty or overlong resulting caption rejects the whole edit rather than deleting/truncating it. See [exact limits and results](INTEGRATIONS.md#자막-문구-일괄-교정).
 
 ### Choose an integration
 

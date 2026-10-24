@@ -21,6 +21,7 @@ const mediaReference = {
 
 function dataSchema(command) {
   switch (command) {
+    case 'project.batch': return record({updated:{type:'boolean'},operationCount:{type:'integer',minimum:1,maximum:20},outputDuration:{type:'number',minimum:0}});
     case 'project.get': return documentSchema;
     case 'project.import': return record({ imported: { enum: [true] } });
     case 'templates.list': return {
@@ -83,6 +84,10 @@ function inputSchema(command) {
   };
   schema.required = ['projectId', ...schema.required];
   const p = schema.properties;
+  if (command.name === 'project.batch') {
+    p.operations.description = '1–20 sequential in-memory edit operations, prepared against each preceding result and committed once. All fail together on validation error. Not JSON-RPC batching, not a cross-writer/storage transaction. Reads, provider jobs, project.import and nested batches are forbidden. Indices/times refer to the evolving project; inspect project.get before retrying non-idempotent edits.';
+    p.operations.items.properties.arguments.description = 'Arguments for the named existing editing command, following its individual tool schema but without projectId. Every step is validated. No references to prior result objects or per-step outputs.';
+  }
   if (p.document) p.document.description = 'Complete moment-project document from project.get/browser settings export, not a partial patch. Media bytes are not included.';
   if (p.templateId) p.templateId.description = 'An ID from templates.list; browser-local custom templates are not available here.';
   if (p.withContent) p.withContent.description = 'Default false preserves authored content. True replaces title, credit and timed card content with template examples.';

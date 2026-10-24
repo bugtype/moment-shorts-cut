@@ -61,12 +61,42 @@ const definitions=[
   command('captions.export','편집 구간과 배속을 반영한 SRT, WebVTT 또는 시간표시 없는 TXT 대본을 반환합니다.',object({format:choice('srt','vtt','txt')})),
   command('render.plan','렌더러가 사용할 프로젝트 스냅샷과 출력 설정을 반환합니다. 영상을 생성하지 않습니다.',object({quality:choice(720,1080),format:choice('mp4','webm')})),
 ];
+// Closed trust boundary: new commands require explicit opt-in. Import has a
+// separate browser media-relink guard; reads and provider jobs never participate.
+const batchCommands = [
+  'project.update','effects.update','template.apply','template.apply.document',
+  'timeline.duplicate','timeline.split','timeline.replace','credit.update','title.update',
+  'overlays.move','overlays.add','overlays.remove','overlays.update',
+  'captions.import','captions.split','captions.merge','captions.replace',
+  'captions.text.replace','captions.timing.shift','captions.style.update',
+];
+definitions.push(command('project.batch','최대 20개 편집을 순서대로 검증하고 한 번에 적용합니다. 하나라도 실패하면 적용하지 않습니다.',
+  object({operations:array(object({command:choice(...batchCommands),arguments:{type:'object'}},['command','arguments']),20,1)},['operations']),true));
+
 export function commandDefinitions(){return structuredClone(definitions);}
 export function commandDefinition(name){const value=definitions.find(c=>c.name===name);if(!value)throw new CommandError('UNKNOWN_COMMAND','지원하지 않는 명령입니다.');return structuredClone(value);}
 export function prepareCommand(project,name,args={}){
   const definition=commandDefinition(name);assertJson(args);validate(definition.inputSchema,args);
   if(name==='templates.list')return {data:TEMPLATES.map(({id,name,category,description})=>({id,name,category,description}))};
   validateProject(project);
+  if(name==='project.batch'){
+    let next=project,updated=false;
+    for(const [index,operation] of args.operations.entries()){
+      const path=`arguments.operations[${index}]`;
+      if(!batchCommands.includes(operation.command))fail('묶음에서 지원하지 않는 편집 명령입니다.',`${path}.command`);
+      try{
+        const prepared=prepareCommand(next,operation.command,operation.arguments);
+        if(prepared.project){next=prepared.project;updated=true;}
+      }catch(error){
+        if(error instanceof CommandError){
+          const nested=error.path || 'arguments';
+          throw new CommandError(error.code,error.message,`${path}.${nested}`);
+        }
+        throw error;
+      }
+    }
+    return {...(updated?{project:next}:{}),data:{updated,operationCount:args.operations.length,outputDuration:outputDuration(next)}};
+  }
   if(name==='project.get')return {data:createProjectDocument(project)};
   if(name==='captions.export')return {data:{format:args.format||'srt',text:projectSubtitles(project,args)}};
   if(name==='captions.import'){

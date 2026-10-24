@@ -49,7 +49,7 @@ its supported version, `2025-11-25`, even if the proposed version differs; a cli
 that cannot support that version should disconnect, not continue with another
 wire format. `ping` is supported. Initialize only once per process.
 
-All twenty-five tools require **`projectId: "session"`**. Each process owns one independent
+All twenty-six tools require **`projectId: "session"`**. Each process owns one independent
 in-memory project, initially the demo. This value is neither a path nor a credential.
 Other project IDs return a tool error. A second client process does not share state.
 
@@ -148,6 +148,7 @@ The service emits no BOM.
 | Tool | Editing input | Successful `structuredContent.data` |
 |---|---|---|
 | `moment_project_update` | `patch` | Update acknowledgment and output duration |
+| `moment_project_batch` | `operations` | `{updated, operationCount, outputDuration}` |
 | `moment_project_import` | `document` | `{imported:true}` |
 | `moment_template_apply` | `templateId`, optional `withContent` | Update acknowledgment and output duration |
 | `moment_template_apply_document` | `document`, optional `withContent` | `{updated:true, outputDuration}` |
@@ -195,8 +196,51 @@ the discovered schema. Runtime string limits count UTF-16 code units, so non-BMP
 characters such as many emoji use two units; schema checks alone are not the
 entire domain validation. Unknown fields are rejected. Changing ratio resets zoom/pan.
 Timeline and speed changes retime output layers through the shared command logic.
-There is no arbitrary patch path, multi-command batch tool, file-save tool, media-upload tool,
+There is no arbitrary patch path, file-save tool, media-upload tool,
 transcription tool or video-rendering tool on this host.
+
+### Apply related edits in one commit
+
+Call `moment_project_batch` with 1–20 `operations`. Each operation requires a core
+`command` name and its `arguments`, validated against that individual command’s
+schema. Put `projectId` only on the outer tool call, not inside each operation:
+
+```json
+{
+  "projectId":"session",
+  "operations":[
+    {"command":"project.update","arguments":{"patch":{"speed":2}}},
+    {"command":"credit.update","arguments":{"patch":{"text":"Source: Example","start":4,"end":6}}}
+  ]
+}
+```
+
+This example assumes the initial 12-second demo: speed 2 produces six output
+seconds, so the next edit sets the final two seconds of credit. Later steps see
+the copied state produced by earlier steps, including changed indexes and timing.
+Any step’s validation failure prevents **all** edits from being committed.
+Known errors keep their original code and identify the zero-based operation in
+`error.path`, for example `arguments.operations[1].arguments.patch`.
+
+| Contract | Behavior |
+|---|---|
+| Allowed commands | Explicit editing-command allowlist in the discovered schema; project updates, template application, timeline/text/effects/card/caption edits |
+| Excluded | `project.import`, read/export commands, `jobs.*`, nested `project.batch` |
+| Result | `{updated, operationCount, outputDuration}`; count is the number submitted, not changed steps |
+| Step results | Not returned; no variables or references to earlier results. Read the resulting project separately |
+| All no-ops | No commit and `updated:false`; empty/redundant patches can still count as mutations under their individual contracts |
+
+This is one `tools/call`, **not a JSON-RPC request array**; protocol batch arrays
+remain unsupported. Normal JSON/frame limits apply to the whole request, not to
+each operation separately. A generic nested `arguments` object does not bypass
+individual command validation. Browser same-page use creates one undo step;
+there is no new batch UI or MCP undo tool.
+
+The service prepares a copy and calls its commit port at most once. Custom hosts
+still owe atomic storage and conflict checks; this is not a cross-writer or external
+storage transaction. An uncertain commit or lost response requires a fresh
+`moment_project_get` before retrying, especially when the batch contains duplication
+or splitting. See the [CLI dry-run and failure example](../INTEGRATIONS.md#여러-편집을-한-번에-반영).
 
 ### Apply an exported custom template
 
@@ -610,7 +654,8 @@ once for each object below, in order:
 ]
 ```
 
-This is **three tool calls**, not one array argument or an atomic batch. Confirm
+This example is **three separate tool calls**, not one array argument. Use
+`moment_project_batch` if all three must validate and commit together. Confirm
 the actual output duration and choose IDs absent from the current project first.
 Each call validates and commits one appended card, using existing new-card visual
 defaults plus supplied fields from the [card styling table](#edit-an-existing-timed-card).

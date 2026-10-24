@@ -51,6 +51,7 @@
 | 명령 | 주요 입력 | 결과 |
 |---|---|---|
 | `project.update` | `patch` | 이름·비율·구도·배속·볼륨 수정 |
+| `project.batch` | `operations` | 순차 편집 후 한 번 반영; `{updated, operationCount, outputDuration}` |
 | `project.import` | `document` | 설정 교체 |
 | `template.apply` | `templateId`, `withContent` | 기본 템플릿 적용 |
 | `template.apply.document` | `document`, 선택 `withContent` | 내보낸 템플릿 적용; `{updated:true, outputDuration}` |
@@ -86,6 +87,46 @@
 | `captions.text.replace` | `find`, `replacement` | 문구 모두 바꾸기; `{updated, matches, changedCaptions}` |
 | `captions.style.update` | `patch` | 공통 자막 스타일; `{updated:true, outputDuration}` |
 | `captions.timing.shift` | `basis`, `delta` | 시간 일괄 이동; `{updated, shiftedCaptions, outputDuration}` |
+
+### 여러 편집을 한 번에 반영
+
+`project.batch`는 필수 `operations` 배열의 **1–20개 명령**을 복사본에 순서대로
+준비·검증한 뒤 서비스가 한 번만 반영하도록 합니다. 중간 검증 실패는 앞선
+편집도 실제 프로젝트에 반영하지 않습니다. 각 항목은 `{command, arguments}`이며
+`arguments`는 해당 개별 명령의 입력 계약을 그대로 따릅니다.
+
+| 규칙 | 의미 |
+|---|---|
+| 허용 명령 | 현재 스키마의 명시적 편집 명령 목록; `project.update`, 템플릿 적용, 타임라인·제목·크레딧·효과·카드·자막 수정 |
+| 제외 | `project.import`, 읽기/출력 명령, 제공자 `jobs.*`, 중첩 `project.batch` |
+| 순서 | 뒤 명령은 앞 명령을 적용한 복사본의 배열 인덱스·길이·시간 기준을 사용 |
+| 성공 | `{updated, operationCount, outputDuration}`; `operationCount`는 입력 개수, 단계별 결과나 결과 참조 문법 없음 |
+| 변경 없음 | 모든 단계가 자체적으로 변경 없음이면 `updated:false`, 커밋 없음. 빈 패치도 항상 무변경은 아님 |
+
+실패 시 원래 오류 코드를 유지하며 `arguments.operations[1].arguments.patch`처럼
+문제 단계의 0부터 시작하는 위치를 `error.path`에 표시합니다.
+배속·구간 변경 뒤 카드 시간을 지정한다면 **변경 후 출력 시간**으로 계산하세요.
+CLI의 `commands` 또는 MCP `tools/list`에서 개별 스키마와 허용 명령을 확인합니다.
+
+```sh
+node cli/moment.mjs init --out batch-source.json
+node cli/moment.mjs exec project.batch --project batch-source.json --json '{"operations":[{"command":"project.update","arguments":{"patch":{"speed":2}}},{"command":"credit.update","arguments":{"patch":{"text":"Source: Example","start":4,"end":6}}}]}' --dry-run
+node cli/moment.mjs exec project.batch --project batch-source.json --json '{"operations":[{"command":"project.update","arguments":{"patch":{"speed":2}}},{"command":"credit.update","arguments":{"patch":{"text":"Source: Example","start":4,"end":6}}}]}' --out batch-edited.json
+```
+
+12초 샘플이 6초 출력으로 바뀐 뒤 마지막 2초의 크레딧을 지정합니다. 두 번째
+명령의 `end`를 `7`로 바꾸면 거절되며 원본 파일은 유지하고 새 출력 파일도
+만들지 않습니다. `--dry-run`은 전체를 검증하지만 파일을 쓰지 않습니다.
+
+이것은 **단일 명령 안의 편집 묶음**이지 JSON-RPC 요청 배열이 아닙니다. MCP는
+`projectId:"session"`을 바깥 도구 인수에만 붙이며 내부 명령에는 넣지 않습니다.
+브라우저 같은 페이지 API로 성공한 편집 묶음은 실행 취소 한 단계입니다. 새로운
+UI 버튼이나 MCP 실행 취소 도구는 추가하지 않습니다.
+
+사용자 정의 호스트는 저장 콜백의 원자성과 버전 충돌 검사를 여전히 책임집니다.
+외부 저장소·여러 서비스 인스턴스까지 자동 트랜잭션으로 보호하지 않습니다.
+커밋 중 오류나 응답 유실로 결과가 불명확하면 `project.get`으로 현재 문서를
+확인한 뒤 복구하세요. 복제·분할 등이 포함된 묶음을 무조건 재시도하지 마세요.
 
 ### SRT/VTT 본문을 명령으로 가져오기
 
@@ -479,7 +520,7 @@ node cli/moment.mjs exec overlays.remove --project story.json --json '{"id":"cta
 사용합니다. ID는 추가 때마다 바꾸는 임시값이 아니라 요청을 확인할 기준입니다.
 삭제 후 나머지 순서와 자막·기본 제목·효과·클립·미디어는 유지합니다.
 겹치는 headline은 마지막 활성 카드가 우선하며 기본 제목을 가릴 수 있습니다.
-명령별 검증·반영은 한 번씩이며, 여러 명령 전체를 묶는 트랜잭션은 아닙니다.
+위 예제는 명령마다 따로 반영합니다. 모두 함께 검증·반영하려면 `project.batch`로 묶으세요.
 
 ### 카드 쌓임 순서 변경
 

@@ -57,6 +57,24 @@ For VTT, call `moment_captions_export` with `{"projectId":"session","format":"vt
 
 Do not save the JSON-RPC envelope, text-content wrapper or mutation acknowledgment as a project document.
 
+## Apply related edits together
+
+Use `project.batch` / `moment_project_batch` for 1–20 supported mutations that must
+validate together. Pass `operations:[{command, arguments}, ...]`, with the exact
+individual command inputs. MCP `projectId:"session"` belongs only to the outer call.
+Inspect the live allowlist: project import, read/export commands, provider jobs
+and nested batches are excluded. Later steps use earlier prepared edits, so derive
+indexes and times from that evolving state, not blindly from the original.
+
+All steps validate before one service commit; an invalid step leaves the project
+unchanged. The result is `{updated, operationCount, outputDuration}`, not per-step
+results; no result-reference syntax exists. All no-op operations skip commit, but
+an empty patch is not necessarily a no-op under an individual command’s contract.
+Save with a separate project read. This is not JSON-RPC batching, an external
+storage transaction or protection from other writers. After uncertain commit or
+lost response, inspect current state before retrying non-idempotent edits. See the
+[CLI preview and failure example](../../../../INTEGRATIONS.md#여러-편집을-한-번에-반영).
+
 ## Split a clip without rebuilding the timeline
 
 Inspect the current `clips` array first. `timeline.split` takes a zero-based
@@ -289,7 +307,8 @@ legacy whitespace-only ID is matched exactly. A missing ID returns `NOT_FOUND`.
 
 Both return `{updated:true, outputDuration, id}`. Save the project with a separate
 read. If a response is lost, check the live project for your ID before retrying;
-do not create a fresh ID blindly. Each call commits independently, not as a batch.
+do not create a fresh ID blindly. Separate calls commit independently; use
+`project.batch` when these supported edits must validate and commit together.
 Other cards/order and unrelated content remain unchanged. Appended overlapping
 headlines take precedence and can hide the base title; avoid accidental overlaps.
 
@@ -313,7 +332,7 @@ response, re-read IDs/order before retrying. See the [CLI example](../../../../I
 - `moment_template_apply`: discover IDs with `moment_templates_list`. Only built-in templates are exposed, not the browser's custom-template localStorage. `withContent: false` preserves authored title, credit and card content; `true` applies template example title, credit and card content.
 - Project updates reset zoom/pan when the aspect ratio changes. Timeline or speed changes retime output layers through the shared command logic; do not separately rescale those fields again.
 
-Live schemas are authoritative. Examples do not extend the supported fields: there is no arbitrary patch path, multi-command batch tool or server-side file-save tool.
+Live schemas are authoritative. Examples do not extend the supported fields: there is no arbitrary patch path or server-side file-save tool.
 
 ## Share one browser custom template
 

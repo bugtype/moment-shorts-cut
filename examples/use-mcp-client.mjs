@@ -72,7 +72,7 @@ async function withClient(work) {
 
 const saved = await withClient(async ({request, call, data}) => {
   const {tools} = await request('tools/list', {});
-  assert.equal(tools.length, 25);
+  assert.equal(tools.length, 26);
   assert.ok(tools.some(tool => tool.name === 'moment_project_import'));
   await data('moment_project_import', {document: createProjectDocument(createDemoProject())});
   await data('moment_project_update', {patch: {name: 'MCP 예제', speed: 2}});
@@ -146,6 +146,21 @@ const saved = await withClient(async ({request, call, data}) => {
   const splitCaption = await data('moment_captions_split', {captionIndex:0,textOffset:5});
   assert.equal(splitCaption.createdCaptionIndex, 1);
   assert.deepEqual((await data('moment_project_get')).project.captions.map(cue=>cue.text), ['Hello',' world']);
+  const beforeBatch = await data('moment_project_get');
+  const rejectedBatch = await call('moment_project_batch', {operations:[
+    {command:'project.update',arguments:{patch:{name:'Must not survive'}}},
+    {command:'overlays.remove',arguments:{id:'missing-card'}},
+  ]});
+  assert.equal(rejectedBatch.isError, true);
+  assert.equal(rejectedBatch.structuredContent.error.code, 'NOT_FOUND');
+  assert.match(rejectedBatch.structuredContent.error.path, /^arguments\.operations\[1\]/);
+  assert.deepEqual(await data('moment_project_get'), beforeBatch);
+  const batch = await data('moment_project_batch', {operations:[
+    {command:'project.update',arguments:{patch:{name:'Atomic edit'}}},
+    {command:'credit.update',arguments:{patch:{text:'Reviewed together'}}},
+  ]});
+  assert.equal(batch.operationCount, 2);
+  assert.equal((await data('moment_project_get')).project.name, 'Atomic edit');
   // Save this document through the client's authorized file workflow in a real integration.
   return JSON.parse(JSON.stringify(await data('moment_project_get')));
 });
@@ -154,4 +169,4 @@ await withClient(async ({data}) => {
   await data('moment_project_import', {document: saved});
   assert.deepEqual(await data('moment_project_get'), saved);
 });
-console.log(JSON.stringify({ok: true, tools: 25, recoveredFromInvalidInput: true, reimported: true, rendered: false}));
+console.log(JSON.stringify({ok: true, tools: 26, recoveredFromInvalidInput: true, reimported: true, rendered: false}));

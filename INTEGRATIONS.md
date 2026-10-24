@@ -30,6 +30,32 @@ node cli/moment.mjs exec captions.export --project titled.json --json '{"format"
 node cli/moment.mjs exec render.plan --project titled.json --json '{"quality":1080,"format":"mp4"}' --out render-plan.json
 ```
 
+### 표준 입력으로 JSON 인수 전달
+
+`exec --args-file -`는 파일 대신 stdin에서 **JSON 인수 하나**를 읽습니다. EOF까지
+기다리므로 입력을 끝내는 생산자와 파이프로 연결하세요. 아래 Node 생산자는 별도
+JSON 임시 파일이나 셸별 JSON 따옴표 이스케이프 없이 실행할 수 있습니다.
+
+```sh
+node cli/moment.mjs init --out stdin-source.json
+node -e "process.stdout.write(JSON.stringify({patch:{name:'Piped edit'}}))" | node cli/moment.mjs exec project.update --project stdin-source.json --args-file - --out stdin-edited.json
+node -e "process.stdout.write(JSON.stringify({offset:0,limit:2}))" | node cli/moment.mjs exec captions.list --project stdin-edited.json --args-file -
+```
+
+| 규칙 | 동작 |
+|---|---|
+| 크기·인코딩 | 실제 입력 UTF-8 바이트 최대 10 MiB(10,485,760); 파일과 같은 엄격한 디코딩, 선두 BOM 하나 허용 |
+| 빈 입력·잘못된 UTF-8·여러 JSON 값 | `INVALID_JSON`; 줄마다 별도 JSON을 받는 스트리밍 프로토콜 아님 |
+| 크기 초과 / 스트림 읽기 실패 | `FILE_TOO_LARGE` / `FILE_ERROR`; 초과는 EOF 전에도 거절 |
+| 옵션 | `--json`과 함께 사용 불가; 이름이 `-`인 실제 파일은 `--args-file ./-` |
+| 경로 구분 | `--project`·`--out`의 `-`에는 stdin/stdout 의미를 추가하지 않음 |
+| 결과·보호 | 기존 stdout 응답 유지; 잘못되거나 초과한 인수는 새 출력을 만들거나 기존 출력을 덮어쓰지 않음 |
+
+`--dry-run`도 같은 인수를 읽지만 파일을 쓰지 않고 미리보기만 반환합니다. stdin에는
+응답 봉투나 원시 자막 파일이 아닌 해당 명령의 인수 객체를 보내세요. 예를 들어 자막
+가져오기는 `{text,basis}`이며, 템플릿 적용은 `{document,withContent}`입니다. 인코딩을
+바꾸는 셸에서는 UTF-8 파이프를 사용하거나 `--args-file args.json` 파일 경로를 쓰세요.
+
 ### 출력과 기존 파일 보호
 
 **`exec --dry-run`은 파일을 쓰지 않습니다.** 결과를 JSON으로 미리 확인하세요. `init`은 `--out`과 `--overwrite`만 지원하며, 지원하지 않는 옵션은 파일 접근 전에 거부합니다.

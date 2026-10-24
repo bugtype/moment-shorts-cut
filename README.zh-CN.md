@@ -183,6 +183,8 @@ node cli/moment.mjs commands
 
 现有输出文件默认受保护；仅在确定替换时使用 `--overwrite`。对 `exec` 添加 `--dry-run` 可预览结果而不写文件。JSON 输入不得超过 10 MiB（10,485,760 字节）。
 
+生成的参数对象可通过 [`--args-file -`](INTEGRATIONS.md#표준-입력으로-json-인수-전달) 管道传入；读取到 EOF 为止，仍有 UTF-8 10 MiB 限制。不要与 `--json` 同用。
+
 ### 选择工作流程
 
 **字幕**

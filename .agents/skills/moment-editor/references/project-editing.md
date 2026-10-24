@@ -67,6 +67,19 @@ node cli/moment.mjs exec captions.export --project edited.moment.json --json '{"
 ```
 
 These examples use POSIX quoting. For other shells or complex text, use a UTF-8 arguments file with `--args-file args.json` instead of `--json`.
+For generated arguments, `--args-file -` reads one JSON object from stdin until EOF:
+
+```sh
+node -e "process.stdout.write(JSON.stringify({patch:{name:'Piped edit'}}))" | node cli/moment.mjs exec project.update --project supplied.moment.json --args-file - --dry-run
+```
+
+Use a real producer pipe; a terminal with no EOF waits. The limit is 10 MiB of
+actual UTF-8 bytes, with strict decoding and one leading BOM allowed. Empty input,
+invalid UTF-8 or multiple JSON values return `INVALID_JSON`; excess bytes return
+`FILE_TOO_LARGE`, without writing outputs. Do not combine with `--json`; `./-`
+means a literal file, and `--project`/`--out` do not gain stdin/stdout semantics.
+See [CLI stream rules](../../../../INTEGRATIONS.md#표준-입력으로-json-인수-전달).
+
 
 | CLI result | Where to look | File effect |
 |---|---|---|

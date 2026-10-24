@@ -261,6 +261,8 @@ node cli/moment.mjs commands
 
 기존 출력 파일은 기본적으로 보호합니다. 교체할 때만 `--overwrite`를 지정하세요. `exec`에 `--dry-run`을 붙이면 파일을 쓰지 않고 결과를 확인합니다. JSON 입력은 10 MiB(10,485,760바이트) 이하입니다.
 
+생성한 인수 객체는 [`--args-file -`](INTEGRATIONS.md#표준-입력으로-json-인수-전달)로 파이프 전달할 수 있습니다. EOF까지 기다리며 UTF-8 10 MiB 한도는 유지됩니다. `--json`과 함께 쓰지 마세요.
+
 ### 작업별 시작점
 
 **자막**

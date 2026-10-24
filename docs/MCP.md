@@ -100,7 +100,11 @@ Do not save the JSON-RPC envelope as either artifact.
 project files, autosaves, synchronizes browser IndexedDB, nor exposes an undo tool.
 If saving fails, keep the process alive where possible and retry saving the retrieved
 document. For file-oriented work with protected outputs and `--dry-run`, use the
-[CLI](../INTEGRATIONS.md#실제-cli-사용).
+[CLI](../INTEGRATIONS.md#실제-cli-사용). Generated CLI arguments can use
+[`--args-file -`](../INTEGRATIONS.md#표준-입력으로-json-인수-전달): one bounded UTF-8 JSON
+value ending at EOF, not MCP messages. This is separate from the stdio MCP server's
+newline-delimited JSON-RPC protocol and adds no tool or schema option.
+
 
 ## Tool catalog
 

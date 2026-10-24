@@ -1,3 +1,4 @@
+import { projectGraphicsText } from './core/graphics-text.mjs';
 import { LocalizedError } from './core/validation.mjs';
 import { message as msg, formatError } from './i18n.mjs';
 import { createProjectDocument, projectSubtitles, assertProjectFileSize, timelineDuration, outputDuration } from './core/project.mjs';
@@ -61,6 +62,17 @@ export function createTextFileWorkflow({
             toast((error.messageKey ? error : error.message) || msg('errors.settingsSave'));
         }
     }
+    function downloadGraphicsText() {
+        if (settingsUnavailable()) return;
+        try {
+            const project = getProject();
+            const text = projectGraphicsText(project);
+            const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
+            download(blob, `${project.name || 'moment'}.graphics.txt`);
+        } catch (error) {
+            toast(error.messageKey ? error : msg('shell.graphicsTextSave'));
+        }
+    }
     function downloadSubtitles(format = 'srt') {
         if (settingsUnavailable())
             return;
@@ -122,5 +134,5 @@ export function createTextFileWorkflow({
             if (!owned && current()) $('#srtInput').value = '';
         }
     }
-    return { importProjectSettings, downloadProjectSettings, importSrt, downloadSrt, downloadSubtitles };
+    return { importProjectSettings, downloadProjectSettings, downloadGraphicsText, importSrt, downloadSrt, downloadSubtitles };
 }

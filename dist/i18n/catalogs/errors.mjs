@@ -1,5 +1,6 @@
 // Product-owned diagnostics and progress. Project-authored text is never translated.
 const entries = [
+  ["errors.graphicsNul","그래픽 문구에 NUL 문자가 있습니다. 제거한 뒤 다시 저장하세요.","Graphics text contains a NUL character. Remove it before saving.","图形文字包含 NUL 字符。请删除后再保存。"],
   ["errors.moveClipIndex","이동할 클립과 대상 위치는 현재 클립 목록의 정수 인덱스여야 합니다.","The clip and destination must be integer indices in the current clip array.","片段和目标位置必须是当前片段数组中的整数索引。"],
   ["errors.exportTemplateName","템플릿 이름을 입력하세요.","Enter a template name.","请输入模板名称。"],
   ["errors.exportTemplateId","템플릿 ID는 공백만으로 지정할 수 없습니다.","Template ID must not be blank.","模板 ID 不能为空白。"],

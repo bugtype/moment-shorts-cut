@@ -679,6 +679,23 @@ Source captions repeat when their range occurs in several clips. SRT/VTT export 
 
 The project's `duration` describes the source, not the sum of the clips or final video length. Derive edited duration from the clips; derive output duration by dividing by speed. Do not infer whether a timeline caption is linked to an audio track from `basis` alone.
 
+## Review saved graphics text
+
+Browser **Project files → Graphics text (.txt)** downloads
+`project-name.graphics.txt`: title lines, credit and card label/text/detail in saved
+card order, including disabled/out-of-range layers. It includes enabled flags,
+raw output-time endpoints (null stays null), and card role/kind; at most 14 text
+layers plus the report header. Headings follow UI locale, authored text/line breaks
+stay untouched. UTF-8 has no BOM; exported NUL text is rejected, not stripped.
+
+This is human review, not rendered visibility, countdown-number generation, a
+transcript, import format or project backup. Captions, media names/paths, card IDs
+and full styles are absent. Caption TXT is unchanged; edited review text is not
+automatically applied. Preserve project JSON for restoration. There is no new
+CLI/MCP command: use `project.get` for the full metadata document, or the optional
+[`projectGraphicsText` JavaScript helper](../../../../INTEGRATIONS.md#그래픽-문구-검토용-txt)
+for this report. Never mistake the helper's demo example for the user's project.
+
 ## Subtitle format boundaries
 
 All three export formats allow at most 10,000 edited occurrences, 2 MiB repeated raw UTF-8 text and 2 MiB completed output (including escaping, timing, separators and any VTT header/BOM). CLI/MCP omit the BOM. Browser SRT downloads include it; browser VTT/TXT downloads do not. Do not silently trim authored text to meet the budget.

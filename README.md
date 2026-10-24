@@ -53,13 +53,14 @@ Select **English** in the language selector. The steps below use English interfa
 4. **Audio:** add an audio file or record narration with microphone permission. Adjust its start time and volume alongside the original audio.
 5. **Export:** choose an available MP4/WebM format and 720p or 1080p. **Keep the tab visible until export finishes**, then play the downloaded file to check the result.
 
-The header folder icon opens **Project files**, including on compact screens. **Help** also provides the file actions.
+The header folder icon opens **Project files**, including on compact screens. **Help** also provides settings import/save.
 
 | Action | Where your work goes |
 |---|---|
 | **Save** | Browser storage |
 | **Project files → Save settings** | Download a `.moment.json` metadata backup |
 | **Project files → Import settings** | Restore a saved settings document |
+| **Project files → Graphics text (.txt)** | [Human review of saved title, credit and cards](INTEGRATIONS.md#그래픽-문구-검토용-txt); not a project backup |
 
 Settings files must fit **10 MiB (10,485,760 UTF-8 bytes)** for both save and restore; oversized output is rejected, not truncated. Keep your original video and audio separately: **the JSON does not contain media files**.
 

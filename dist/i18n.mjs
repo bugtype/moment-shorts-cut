@@ -1,3 +1,4 @@
+import {messages as graphics} from './i18n/catalogs/graphics.mjs';
 import {messages as session} from './i18n/catalogs/session.mjs';
 import {messages as shell} from './i18n/catalogs/shell.mjs';
 import {messages as panels} from './i18n/catalogs/panels.mjs';
@@ -7,7 +8,7 @@ import {messages as templates} from './i18n/catalogs/templates.mjs';
 export const SUPPORTED_LOCALES = Object.freeze(['ko', 'en', 'zh-CN']);
 export const LOCALE_STORAGE_KEY = 'moment-ui-locale-v1';
 const catalogs = Object.fromEntries(SUPPORTED_LOCALES.map(locale =>
-    [locale, Object.assign({}, shell[locale], panels[locale], errors[locale], templates[locale], session[locale])]));
+    [locale, Object.assign({}, shell[locale], panels[locale], errors[locale], templates[locale], session[locale], graphics[locale])]));
 const attributes = ['aria-label', 'title', 'placeholder', 'alt', 'aria-valuetext', 'content', 'data-label'];
 const subscribers = new Set();
 let locale = 'ko', storage, root;

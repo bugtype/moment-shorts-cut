@@ -69,6 +69,7 @@ const ctx = canvas.getContext('2d'), sample = new Image(), modal = $('#modal');
 const shellPresentation = createShellPresentation({
     query: $, queryAll: $$, document, modal, openDialog: (...args) => modalOpen(...args),
     downloadSettings: () => downloadProjectSettings(),
+    downloadGraphicsText: () => downloadGraphicsText(),
     canRelink: () => persistence.restorePhase === 'failed' && persistence.recoveryValid,
     relink: () => sessionMediaDialog.open(),
     filesBlocked: () => !editorReady || exporting,
@@ -223,7 +224,7 @@ const editorService = createEditorService({
     commitProject: commitCommandProject,
     formatErrorMessage: formatError,
 });
-const { importProjectSettings, downloadProjectSettings, importSrt, downloadSrt, downloadSubtitles } = createTextFileWorkflow({
+const { importProjectSettings, downloadProjectSettings, downloadGraphicsText, importSrt, downloadSrt, downloadSubtitles } = createTextFileWorkflow({
     getProject: () => state,
     execute: (...args) => editorService.execute(...args),
     query: $,

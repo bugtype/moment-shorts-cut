@@ -126,6 +126,43 @@ CLI는 편집 메타데이터와 SRT/VTT/TXT 출력을 다룹니다. MP4 파일�
 아니며 시간 정보를 복원할 수 없습니다. 브라우저는 형식 선택 후 하나의 저장
 버튼을 사용하고 SRT만 BOM을 붙입니다. 빈 결과는 내려받지 않습니다.
 
+### 그래픽 문구 검토용 TXT
+
+브라우저 **프로젝트 파일 → 그래픽 문구 (.txt)**는 현재 저장 모델의 제목·크레딧·카드를
+`프로젝트이름.graphics.txt`로 내려받습니다. 자막 패널의 TXT와 다른 **사람이 읽는 검토용
+목록**이며, 편집 설정 JSON이 계속 백업입니다. 수정한 TXT를 가져오거나 자동 적용하는
+기능은 없습니다.
+
+| 포함 | 제외·한계 |
+|---|---|
+| 제목 두 줄, 크레딧, 카드의 label/text/detail | 대사 자막, 미디어 이름/경로, 카드 ID, 전체 스타일 없음 |
+| 활성 여부·저장된 시작/끝(미지정 끝은 null), 카드 role/kind | 실제 표시 여부 판정·생성된 카운트다운 숫자·렌더링 결과 아님 |
+| 비활성·범위 밖 항목도 포함, 작성 카드 순서, 최대 14개 문구 레이어 | 화면상 순서·대본·영상 전사·손실 없는 프로젝트 복원이 아님 |
+
+제목·크레딧은 항상 포함하고 카드만 저장 순서로 이어집니다.
+시간은 저장된 **배속 후 출력 초**입니다. 제목·항목 이름 등 보고서 표시는 현재 UI
+언어를 따르지만 작성 문구와 줄바꿈은 번역·정규화하지 않습니다. UTF-8/BOM 없이 저장하고
+내보낼 문구의 NUL은 자동 제거하지 않고 `INVALID_ARGUMENT`와 해당 필드 경로로 거절합니다.
+표시 항목명은 번역하지만 true/false·role/kind는 원래 값이며 null 끝은 출력 끝을 뜻합니다. 다운로드는 프로젝트·기록·미디어를
+바꾸지 않습니다. 준비된 미디어가 없어도 유효한 설정이면 가능하며, 복구 실패 후 읽은
+유효 설정도 검토할 수 있지만 저장 잠금은 유지합니다. 복원 중·유효하지 않은 설정은
+차단합니다. 실제 파일 저장·픽셀 결과를 브라우저에서 검증했다는 뜻은 아닙니다.
+
+이 보고서의 CLI/MCP 명령은 없습니다. `project.get`은 계속 전체 설정 문서를 반환합니다.
+직접 JavaScript를 통합할 때에는 다음 선택 모듈 함수를 사용할 수 있습니다. 예제는 파일을
+쓰지 않으며 기본 데모를 사용합니다(사용자의 브라우저 프로젝트가 아님).
+
+```sh
+node --input-type=module <<'JS'
+import {createDemoProject} from './dist/core/project.mjs';
+import {projectGraphicsText} from './dist/core/graphics-text.mjs';
+import {setLocale} from './dist/i18n.mjs';
+setLocale('en', {persist:false});
+const project = createDemoProject();
+process.stdout.write(projectGraphicsText(project));
+JS
+```
+
 ### 결과와 검증
 
 | 결과 | 형식 |

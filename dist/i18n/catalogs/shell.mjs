@@ -1,6 +1,8 @@
 // Product interface copy only; authored project text is never translated.
 export const messages = {
   "ko": {
+    "shell.graphicsText": "그래픽 문구 (.txt)",
+    "shell.graphicsTextSave": "그래픽 문구를 저장하지 못했습니다. 다시 시도해 주세요.",
     "shell.savePreviewPng": "미리보기 PNG 저장",
     "shell.previewPngDimensions": "미리보기 PNG 저장 ({width}×{height})",
     "shell.previewPngError": "미리보기 PNG를 저장하지 못했습니다. 다시 시도해 주세요.",
@@ -178,6 +180,8 @@ export const messages = {
     "shell.exportFinishFailed": "영상 저장을 마무리하지 못했습니다. 다시 시도해 주세요."
   },
   "en": {
+    "shell.graphicsText": "Graphics text (.txt)",
+    "shell.graphicsTextSave": "Could not save graphics text. Try again.",
     "shell.savePreviewPng": "Save preview PNG",
     "shell.previewPngDimensions": "Save preview PNG ({width}×{height})",
     "shell.previewPngError": "Could not save the preview PNG. Please try again.",
@@ -355,6 +359,8 @@ export const messages = {
     "shell.exportFinishFailed": "Could not finish saving the video. Please try again."
   },
   "zh-CN": {
+    "shell.graphicsText": "图形文字 (.txt)",
+    "shell.graphicsTextSave": "无法保存图形文字。请重试。",
     "shell.savePreviewPng": "保存预览 PNG",
     "shell.previewPngDimensions": "保存预览 PNG（{width}×{height}）",
     "shell.previewPngError": "无法保存预览 PNG，请重试。",

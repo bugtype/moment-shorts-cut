@@ -4,7 +4,7 @@ import {icon, esc} from './ui-format.mjs';
 // Own shell feedback and modal markup, not editor state, history or media jobs.
 // Callbacks keep the app's public wrappers interceptable and timers injectable.
 export function createShellPresentation({query: $, queryAll, document, modal,
-    openDialog, downloadSettings, filesBlocked = () => false, canRelink = () => false, relink, setTimer, clearTimer}) {
+    openDialog, downloadSettings, downloadGraphicsText, filesBlocked = () => false, canRelink = () => false, relink, setTimer, clearTimer}) {
     let lastSaveStatus = '', toastTimer, fileDialogGeneration = 0, pendingImportClose;
     function bindFileActions(trigger) {
         const generation = ++fileDialogGeneration;
@@ -38,9 +38,15 @@ export function createShellPresentation({query: $, queryAll, document, modal,
     }
     function showProjectFiles() {
         if (filesBlocked()) return;
-        openDialog(message('shell.projectFiles'), `<div class="notice">${text('shell.settingsNotice')}</div>${canRelink() ? `<div class="panel-actions"><button class="button" id="relinkSessionMedia">${text('shell.sessionMediaTitle')}</button></div>` : ''}`, `<div class="modal-foot project-file-actions"><button class="button" id="importProjectSettingsButton">${text('shell.importSettings')}</button><button class="button primary" id="downloadProjectSettingsButton">${text('shell.saveSettings')}</button></div>`);
+        openDialog(message('shell.projectFiles'), `<div class="notice">${text('shell.settingsNotice')}</div><div class="panel-actions"><button class="button" id="downloadGraphicsTextButton">${text('shell.graphicsText')}</button>${canRelink() ? `<button class="button" id="relinkSessionMedia">${text('shell.sessionMediaTitle')}</button>` : ''}</div>`, `<div class="modal-foot project-file-actions"><button class="button" id="importProjectSettingsButton">${text('shell.importSettings')}</button><button class="button primary" id="downloadProjectSettingsButton">${text('shell.saveSettings')}</button></div>`);
         bindFileActions($('#projectFilesButton'));
-        const button = $('#relinkSessionMedia'), owner = fileDialogGeneration;
+        const graphicsButton = $('#downloadGraphicsTextButton');
+        const owner = fileDialogGeneration;
+        graphicsButton.onclick = event => {
+            if (owner === fileDialogGeneration && modal.open && $('#downloadGraphicsTextButton') === graphicsButton &&
+                !filesBlocked() && !event?.isComposing && event?.keyCode !== 229) downloadGraphicsText();
+        };
+        const button = $('#relinkSessionMedia');
         if (canRelink() && button) button.onclick = () => {
             if (owner === fileDialogGeneration && modal.open && $('#relinkSessionMedia') === button && canRelink() && !filesBlocked()) relink();
         };

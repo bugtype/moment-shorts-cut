@@ -67,6 +67,7 @@ Settings files must fit **10 MiB (10,485,760 UTF-8 bytes)** for both save and re
 |---|---|
 | Navigate the preview | [Fine steps, cut boundaries and exact output time](#navigate-the-preview) |
 | Edit timing | [Capture trim values and set an exact speed](#edit-timing-from-the-preview) |
+| Save an image | [Click-time preview PNG and bitmap dimensions](#save-a-preview-image) |
 | Repeat playback | [Session-only loop, card preview and export boundaries](#repeat-the-full-preview) |
 
 ## Features
@@ -189,6 +190,16 @@ choice defaults off and resets on reload; it never changes project JSON, saves o
 
 Turning it off lets the current pass finish, but cancels a pending restart. Manual
 pause/seek, hiding the tab or changing media takes priority. Seamless playback is not guaranteed.
+
+### Save a preview image
+
+In **Frame**, choose **Save preview PNG** to download the edited canvas **as displayed
+when clicked**: 540×960 portrait, 960×960 square or 960×540 landscape. It captures
+rendered video, text and effects—not DOM guides/selection handles or audio—and does
+not rerender at 1080p, seek, pause or change project/history. No media is uploaded.
+This works independently of MediaRecorder; it is not source-frame-accurate export.
+Busy/recovery states block capture; a newer request or project/media change cancels
+an outdated pending download. Normal playback advancing does not change the snapshot.
 
 ## Example results
 

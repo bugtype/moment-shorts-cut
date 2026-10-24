@@ -1,4 +1,4 @@
-import { message } from './i18n.mjs';
+import { message, setAttr } from './i18n.mjs';
 import { mediaPanelMarkup, audioPanelMarkup, settingsPanelMarkup } from './panel-markup.mjs';
 
 const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
@@ -109,6 +109,15 @@ export function createWorkspacePanels(app) {
         app.captionPanel.focus(index);
     }
 
+    function syncPreviewExportLabel() {
+        if (app.panel !== 'settings') return;
+        const button = $('#savePreviewPng');
+        if (!button) return;
+        const dimensions = { width: app.canvas.width, height: app.canvas.height };
+        setAttr(button, 'title', 'shell.previewPngDimensions', dimensions);
+        setAttr(button, 'aria-label', 'shell.previewPngDimensions', dimensions);
+    }
+
     function renderPanel() {
         const target = $('#panelContent');
         if (app.panel === 'templates') {
@@ -187,6 +196,12 @@ export function createWorkspacePanels(app) {
                     app.scheduleSave();
                 });
             }
+            const savePreview = $('#savePreviewPng'), previewProject = app.state;
+            syncPreviewExportLabel();
+            savePreview.onclick = () => {
+                if (app.panel === 'settings' && app.state === previewProject && $('#savePreviewPng') === savePreview)
+                    app.savePreview();
+            };
             $('#resetPosition').onclick = () => app.edit(() => {
                 app.state.zoom = 1;
                 app.state.panX = 0;
@@ -235,5 +250,5 @@ export function createWorkspacePanels(app) {
             syncSheet();
     }
 
-    return { renderPanel, switchPanel, renderCaptionsPanel, navigateCaption, focusCaption, closePanelSheet, togglePanelSheet, syncPanelSheet: syncSheet };
+    return { syncPreviewExportLabel, renderPanel, switchPanel, renderCaptionsPanel, navigateCaption, focusCaption, closePanelSheet, togglePanelSheet, syncPanelSheet: syncSheet };
 }

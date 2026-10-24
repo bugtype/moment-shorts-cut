@@ -1,3 +1,4 @@
+import { createPreviewExport } from './preview-export.mjs';
 import { createCaptionNavigation } from './caption-navigation.mjs';
 import { createSpeedDialog } from './speed-dialog.mjs';
 import {createShellPresentation} from './shell-presentation.mjs';
@@ -140,6 +141,12 @@ const templateWorkspace = createTemplateWorkspace({
     download: (blob, name) => download(blob, name),
     toast: message => toast(message),
 });
+const savePreview = createPreviewExport({
+    getProject: () => state, getMedia: () => [sources.videoFile, sources.audioFile],
+    getCanvas: () => canvas, createCanvas: () => document.createElement('canvas'),
+    blocked: () => !editorReady || exporting || loadingMedia || transcribing || persistence.restorePhase !== 'ready' || audioRecording.requesting || audioRecording.current,
+    download: (blob, name) => download(blob, name), toast: value => toast(value),
+});
 const seekDialog = createSeekDialog({
     getProject: () => state, getCurrent: () => current, getDuration: () => duration(),
     getMedia: () => [sources.videoFile, sources.audioFile], query: $, modal,
@@ -262,7 +269,7 @@ const app = {
     get cardPlaybackEnd() { return cardPlaybackEnd; }, set cardPlaybackEnd(value) { cardPlaybackEnd = value; },
     get editorReady() { return editorReady; }, set editorReady(value) { editorReady = value; },
 
-    query: $, queryAll: $$, document, window, canvas, ctx, video, audio, sample, modal,
+    query: $, queryAll: $$, document, window, canvas, ctx, video, audio, sample, modal, savePreview,
     composition, templatePreview, templateWorkspace, captionPanel, projectStore,
     sources, persistence, videoExport, transcription, captionGeneration, audioRecording,
     inspectorView, timelineView, inputHistory,
@@ -448,7 +455,7 @@ function play() { return playback.play(); }
 function pause() { playback.pause(); }
 function tick(now) { playback.tick(now); }
 function seekVideo(time) { return playback.seekVideo(time); }
-function resizePreview() { playback.resizePreview(); }
+function resizePreview() { playback.resizePreview(); workspacePanels.syncPreviewExportLabel(); }
 function loadVideo(file) { return mediaLoader.loadVideo(file); }
 function loadAudio(file, recording) { return mediaLoader.loadAudio(file, recording); }
 function toggleRecording() { return mediaLoader.toggleRecording(); }

@@ -1,6 +1,9 @@
 // Product interface copy only; authored project text is never translated.
 export const messages = {
   "ko": {
+    "shell.savePreviewPng": "미리보기 PNG 저장",
+    "shell.previewPngDimensions": "미리보기 PNG 저장 ({width}×{height})",
+    "shell.previewPngError": "미리보기 PNG를 저장하지 못했습니다. 다시 시도해 주세요.",
     "shell.previousCut": "이전 컷으로 이동",
     "shell.nextCut": "다음 컷으로 이동",
     "shell.cutNavigation": "이전 / 다음 컷",
@@ -173,6 +176,9 @@ export const messages = {
     "shell.exportFinishFailed": "영상 저장을 마무리하지 못했습니다. 다시 시도해 주세요."
   },
   "en": {
+    "shell.savePreviewPng": "Save preview PNG",
+    "shell.previewPngDimensions": "Save preview PNG ({width}×{height})",
+    "shell.previewPngError": "Could not save the preview PNG. Please try again.",
     "shell.previousCut": "Previous cut",
     "shell.nextCut": "Next cut",
     "shell.cutNavigation": "Previous / next cut",
@@ -345,6 +351,9 @@ export const messages = {
     "shell.exportFinishFailed": "Could not finish saving the video. Please try again."
   },
   "zh-CN": {
+    "shell.savePreviewPng": "保存预览 PNG",
+    "shell.previewPngDimensions": "保存预览 PNG（{width}×{height}）",
+    "shell.previewPngError": "无法保存预览 PNG，请重试。",
     "shell.previousCut": "上一个剪辑点",
     "shell.nextCut": "下一个剪辑点",
     "shell.cutNavigation": "上一个 / 下一个剪辑点",

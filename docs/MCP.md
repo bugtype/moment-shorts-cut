@@ -41,6 +41,42 @@ document, checks an invalid edit leaves it unchanged, extracts SRT/JSON and a re
 plan, then reimports the document in a fresh session. It uses no user files and
 writes no project files. Its JSON summary is a protocol smoke test, not a video.
 
+### Optional official Python SDK smoke test
+
+The server and default checks remain dependency-free. To exercise an independent
+SDK client, use an **existing Python 3.10+ environment with `mcp==1.29.0`** and
+Node.js 20+ on PATH. This example uses the SDK's v1 `ClientSession` API; it does
+not claim v2 or all SDK-version compatibility. See the [official v1.29.0
+source/docs](https://github.com/modelcontextprotocol/python-sdk/tree/v1.29.0), not
+an unpinned latest-install recipe.
+
+Verified with Python **3.12.14** and `mcp` **1.29.0**. From the repository root:
+
+```sh
+python examples/use-mcp-sdk.py
+```
+
+The script resolves the Node server relative to its own file, launches two actual
+stdio sessions and closes their contexts. It has a 10-second SDK response timeout
+and a 45-second cancellation deadline (cleanup can take longer). It installs nothing
+and writes no project files. Run without `-O` or `PYTHONOPTIMIZE`: the script refuses
+disabled assertions.
+Missing/incompatible SDK prerequisites produce a clear message; use the Node
+example above if you do not want a Python dependency.
+
+| Check | What it verifies |
+|---|---|
+| Initialize + tool discovery | Official SDK handshake and discovered output-schema validation on successful calls |
+| Demo import/edit + invalid speed | `INVALID_ARGUMENT` leaves the document unchanged and the session remains usable |
+| `project.get` + VTT | Full document handoff, distinct from mutation acknowledgment; subtitle text, not media encoding |
+| Fresh session import | JSON handoff in memory restores the edited demo into a new isolated session |
+
+The JSON summary reports `ok`, SDK/protocol versions, tool count, recovered error,
+`handoffVerified`, `subtitleFormat` and `filesWritten:false`. **The demo is not your
+browser project.** Use an explicitly supplied project document for real work.
+This is an optional local check, **not part of `npm test` or default CI**; it does
+not verify a desktop client application, browser playback or encoded video.
+
 ## Lifecycle and session identity
 
 The client sends `initialize`, checks the returned `protocolVersion`, then sends

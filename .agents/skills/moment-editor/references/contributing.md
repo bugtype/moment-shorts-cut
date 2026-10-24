@@ -83,6 +83,14 @@ Run documented CLI/MCP examples when changing integration behavior. Add a regres
 | CLI/MCP examples | Documented input/output workflows still execute |
 | Direct owner + entry-point tests | A responsibility extraction preserves behavior across its boundary |
 
+For optional official SDK interoperability, run `python examples/use-mcp-sdk.py`
+only in an existing Python 3.10+ environment with `mcp==1.29.0` and Node 20+ on PATH.
+It uses the v1 ClientSession API, not v2; no installation is performed. This is a
+separate consumer smoke check, not part of `npm test` or default CI. It imports and
+edits an isolated demo, checks invalid-input recovery, then transfers the document
+in memory to a fresh stdio session. It does not connect to the user's browser or
+save files. [Prerequisites, timeout and result contract](../../../../docs/MCP.md#optional-official-python-sdk-smoke-test).
+
 None of these establishes actual browser rendering or codec behavior.
 
 For a refactor, preserve observable input/output and errors, then test the extracted owner directly and through its existing entry point. Keep files readable and cohesive around 500 lines; do not compress or split solely to meet a number.

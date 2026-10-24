@@ -139,6 +139,19 @@ JavaScript에서 직접 호출할 때도 JSON으로 왕복 가능한 값을 전�
 
 주요 오류: `INVALID_ARGUMENT`, `UNKNOWN_COMMAND`, `NOT_FOUND`, `UNSUPPORTED_VERSION`, `BUSY`, `MEDIA_RELINK_REQUIRED`, `NOT_CONFIGURED`, `INVALID_PROVIDER_RESULT`, `CAPTION_OUTPUT_LIMIT`. 예상하지 못한 내부 오류는 `INTERNAL_ERROR`로 반환하며 스택이나 내부 인증 정보를 반환하지 않습니다.
 
+### 선택 사항: 공식 Python SDK 연결 점검
+
+기본 서버·`npm test`·Node 예제에는 외부 SDK가 필요하지 않습니다. 별도 SDK 소비자
+점검은 **이미 `mcp==1.29.0`이 있는 Python 3.10+ 환경**과 PATH의 Node.js 20+에서
+저장소 루트 기준 `python examples/use-mcp-sdk.py`로 실행하세요. v1 `ClientSession`
+대상이며 v2/모든 버전 호환성을 주장하지 않습니다. 패키지를 설치하거나 파일을 쓰지
+않으며, 실제 stdio 데모 편집·잘못된 입력 후 복구·메모리 문서의 새 세션 재가져오기를
+확인합니다. 사용자의 브라우저 프로젝트나 실제 영상 출력 검사가 아닙니다.
+
+기본 테스트/CI에 포함되지 않는 선택 검사입니다. SDK가 없으면 기존
+`node examples/use-mcp-client.mjs`를 사용하세요. [정확한 전제·타임아웃·결과와
+버전 고정 공식 자료](docs/MCP.md#optional-official-python-sdk-smoke-test)를 확인하세요.
+
 ### 시간 기준
 
 | 필드·출력 | 시간 기준 |

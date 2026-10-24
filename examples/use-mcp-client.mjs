@@ -181,7 +181,8 @@ const saved = await withClient(async ({request, call, data}) => {
   ]});
   assert.equal(batch.operationCount, 2);
   assert.equal((await data('moment_project_get')).project.name, 'Atomic edit');
-  // Fetch only the authored cue and its neighbor, not the complete project.
+  await data('moment_captions_style_update', {patch:{speakerLabels:['Host','Guest'],speakerColors:['#ffffff','#b5ff00']}});
+  assert.deepEqual((await data('moment_project_get')).project.speakerLabels,['Host','Guest']);
   const templateDetail = await data('moment_template_inspect', {templateId:'hook-result',withContent:true});
   assert.equal(templateDetail.template.id,'hook-result');
   assert.ok(templateDetail.cards.length <= 12);
@@ -193,6 +194,7 @@ const saved = await withClient(async ({request, call, data}) => {
   const clipPage = await data('moment_timeline_list', {offset:0,limit:2});
   assert.ok(clipPage.clips.length <= 2);
   assert.equal(clipPage.clips[0].outputStart, clipPage.clips[0].timelineStart / clipPage.speed);
+  // Fetch only the authored cue and its neighbor, not the complete project.
   const nearby = await data('moment_captions_list', {offset:0,limit:2});
   assert.equal(nearby.captions[0].captionIndex,0);
   assert.equal(nearby.captions[0].caption.text,'Hello');

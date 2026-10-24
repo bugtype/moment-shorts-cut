@@ -18,6 +18,7 @@ const creditSchema=object({text:string(100),enabled:boolean,italic:boolean,color
 const captionPatchSchema=object(Object.fromEntries(['text','start','end','speaker','keywords'].map(key=>[key,captionSchema.properties[key]])));
 const captionStyleSchema=object({
   style:choice('impact','accent','highlight','minimal'),
+  speakerLabels:array(string(80),2,2),speakerColors:array(captionColorSchema,2,2),
   captionSize:number(10,120),captionX:number(0,1),captionY:number(0,1),
   captionColor:captionColorSchema,captionAccent:captionColorSchema,
   captionStroke:number(0,20),captionItalic:boolean,
@@ -345,7 +346,7 @@ export function prepareCommand(project,name,args={}){
     }
   }
   else if(name==='title.update')Object.assign(next.design.title,args.patch);
-  else if(name==='captions.style.update')Object.assign(next,args.patch);
+  else if(name==='captions.style.update')Object.assign(next,structuredClone(args.patch));
   else if(name==='captions.replace'){
     const total=timelineDuration(next);
     for(const [i,c] of args.captions.entries())if(c.end<=c.start||c.end>(c.basis==='timeline'?total:next.duration))fail(msg('errors.captionClock'),`arguments.captions[${i}]`);

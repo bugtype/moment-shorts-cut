@@ -444,7 +444,15 @@ Call MCP `moment_captions_style_update` with `{"projectId":"session","patch":{"c
 
 Only supplied fields change. These are global caption settings, not per-cue styles; cue text, timing and metadata remain unchanged. Setting `style` alone does not trigger the UI preset’s italic/stroke defaults. Empty `patch: {}` is valid and returns `{updated:true, outputDuration}`; do not interpret it as the text-replacement command’s no-op detection.
 
-Save the retrieved project JSON, not the acknowledgment. Styling affects the visual renderer and is absent from plain SRT/VTT. CLI/MCP do not render the changed video.
+For speaker presentation, add `speakerLabels:["Host","Guest"]` and/or
+`speakerColors:["#FFFFFF","#B5FF00"]` to the patch. Each supplied array replaces
+both slots: labels are exactly two strings of at most 80 UTF-16 code units (empty
+allowed), colors exactly two hex6/hex8 strings. Slots correspond to existing cue
+speaker 0/1; no detection, reassignment or extra speakers. Highlight text keeps its
+existing precedence; speaker-label colors still use the assigned color.
+
+Save the retrieved project JSON, not the acknowledgment. Styling and speaker
+labels/colors are absent from plain SRT/VTT/TXT. CLI/MCP do not render the changed video.
 
 ## Adjust video effects without changing content
 

@@ -138,3 +138,10 @@ test('stdio inspects hook template content without applying it to the session',(
  const replies=run([init,ready,call(2,'project_get'),call(3,'template_inspect',{templateId:'hook-result',withContent:true}),call(4,'project_get')]);
  const detail=replies.find(r=>r.id===3).result.structuredContent.data;assert.equal(detail.template.id,'hook-result');assert.equal(detail.cards.length,4);assert.ok(detail.cards.every(c=>!Object.hasOwn(c,'id')));assert.deepEqual(replies.find(r=>r.id===2).result.structuredContent.data,replies.find(r=>r.id===4).result.structuredContent.data);
 });
+
+test('stdio updates speaker presentation without changing cue assignments or text',()=>{
+ const patch={speakerLabels:['Host','嘉宾'],speakerColors:['#ffffff','#12345678']};
+ const replies=run([init,ready,call(2,'project_get'),call(3,'captions_style_update',{patch}),call(4,'project_get')]);
+ const before=replies.find(r=>r.id===2).result.structuredContent.data.project,after=replies.find(r=>r.id===4).result.structuredContent.data.project;
+ assert.deepEqual(after.speakerLabels,patch.speakerLabels);assert.deepEqual(after.speakerColors,patch.speakerColors);assert.deepEqual(after.captions,before.captions);
+});

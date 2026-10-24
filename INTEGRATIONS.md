@@ -849,7 +849,7 @@ MCP에는 실행 취소 도구가 없으므로 이전 프로젝트를 보관하�
 
 ### 자막 스타일 수정
 
-`captions.style.update`는 기존 화면의 공통 자막 스타일을 CLI/MCP에서도 수정합니다. 새 UI나 개별 자막 스타일을 추가하는 명령이 아닙니다. 모든 자막에 적용되는 설정이며 문구·시간·화자 정보는 유지합니다.
+`captions.style.update`는 기존 화면의 공통 자막 스타일을 CLI/MCP에서도 수정합니다. 새 UI나 개별 자막 스타일을 추가하는 명령이 아닙니다. 모든 자막에 적용되는 설정이며 개별 문구·시간·화자 배정은 유지합니다.
 
 | `patch` 필드 | 허용 값 |
 |---|---|
@@ -860,6 +860,8 @@ MCP에는 실행 취소 도구가 없으므로 이전 프로젝트를 보관하�
 | `captionStroke` | 0–20; 캔버스 너비 540 기준 두께 |
 | `captionItalic` | boolean |
 | `captionAnimation` | `none`, `fade`, `slide`, `pop` |
+| `speakerLabels` | 정확히 2개 문자열, 각각 최대 80 UTF-16 코드 단위; 빈 문자열 허용, 공백 자르지 않음 |
+| `speakerColors` | 정확히 2개 `#RRGGBB` 또는 `#RRGGBBAA` 색상 |
 
 `patch`는 필수이고 내부 필드는 모두 선택입니다. 빈 `{}`도 허용하며 표준 수정 응답 `{updated:true, outputDuration}`을 반환합니다. `captions.text.replace`의 변경 없음 감지와 같은 계약은 아닙니다. 전달하지 않은 필드는 그대로 두며, **`style`만 바꿔도 화면 프리셋의 기울임·외곽선 기본값을 함께 적용하지 않습니다.** 필요하면 해당 필드를 명시하세요.
 
@@ -868,9 +870,19 @@ node cli/moment.mjs exec captions.style.update --project corrected.json --json '
 node cli/moment.mjs exec captions.style.update --project corrected.json --json '{"patch":{"captionSize":48,"captionY":0.72,"captionColor":"#FFFFFF"}}' --out styled.json
 ```
 
-**화면 적용:** 글자 크기와 외곽선은 캔버스 너비에 비례해 확대·축소하며 글자가 영역을 넘으면 맞춤 처리로 더 작아질 수 있습니다. `highlight`는 어두운 글자·강조색 상자·외곽선 없음으로 표시합니다. 그 외에는 지정 화자 색상이 우선하고, 화자가 없으면 `accent` 스타일은 `captionAccent`, 나머지는 `captionColor`를 사용합니다. 따라서 `captionColor` 수정이 화자·강조 스타일 색상을 덮어쓰지는 않습니다.
+화자 배열을 보내면 해당 두 슬롯을 함께 교체하며 보내지 않은 다른 배열은 유지합니다.
+색상 대소문자·알파값도 보존하고 잘못된 배열/값은 `INVALID_ARGUMENT`로 거절합니다. 인덱스 0/1은 기존 자막의 화자 배정에
+대응하며 이름을 바꿔도 새 화자를 감지하거나 자막을 재배정하지 않습니다. 기존 대화 UI의
+이름·색상을 전체 프로젝트 가져오기 없이 수정하는 경로입니다.
 
-스타일은 프로젝트 JSON과 영상 화면에 적용하며 일반 SRT/VTT에는 기록하지 않습니다. 이 명령은 영상을 인코딩하지 않으며 `render.plan`도 계속 계획만 반환합니다.
+```sh
+node cli/moment.mjs init --out speakers-source.json
+node cli/moment.mjs exec captions.style.update --project speakers-source.json --json '{"patch":{"speakerLabels":["Host","Guest"],"speakerColors":["#FFFFFF","#B5FF00"]}}' --out speakers-edited.json
+```
+
+**화면 적용:** 글자 크기와 외곽선은 캔버스 너비에 비례해 확대·축소하며 글자가 영역을 넘으면 맞춤 처리로 더 작아질 수 있습니다. `highlight`는 어두운 글자·강조색 상자·외곽선 없음으로 표시합니다. 그 외에는 지정 화자 색상이 우선하고, 화자가 없으면 `accent` 스타일은 `captionAccent`, 나머지는 `captionColor`를 사용합니다. 따라서 `captionColor` 수정이 화자·강조 스타일 색상을 덮어쓰지는 않습니다. `highlight`에서도 화자 이름 표시는 해당 화자 색상을 사용합니다.
+
+스타일은 프로젝트 JSON과 영상 화면에 적용하며 일반 SRT/VTT/TXT에는 화자 이름·색상을 기록하지 않습니다. 이 명령은 영상을 인코딩하지 않으며 `render.plan`도 계속 계획만 반환합니다.
 
 ### 출처 크레딧 수정
 

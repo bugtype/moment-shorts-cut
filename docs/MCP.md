@@ -1025,6 +1025,8 @@ without reconstructing and importing the full project. For example:
 | `captionStroke` | 0–20, relative to a 540-wide canvas |
 | `captionItalic` | Boolean |
 | `captionAnimation` | `none`, `fade`, `slide`, `pop` |
+| `speakerLabels` | Exactly two strings, each at most 80 UTF-16 code units; empty strings allowed, no trimming |
+| `speakerColors` | Exactly two `#RRGGBB` or `#RRGGBBAA` colors |
 
 `patch` is required; all fields inside it are optional. Only supplied fields change.
 An empty patch is accepted and returns the standard `{updated:true, outputDuration}`
@@ -1032,15 +1034,27 @@ acknowledgment, not the no-change contract of `moment_captions_text_replace`.
 Setting `style` alone does **not** apply the UI preset’s italic/stroke defaults;
 supply those fields explicitly when intended.
 
+Supplying either speaker array replaces both of its slots; the omitted counterpart
+is unchanged. Color casing/alpha are preserved. Malformed values return
+`INVALID_ARGUMENT`. Slots 0/1 correspond
+to the existing per-cue speaker assignments; this does not detect speakers,
+reassign cues or create additional speakers. For the existing Dialogue UI's labels
+and colors without a full import:
+
+```json
+{"projectId":"session","patch":{"speakerLabels":["Host","Guest"],"speakerColors":["#FFFFFF","#B5FF00"]}}
+```
+
 Size and stroke scale with canvas width; text fitting can shrink the requested
 size further. Color precedence also matters: `highlight` uses dark text on an
 accent-colored box without stroke; otherwise assigned speaker colors win, then
 `accent` style uses `captionAccent`, and other styles use `captionColor`. Changing
 `captionColor` does not override speaker colors or the highlight treatment.
+The speaker-name label remains speaker-colored even in highlight style.
 
 These existing global settings apply across caption cues in the visual renderer.
-Text, timing and speaker metadata are untouched. Plain SRT/VTT do not carry these
-styles, and this command does not encode video. Retrieve `moment_project_get`
+Cue text, timing, speaker assignments and other cue metadata are untouched.
+Plain SRT/VTT/TXT do not carry speaker labels/colors or visual styles, and this command does not encode video. Retrieve `moment_project_get`
 to save the updated project; `moment_render_plan` remains only a plan.
 
 ### Set a source credit independently

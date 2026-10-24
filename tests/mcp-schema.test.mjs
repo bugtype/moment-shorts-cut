@@ -57,7 +57,7 @@ const inputs = {
   'captions.replace': { captions: [{ start: 0, end: 1, text: '자막' }] },
   'captions.text.replace': {find:'자막',replacement:'교정'},
   'captions.timing.shift': {basis:'source',delta:.1},
-  'captions.style.update': {patch:{captionSize:44,captionY:.8}},
+  'captions.style.update': {patch:{captionSize:44,captionY:.8,speakerLabels:['Host','Guest'],speakerColors:['#ffffff','#12345678']}},
   'timeline.list': {offset:0,limit:2},
   'captions.list': {offset:0,limit:2},
   'captions.overlaps': {limit:20},

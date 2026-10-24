@@ -11,7 +11,7 @@ import {prepareCommand,commandDefinition} from '../dist/core/commands.mjs';
 import {createEditorService} from '../dist/integration/editor-service.mjs';
 import {createAppFixture} from './fixtures/app.mjs';
 
-const patch={style:'minimal',captionSize:44,captionX:.45,captionY:.8,captionColor:'#aAbBcC',captionAccent:'#12345678',captionStroke:2,captionItalic:false,captionAnimation:'fade'};
+const patch={speakerLabels:['민수','嘉宾'],speakerColors:['#aAbBcC','#12345678'],style:'minimal',captionSize:44,captionX:.45,captionY:.8,captionColor:'#aAbBcC',captionAccent:'#12345678',captionStroke:2,captionItalic:false,captionAnimation:'fade'};
 test('caption style patch changes only supplied fields and leaves plain subtitles and timing unchanged',()=>{
  const p=createDemoProject(),before=structuredClone(p),result=prepareCommand(p,'captions.style.update',{patch});
  assert.deepEqual(result.data,{updated:true,outputDuration:12});

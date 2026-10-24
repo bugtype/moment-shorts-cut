@@ -263,6 +263,8 @@ function inputSchema(command) {
   if (command.name === 'captions.style.update') {
     p.patch.description = 'Partial visual-only update of shared caption styling. Only supplied fields change; no preset side effects. Caption text/timing/metadata and SRT/VTT output stay unchanged.';
     const fields = p.patch.properties;
+    fields.speakerLabels.description = 'Exactly two display names for assigned speaker slots 0 and 1, each at most 80 UTF-16 code units; empty names allowed. Replaces the pair without changing any cue speaker assignment, text or timing. Visual only: SRT/VTT/TXT do not gain speaker names.';
+    fields.speakerColors.description = 'Exactly two #RRGGBB or #RRGGBBAA colors for speaker slots 0 and 1. Replaces the pair. Speaker colors override ordinary caption text color; highlight style retains its dark caption text while speaker name labels retain speaker colors.';
     fields.style.description = 'Shared rendering style only, not a template. highlight uses accent as its background and suppresses stroke; speaker colors can override the text color.';
     fields.captionSize.description = 'Font size in shared canvas-relative units: rendered pixels = size × canvas width / 540, subject to text fitting. Not a fixed export-pixel size.';
     fields.captionX.description = 'Normalized horizontal caption center: 0 is left and 1 is right.';

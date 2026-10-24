@@ -32,6 +32,7 @@ export function createCaptionWorkspace(app) {
     });
     const removal = createCaptionRangeDialog(app, metadataUnavailable);
     return createCaptionPanel({
+        blocked: () => app.panel !== 'captions' || app.modal.open || metadataUnavailable(),
         removeRange: index => removal.open(index),
         view: index => rowNavigation.open(index), inspect: () => inspection.open(), overlaps: () => overlaps.open(),
         execute: (command, args) => app.runEditorCommand(command, args),

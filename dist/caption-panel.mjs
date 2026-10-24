@@ -1,88 +1,19 @@
 import { setText, setValidity, formatError, message } from './i18n.mjs';
 import { shiftCaptionTiming } from './core/caption-timing.mjs';
-import { replaceCaptionText } from './core/caption-text.mjs';
+import { createCaptionSearch } from './caption-search.mjs';
 import { MAX_CAPTIONS } from './captions.mjs';
 import { splitCaptionText } from './effects.mjs';
 import { CAPTION_PAGE_SIZE, captionsPanelMarkup } from './panel-markup.mjs';
 
 export function createCaptionPanel({
-    query: $, queryAll: $$, getProject, getDuration, sourceTime, edit, refresh, toast, execute, inspect, view, overlaps, removeRange,
+    query: $, queryAll: $$, getProject, getDuration, sourceTime, edit, refresh, toast, execute, inspect, view, overlaps, removeRange, blocked = () => false,
 }) {
     const timingFields = { basis: 'source', delta: '0' };
     let exportFormat = 'srt';
     let page = 0, composing = false, renderGeneration = 0;
     const lastPage = () => Math.max(0, Math.ceil(getProject().captions.length / CAPTION_PAGE_SIZE) - 1);
-    const replacementFields = { find: '', replacement: '' };
-    let searchProject = null, searchQuery = '', selectedSearchCaption = null;
-    function searchResults() {
-        const project = getProject(), query = replacementFields.find;
-        if (project !== searchProject || query !== searchQuery) {
-            selectedSearchCaption = null;
-            searchProject = project;
-            searchQuery = query;
-        }
-        const rows = [];
-        if (query) project.captions.forEach((caption, index) => {
-            const start = caption.text.indexOf(query);
-            if (start >= 0) rows.push({ caption, index, start });
-        });
-        const current = rows.findIndex(row => row.caption === selectedSearchCaption);
-        if (current < 0) selectedSearchCaption = null;
-        setText($('#captionSearchStatus'), 'panels.searchStatus', {current:current + 1,count:rows.length});
-        $('#previousCaptionMatch').disabled = !rows.length;
-        $('#nextCaptionMatch').disabled = !rows.length;
-        return { rows, current };
-    }
-    function navigateSearch(direction) {
-        if (composing) return;
-        const { rows, current } = searchResults();
-        if (!rows.length) return;
-        const index = current < 0 ? (direction > 0 ? 0 : rows.length - 1)
-            : (current + direction + rows.length) % rows.length;
-        const row = rows[index];
-        selectedSearchCaption = row.caption;
-        searchResults();
-        focusCaption(row.index);
-        $('[data-caption-text="' + row.index + '"]')?.setSelectionRange(row.start, row.start + searchQuery.length);
-    }
-    function previewReplacement() {
-        const button = $('#replaceAllCaptions');
-        setText(button, 'panels.replaceAll');
-        button.disabled = !replacementFields.find;
-        if (!replacementFields.find)
-            return;
-        try {
-            const result = replaceCaptionText(getProject().captions, replacementFields);
-            setText(button, 'panels.replaceMatches', {count:result.matches});
-            button.disabled = !result.changedCaptions;
-        }
-        catch {
-            // Keep the action available so validation can explain the rejected edit.
-            button.disabled = false;
-        }
-    }
-    function replaceAllCaptions() {
-        try {
-            const result = replaceCaptionText(getProject().captions, replacementFields);
-            if (!result.changedCaptions) {
-                previewReplacement();
-                return;
-            }
-            let applied = false;
-            edit(() => {
-                getProject().captions = result.captions;
-                applied = true;
-            }, true);
-            if (!applied)
-                return;
-            previewReplacement();
-            $('#captionFind').focus({ preventScroll: true });
-            toast(message('panels.replaced', {count:result.changedCaptions}));
-        }
-        catch (error) {
-            toast(error.messageKey ? error : formatError(error));
-        }
-    }
+    const search = createCaptionSearch({query:$,getProject,focusCaption,edit,execute,toast,
+        blocked: () => composing || blocked()});
     function shiftTiming() {
         if (composing) return;
         try {
@@ -177,26 +108,13 @@ export function createCaptionPanel({
         };
         target.oncompositionstart = () => { if (generation === renderGeneration) composing = true; };
         target.oncompositionend = () => { if (generation === renderGeneration) composing = false; };
-        for (const [id, key] of [['captionFind', 'find'], ['captionReplacement', 'replacement']]) {
-            const field = $('#' + id);
-            field.value = replacementFields[key];
-            field.oninput = () => {
-                replacementFields[key] = field.value;
-                previewReplacement();
-                searchResults();
-            };
-        }
+        search.bind();
         for (const [id, key] of [['captionShiftBasis', 'basis'], ['captionShiftDelta', 'delta']]) {
             const field = $('#' + id);
             field.value = timingFields[key];
             field.onchange = () => { timingFields[key] = field.value; };
         }
         $('#shiftCaptionTiming').onclick = shiftTiming;
-        $('#previousCaptionMatch').onclick = () => navigateSearch(-1);
-        $('#nextCaptionMatch').onclick = () => navigateSearch(1);
-        searchResults();
-        $('#replaceAllCaptions').onclick = replaceAllCaptions;
-        previewReplacement();
         $('#captionDesignShortcut').onclick = actions.design;
         $('#inspectCaptionOverlaps').onclick = event => { if (!composing && !event?.isComposing && event?.keyCode !== 229) overlaps(); };
         $('#inspectCaptions').onclick = () => { if (!composing) inspect(); };
@@ -255,8 +173,7 @@ export function createCaptionPanel({
         });
         $$('[data-caption-text]').forEach(el => el.onchange = () => {
             edit(() => getProject().captions[+el.dataset.captionText].text = el.value);
-            searchResults();
-            previewReplacement();
+            search.update();
         });
         for (const side of ['start', 'end'])
             $$(`[data-caption-${side}]`).forEach(el => el.onchange = () => {
@@ -276,7 +193,7 @@ export function createCaptionPanel({
             ...$$('[data-caption-text]'), ...$$('[data-caption-start]'), ...$$('[data-caption-end]'),
             ...$$('[data-view-caption]'), ...$$('[data-split-caption]'), ...$$('[data-merge-caption]'), ...$$('[data-caption-keywords]'), ...$$('[data-caption-speaker]'), ...$$('[data-delete-caption]'),
             ...['captionFind', 'captionReplacement', 'previousCaptionPage', 'nextCaptionPage',
-                'captionPageNumber', 'goCaptionPage', 'previousCaptionMatch', 'nextCaptionMatch', 'replaceAllCaptions', 'splitLongCaptions',
+                'captionPageNumber', 'goCaptionPage', 'previousCaptionMatch', 'nextCaptionMatch', 'replaceCaptionMatch', 'replaceAllCaptions', 'splitLongCaptions',
                 'addCaption', 'removeCaptionRange', 'importSrt', 'captionExportFormat', 'downloadCaptions', 'generateCaptions',
                 'inspectCaptionOverlaps', 'inspectCaptions', 'captionDesignShortcut', 'captionShiftBasis', 'captionShiftDelta', 'shiftCaptionTiming'].map(id => $('#' + id)),
         ];

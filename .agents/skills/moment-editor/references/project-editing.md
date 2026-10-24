@@ -304,17 +304,26 @@ For MCP, call `moment_captions_text_replace` with `{"projectId":"session","find"
 
 The result is `{updated, matches, changedCaptions}`, not the document. With no match or an identical replacement, `updated` is false and no project change is committed. `matches` counts occurrences; `changedCaptions` counts actually changed cues. Read the document separately to save it.
 
-An empty replacement can remove a substring, not a whole cue: if any changed cue becomes blank after `trim()` or exceeds 2,000 UTF-16 code units, the entire operation fails before commit. Do not bypass this by dropping cues or silently truncating text. Explicit cue deletion uses `captions.replace`; preserve all other entries. UI replace-all is one undo step; MCP has no undo tool.
+An empty replacement can remove a substring, not a whole cue: if any changed cue becomes blank after `trim()` or exceeds 2,000 UTF-16 code units, the entire operation fails before commit. Do not bypass this by dropping cues or silently truncating text. Explicit cue deletion uses `captions.remove`; preserve all other entries. UI replace-all is one undo step; MCP has no undo tool.
 
-In the browser, review matches with previous/next before replace-all. Navigation
-counts matching **authored rows**, not occurrences, including captions outside
-trimmed source ranges. It wraps, scrolls/focuses the row and selects its first
-literal case-sensitive match; it does not seek playback or change project/history/
-saved state. Multiple matches in one row are one navigation result, while
-replace-all still counts every non-overlapping occurrence. Matches are recalculated
-from current content. The query persists, but navigation position resets safely
-when the query/project changes or the selected match disappears. This is a browser
-review aid, not a new CLI/MCP command.
+In the browser, previous/next counts **literal occurrences**, including multiple
+matches within one authored row and captions outside trimmed source ranges. It
+wraps across rows/pages and selects the exact substring without seeking or editing.
+Matching remains case-sensitive/non-overlapping, with UTF-16 offsets and no regex
+or Unicode normalization. Find is nonempty and at most 2,000 UTF-16 code units;
+replacement is at most 2,000, with literal `$` characters.
+
+**Replace match** uses the existing `captions.update` for only the selected
+substring, preserving cue timing/metadata in one undo step. It highlights the
+replacement without automatically advancing; Next resumes after the inserted span
+and wraps only when no later match exists; Previous may revisit earlier or inserted
+matches. Identical replacement is a no-op;
+blank/overlong resulting cue text is rejected. A stale cue/query or uncommitted
+textarea edit is refused rather than overwritten: finish the edit and reselect.
+Opening/clicking controls may still trigger the field's normal blur/change commit.
+Search/replacement drafts persist; reselect if project/content/query changes.
+Replace-all remains a separate action and existing CLI/MCP command; this adds no
+new API command.
 
 The browser mounts at most 50 editing rows per page. Search/timeline selection,
 import and added-caption focus reveal the target page. Paging alone changes no

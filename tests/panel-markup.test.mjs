@@ -148,10 +148,11 @@ test('caption tools group accessible find/replace fields without another disclos
   assert.ok(tools.indexOf('replaceAllCaptions') < tools.indexOf('splitLongCaptions'));
 });
 
-test('caption search navigation exposes row counts separately from replacement occurrences', () => {
+test('caption search navigation exposes occurrence counts and separate selected/global replacement', () => {
   const html=captionsPanelMarkup(frozenProject(),{});
-  assert.match(html,/role="group" aria-label="검색된 자막 이동"/);
-  assert.match(html,/id="previousCaptionMatch" aria-label="이전 검색 자막"[^>]* disabled/);
-  assert.match(html,/id="nextCaptionMatch" aria-label="다음 검색 자막"[^>]* disabled/);
-  assert.match(html,/id="captionSearchStatus" role="status" aria-live="polite" aria-atomic="true"><span[^>]*>자막 0 \/ 0<\/span>/);
+  assert.match(html,/id="replaceCaptionMatch" disabled/);
+  assert.match(html,/role="group" aria-label="검색 일치 이동"/);
+  assert.match(html,/id="previousCaptionMatch" aria-label="이전 일치"[^>]* disabled/);
+  assert.match(html,/id="nextCaptionMatch" aria-label="다음 일치"[^>]* disabled/);
+  assert.match(html,/id="captionSearchStatus" role="status" aria-live="polite" aria-atomic="true"><span[^>]*>일치 0 \/ 0<\/span>/);
 });

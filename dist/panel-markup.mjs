@@ -65,6 +65,7 @@ export function captionsPanelMarkup({ captions, speakerLabels }, { toolsOpen, tr
         `</div>` +
         `<label class="panel-label" for="captionReplacement">${text('panels.replacement')}</label>` +
         `<input class="panel-input" id="captionReplacement" type="text" maxlength="2000" autocomplete="off" spellcheck="false">` +
+        `<button class="button full" id="replaceCaptionMatch" disabled>${text('panels.replaceMatch')}</button>` +
         `<button class="button full" id="replaceAllCaptions" aria-live="polite" disabled>${text('panels.replaceAll')}</button>` +
         `</section>` +
         `<div class="panel-actions" role="group" ${attrs('aria-label', 'panels.shiftTiming')}>` +

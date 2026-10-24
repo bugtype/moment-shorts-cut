@@ -58,7 +58,7 @@ test('only 50 globally indexed rows mount, pagination/focus are presentation-onl
 
 test('search and replacement cover all 10000 rows, reveal off-page hits and keep fields across renders',()=>{
  const f=fixture(10000);input(f,'#captionFind','찾기');input(f,'#captionReplacement','교정');
- assert.equal(f.query('#captionSearchStatus').textContent,'자막 0 / 10000');
+ assert.equal(f.query('#captionSearchStatus').textContent,'일치 0 / 10000');
  f.query('#previousCaptionMatch').onclick();assert.equal(rows(f)[0],9950);
  assert.deepEqual(f.log.at(-1),['selection','[data-caption-text="9999"]',0,2]);
  f.query('#nextCaptionMatch').onclick();assert.equal(rows(f)[0],0);

@@ -1,3 +1,4 @@
+import {createCaptionSearch} from '../../dist/caption-search.mjs';
 import {createPositionDialog} from '../../dist/position-dialog.mjs';
 import {createCaptionRangeDialog} from '../../dist/caption-range-dialog.mjs';
 import { downloadBlob } from '../../dist/download.mjs';
@@ -179,6 +180,7 @@ export async function createAppFixture({sessionMediaDependencies = {}} = {}) {
   });
   // Keep the existing split-helper fault injection in this VM without a production test hook.
   const captionPanelSource=fs.readFileSync(new URL('../../dist/caption-panel.mjs',import.meta.url),'utf8');
+  context.createCaptionSearch=createCaptionSearch;
   context.createCaptionPanel=vm.runInContext('(()=>{'+captionPanelSource.replace(/^import .*;$/gm,'').replace('export function','function')+';return createCaptionPanel;})()',context);
   // Preserve the parser fault injection without adding a production-only dependency hook.
   const textWorkflowSource=fs.readFileSync(new URL('../../dist/text-file-workflow.mjs',import.meta.url),'utf8');

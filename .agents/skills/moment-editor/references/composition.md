@@ -11,6 +11,7 @@ Use the essential boundaries in [SKILL.md](../SKILL.md). If needed, consult shar
 
 | Task | Section |
 |---|---|
+| Choose a frame ratio | [Open](#choose-a-frame-ratio) |
 | Adjust video effects without changing content | [Open](#adjust-video-effects-without-changing-content) |
 | Edit an existing timed card by ID | [Open](#edit-an-existing-timed-card-by-id) |
 | Build a hook, tip and CTA with individual cards | [Open](#build-a-hook-tip-and-cta-with-individual-cards) |
@@ -19,6 +20,21 @@ Use the essential boundaries in [SKILL.md](../SKILL.md). If needed, consult shar
 | Capture the current composition as a portable template | [Open](#capture-the-current-composition-as-a-portable-template) |
 | Apply a supplied template document | [Open](#apply-a-supplied-template-document) |
 | Review saved graphics text | [Open](#review-saved-graphics-text) |
+
+## Choose a frame ratio
+
+Use `project.update` / `moment_project_update` with
+`{"patch":{"ratio":"4:5"}}` (MCP also requires `projectId:"session"`). Supported
+ratios are 9:16, 4:5, 1:1 and 16:9. A changed ratio resets zoom/pan; inspect framing
+and text/card placement rather than assuming existing content is redesigned.
+4:5 render plans are 720×900 or 1080×1350 at short-edge quality 720/1080, while the
+browser preview/PNG remains 540×675. A render plan is not an encoded video.
+
+Existing files/ratios retain their sizes. New 4:5 files require an updated Moment:
+older builds reject the value despite unchanged schema 4/API 1. Do not claim
+forward compatibility. Templates do not carry or apply ratio. Use the
+[dimension table and runnable recipe](../../../../INTEGRATIONS.md#화면-비율과-출력-크기),
+not assumed platform or native-codec compatibility.
 
 ## Adjust video effects without changing content
 

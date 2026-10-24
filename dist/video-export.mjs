@@ -1,3 +1,5 @@
+import { outputDimensions } from './core/aspect-ratio.mjs';
+
 // Owns export generations and native resources; preparation, playback and UI stay in the app.
 export function createVideoExport({ createCanvas, createRecorder, onRelease }) {
     let request = 0, canvas = null, context = null, stream = null, recorder = null;
@@ -10,10 +12,10 @@ export function createVideoExport({ createCanvas, createRecorder, onRelease }) {
     }
 
     function createSurface(ratio, quality) {
-        const [rw, rh] = ratio.split(':').map(Number);
+        const { width, height } = outputDimensions(ratio, quality);
         canvas = createCanvas();
-        canvas.width = rw > rh ? Math.round(quality * rw / rh) : quality;
-        canvas.height = rh > rw ? Math.round(quality * rh / rw) : quality;
+        canvas.width = width;
+        canvas.height = height;
         context = canvas.getContext('2d');
     }
 

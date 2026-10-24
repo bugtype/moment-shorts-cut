@@ -34,7 +34,7 @@ function fixture({ failClone = false, failRecorder = false } = {}) {
 }
 
 test('export surface geometry, capture options and completed chunks preserve their request', () => {
-  for (const [ratio, quality, dimensions] of [['9:16', 1080, [1080, 1920]], ['16:9', 720, [1280, 720]], ['1:1', 720, [720, 720]]]) {
+  for (const [ratio, quality, dimensions] of [['9:16', 1080, [1080, 1920]], ['16:9', 720, [1280, 720]], ['1:1', 720, [720, 720]], ['4:5', 720, [720, 900]], ['4:5', 1080, [1080, 1350]]]) {
     const f = fixture(), token = f.session.begin();
     f.session.createSurface(ratio, quality);
     assert.deepEqual([f.session.canvas.width, f.session.canvas.height], dimensions);

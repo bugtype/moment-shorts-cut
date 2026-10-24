@@ -1,3 +1,4 @@
+import { SUPPORTED_ASPECT_RATIOS, outputDimensions } from './aspect-ratio.mjs';
 import { assignCaptionSpeaker } from './caption-speakers.mjs';
 import { inspectCaptionOverlaps } from './caption-overlaps.mjs';
 import { message as msg } from '../i18n.mjs';
@@ -12,7 +13,7 @@ import { outputDuration, timelineDuration, createDemoProject, validateProject, c
 import { object, string, number, choice, boolean, array, validate, assertJson, fail, CommandError, hasMinimumDuration } from './validation.mjs';
 
 export const API_VERSION=1;
-const patchSchema=object({name:string(200),ratio:choice('9:16','1:1','16:9'),fit:choice('cover','contain'),zoom:number(1,3),panX:number(-1,1),panY:number(-1,1),speed:number(.25,4),volume:number(0,1),audioVolume:number(0,1)});
+const patchSchema=object({name:string(200),ratio:choice(...SUPPORTED_ASPECT_RATIOS),fit:choice('cover','contain'),zoom:number(1,3),panX:number(-1,1),panY:number(-1,1),speed:number(.25,4),volume:number(0,1),audioVolume:number(0,1)});
 const titleSchema=object({lines:array(string(200),2,2),colors:array(string(9),2,2),enabled:boolean,x:number(.05,.95),y:number(.06,.93),size:number(18,72),stroke:number(0,12),italic:boolean,start:number(0,86400),end:{type:['number','null'],minimum:0,maximum:86400}});
 const captionColorSchema={...string(9),pattern:'^#[0-9a-fA-F]{6}([0-9a-fA-F]{2})?$'};
 const creditSchema=object({text:string(100),enabled:boolean,italic:boolean,color:captionColorSchema,x:number(0,1),y:number(0,1),size:number(10,120),start:{type:'number',minimum:0},end:{type:['number','null'],minimum:0}});
@@ -296,7 +297,7 @@ export function prepareCommand(project,name,args={}){
     validateProject(next);return {project:next,data};
   }
   if(name==='render.plan'){
-    const quality=args.quality||1080, [rw,rh]=project.ratio.split(':').map(Number),width=project.ratio==='16:9'?Math.round(quality*rw/rh):quality,height=project.ratio==='16:9'?quality:Math.round(quality*rh/rw);
+    const quality=args.quality||1080, {width,height}=outputDimensions(project.ratio,quality);
     return {data:{planVersion:1,project:createProjectDocument(project),output:{width,height,fps:30,format:args.format||'mp4',duration:outputDuration(project)},media:{video:project.kind==='video'?{name:project.fileName,required:true}:null,audio:project.audioName?{name:project.audioName,required:true}:null},rendered:false}};
   }
   if(name==='project.import')return {project:readProjectDocument(args.document),data:{imported:true}};

@@ -21,7 +21,7 @@ function fixture() {
 const png=()=>new Blob(['pixels'],{type:'image/png'});
 
 test('copies displayed pixels synchronously and keeps exact preview dimensions, name and PNG MIME',()=>{
-    for(const [width,height] of [[540,960],[960,960],[960,540]]){
+    for(const [width,height] of [[540,960],[540,675],[960,960],[960,540]]){
         const f=fixture();Object.assign(f.source,{width,height});f.save();
         const copy=f.canvases[0];f.source.pixels='later playback';
         assert.equal(copy.pixels,'first');assert.equal(copy.width,width);assert.equal(copy.height,height);

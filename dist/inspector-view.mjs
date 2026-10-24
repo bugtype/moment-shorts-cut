@@ -1,3 +1,4 @@
+import { outputDimensions } from './core/aspect-ratio.mjs';
 import { syncSpeedControl } from './speed-dialog.mjs';
 import { decimalTime } from './ui-format.mjs';
 import { setText, setAttr } from './i18n.mjs';
@@ -25,7 +26,8 @@ export function createInspectorView($, $$) {
         $('#projectName').value = state.name;
         $('#ratioLabel').textContent = state.ratio;
         setAttr($('#ratioShortcut'), 'aria-label', 'panels.ratioCurrent', {ratio:state.ratio});
-        $('#previewSize').textContent = state.ratio === '9:16' ? '1080 × 1920' : state.ratio === '1:1' ? '1080 × 1080' : '1920 × 1080';
+        const output = outputDimensions(state.ratio, 1080);
+        $('#previewSize').textContent = `${output.width} × ${output.height}`;
         for (const key of ['ratio', 'fit']) {
             $$(`[data-${key}]`).forEach(button => {
                 const active = button.dataset[key] === state[key];

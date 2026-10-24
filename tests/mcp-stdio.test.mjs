@@ -185,3 +185,19 @@ test('stdio exports opt-in review TXT without changing default subtitle output o
   assert.deepEqual(response(7).data, response(4).data);
   assert.deepEqual(response(8).data, response(3).data);
 });
+
+test('stdio updates 4:5 projects and reports short-edge output dimensions', () => {
+  const replies = run([
+    init, ready,
+    call(2, 'project_update', { patch: { ratio: '4:5' } }),
+    call(3, 'render_plan', { quality: 720 }),
+    call(4, 'render_plan', { quality: 1080 }),
+    call(5, 'project_get'),
+  ]);
+  assert.ok(replies.slice(1).every(reply => !reply.result.isError));
+  assert.deepEqual(replies[2].result.structuredContent.data.output, {
+    width: 720, height: 900, fps: 30, format: 'mp4', duration: 12,
+  });
+  assert.equal(replies[3].result.structuredContent.data.output.height, 1350);
+  assert.equal(replies[4].result.structuredContent.data.project.ratio, '4:5');
+});

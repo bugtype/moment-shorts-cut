@@ -218,6 +218,7 @@ function inputSchema(command) {
   }
   if (command.name === 'project.update') {
     p.patch.description = 'Only supplied settings change. Changing ratio resets zoom/pan; speed changes retime output text.';
+    p.patch.properties.ratio.description = 'Supported canvas ratio: 9:16, 4:5, 1:1 or 16:9. Export quality sets the short edge; 4:5 produces 720×900 or 1080×1350. Older builds cannot read projects using the new 4:5 value.';
     p.patch.properties.speed.description = 'Playback speed multiplier; output duration is edited timeline duration divided by speed.';
   }
   if (command.name === 'overlays.move') {

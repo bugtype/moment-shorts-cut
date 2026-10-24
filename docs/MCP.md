@@ -197,6 +197,26 @@ output including separators must fit 2 MiB. The raw-text budget is checked befor
 newline normalization, so a smaller normalized TXT can still fail that guard.
 The service emits no BOM.
 
+### Frame ratios and render-plan dimensions
+
+`moment_project_update` accepts `patch.ratio` values `"9:16"`, `"4:5"`, `"1:1"`
+and `"16:9"`. A changed ratio resets zoom/pan through existing update rules;
+review framing and text/card placement afterward—ratio changes do not redesign
+existing content. For 4:5, `moment_render_plan` returns 720×900 at quality
+720 or 1080×1350 at quality 1080 (short-edge quality). Its `rendered:false` is
+not a generated video. Browser preview/PNG is the fixed 540×675 bitmap.
+
+```json
+{"projectId":"session","patch":{"ratio":"4:5"}}
+```
+
+Existing files and the previous three ratios' sizes remain unchanged. API 1 and
+project schema 4 remain unchanged too, but older builds reject new 4:5 project
+files; this is not forward compatibility or a migration. Portable templates do
+not contain or change ratio. Dimensions do not establish platform acceptance,
+native codec support or browser pixel verification.
+[All four sizes and executable CLI recipe](../INTEGRATIONS.md#화면-비율과-출력-크기)
+
 ### Caption review TXT
 
 Opt in to a human-readable timing/speaker review using the existing export tool:

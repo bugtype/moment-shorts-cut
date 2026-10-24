@@ -32,7 +32,8 @@
   border-radius:3px
 }
 .ratio-grid {
-  display:flex;
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
   gap:7px
 }
 .ratio-option {
@@ -59,6 +60,10 @@
   border-radius:2px;
   margin-bottom:2px
 }
+.ratio-shape.feed-portrait {
+  width:20px;
+  height:25px
+}
 .ratio-shape.square {
   height:20px;
   width:20px;
@@ -72,10 +77,6 @@
 .ratio-option strong {
   font-size:10px;
   font-weight:500
-}
-.ratio-option small {
-  font-size:8px;
-  color:#a4ac9a
 }
 .field-label {
   font-size:10px;

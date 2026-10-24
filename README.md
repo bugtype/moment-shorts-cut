@@ -47,7 +47,7 @@ Screenshots and rendered examples below show their original Korean content.
 
 Select **English** in the language selector. The steps below use English interface labels:
 
-1. **Media:** upload a video, or keep the sample. Use **Frame** to choose 9:16, 1:1, or 16:9 and adjust the framing; trim, split, and reorder clips on the timeline.
+1. **Media:** upload a video, or keep the sample. Use **Frame** to choose 9:16, 4:5, 1:1, or 16:9 and adjust the framing; trim, split, and reorder clips on the timeline.
 2. **Templates:** choose a composition. **Apply style only** keeps your text; applying the example composition replaces title, credit, and timed-text content while preserving footage and dialogue captions.
 3. **Captions:** import SRT/VTT, write captions, or generate them locally from speech. Review the text and timing. Use **Title** and **Effects** for headlines and timed text.
 4. **Audio:** add an audio file or record narration with microphone permission. Adjust its start time and volume alongside the original audio.
@@ -207,6 +207,20 @@ Confirming pauses and seeks; cancel leaves playback unchanged. It does not edit,
 save or add undo history. Reopen if the project or media source changed; busy/recovery guards apply.
 This is time navigation, not frame/sample-accurate seeking.
 
+### Choose the frame ratio
+
+**Frame** offers numeric presets **9:16, 4:5, 1:1 and 16:9**. Export quality sets
+the short edge; preview/PNG uses the fixed bitmap below.
+
+| Ratio | Preview / PNG | 720 export | 1080 export |
+|---|---|---|---|
+| 9:16 | 540×960 | 720×1280 | 1080×1920 |
+| 4:5 | 540×675 | 720×900 | 1080×1350 |
+| 1:1 | 960×960 | 720×720 | 1080×1080 |
+| 16:9 | 960×540 | 1280×720 | 1920×1080 |
+
+Changing ratio does not redesign existing text/cards; review framing and text placement. Existing project files remain readable. New 4:5 files need an updated Moment build; older builds reject that ratio even though the schema version is unchanged. Portable templates do not include or change the ratio. Dimensions are not a guarantee of platform compliance or native codec support.
+
 ### Reframe the source video
 
 Choose **Framing…** beside zoom in the desktop Frame inspector or the **Frame**
@@ -265,7 +279,7 @@ pause/seek, hiding the tab or changing media takes priority. Seamless playback i
 ### Save a preview image
 
 In **Frame**, choose **Save preview PNG** to download the edited canvas **as displayed
-when clicked**: 540×960 portrait, 960×960 square or 960×540 landscape. It captures
+when clicked**: 540×960 (9:16), 540×675 (4:5), 960×960 (1:1) or 960×540 (16:9). It captures
 rendered video, text and effects—not DOM guides/selection handles or audio—and does
 not rerender at 1080p, seek, pause or change project/history. No media is uploaded.
 This works independently of MediaRecorder; it is not source-frame-accurate export.

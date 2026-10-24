@@ -1,3 +1,4 @@
+import { SUPPORTED_ASPECT_RATIOS } from './core/aspect-ratio.mjs';
 import { t, text, mark, attrs } from './i18n.mjs';
 import { icon, esc, fmt } from './ui-format.mjs';
 
@@ -142,10 +143,9 @@ export function settingsPanelMarkup({ ratio, fit, zoom, captionSize, captionY, v
         `<div class="settings-mirror">` +
         `<section class="settings-group" ${attrs('aria-label', 'panels.frameComposition')}>` +
         `<div class="section-label">${text('panels.aspectRatio')}</div>` +
-        `<div class="ratio-grid">${['9:16', '1:1', '16:9'].map(r => (
+        `<div class="ratio-grid" role="group" ${attrs('aria-label', 'panels.aspectRatio')}>${SUPPORTED_ASPECT_RATIOS.map(r => (
             `<button class="ratio-option ${ratio === r ? 'active' : ''}" data-ratio="${r}" aria-pressed="${ratio === r}">` +
-            `<strong>${r}</strong>` +
-            `<small>${r === '9:16' ? text('panels.shorts') : r === '1:1' ? text('panels.feed') : text('panels.landscape')}</small>` +
+            `<i class="ratio-shape ${{'9:16':'portrait','4:5':'feed-portrait','1:1':'square','16:9':'landscape'}[r]}" aria-hidden="true"></i><strong>${r}</strong>` +
             `</button>`
         )).join('')}</div>` +
         `<div class="field-label">${text('panels.frameFit')}</div>` +

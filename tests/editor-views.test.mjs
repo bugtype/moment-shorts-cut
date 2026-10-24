@@ -167,7 +167,7 @@ test('time updates keep their throttle and label cache local to each view', () =
 test('ratio and fit selections synchronize visual and accessible state in both editor surfaces', () => {
   const { query } = controls();
   const groups = Object.fromEntries(['ratio', 'fit'].map(key => [key,
-    Array.from({ length: 2 }, () => (key === 'ratio' ? ['9:16', '1:1', '16:9'] : ['cover', 'contain']).map(value => {
+    Array.from({ length: 2 }, () => (key === 'ratio' ? ['9:16', '4:5', '1:1', '16:9'] : ['cover', 'contain']).map(value => {
       const button = { dataset: { [key]: value }, attributes: {}, active: false };
       button.classList = { toggle: (_, active) => { button.active = active; } };
       button.setAttribute = (name, value) => { button.attributes[name] = String(value); };
@@ -176,7 +176,7 @@ test('ratio and fit selections synchronize visual and accessible state in both e
   ]));
   const inspector = createInspectorView(query, selector => groups[selector.slice(6, -1)] || []);
   const state = createDemoProject();
-  for (const [ratio, fit] of [['9:16', 'cover'], ['1:1', 'contain'], ['16:9', 'cover']]) {
+  for (const [ratio, fit] of [['9:16', 'cover'], ['4:5', 'cover'], ['1:1', 'contain'], ['16:9', 'cover']]) {
     Object.assign(state, { ratio, fit });
     inspector.render(state, 0, false, false);
     assert.equal(query('#ratioShortcut').attributes['aria-label'], `화면 비율 변경, 현재 ${ratio}`);

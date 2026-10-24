@@ -1,3 +1,4 @@
+import { SUPPORTED_ASPECT_RATIOS } from './aspect-ratio.mjs';
 import { projectCaptionReview } from './caption-review.mjs';
 import { message as msg } from '../i18n.mjs';
 import { defaultEnhancements } from '../effects.mjs';
@@ -37,7 +38,7 @@ export function validateProject(project){
   if(project.schemaVersion!==DESIGN_VERSION)throw new CommandError('UNSUPPORTED_VERSION',msg('errors.projectVersion'));
   compatible(project,createDemoProject(),'project');
   const p=project;
-  validate(object({duration:number(.001,86400),speed:number(.25,4),ratio:choice('9:16','1:1','16:9'),fit:choice('cover','contain'),kind:choice('demo','video'),clips:array(clipSchema,MAX_CLIPS,1)},['duration','speed','ratio','fit','kind','clips']),{duration:p.duration,speed:p.speed,ratio:p.ratio,fit:p.fit,kind:p.kind,clips:p.clips},'project');
+  validate(object({duration:number(.001,86400),speed:number(.25,4),ratio:choice(...SUPPORTED_ASPECT_RATIOS),fit:choice('cover','contain'),kind:choice('demo','video'),clips:array(clipSchema,MAX_CLIPS,1)},['duration','speed','ratio','fit','kind','clips']),{duration:p.duration,speed:p.speed,ratio:p.ratio,fit:p.fit,kind:p.kind,clips:p.clips},'project');
   for(const [i,c] of p.clips.entries())if(c.end<=c.start||c.end>p.duration)fail(msg('errors.clipRange'),`project.clips[${i}]`);
   const bounded={zoom:[1,3],panX:[-1,1],panY:[-1,1],volume:[0,1],audioVolume:[0,1],audioOffset:[0,86400],captionSize:[10,120],captionX:[0,1],captionY:[0,1],captionStroke:[0,20]};
   for(const [key,[min,max]] of Object.entries(bounded))validate(number(min,max),p[key],`project.${key}`);

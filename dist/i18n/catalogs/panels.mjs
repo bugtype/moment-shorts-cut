@@ -1,6 +1,14 @@
 // Flat semantic keys; keep each Korean, English and Simplified Chinese entry aligned.
 const entries = {
   "panels.positionApply": ["적용","Apply","应用"],
+  "panels.keepGaps": ["빈 구간만 유지…","Keep gaps…","仅保留间隙…"],
+  "panels.keepGapsConfirm": ["빈 구간 유지","Keep gaps","保留间隙"],
+  "panels.keepGapsWarning": ["현재 모든 클립의 원본 구간을 제외하고 나머지 구간으로 교체합니다. 원본 시간순으로 정렬하며 현재 순서와 반복은 유지하지 않습니다.","Replace all current clips with the source ranges outside them, in source-time order. Current ordering and repeats are not preserved.","用所有当前片段之外的源时间区间替换现有片段，并按源时间排序。不保留当前顺序和重复片段。"],
+  "panels.keepGapsSummary": ["{count}개 클립 · 출력 {duration}초","{count} clips · output {duration} s","{count} 个片段 · 输出 {duration} 秒"],
+  "panels.keepGapsInterval": ["원본 {start}–{end}초","Source {start}–{end} s","源时间 {start}–{end} 秒"],
+  "panels.keepGapsEmpty": ["현재 클립이 원본 전체를 포함해 유지할 빈 구간이 없습니다.","The current clips cover the entire source. There are no gaps to keep.","当前片段已覆盖整个源媒体，没有可保留的间隙。"],
+  "panels.keepGapsTooShort": ["빈 구간 중 0.1초 미만인 구간이 있습니다. 현재 클립 경계를 조정하세요.","A gap is shorter than 0.1 seconds. Adjust the current clip boundaries first.","存在短于 0.1 秒的间隙。请先调整当前片段边界。"],
+  "panels.keepGapsLimit": ["빈 구간이 1,000개를 넘습니다. 현재 클립 구간을 먼저 조정하세요.","There are more than 1,000 gaps. Adjust the current clip ranges first.","间隙超过 1,000 个。请先调整当前片段区间。"],
   "panels.framing": ["영상 구도…","Framing…","视频构图…"],
   "panels.framingX": ["가로 이동 (%)","Horizontal offset (%)","水平偏移 (%)"],
   "panels.framingY": ["세로 이동 (%)","Vertical offset (%)","垂直偏移 (%)"],

@@ -560,6 +560,15 @@ response, re-read IDs/order before retrying. See the [CLI example](../../../../I
 
 ## Replacement operations and styles
 
+The browser's **Keep gaps…** is a separate explicit-confirmation workflow over
+source-time union/complement, using existing `timeline.replace`, not a new API.
+It returns ascending source intervals, discarding current repeat/order structure.
+It rejects an empty complement, any positive result gap under 0.1 seconds, or
+more than 1,000 results; that minimum is specific to this action, not the core
+project's positive-duration validity rule. Source cues remain, timeline cues/audio
+offset stay absolute, output title/credit/cards follow existing duration retiming.
+Do not imply lossless rendering or that applying complement twice restores edits.
+
 - `moment_timeline_replace`: submit the complete desired `clips` list, preserving unrequested clips and their order. Clips may repeat or overlap source ranges. Each must have `end > start` and remain within original media duration; the list must contain 1–1,000 clips.
 - `moment_captions_replace`: submit the complete desired caption array. Preserve `basis`, speaker and keyword fields unless changing them is requested. An empty array intentionally removes all captions. Each text is limited to 2,000 UTF-16 code units; do not silently truncate authored text.
 - `moment_title_update`: `patch.lines` is exactly two strings. To leave the second line blank, use `""`, not an omitted array slot. This edits the base title; timed cards can hide it while active. Use `moment_overlays_update` for an existing card and `moment_overlays_add`/`moment_overlays_remove` to add or remove one. Use `overlays.move` / `moment_overlays_move` to change card stacking without replacing the document.

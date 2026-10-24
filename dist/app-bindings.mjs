@@ -81,6 +81,10 @@ export function bindUi(app) {
         app.renderInspector();
     };
     $('#speed').onchange = event => app.changeSpeed(event.target.value);
+    const gaps = $('#keepGapsButton');
+    gaps.onclick = event => {
+        if ($('#keepGapsButton') === gaps && !event?.isComposing && event?.keyCode !== 229) app.openKeepGaps('keepGapsButton');
+    };
     const framing = $('#openFraming');
     framing.onclick = event => {
         if ($('#openFraming') === framing && !event?.isComposing && event?.keyCode !== 229) app.openFraming('openFraming');

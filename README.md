@@ -425,6 +425,7 @@ only source or **pre-speed** timeline clocks—not this browser output choice.
 | Inspect a built-in template | [`template.inspect`](INTEGRATIONS.md#기본-템플릿-적용-전-점검) | Read metadata and proposed title/credit/card text and times before applying; not a rendered preview or reserved state. |
 | Review a proposed edit bundle | [`project.preview`](INTEGRATIONS.md#편집-묶음의-반영-전-요약) | Read-only counts and changed-field summary, not a visual preview or state reservation. Later batch revalidates. |
 | Apply related edits together | [`project.batch`](INTEGRATIONS.md#여러-편집을-한-번에-반영) | Validate 1–20 supported edits in sequence, then commit once; a rejected step leaves the project unchanged. Not a JSON-RPC batch or a cross-host storage transaction. |
+| Keep source sections currently omitted | Desktop Frame inspector or **Frame** panel → **Keep gaps…** | Review the remaining source intervals and confirm a full timeline replacement; source order, not current order/repeats. |
 | Remove consecutive clips | Clip inspector or **Frame** → **Remove clip range…** | Enter inclusive first/last positions (1-based); at least one clip must remain. One undoable edit. |
 | Repeat a clip | [`timeline.duplicate`](INTEGRATIONS.md#클립-구간-복제) | Inserts the same source interval immediately after the selected occurrence, not a media-file copy. Source captions repeat; timed output layers rescale. |
 | Split one clip | [`timeline.split`](INTEGRATIONS.md#클립-구간-분할) | Original source time, not output time; identify the intended occurrence and check boundaries. No full-timeline replacement. |
@@ -477,6 +478,22 @@ output times rescale proportionally with the shortened timeline. This structural
 edit resets trim drafts; cancel preserves them. Reopen after project/media/selection
 changes. Valid failed-recovery edits still require a settings backup before reload,
 not browser saving.
+
+**Keep gaps…** takes the union of every current clip's source range and keeps its
+complement within the full source duration. For a 12-second source with clips
+2–4 and 6–8, the result is 0–2, 4–6 and 8–12—even if current clips repeat or appear
+in another order. Review source intervals (20 per page), count and after-speed output duration, then confirm.
+One undoable replacement selects the first result and seeks its start.
+
+This action refuses no remaining gaps, any positive result gap shorter than
+**0.1 seconds**, or more than **1,000** result clips; it never silently drops tiny
+gaps. That minimum is specific to this UI action, not all imported project clips.
+Source-caption values remain, so captions can return with restored source sections;
+timeline captions and added-audio offset stay absolute. Title/credit/card output
+times rescale with the new duration. It is not lossless rendering or reversible
+history: use Undo/settings backup, rather than expecting a second inversion to
+restore ordering and repeats. Reopen after context changes; valid failed-recovery
+edits still need a settings backup before reloading.
 
 ### Choose an integration
 

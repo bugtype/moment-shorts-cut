@@ -1,3 +1,4 @@
+import { createClipComplementDialog } from './clip-complement-dialog.mjs';
 import { createFramingDialog } from './framing-dialog.mjs';
 import { downloadBlob } from './download.mjs';
 import { createTemplateScene } from './template-scene.mjs';
@@ -283,6 +284,7 @@ const app = {
     settingsUnavailable: () => settingsUnavailable(),
     runEditorCommand: (name, args) => runEditorCommand(name, args),
     showProjectFiles: () => shellPresentation.showProjectFiles(),
+    openKeepGaps: trigger => clipComplementDialog.open(trigger),
     openFraming: trigger => framingDialog.open(trigger),
     changeSpeed: value => speedDialog.change(value), openSeek: () => seekDialog.open(), showHelp: () => showHelp(), toast: message => toast(message),
     modalOpen: (title, body, footer) => modalOpen(title, body, footer),
@@ -332,6 +334,7 @@ const mediaLoader = createMediaLoader(app, {
 });
 const captionWorkspace = createCaptionWorkspace(app);
 const designWorkspace = createDesignWorkspace(app);
+const clipComplementDialog = createClipComplementDialog(app);
 const framingDialog = createFramingDialog(app);
 const workspacePanels = createWorkspacePanels(app);
 const exportFlow = createExportFlow(app, {

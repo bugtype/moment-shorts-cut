@@ -1,3 +1,4 @@
+import {createClipComplementDialog} from '../../dist/clip-complement-dialog.mjs';
 import {createCaptionImportDialog} from '../../dist/caption-import-dialog.mjs';
 import {createFramingDialog} from '../../dist/framing-dialog.mjs';
 import {createCaptionSearch} from '../../dist/caption-search.mjs';
@@ -133,7 +134,7 @@ export async function createAppFixture({sessionMediaDependencies = {}} = {}) {
     cancelAnimationFrame(id) { pendingFrames.delete(id); },
     setTimeout() {}, clearTimeout() {}, setInterval() {}, clearInterval() {},
     console, URL, Blob, TextDecoder, performance, Number, Math, Promise, structuredClone,
-    ...i18n, createCaptionImportDialog, createFramingDialog, createPositionDialog, createCaptionRangeDialog, downloadBlob, createClipRange, createCaptionOverlapDialog, createCardTimingDialog, createSessionMediaDialog, createClipMove, createPreviewExport, createCaptionNavigation, createSpeedDialog, createShellPresentation, msg: i18n.message, ...projectModule, createSeekDialog, createCaptionInspectionDialog, replaceCaptionText, prepareCommand, CommandError, LocalizedError, hasMinimumDuration, createEditorService, ...captionModule,
+    ...i18n, createClipComplementDialog, createCaptionImportDialog, createFramingDialog, createPositionDialog, createCaptionRangeDialog, downloadBlob, createClipRange, createCaptionOverlapDialog, createCardTimingDialog, createSessionMediaDialog, createClipMove, createPreviewExport, createCaptionNavigation, createSpeedDialog, createShellPresentation, msg: i18n.message, ...projectModule, createSeekDialog, createCaptionInspectionDialog, replaceCaptionText, prepareCommand, CommandError, LocalizedError, hasMinimumDuration, createEditorService, ...captionModule,
     adjacentCut, renderCaptionTrack, renderCaptionTrackError, updateTimelineMarkup, createTimelineView, createInspectorView, createInputHistory,
     ...effectsModule, ...templateModule, readTemplateLibrary, validateTemplateLibrary,
     mountTemplateGallery, mountEffectsPanel, ...typographyModule, createCompositionRenderer,

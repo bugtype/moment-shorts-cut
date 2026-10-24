@@ -9,6 +9,20 @@ import * as captionModule from '../dist/captions.mjs';
 import * as effectsModule from '../dist/effects.mjs';
 import { createAppFixture } from './fixtures/app.mjs';
 
+function unsupportedCaptionSplitter(source) {
+  return vm.runInNewContext(source.replace(/^import .*;\r?\n/gm,'').replaceAll('export ','')+';splitCaptionText',{Intl:{},LocalizedError,msg});
+}
+
+test('caption VM import stripping accepts LF and CRLF source without changing segmentation guards',()=>{
+  const source=fs.readFileSync('dist/effects.mjs','utf8').replace(/\r\n/g,'\n');
+  for(const newline of ['\n','\r\n']){
+    const split=unsupportedCaptionSplitter(source.replace(/\n/g,newline));
+    const caption={start:0,end:1,text:'unchanged'},before=structuredClone(caption);
+    assert.throws(()=>split(caption),/문자 분할/);
+    assert.deepEqual(caption,before);
+  }
+});
+
 test('caption workspace, budgets and asynchronous recognition lifecycle', async () => {
   const { context, evaluate, element, doc, focusEvents } = await createAppFixture();
   function assertCaptionVisibleTarget(target){
@@ -122,7 +136,7 @@ test('caption workspace, budgets and asynchronous recognition lifecycle', async 
   }
   console.log('PASS: no-op/repeated caption splits preserve redo, save and focus; actual text/timing/metadata and mixed splits remain undoable.');
   // Older/custom runtimes must leave the whole operation untouched, including redo/focus.
-  const unsupportedSplit=vm.runInNewContext(fs.readFileSync('dist/effects.mjs','utf8').replace(/^import .*;\n/gm,'').replaceAll('export ','')+';splitCaptionText',{Intl:{},LocalizedError,msg});
+  const unsupportedSplit=unsupportedCaptionSplitter(fs.readFileSync('dist/effects.mjs','utf8'));
   setCaptionLimitFixture([{start:0,end:4,text:'e\u0301'.repeat(25)}]);
   context.splitCaptionText=unsupportedSplit;
   const unsupportedBefore=evaluate('({state,history,future})'),unsupportedTimer=vm.runInContext('persistence.saveTimer',context);

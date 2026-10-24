@@ -289,6 +289,14 @@ const entries = {
   "panels.move": ["이동","Move","移动"],
   "panels.clipMoveStale": ["편집 내용이나 선택한 클립이 바뀌었습니다. 다시 열어 주세요.","The edit or selected clip changed. Open this dialog again.","剪辑或所选片段已更改。请重新打开此对话框。"],
   "panels.clipMoveRange": ["1부터 {total}까지의 정수 위치를 입력하세요.","Enter a whole position from 1 to {total}.","请输入 1 到 {total} 之间的整数位置。"],
+  "panels.moveCardTime": ["표시 시간 이동…","Move in time…","移动显示时间…"],
+  "panels.cardOutputStart": ["새 시작 (출력 초)","New start (output seconds)","新开始位置（输出秒）"],
+  "panels.cardDuration": ["유지할 길이 (초)","Duration to preserve (seconds)","保持的时长（秒）"],
+  "panels.cardNewEnd": ["새 끝 (출력 초)","New end (output seconds)","新结束位置（输出秒）"],
+  "panels.cardTimeUnknown": ["—","—","—"],
+  "panels.cardCannotFit": ["카드 길이가 영상보다 깁니다. 먼저 표시 길이를 줄여 주세요.","The card is longer than the video. Shorten its duration before moving it.","卡片时长超过视频。请先缩短显示时长，再移动。"],
+  "panels.cardMoveRange": ["카드가 0–{total} 출력 초 안에 들어오도록 시작값을 입력하세요.","Enter a start that keeps the whole card within 0–{total} output seconds.","请输入使整张卡片位于 0–{total} 输出秒范围内的开始位置。"],
+  "panels.cardMoveStale": ["편집 내용이나 선택한 카드가 바뀌었습니다. 다시 열어 주세요.","The edit or selected card changed. Open this dialog again.","剪辑或所选卡片已更改。请重新打开此对话框。"],
 };
 
 export const messages = Object.fromEntries(['ko', 'en', 'zh-CN'].map((locale, index) => [

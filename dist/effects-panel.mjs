@@ -35,6 +35,7 @@ export function mountEffectsPanel(root, api) {
       <label class="panel-label" for="sceneText">${text('panels.cardText')}</label><textarea id="sceneText" class="panel-input" data-card="text" maxlength="90" rows="2">${esc(card.text)}</textarea>
       <label class="panel-label" for="sceneDetail">${text('panels.cardDetail')}</label><textarea id="sceneDetail" class="panel-input" data-card="detail" maxlength="130">${esc(card.detail)}</textarea>
       <div class="time-fields"><label>${text('panels.startSeconds')}<input type="number" data-card="start" min="0" max="${total}" step=".1" value="${card.start.toFixed(2)}"></label><label>${text('panels.endSeconds')}<input type="number" data-card="end" min="0" max="${total}" step=".1" value="${card.end.toFixed(2)}"></label></div>
+      <button class="button" id="moveSceneTime">${text('panels.moveCardTime')}</button>
       <p class="tiny-note">${text('panels.cardTimingNotice')}</p>
       <label class="panel-label">${text('panels.cardKind')}<select class="panel-select" data-card="kind"><option value="card" ${card.kind==='card'?'selected':''} ${mark('panels.normalCard')}>${esc(t('panels.normalCard'))}</option><option value="countdown" ${card.kind==='countdown'?'selected':''} ${mark('panels.countdown')}>${esc(t('panels.countdown'))}</option></select></label>
       <label class="panel-label">${text('panels.animation')}<select class="panel-select" data-card="animation">${[['none','panels.none'],['fade','panels.fade'],['slide','panels.slide'],['pop','panels.pop']].map(([v,l])=>`<option value="${v}" ${card.animation===v?'selected':''} ${mark(l)}>${esc(t(l))}</option>`).join('')}</select></label>
@@ -45,6 +46,14 @@ export function mountEffectsPanel(root, api) {
     target.querySelector('#toggleSceneLayers').onclick=api.toggleAll;
     target.querySelectorAll('[data-scene-select]').forEach(button=>button.onclick=()=>api.select(button.dataset.sceneSelect));
     if(card){
+      let composing=false;
+      target.oncompositionstart=()=>{composing=true;};
+      target.oncompositionend=()=>{composing=false;};
+      const moveTime=target.querySelector('#moveSceneTime');
+      moveTime.onclick=event=>{
+        if(composing || event?.isComposing || event?.keyCode===229 || renderOwners.get(root)!==owner || root.querySelector('#effectControls')!==target || api.current?.()===false)return;
+        api.moveTime(card.id);
+      };
       for(const [id, action] of [['copySceneAppearance','copyAppearance'],['pasteSceneAppearance','pasteAppearance']]){
         target.querySelector('#'+id).onclick=()=>{
           if(renderOwners.get(root)!==owner || root.querySelector('#effectControls')!==target || api.current?.()===false)return;

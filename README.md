@@ -315,7 +315,18 @@ retain the whole project’s clip/speed rules, not just the visible page. Existi
 | Split one clip | [`timeline.split`](INTEGRATIONS.md#클립-구간-분할) | Original source time, not output time; identify the intended occurrence and check boundaries. No full-timeline replacement. |
 | Adjust video effects | [`effects.update`](INTEGRATIONS.md#영상-효과-수정) | Brightness, contrast, motion, boundary overlays and progress styling without replacing content or timing. Boundary overlays are not crossfades. |
 | Set a source credit | [`credit.update`](INTEGRATIONS.md#출처-크레딧-수정) | Text, appearance and output-time visibility without changing title/captions/cards. Maximum 100 UTF-16 code units; not included in subtitle files. |
+| Move a card without resizing | Selected card → **Move in time…** | Enter a new start in output seconds **after speed**; both endpoints update together as one undoable edit. |
 | Script timed cards | [`overlays.add`, `overlays.update`, `overlays.remove`](INTEGRATIONS.md#스크립트에-맞춰-카드-추가삭제) | Individual IDs and output time **after speed**, without replacing the project. Additions append; `overlays.move` changes card stacking. UI offers **Bring to front / Send to back** (front/back) within the card stack. |
+
+For example, to move a card from 0–3 to 7–10 seconds, choose **Move in time…**,
+enter `7`, review the calculated end and choose **Move**. Its duration, ID, stacking
+order, content and style remain; other cards are unchanged. A changed move pauses
+playback but keeps the current playhead time—it does not seek to the card. The whole interval must
+fit within the output: an out-of-range or too-long card is rejected, not cropped.
+Cancel or the same start does not edit, pause, seek, save or add history. Fractional
+times use ordinary floating-point precision, not sample accuracy. Reopen after
+project, media or selected-card changes. Valid failed-recovery settings remain
+in-memory edits only: browser saving stays blocked, so back up settings separately.
 
 Choose **Move clip…**, enter a position from 1 to the clip count and choose **Move**.
 A changed move is one undoable edit: selection follows the moved clip, playback

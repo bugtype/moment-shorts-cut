@@ -1,3 +1,4 @@
+import { createCardTimingDialog } from './card-timing-dialog.mjs';
 import { setText, setAttr, message } from './i18n.mjs';
 import { mountDesignPanel } from './design-panel.mjs';
 import { mountEffectsPanel } from './effects-panel.mjs';
@@ -9,6 +10,7 @@ export function createDesignWorkspace(app) {
     const { query: $ } = app;
     const appearanceKeys = ['color', 'accent', 'background', 'size', 'stroke', 'backgroundOpacity', 'presentation', 'animation'];
     let copiedAppearance = null;
+    const cardTiming = createCardTimingDialog(app);
 
     function selectedSceneLayer() {
         const active = activeSceneLayers(app.state, app.current / app.state.speed);
@@ -98,6 +100,7 @@ export function createDesignWorkspace(app) {
             tab: app.effectTab,
             selected: app.selectedCard,
             current: () => app.state === project,
+            moveTime: id => { if (app.state === project && (app.selectedCard || app.state.overlays[0]?.id) === id) cardTiming.open(id); },
             hasCopiedAppearance: copiedAppearance !== null,
             copyAppearance(id) {
                 if (app.state !== project) return false;

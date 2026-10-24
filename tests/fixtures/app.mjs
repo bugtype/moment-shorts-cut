@@ -1,3 +1,4 @@
+import { createCardTimingDialog } from '../../dist/card-timing-dialog.mjs';
 import { createSessionMedia } from '../../dist/session-media.mjs';
 import { createSessionMediaDialog } from '../../dist/session-media-dialog.mjs';
 import { createClipMove } from '../../dist/clip-move.mjs';
@@ -123,7 +124,7 @@ export async function createAppFixture({sessionMediaDependencies = {}} = {}) {
     cancelAnimationFrame(id) { pendingFrames.delete(id); },
     setTimeout() {}, clearTimeout() {}, setInterval() {}, clearInterval() {},
     console, URL, Blob, TextDecoder, performance, Number, Math, Promise, structuredClone,
-    ...i18n, createSessionMediaDialog, createClipMove, createPreviewExport, createCaptionNavigation, createSpeedDialog, createShellPresentation, msg: i18n.message, ...projectModule, createSeekDialog, createCaptionInspectionDialog, replaceCaptionText, prepareCommand, CommandError, LocalizedError, hasMinimumDuration, createEditorService, ...captionModule,
+    ...i18n, createCardTimingDialog, createSessionMediaDialog, createClipMove, createPreviewExport, createCaptionNavigation, createSpeedDialog, createShellPresentation, msg: i18n.message, ...projectModule, createSeekDialog, createCaptionInspectionDialog, replaceCaptionText, prepareCommand, CommandError, LocalizedError, hasMinimumDuration, createEditorService, ...captionModule,
     adjacentCut, renderCaptionTrack, renderCaptionTrackError, updateTimelineMarkup, createTimelineView, createInspectorView, createInputHistory,
     ...effectsModule, ...templateModule, readTemplateLibrary, validateTemplateLibrary,
     mountTemplateGallery, mountEffectsPanel, ...typographyModule, createCompositionRenderer,

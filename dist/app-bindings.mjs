@@ -1,3 +1,4 @@
+import { adjacentCut } from './timeline-view.mjs';
 import {t, message, setAttr} from './i18n.mjs';
 import { bindPreviewDrag, bindEditorKeyboard } from './editor-interactions.mjs';
 import { icon } from './ui-format.mjs';
@@ -42,6 +43,17 @@ export function bindUi(app) {
     $('#saveButton').onclick = () => app.saveProject(true);
     $('#playButton').onclick = () => app.playing ? app.pause() : app.play();
     $('#timeDisplay').onclick = () => app.openSeek();
+    const navigateCut = direction => {
+        if (!app.editorReady || app.modal.open || app.exporting || app.loadingMedia || app.transcribing ||
+            app.persistence.restorePhase !== 'ready' || app.audioRecording.requesting || app.audioRecording.current) return false;
+        const next = adjacentCut(app.state.clips, app.current, direction);
+        if (next == null) return false;
+        app.pause();
+        app.seekTo(next);
+        return true;
+    };
+    $('#previousCutButton').onclick = () => navigateCut(-1);
+    $('#nextCutButton').onclick = () => navigateCut(1);
     $('#startButton').onclick = () => {
         app.pause();
         app.seekTo(0);
@@ -224,6 +236,7 @@ export function bindUi(app) {
             app.pause();
             app.seekTo(app.current + direction * app.state.speed / 30);
         },
+        navigateCut,
         togglePlayback: () => app.playing ? app.pause() : app.play(),
         undo: redo => app.undo(redo),
         seekBy: delta => {

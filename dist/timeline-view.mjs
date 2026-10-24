@@ -2,6 +2,23 @@ import {text, attrs, setText, setAttr, formatError} from './i18n.mjs';
 import { captionOccurrences } from './captions.mjs';
 import { esc, fmt } from './ui-format.mjs';
 
+// Cut navigation uses edited seconds before speed, independent of source order.
+// Null means there is no strictly earlier/later boundary: do not interrupt playback.
+export function adjacentCut(clips, current, direction) {
+  if (!Number.isFinite(current) || ![-1, 1].includes(direction)) return null;
+  const boundaries = [0];
+  for (const clip of clips) {
+    const length = clip.end - clip.start;
+    if (!Number.isFinite(length) || length <= 0) return null;
+    boundaries.push(boundaries.at(-1) + length);
+  }
+  const candidates = direction < 0 ? boundaries.reverse() : boundaries;
+  return candidates.find(boundary => {
+    const tolerance = Number.EPSILON * Math.max(Math.abs(current), Math.abs(boundary)) * 8;
+    return direction * (boundary - current) > tolerance;
+  }) ?? null;
+}
+
 const markup = new WeakMap();
 export function updateTimelineMarkup(track, html) {
   if (markup.get(track) === html) return;

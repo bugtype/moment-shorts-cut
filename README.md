@@ -62,6 +62,16 @@ source-frame accuracy or frame-grid snapping—and retains any starting subframe
 offset. It is ignored in editing fields, during IME composition, with modifier
 keys or while busy.
 
+**Review cut boundaries:** use **Previous cut / Next cut** beside the scrubber to
+pause and move to the strictly previous/next edited clip boundary, including the
+start and end. At a boundary, the next action goes to the adjacent boundary, not
+back to the same one. Unmodified `[` / `]` do the same; they are ignored in
+editing/form controls, during IME composition, with a dialog open or while blocked
+by busy/recovery state. At an endpoint with no boundary in that direction, nothing
+changes, including playback. Speed changes displayed output times, not which cuts are
+visited. Navigation does not select another clip, edit, save or add undo history;
+this does not promise source-frame-accurate seeking.
+
 **Go to an output time:** click the preview time display (**Go to output time**),
 enter seconds such as `2.5`, `01:02.5` or `00:01:02.5`, then choose **Go**.
 The value uses output time **after speed**, from zero through the output end.

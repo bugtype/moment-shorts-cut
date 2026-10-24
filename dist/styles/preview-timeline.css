@@ -442,3 +442,14 @@ input[type=range] {
   left:-4px;
   clip-path:polygon(0 0,100% 0,100% 60%,50% 100%,0 60%)
 }
+
+.cut-seek-group {
+  display:flex;
+  align-items:center;
+  gap:6px;
+  flex:1;
+  min-width:0;
+  max-width:318px;
+}
+.cut-seek-group .icon-button { flex-shrink:0; }
+.cut-seek-group #seek { width:0; max-width:none; }

@@ -21,7 +21,7 @@ import { prepareCommand } from '../../dist/core/commands.mjs';
 import { CommandError, LocalizedError, hasMinimumDuration } from '../../dist/core/validation.mjs';
 import { createEditorService } from '../../dist/integration/editor-service.mjs';
 import * as captionModule from '../../dist/captions.mjs';
-import { renderCaptionTrack, renderCaptionTrackError, updateTimelineMarkup, createTimelineView } from '../../dist/timeline-view.mjs';
+import { adjacentCut, renderCaptionTrack, renderCaptionTrackError, updateTimelineMarkup, createTimelineView } from '../../dist/timeline-view.mjs';
 import { createInputHistory } from '../../dist/input-history.mjs';
 import { createTrack } from './timeline-dom.mjs';
 import * as effectsModule from '../../dist/effects.mjs';
@@ -118,7 +118,7 @@ export async function createAppFixture() {
     setTimeout() {}, clearTimeout() {}, setInterval() {}, clearInterval() {},
     console, URL, Blob, TextDecoder, performance, Number, Math, Promise, structuredClone,
     ...i18n, createShellPresentation, msg: i18n.message, ...projectModule, createSeekDialog, createCaptionInspectionDialog, replaceCaptionText, prepareCommand, CommandError, LocalizedError, hasMinimumDuration, createEditorService, ...captionModule,
-    renderCaptionTrack, renderCaptionTrackError, updateTimelineMarkup, createTimelineView, createInspectorView, createInputHistory,
+    adjacentCut, renderCaptionTrack, renderCaptionTrackError, updateTimelineMarkup, createTimelineView, createInspectorView, createInputHistory,
     ...effectsModule, ...templateModule, readTemplateLibrary, validateTemplateLibrary,
     mountTemplateGallery, mountEffectsPanel, ...typographyModule, createCompositionRenderer,
     createTemplateWorkspace: options => createTemplateWorkspace(options, {

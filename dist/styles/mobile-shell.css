@@ -179,7 +179,7 @@
 @media (max-height:560px) and (orientation:landscape) {
   .stage {
     flex:0 0 auto;
-    height:calc(100dvh - 66px - 58px - 56px - 45px - env(safe-area-inset-bottom));
+    height:calc(100dvh - 66px - 58px - var(--player-h,56px) - 45px - env(safe-area-inset-bottom));
     min-height:0
   }
   /* Expanding on a landscape phone becomes a timeline focus mode: the canvas has
@@ -188,7 +188,7 @@
     display:none
   }
   .editor-area:has(.timeline:not(.collapsed)) .timeline {
-    height:calc(100dvh - 66px - 58px - 56px - env(safe-area-inset-bottom));
+    height:calc(100dvh - 66px - 58px - var(--player-h,56px) - env(safe-area-inset-bottom));
     display:flex;
     flex-direction:column
   }
@@ -249,22 +249,22 @@
   }
 }
 
-/* Phones get a full-width scrubber: the player wraps to two rows so seeking is
+/* Phones get a full-width cut-navigation and scrubber group: the player wraps to two rows so seeking is
    not squeezed between the transport buttons and the speed menu. */
 @media (max-width:430px) {
   .editor-area {
-    --player-h:88px
+    --player-h:98px
   }
   .player-bar {
     flex-wrap:wrap;
     height:auto;
-    min-height:84px;
+    min-height:98px;
     padding:7px 10px 9px;
     gap:6px;
     row-gap:5px;
     align-content:center
   }
-  .player-bar input[type=range] {
+  .player-bar .cut-seek-group {
     order:10;
     flex:1 0 100%;
     max-width:none;

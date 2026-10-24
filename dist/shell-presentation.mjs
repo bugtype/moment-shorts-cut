@@ -14,7 +14,7 @@ export function createShellPresentation({query: $, queryAll, document, modal,
     }
 
     function showHelp() {
-        openDialog(message('shell.helpTitle'), `<ol class="guide-steps"><li>${text('shell.help1')}</li><li>${text('shell.help2')}</li><li>${text('shell.help3')}</li></ol><p class="modal-copy"><span class="keyboard-key">Space</span> ${text('shell.playPause')} &nbsp; <span class="keyboard-key">Ctrl Z</span> ${text('shell.undo')} &nbsp; <span class="keyboard-key">, / .</span> ${text('shell.stepOutput')}</p><div class="notice">${text('shell.settingsNotice')}</div>`, `<div class="modal-foot"><button class="button" id="importProjectSettingsButton">${text('shell.importSettings')}</button><button class="button" id="downloadProjectSettingsButton">${text('shell.saveSettings')}</button></div>`);
+        openDialog(message('shell.helpTitle'), `<ol class="guide-steps"><li>${text('shell.help1')}</li><li>${text('shell.help2')}</li><li>${text('shell.help3')}</li></ol><p class="modal-copy"><span class="keyboard-key">Space</span> ${text('shell.playPause')} &nbsp; <span class="keyboard-key">Ctrl Z</span> ${text('shell.undo')} &nbsp; <span class="keyboard-key">, / .</span> ${text('shell.stepOutput')} &nbsp; <span class="keyboard-key">[ / ]</span> ${text('shell.cutNavigation')}</p><div class="notice">${text('shell.settingsNotice')}</div>`, `<div class="modal-foot"><button class="button" id="importProjectSettingsButton">${text('shell.importSettings')}</button><button class="button" id="downloadProjectSettingsButton">${text('shell.saveSettings')}</button></div>`);
         $('#importProjectSettingsButton').onclick = () => $('#projectInput').click();
         $('#downloadProjectSettingsButton').onclick = downloadSettings;
     }

@@ -1,6 +1,9 @@
 // Product interface copy only; authored project text is never translated.
 export const messages = {
   "ko": {
+    "shell.previousCut": "이전 컷으로 이동",
+    "shell.nextCut": "다음 컷으로 이동",
+    "shell.cutNavigation": "이전 / 다음 컷",
     "shell.appTitle": "모먼트 — 쇼츠 스튜디오",
     "shell.description": "영상의 가장 좋은 순간을 쇼츠로. 세로 편집, 자동 자막, 음성, 내보내기를 하나의 스튜디오에서.",
     "shell.home": "모먼트 홈",
@@ -162,6 +165,9 @@ export const messages = {
     "shell.exportFinishFailed": "영상 저장을 마무리하지 못했습니다. 다시 시도해 주세요."
   },
   "en": {
+    "shell.previousCut": "Previous cut",
+    "shell.nextCut": "Next cut",
+    "shell.cutNavigation": "Previous / next cut",
     "shell.appTitle": "Moment — Shorts Studio",
     "shell.description": "Turn your best moments into shorts. Vertical editing, automatic captions, audio and export in one studio.",
     "shell.home": "Moment home",
@@ -323,6 +329,9 @@ export const messages = {
     "shell.exportFinishFailed": "Could not finish saving the video. Please try again."
   },
   "zh-CN": {
+    "shell.previousCut": "上一个剪辑点",
+    "shell.nextCut": "下一个剪辑点",
+    "shell.cutNavigation": "上一个 / 下一个剪辑点",
     "shell.appTitle": "Moment — 短视频工作室",
     "shell.description": "将精彩瞬间制作成短视频。竖屏剪辑、自动字幕、音频和导出，尽在同一工作室。",
     "shell.home": "Moment 首页",

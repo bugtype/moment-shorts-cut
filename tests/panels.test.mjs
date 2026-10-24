@@ -81,8 +81,8 @@ test('design, effects and template panel controls and hierarchy', () => {
   
   // Gallery hierarchy, accessible filter groups and existing actions remain connected.
   const search={},grid={innerHTML:''},count={attributes: {}, setAttribute(name, value) { this.attributes[name] = String(value); }, getAttribute(name) { return this.attributes[name] ?? null; }, removeAttribute(name) { delete this.attributes[name]; },},saveButton={};
-  const categories=['전체','리뷰','정보','라이프','대화','참여','즐겨찾기','내 템플릿'].map(category=>({dataset:{category},classList:{toggle(){}},setAttribute(name,value){this[name]=value;}}));
-  const previewButton={dataset:{previewTemplate:'recipe'}},favoriteButton={dataset:{favorite:'recipe'}},removeButton={dataset:{removeTemplate:custom.id}};
+  const categories=['전체','리뷰','정보','라이프','대화','참여','즐겨찾기','내 템플릿'].map(category=>({dataset:{category},classList:{toggle(){}},setAttribute(name,value){this[name]=value;},getAttribute(name){return String(this[name]);}}));
+  const previewButton={dataset:{previewTemplate:'recipe'}},favoriteButton={dataset:{favorite:'recipe'},focus(){}},removeButton={dataset:{removeTemplate:custom.id}};
   const galleryActions=[];
   const galleryRoot=panelRoot({'[data-category]':categories,'[data-preview-template]':[previewButton],'[data-favorite]':[favoriteButton],'[data-remove-template]':[removeButton]}, {'#templateSearch':search,'#templateGrid':grid,'#templateCount':count,'#saveMyTemplate':saveButton,'#importMyTemplate':{},'#templateFileInput':{}});
   const galleryState={query:'',category:'전체'},galleryApi={ui:galleryState,custom:[],favorites:['recipe'],active:'reference',save(){galleryActions.push('save');},preview(item){galleryActions.push(['preview',item.id]);},favorite(id){galleryActions.push(['favorite',id]);},remove(id){galleryActions.push(['remove',id]);}};

@@ -120,6 +120,20 @@ export function prepareCommand(project, name, args = {}) {
     return { data: createTemplateDocument(template) };
   }
   if (name === 'project.get') return { data: createProjectDocument(project) };
+  if (name === 'project.summary') return {
+    data: {
+      kind: project.kind,
+      ratio: project.ratio,
+      speed: project.speed,
+      sourceDuration: project.duration,
+      timelineDuration: timelineDuration(project),
+      outputDuration: outputDuration(project),
+      clipCount: project.clips.length,
+      captionCount: project.captions.length,
+      cardCount: project.overlays.length,
+      media: { requiresVideo: project.kind === 'video', requiresAudio: !!project.audioName }
+    }
+  };
   if (name === 'timeline.list') {
     const offset = args.offset === undefined ? 0 : args.offset,
       limit = args.limit === undefined ? 20 : args.limit;

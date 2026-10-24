@@ -85,7 +85,7 @@ its supported version, `2025-11-25`, even if the proposed version differs; a cli
 that cannot support that version should disconnect, not continue with another
 wire format. `ping` is supported. Initialize only once per process.
 
-All thirty-eight tools require **`projectId: "session"`**. Each process owns one independent
+All thirty-nine tools require **`projectId: "session"`**. Each process owns one independent
 in-memory project, initially the demo. This value is neither a path nor a credential.
 Other project IDs return a tool error. A second client process does not share state.
 
@@ -159,6 +159,7 @@ that validation.
 |---|---|---|
 | `moment_timeline_list` | optional `offset`, `limit` | Paged clip positions with source/timeline/output intervals |
 | `moment_project_preview` | `operations` | Read-only `{operationCount, wouldCommit, changedFields, before, after}` summary |
+| `moment_project_summary` | none | Kind/ratio/speed, three durations, authored counts and metadata media requirements |
 | `moment_project_get` | none | Full portable project document |
 | `moment_template_export` | `id`, `name` | Portable `{format:"moment-template", formatVersion:1, template}` document |
 | `moment_template_inspect` | `templateId`, optional `withContent` (default false) | Canonical template metadata and detached application content/timing report |
@@ -436,7 +437,7 @@ the example. Discover exact input fields in the [tool catalog](#tool-catalog).
 | Task | Recipes |
 |---|---|
 | Captions | [Check overlaps](#check-caption-time-overlaps) · [Inspect timing density](#inspect-caption-timing-density) · [Import](#import-subtitle-text-with-an-explicit-clock) · [Split](#split-one-caption-at-a-text-boundary) · [Merge](#merge-two-adjacent-authored-captions) · [Insert/remove](#insert-one-caption-or-remove-a-range) · [Edit one cue](#edit-one-authored-caption) · [Correct text](#correct-caption-text-without-replacing-cues) · [Shift timing](#shift-caption-timing-without-replacing-text) · [Assign speakers](#assign-a-speaker-to-an-authored-range) · [Style](#adjust-global-caption-appearance) |
-| Timeline | [Read clip clocks](#read-timeline-positions-in-pages) · [Split a clip](#split-one-clip-occurrence) · [Repeat a clip or range](#repeat-one-clip-occurrence) · [Move a clip](#move-one-clip-to-a-final-position) |
+| Timeline | [Read project structure](#read-project-structure-without-full-content) · [Read clip clocks](#read-timeline-positions-in-pages) · [Split a clip](#split-one-clip-occurrence) · [Repeat a clip or range](#repeat-one-clip-occurrence) · [Move a clip](#move-one-clip-to-a-final-position) |
 | Composition | [Credit](#set-a-source-credit-independently) · [Effects](#adjust-video-effects-independently) · [Edit a card](#edit-an-existing-timed-card) · [Add/remove cards](#create-scripted-cards-without-importing-a-whole-project) · [Stacking](#change-card-stacking) |
 | Grouped/template edits | [Preview summary](#preview-an-edit-summary-without-committing) · [One commit](#apply-related-edits-in-one-commit) · [Inspect a built-in](#inspect-a-built-in-template-before-applying) · [Export a composition](#export-the-current-composition-as-a-template) · [Apply a template file](#apply-an-exported-custom-template) |
 
@@ -636,6 +637,31 @@ a fresh library ID, import media or persist a browser-library entry.
 `moment_templates_list` still returns only built-ins. Save the resulting project
 with `moment_project_get`, not the acknowledgment. For protected file-oriented
 work, see the [CLI wrapper example](../INTEGRATIONS.md#내보낸-템플릿을-climcp로-적용).
+
+### Read project structure without full content
+
+Call `moment_project_summary` with `{"projectId":"session"}` and no editing
+arguments. Its closed `structuredContent.data` contains only:
+
+| Fields | Meaning |
+|---|---|
+| `kind`, `ratio`, `speed` | Saved `demo`/`video` kind, frame ratio and global speed |
+| `sourceDuration` | Original source seconds |
+| `timelineDuration`, `outputDuration` | Edited seconds before speed, output seconds after speed |
+| `clipCount`, `captionCount`, `cardCount` | Authored array counts; captions are not derived occurrences or visible-cue counts |
+| `media: {requiresVideo, requiresAudio}` | Metadata requirements, **not** loaded/ready/recoverable media |
+
+`requiresVideo` is true for `kind:"video"`; `requiresAudio` reflects a nonempty
+saved added-audio name, without returning that name. No authored text, filenames
+or full arrays are included. Durations use the existing helpers and ordinary
+floating-point precision, not frame-accurate measurements.
+
+Use summary → `moment_timeline_list` / `moment_captions_list` for the needed pages →
+`moment_project_get` for the full document to save. A summary/page is not a project
+backup. Each request reads current state; no snapshot or stable revision is reserved.
+The summary is read-only, does not access media or providers, and is excluded from
+`project.batch`. Bounded output fields do not imply constant-time processing.
+[Runnable CLI sequence](../INTEGRATIONS.md#프로젝트-구조-먼저-확인).
 
 ### Read timeline positions in pages
 

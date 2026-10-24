@@ -31,6 +31,7 @@ const inputs = {
   'project.preview': {operations:[{command:'project.update',arguments:{patch:{speed:2}}}]},
   'project.batch': {operations:[{command:'project.update',arguments:{patch:{name:'Batch schema'}}}]},
   'project.get': {},
+  'project.summary': {},
   'project.update': { patch: { name: '스키마 검사' } },
   'project.import': { document: createProjectDocument(schemaProject) },
   'templates.list': {},

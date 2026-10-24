@@ -11,7 +11,7 @@ test('existing command facade reexports the catalog without changing its public 
   assert.equal(commands.commandDefinition, catalog.commandDefinition);
   assert.equal(commands.commandDefinitions, catalog.commandDefinitions);
   const definitions = commands.commandDefinitions();
-  assert.equal(definitions.length, 38);
+  assert.equal(definitions.length, 39);
   assert.equal(definitions[0].name, 'project.get');
   assert.deepEqual(definitions.slice(-2).map(item => item.name), ['project.batch', 'project.preview']);
   assert.deepEqual(definitions.map(item => Object.keys(item)), definitions.map(() => ['name', 'description', 'inputSchema', 'mutates']));
@@ -20,7 +20,7 @@ test('existing command facade reexports the catalog without changing its public 
 test('returned catalog schemas are detached and cannot extend the runtime batch trust boundary', () => {
   const all = catalog.commandDefinitions();
   const original = catalog.commandDefinitions();
-  all[1].inputSchema.properties.patch.properties.ratio.enum.push('arbitrary');
+  all.find(item => item.name === 'project.update').inputSchema.properties.patch.properties.ratio.enum.push('arbitrary');
   all.reverse();
   assert.deepEqual(catalog.commandDefinitions(), original);
   const batch = catalog.commandDefinition('project.batch');
@@ -28,7 +28,7 @@ test('returned catalog schemas are detached and cannot extend the runtime batch 
   assert.equal(names.length, 25);
   for (const name of names) assert.equal(catalog.isBatchCommand(name), true);
   names.push('project.import');
-  for (const name of ['project.import', 'project.get', 'project.preview', 'project.batch', 'jobs.submit', 'unknown']) {
+  for (const name of ['project.import', 'project.get', 'project.summary', 'project.preview', 'project.batch', 'jobs.submit', 'unknown']) {
     assert.equal(catalog.isBatchCommand(name), false);
   }
   assert.throws(() => commands.prepareCommand(createDemoProject(), 'project.batch', {

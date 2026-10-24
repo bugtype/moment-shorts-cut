@@ -498,6 +498,7 @@ before opening may already commit a draft. Existing whole-list shift remains ava
 
 | Task | Use | Keep in mind |
 |---|---|---|
+| Inspect project structure | [`project.summary`](INTEGRATIONS.md#프로젝트-구조-먼저-확인) | Ratio, speed, source/timeline/output durations and authored counts without text. Media flags are requirements, not readiness. Follow with paged reads; save the full document with `project.get`. |
 | Inspect clip positions and clocks | [`timeline.list`](INTEGRATIONS.md#타임라인-구간과-시간-나눠-조회) | Up to 50 indexed clips per page with source, pre-speed timeline and after-speed output times. Re-read positional indexes after edits. |
 | Move a clip directly | **Move clip…** in the clip inspector or **Frame**, or [`timeline.move`](INTEGRATIONS.md#클립을-지정한-위치로-이동) | UI positions are 1-based; API indices are 0-based final destinations. Same position/cancel are no-ops. |
 | Inspect a built-in template | [`template.inspect`](INTEGRATIONS.md#기본-템플릿-적용-전-점검) | Read metadata and proposed title/credit/card text and times before applying; not a rendered preview or reserved state. |

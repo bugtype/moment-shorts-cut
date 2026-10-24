@@ -32,7 +32,7 @@ test('stdio negotiates its supported version, waits for initialization and lists
   assert.equal(replies[1].result.protocolVersion, '2025-11-25');
   assert.deepEqual(replies[1].result.capabilities, {tools: {}});
   assert.equal(replies[2].error.code, -32600);
-  assert.equal(replies[3].result.tools.length,38);
+  assert.equal(replies[3].result.tools.length,39);
   assert.ok(replies[3].result.tools.some(tool => tool.name === 'moment_project_import'));
   assert.ok(replies[3].result.tools.every(tool => tool.inputSchema.required.includes('projectId')));
   assert.equal(replies[3].result.resultType, undefined);
@@ -232,4 +232,21 @@ test('stdio duplicates a contiguous clip block with optional count and preserves
   assert.deepEqual(response(4).structuredContent.data.project.clips.map(clip => clip.start), [0, 2, 4, 0, 2, 4]);
   assert.equal(response(5).isError, true);
   assert.equal(response(7).structuredContent.data.project.clips.length, 7);
+});
+
+test('stdio summary is read-only metadata and reflects preceding edits', () => {
+  const replies = run([init, ready,
+    call(2, 'project_summary'),
+    call(3, 'project_update', {patch: {ratio: '4:5', speed: 2}}),
+    call(4, 'project_summary'),
+    call(5, 'project_summary', {unknown: true}),
+    call(6, 'project_summary'),
+  ]);
+  const response = id => replies.find(reply => reply.id === id).result;
+  assert.equal(response(2).structuredContent.data.outputDuration, 12);
+  assert.equal(response(4).structuredContent.data.outputDuration, 6);
+  assert.equal(response(4).structuredContent.data.ratio, '4:5');
+  assert.equal(response(5).isError, true);
+  assert.deepEqual(response(6).structuredContent, response(4).structuredContent);
+  assert.equal('project' in response(4).structuredContent.data, false);
 });

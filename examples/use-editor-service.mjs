@@ -6,8 +6,13 @@ import { createMcpToolAdapter } from '../dist/integration/mcp-adapter.mjs';
 let project=createDemoProject();
 const service=createEditorService({getProject:()=>project,commitProject:next=>{project=next;}});
 await service.execute('template.apply',{templateId:'explainer',withContent:true});
-// A page exposes authored cue indices without requesting the complete project.
+// Inspect configuration first, then page through cues without fetching the whole project.
 const beforeRead=JSON.stringify(project);
+const summary=await service.execute('project.summary');
+assert.equal(summary.ok,true);
+assert.equal(summary.data.ratio,project.ratio);
+assert.equal(summary.data.captionCount,project.captions.length);
+assert.deepEqual(summary.data.media,{requiresVideo:false,requiresAudio:false});
 const page=await service.execute('captions.list',{offset:0,limit:2});
 assert.equal(page.ok,true);
 assert.deepEqual(page.data.captions.map(item=>item.caption),project.captions.slice(0,2));

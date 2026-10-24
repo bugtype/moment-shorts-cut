@@ -72,6 +72,11 @@ const definitions = [
     object()
   ),
   command(
+    'project.summary',
+    '프로젝트 종류·화면 비율·속도·시간·항목 수와 저장된 미디어 요구사항을 읽습니다. 이름·본문·파일 경로는 포함하지 않으며 미디어 연결이나 내보내기 준비 상태를 확인하지 않습니다.',
+    object()
+  ),
+  command(
     'project.update',
     '이름, 화면 비율, 구도, 배속과 볼륨을 수정합니다.',
     object({patch: patchSchema}, ['patch']),

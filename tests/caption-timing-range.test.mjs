@@ -183,7 +183,7 @@ test('MCP advertises optional range without changing tool count or acknowledgeme
   });
   const adapter = createMcpToolAdapter({ resolveService: () => service });
   const tools = adapter.listTools().tools;
-  assert.equal(tools.length, 38);
+  assert.equal(tools.length, 39);
   const tool = tools.find(t => t.name === 'moment_captions_timing_shift');
   assert.equal(tool.inputSchema.properties.captionIndex.type, 'integer');
   assert.equal(tool.inputSchema.properties.count.maximum, 10000);

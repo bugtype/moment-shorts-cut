@@ -303,6 +303,7 @@ JavaScript에서 직접 호출할 때도 JSON으로 왕복 가능한 값을 전�
 |---|---|---|
 | `timeline.list` | 선택 `offset`, `limit` | 구간 위치와 원본·편집·출력 시간 페이지 |
 | `project.preview` | `operations` | 읽기 전용 편집 요약; 반영 여부·변경 필드·전후 개수/출력 길이 |
+| `project.summary` | 없음 | 비율·배속·세 시간 기준·저장 개수·미디어 필요 여부; 전체 문서 아님 |
 | `project.get` | 없음 | 편집 설정 문서 |
 | `template.export` | `id`, `name` | 현재 구성의 `moment-template` 문서; 읽기 전용, 라이브러리 저장 아님 |
 | `templates.list` | 없음 | 기본 템플릿 목록 |
@@ -536,6 +537,34 @@ node cli/moment.mjs exec timeline.split --project split-source.json --json '{"cl
 분할 경계를 가로지르는 원본 자막은 출력에서 인접한 두 구간으로 나뉠 수
 있으므로 **SRT/VTT 바이트가 이전과 같다는 뜻은 아닙니다.** 기존 UI 분할과
 동일한 동작이며 UI에서는 한 번에 실행 취소할 수 있습니다.
+
+### 프로젝트 구조 먼저 확인
+
+`project.summary`는 인수 없이 현재 프로젝트의 구조만 읽습니다. 필요한 구간은
+`timeline.list`·`captions.list`로 이어서 조회하고, 저장/복원할 전체 문서는
+`project.get`으로 가져오세요. 요약이나 페이지를 프로젝트 문서로 가져올 수 없습니다.
+
+| 결과 필드 | 의미 |
+|---|---|
+| `kind`, `ratio`, `speed` | 저장된 프로젝트 종류(`demo`/`video`), 화면 비율, 전체 배속 |
+| `sourceDuration` | 원본 길이(초) |
+| `timelineDuration`, `outputDuration` | 각각 배속 전 편집 길이, 배속 후 출력 길이(초) |
+| `clipCount`, `captionCount`, `cardCount` | 저장 배열 개수; 자막은 파생/화면에 보이는 등장 횟수가 아님 |
+| `media.requiresVideo`, `media.requiresAudio` | 저장 메타데이터상 필요한 영상/추가 오디오; 로드·준비·복구 가능 여부 아님 |
+
+```sh
+node cli/moment.mjs init --out summary-source.json
+node cli/moment.mjs exec project.summary --project summary-source.json
+node cli/moment.mjs exec timeline.list --project summary-source.json --json '{"offset":0,"limit":20}'
+node cli/moment.mjs exec captions.list --project summary-source.json --json '{"offset":0,"limit":20}'
+node cli/moment.mjs exec project.get --project summary-source.json --out summary-backup.json
+```
+
+요약에는 작성한 이름·문구·파일명이 없습니다. `--out`을 요약 명령에 쓰면 요약 JSON만
+저장합니다. MCP는 `moment_project_summary`에 `{"projectId":"session"}`을 보냅니다.
+읽기 전용이며 프로젝트/기록/미디어를 바꾸거나 제공자를 호출하지 않고 배치 편집에는
+넣을 수 없습니다. 각 조회는 현재 상태를 읽으며 같은 스냅샷을 예약하지 않습니다.
+응답 필드가 제한된 것이지 전체 처리 시간이 상수라는 뜻은 아닙니다.
 
 ### 타임라인 구간과 시간 나눠 조회
 

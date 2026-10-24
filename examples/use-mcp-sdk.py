@@ -82,7 +82,7 @@ async def main():
     async with session() as (client, initialized, tools):
         names = {tool.name for tool in tools.tools}
         assert {"moment_project_import", "moment_project_update",
-                "moment_project_get", "moment_captions_export"} <= names
+                "moment_project_get", "moment_project_summary", "moment_captions_export"} <= names
         demo = await call(client, "moment_project_get")
         await call(client, "moment_project_import", {"document": demo})
         await call(client, "moment_project_update", {
@@ -96,6 +96,12 @@ async def main():
         # Tool errors are results, not transport failures: the session is usable.
         await call(client, "moment_project_update", {"patch": {"speed": 2}})
         handoff = await call(client, "moment_project_get")
+        summary = await call(client, "moment_project_summary")
+        assert summary["speed"] == 2
+        assert summary["ratio"] == handoff["project"]["ratio"]
+        assert summary["captionCount"] == len(handoff["project"]["captions"])
+        assert summary["media"] == {"requiresVideo": False, "requiresAudio": False}
+        assert "name" not in summary  # This overview intentionally omits authored text.
         subtitles = await call(client, "moment_captions_export", {"format": "vtt"})
         assert subtitles["text"].startswith("WEBVTT\n\n")
         assert handoff["project"]["speed"] == 2

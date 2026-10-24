@@ -1,3 +1,4 @@
+import { SUPPORTED_ASPECT_RATIOS } from '../core/aspect-ratio.mjs';
 import { templateDocumentSchema } from '../template-library.mjs';
 import { API_VERSION, commandDefinitions } from '../core/commands.mjs';
 import { FORMAT, FORMAT_VERSION, captionSchema } from '../core/project.mjs';
@@ -30,6 +31,21 @@ function dataSchema(command) {
     }
     case 'project.batch': return record({updated:{type:'boolean'},operationCount:{type:'integer',minimum:1,maximum:20},outputDuration:{type:'number',minimum:0}});
     case 'project.get': return documentSchema;
+    case 'project.summary': return record({
+      kind: {enum: ['demo', 'video']},
+      ratio: {enum: [...SUPPORTED_ASPECT_RATIOS]},
+      speed: {type: 'number', minimum: .25, maximum: 4},
+      sourceDuration: {type: 'number', minimum: .001, maximum: 86400},
+      timelineDuration: {type: 'number', minimum: 0, description: 'Edited seconds BEFORE speed, using the existing project duration calculation.'},
+      outputDuration: {type: 'number', minimum: 0, description: 'Edited seconds AFTER speed; not an encoded media duration measurement.'},
+      clipCount: {type: 'integer', minimum: 1, maximum: 1000},
+      captionCount: {type: 'integer', minimum: 0, maximum: 10000},
+      cardCount: {type: 'integer', minimum: 0, maximum: 12},
+      media: record({
+        requiresVideo: {type: 'boolean', description: 'Saved project kind is video. Does not assert that a file is loaded or available.'},
+        requiresAudio: {type: 'boolean', description: 'Saved audioName is nonempty. Does not assert that a file is loaded or available.'},
+      }),
+    });
     case 'template.inspect': {
       const timing={enabled:{type:'boolean'},start:{type:'number',minimum:0},end:{type:['number','null'],minimum:0}};
       return record({template:record({id:text,name:text,category:text,tag:text,description:text,

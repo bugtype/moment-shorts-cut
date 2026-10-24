@@ -48,11 +48,23 @@ Run commands from the repository root with Node.js 20+. No package installation 
 
 ```sh
 node cli/moment.mjs commands
+node cli/moment.mjs exec project.summary --project supplied.moment.json
+node cli/moment.mjs exec timeline.list --project supplied.moment.json --json '{"offset":0,"limit":20}'
 node cli/moment.mjs exec project.get --project supplied.moment.json
 node cli/moment.mjs exec templates.list
 ```
 
 For MCP, use `tools/list`, then `moment_project_import` with `projectId: "session"` and the supplied `document`. `moment_project_get` returns the full editing document in `structuredContent.data`. Do not pass a file path as `document` or use a file path as `projectId`.
+
+Use no-argument `project.summary` / `moment_project_summary` first when only structure
+is needed: kind/ratio/speed, source/pre-speed timeline/after-speed output durations,
+authored clip/caption/card counts, and `media.requiresVideo/requiresAudio`. These
+flags express saved requirements, not loaded or recoverable media. No names/text
+are returned; caption count is not derived output occurrences. Follow with paged
+`timeline.list`/`captions.list`, then `project.get` for the actual saved document.
+Each read uses current state, not a reserved snapshot. Summary `--out` is a report,
+not an importable project. It is read-only, excluded from batches, and has no media
+provider work or constant-time guarantee. See the [contract and runnable recipe](../../../../INTEGRATIONS.md#프로젝트-구조-먼저-확인).
 
 The file envelope is `{format:"moment-project", formatVersion:1, project:{...}}`. The nested project's current `schemaVersion` is 4. Import the full envelope, not only its `project` field. Reject unsupported versions rather than replacing fields with guessed defaults. The CLI `init` command is the supported way to create a valid demo document.
 

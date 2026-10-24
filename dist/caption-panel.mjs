@@ -6,7 +6,7 @@ import { splitCaptionText } from './effects.mjs';
 import { CAPTION_PAGE_SIZE, captionsPanelMarkup } from './panel-markup.mjs';
 
 export function createCaptionPanel({
-    query: $, queryAll: $$, getProject, getDuration, sourceTime, edit, refresh, toast, execute, inspect,
+    query: $, queryAll: $$, getProject, getDuration, sourceTime, edit, refresh, toast, execute, inspect, view,
 }) {
     const timingFields = { basis: 'source', delta: '0' };
     let exportFormat = 'srt';
@@ -218,6 +218,11 @@ export function createCaptionPanel({
             if (['srt', 'vtt', 'txt'].includes(value)) exportFormat = value;
         };
         $('#downloadCaptions').onclick = () => actions.download(exportFormat);
+        $$('[data-view-caption]').forEach(button => button.onclick = event => {
+            if (!composing && !event?.isComposing && event?.keyCode !== 229 &&
+                $(`[data-view-caption="${button.dataset.viewCaption}"]`) === button)
+                view(+button.dataset.viewCaption);
+        });
         $$('[data-split-caption]').forEach(button => button.onclick = () => {
             if (composing) return;
             const index = +button.dataset.splitCaption, input = $(`[data-caption-text="${index}"]`);
@@ -265,7 +270,7 @@ export function createCaptionPanel({
         // Detached controls no longer own the rendered row indices or pager state.
         const controls = [
             ...$$('[data-caption-text]'), ...$$('[data-caption-start]'), ...$$('[data-caption-end]'),
-            ...$$('[data-split-caption]'), ...$$('[data-merge-caption]'), ...$$('[data-caption-keywords]'), ...$$('[data-caption-speaker]'), ...$$('[data-delete-caption]'),
+            ...$$('[data-view-caption]'), ...$$('[data-split-caption]'), ...$$('[data-merge-caption]'), ...$$('[data-caption-keywords]'), ...$$('[data-caption-speaker]'), ...$$('[data-delete-caption]'),
             ...['captionFind', 'captionReplacement', 'previousCaptionPage', 'nextCaptionPage',
                 'captionPageNumber', 'goCaptionPage', 'previousCaptionMatch', 'nextCaptionMatch', 'replaceAllCaptions', 'splitLongCaptions',
                 'addCaption', 'importSrt', 'captionExportFormat', 'downloadCaptions', 'generateCaptions',

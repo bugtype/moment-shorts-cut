@@ -1,3 +1,4 @@
+import { createCaptionNavigation } from './caption-navigation.mjs';
 import { createSpeedDialog } from './speed-dialog.mjs';
 import {createShellPresentation} from './shell-presentation.mjs';
 import {text, message, formatError, initLocale, getLocale, setLocale, onLocaleChange} from './i18n.mjs';
@@ -160,7 +161,14 @@ const captionInspection = createCaptionInspectionDialog({
     focusCaption: index => { switchPanel('captions'); focusCaption(index); },
     toast: message => toast(message),
 });
+const captionRowNavigation = createCaptionNavigation({
+    getProject: () => state, getMedia: () => [sources.videoFile, sources.audioFile], query: $, modal,
+    openModal: (...args) => modalOpen(...args),
+    blocked: () => panel !== 'captions' || !editorReady || exporting || loadingMedia || transcribing || persistence.restorePhase !== 'ready' || audioRecording.requesting || audioRecording.current,
+    pause, seek: time => seekTo(time), toast: value => toast(value),
+});
 const captionPanel = createCaptionPanel({
+    view: index => captionRowNavigation.open(index),
     inspect: () => captionInspection.open(),
     execute: (command, args) => app.runEditorCommand(command, args),
     query: $, queryAll: $$,

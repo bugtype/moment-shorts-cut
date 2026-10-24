@@ -276,6 +276,14 @@ const entries = {
   "panels.trimEndPlayhead": ["현재 위치를 끝값으로 입력","Use playhead for end","将播放头位置填入结束时间"],
   "panels.trimPlayheadOutside": ["선택한 클립 안으로 재생 위치를 옮겨 주세요.","Move the playhead into the selected clip.","请将播放头移入所选片段。"],
   "panels.loopPreview": ["전체 미리보기 반복","Loop full preview","循环播放完整预览"],
+  "panels.viewInVideo": ["영상에서 보기","View in video","在视频中查看"],
+  "panels.viewCaption": ["자막 {index} 영상에서 보기","View caption {index} in video","在视频中查看字幕 {index}"],
+  "panels.noCaptionOccurrence": ["이 자막은 현재 편집 영상에 나타나지 않습니다.","This caption does not occur in the current edit.","当前剪辑中没有这条字幕。"],
+  "panels.captionOccurrences": ["자막 {index} 위치","Caption {index} occurrences","字幕 {index} 的出现位置"],
+  "panels.captionOccurrenceStale": ["편집 내용이 변경되었습니다. 자막에서 다시 열어 주세요.","The edit changed. Open this view again from the caption.","剪辑已更改。请从字幕重新打开此视图。"],
+  "panels.occurrenceClip": ["클립","Clip","片段"],
+  "panels.viewCaptionOccurrence": ["자막의 {index}번째 위치 보기","View caption occurrence {index}","查看字幕第 {index} 次出现的位置"],
+  "panels.occurrencePage": ["{current} / {total} 페이지","Page {current} of {total}","第 {current} 页，共 {total} 页"],
 };
 
 export const messages = Object.fromEntries(['ko', 'en', 'zh-CN'].map((locale, index) => [

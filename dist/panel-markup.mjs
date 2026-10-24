@@ -184,6 +184,7 @@ function captionRowMarkup(c, i, speakerLabels, last) {
         `</div>` +
         `<textarea data-caption-text="${i}" ${attrs('aria-label', 'panels.cueText', {index: i + 1})}>${esc(c.text)}</textarea>` +
         `<div class="caption-row-actions" role="group" ${attrs('aria-label', 'panels.cueEdit', {index: i + 1})}>` +
+        `<button class="text-button" data-view-caption="${i}" ${attrs('aria-label', 'panels.viewCaption', {index: i + 1})}>${text('panels.viewInVideo')}</button>` +
         `<button class="text-button" data-split-caption="${i}" ${attrs('aria-label', 'panels.cueSplit', {index: i + 1})} ${attrs('title', 'panels.splitAtCursor')}>${text('panels.split')}</button>` +
         `<button class="text-button" data-merge-caption="${i}" ${attrs('aria-label', 'panels.cueMerge', {index: i + 1})} ${attrs('title', 'panels.mergeNext')} ${last ? 'disabled' : ''}>${text('panels.merge')}</button>` +
         `<button class="icon-button" data-delete-caption="${i}" ${attrs('aria-label', 'panels.cueDelete', {index: i + 1})}>${icon('trash')}</button>` +

@@ -159,3 +159,9 @@ ffmpeg -v error -i output.mp4 -map 0:a:0 -f null -
 | 적용 및 실행 취소 | 기존 구간 적용·실행 취소 동작 유지; 캡처만으로 기록을 추가하지 않음 |
 
 정확한 숫자 초안을 채우는 기능이며 실제 디코더의 프레임·샘플 정확도 보장은 아닙니다.
+
+### Retry the same media selection
+
+- While transcription or another media operation blocks importing, choose a video or audio file. After the blocking operation ends, choose **the same file** again: importing should run rather than silently treating the selection as unchanged.
+- Cancel either picker: the existing project and connected media should stay unchanged.
+- This native-picker check is manual; automated tests cover clearing the input before validation and preserving the captured file, not browser picker or codec behavior.

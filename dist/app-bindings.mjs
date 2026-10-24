@@ -35,8 +35,18 @@ export function bindUi(app) {
                 app.state.captionStroke = app.state.style === 'minimal' ? 2 : 3;
             }, app.panel === 'text');
     });
-    $('#videoInput').onchange = event => event.target.files[0] && app.loadVideo(event.target.files[0]);
-    $('#audioInput').onchange = event => event.target.files[0] && app.loadAudio(event.target.files[0]);
+    $('#videoInput').onchange = event => {
+        const file = event.target.files[0];
+        if (!file) return;
+        event.target.value = ''; // A refused import must allow the same file to be selected again.
+        return app.loadVideo(file);
+    };
+    $('#audioInput').onchange = event => {
+        const file = event.target.files[0];
+        if (!file) return;
+        event.target.value = ''; // A refused import must allow the same file to be selected again.
+        return app.loadAudio(file);
+    };
     $('#srtInput').onchange = event => event.target.files[0] && app.importSrt(event.target.files[0]);
     $('#projectInput').onchange = event => event.target.files[0] && app.importProjectSettings(event.target.files[0], app.captureSettingsImportClose());
     $('#projectInput').oncancel = () => { app.captureSettingsImportClose(); };

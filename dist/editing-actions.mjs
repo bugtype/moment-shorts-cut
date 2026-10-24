@@ -1,10 +1,44 @@
-import {text, message} from './i18n.mjs';
+import { decimalTime } from './ui-format.mjs';
+import {text, message, setValidity} from './i18n.mjs';
 import { hasMinimumDuration } from './core/validation.mjs';
 const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
 
 // Timeline and session editing commands. Validation and history stay shared so
 // trim, split, undo and reset never bypass the project command boundary.
 export function createEditingActions(app) {
+    // Capture source time into one draft only; Apply remains the mutation boundary.
+    function bindTrimDrafts({ start, end, startButton, endButton, current = () => true }) {
+        const fields = [app.query(start), app.query(end)];
+        let composing = null;
+        for (const field of fields) {
+            field.oncompositionstart = () => { composing = field; };
+            field.oncompositionend = () => { if (composing === field) composing = null; };
+        }
+        for (const [selector, field] of [[startButton, fields[0]], [endButton, fields[1]]]) {
+            const button = app.query(selector);
+            button.onclick = (event = {}) => {
+                if (composing || event.isComposing || event.keyCode === 229 || !current() ||
+                    app.query(selector) !== button || !app.editorReady || app.modal.open ||
+                    app.exporting || app.loadingMedia || app.transcribing ||
+                    app.persistence.restorePhase !== 'ready' || app.audioRecording.requesting || app.audioRecording.current) return;
+                const clip = app.state.clips[app.selected];
+                if (!clip) return;
+                const offset = app.state.clips.slice(0, app.selected).reduce((sum, item) => sum + (item.end - item.start), 0);
+                const limit = offset + (clip.end - clip.start), time = app.current;
+                const epsilon = Number.EPSILON * Math.max(Math.abs(time), Math.abs(offset), Math.abs(limit)) * 8;
+                if (!Number.isFinite(time) || time < offset - epsilon || time > limit + epsilon) {
+                    app.toast(message('panels.trimPlayheadOutside'));
+                    return;
+                }
+                const source = time <= offset ? clip.start : time >= limit ? clip.end : clip.start + (time - offset);
+                app.pause();
+                field.value = decimalTime(clamp(source, clip.start, clip.end));
+                setValidity(field, '');
+                field.focus({ preventScroll: true });
+            };
+        }
+    }
+
     function trim(start, end) {
         const state = app.state;
         if (start < 0 || end > state.duration || !hasMinimumDuration(start, end)) {
@@ -98,5 +132,5 @@ export function createEditingActions(app) {
         };
     }
 
-    return { trim, split, duplicate, undo, confirmReset };
+    return { bindTrimDrafts, trim, split, duplicate, undo, confirmReset };
 }

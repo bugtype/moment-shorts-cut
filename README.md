@@ -80,6 +80,17 @@ changes, including playback. Speed changes displayed output times, not which cut
 visited. Navigation does not select another clip, edit, save or add undo history;
 this does not promise source-frame-accurate seeking.
 
+**Fill trim values from the playhead:** select a clip and move playback inside that
+selected occurrence. Use the target icon beside start/end (**Use playhead for
+start / Use playhead for end**). It pauses and fills only that field with the
+source time, keeping its precision and the opposite draft unchanged. It does not
+seek, edit, save or add history until you explicitly **Apply selected range**
+(or **Apply range** in Settings). Repeated source clips use the selected occurrence;
+speed does not change the captured source value. Endpoint captures may leave an
+invalid range: correct it before applying; the 0.1-second minimum still applies.
+Outside the selected occurrence, the draft is left unchanged and a message asks
+you to move inside it. This is not a source-frame-accuracy guarantee.
+
 **Go to an output time:** click the preview time display (**Go to output time**),
 enter seconds such as `2.5`, `01:02.5` or `00:01:02.5`, then choose **Go**.
 The value uses output time **after speed**, from zero through the output end.

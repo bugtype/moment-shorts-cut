@@ -192,6 +192,11 @@ export function createWorkspacePanels(app) {
                 app.state.panX = 0;
                 app.state.panY = 0;
             }, true);
+            const trimClip = app.state.clips[app.selected], trimIndex = app.selected;
+            app.bindTrimDrafts({ start: '#panelTrimStart', end: '#panelTrimEnd',
+                startButton: '#panelTrimStartPlayhead', endButton: '#panelTrimEndPlayhead',
+                current: () => app.panel === 'settings' && app.selected === trimIndex && app.state.clips[trimIndex] === trimClip,
+            });
             $('#panelTrimApply').onclick = () => app.trim($('#panelTrimStart').valueAsNumber, $('#panelTrimEnd').valueAsNumber);
         }
         app.icons(target);

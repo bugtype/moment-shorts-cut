@@ -82,6 +82,10 @@ export function bindUi(app) {
         app.renderInspector();
         app.scheduleSave();
     });
+    app.bindTrimDrafts({ start: '#trimStart', end: '#trimEnd',
+        startButton: '#trimStartPlayhead', endButton: '#trimEndPlayhead',
+        current: () => app.inspectorView.hasTrimTarget(app.state.clips[app.selected]),
+    });
     $('#trimButton').onclick = () => app.trim($('#trimStart').valueAsNumber, $('#trimEnd').valueAsNumber);
     $('#splitButton').onclick = app.split;
     $('#duplicateClipButton').onclick = app.duplicate;

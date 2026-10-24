@@ -272,6 +272,9 @@ const entries = {
   "panels.goPage": ["입력한 자막 페이지로 이동","Go to entered caption page","跳转到输入的字幕页"],
   "panels.go": ["이동","Go","跳转"],
   "panels.pageInvalid": ["1부터 {total}까지의 정수 페이지 번호를 입력하세요.","Enter a whole page number from 1 to {total}.","请输入 1 到 {total} 之间的整数页码。"],
+  "panels.trimStartPlayhead": ["현재 위치를 시작값으로 입력","Use playhead for start","将播放头位置填入开始时间"],
+  "panels.trimEndPlayhead": ["현재 위치를 끝값으로 입력","Use playhead for end","将播放头位置填入结束时间"],
+  "panels.trimPlayheadOutside": ["선택한 클립 안으로 재생 위치를 옮겨 주세요.","Move the playhead into the selected clip.","请将播放头移入所选片段。"],
 };
 
 export const messages = Object.fromEntries(['ko', 'en', 'zh-CN'].map((locale, index) => [

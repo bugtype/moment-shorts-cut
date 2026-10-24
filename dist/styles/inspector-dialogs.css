@@ -483,3 +483,9 @@ body.exporting .workspace,body.exporting .topbar {
 #captionInspectionThreshold { width:auto; flex:1; min-width:0; margin:0; }
 
 .scene-appearance-actions { flex-wrap:wrap; margin-bottom:8px; }
+
+.trim-draft-field { flex:1; min-width:0; }
+.trim-field-heading { display:flex; align-items:center; gap:4px; }
+.trim-field-heading label { flex:1; }
+.trim-field-heading .trim-playhead { width:38px; height:38px; flex-shrink:0; }
+.trim-draft-field input { margin-top:0; }

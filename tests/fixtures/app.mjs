@@ -15,7 +15,7 @@ import { createVideoExport } from '../../dist/video-export.mjs';
 import { createAudioRecording } from '../../dist/audio-recording.mjs';
 import { createTranscriptionClient } from '../../dist/transcription-client.mjs';
 import * as panelMarkup from '../../dist/panel-markup.mjs';
-import { icon, esc, fmt } from '../../dist/ui-format.mjs';
+import { icon, esc, fmt, decimalTime } from '../../dist/ui-format.mjs';
 import * as projectModule from '../../dist/core/project.mjs';
 import { prepareCommand } from '../../dist/core/commands.mjs';
 import { CommandError, LocalizedError, hasMinimumDuration } from '../../dist/core/validation.mjs';
@@ -155,7 +155,7 @@ export async function createAppFixture() {
       createFile: (chunks, name, options) => new context.File(chunks, name, options),
       setTimer: (callback, delay) => context.setInterval(callback, delay),
       clearTimer: timer => context.clearInterval(timer),
-    }), shiftCaptionTiming, mountDesignPanel, ...panelMarkup, icon, esc, fmt,
+    }), shiftCaptionTiming, mountDesignPanel, ...panelMarkup, icon, esc, fmt, decimalTime,
   });
   // Keep the existing split-helper fault injection in this VM without a production test hook.
   const captionPanelSource=fs.readFileSync(new URL('../../dist/caption-panel.mjs',import.meta.url),'utf8');

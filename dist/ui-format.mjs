@@ -1,4 +1,5 @@
 const paths = {
+    playhead: 'M5 3h14l-7 7zM12 10v11M4 18h5M15 18h5',
     grid: 'M3 3h7v7H3zM14 3h7v7h-7zM3 14h7v7H3zM14 14h7v7h-7z',
     media: 'M3 5h18v14H3zM8 5v14M3 10h5M3 15h5M12 9l5 3-5 3z',
     video: 'M3 6h13v12H3zM16 10l5-3v10l-5-3',

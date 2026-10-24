@@ -59,17 +59,23 @@ export function createEditingActions(app) {
         app.seekTo(app.current);
     }
 
-    function confirmReset() {
+    function resetBlocked() {
         if (app.recoveryBlocked())
-            return;
-        if (app.transcribing || app.audioRecording.requesting || app.audioRecording.current) {
+            return true;
+        if (app.loadingMedia || app.exporting || app.transcribing || app.audioRecording.requesting || app.audioRecording.current) {
             app.toast('진행 중인 작업을 먼저 완료해 주세요.');
-            return;
+            return true;
         }
+        return false;
+    }
+
+    function confirmReset() {
+        if (resetBlocked())
+            return;
         app.modalOpen('새로운 순간을 시작할까요?', '<p class="modal-copy">이 브라우저에 저장된 현재 프로젝트가 샘플 프로젝트로 교체됩니다. 필요한 영상은 먼저 내보내 주세요.</p>', '<div class="modal-foot"><button class="button" id="cancelReset">취소</button><button class="button primary" id="confirmReset">새 작업 시작</button></div>');
         app.query('#cancelReset').onclick = () => app.modal.close();
         app.query('#confirmReset').onclick = () => {
-            if (app.recoveryBlocked() || app.audioRecording.current || app.audioRecording.requesting)
+            if (resetBlocked())
                 return;
             app.pause();
             app.state = app.initial();

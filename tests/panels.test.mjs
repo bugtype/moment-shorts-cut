@@ -29,7 +29,7 @@ test('design, effects and template panel controls and hierarchy', () => {
   inputs[4].oninput();assert.equal(panelProject.captionY,.75);const rangeSnapshots=snapshots;inputs[4].oninput();assert.equal(snapshots,rangeSnapshots);
   const testCard=effectsModule.newCard(12,2);panelProject.overlays=[testCard];
   const cardInputs=[control('number',{card:'start'},'8'),control('number',{card:'end'},'9'),control('text',{card:'text'},'수정한 카드'),control('range',{card:'size'},'42')];
-  const buttons=Object.fromEntries(['#addSceneCard','#toggleSceneLayers','#removeSceneCard','#duplicateSceneCard','#previewSceneCard','#sceneToFront','#sceneToBack','#copySceneAppearance','#pasteSceneAppearance','#moveSceneTime','#openCardPosition'].map(id=>[id,{}]));
+  const buttons=Object.fromEntries(['#addSceneCard','#toggleSceneLayers','#removeSceneCard','#duplicateSceneCard','#previewSceneCard','#sceneForward','#sceneBackward','#sceneToFront','#sceneToBack','#copySceneAppearance','#pasteSceneAppearance','#moveSceneTime','#openCardPosition'].map(id=>[id,{}]));
   let moveTimeTarget=null;
   const cardRoot=panelRoot({'[data-card]':cardInputs},buttons);
   mountEffectsPanel(panelRoot({}, {'#effectControls':cardRoot}),{state:panelProject,total:12,tab:'cards',selected:testCard.id,snapshot(){snapshots++;},input:panelRanges.bind,update(fn){fn(panelProject);},add(){},remove(){},duplicate(){},play(){},moveTime(id){moveTimeTarget=id;}});

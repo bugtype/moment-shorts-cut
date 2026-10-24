@@ -163,6 +163,11 @@ export function createDesignWorkspace(app) {
                     app.seekTo(Math.min(card.end - .001, card.start + .2) * app.state.speed);
                 app.renderPanel();
             },
+            canMoveCard: id => app.panel === 'effects' && app.effectTab === 'cards' && app.state === project &&
+                (app.selectedCard || app.state.overlays[0]?.id) === id && !app.modal.open && app.editorReady &&
+                !app.exporting && !app.loadingMedia && !app.transcribing &&
+                !app.audioRecording.requesting && !app.audioRecording.current &&
+                (app.persistence.restorePhase === 'ready' || (app.persistence.restorePhase === 'failed' && app.persistence.recoveryValid)),
             move: (id, toIndex) => app.runEditorCommand('overlays.move', { id, toIndex }),
             remove(id) {
                 app.edit(() => {

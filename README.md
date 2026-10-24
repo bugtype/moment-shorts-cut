@@ -479,7 +479,7 @@ before opening may already commit a draft. Existing whole-list shift remains ava
 | Set a source credit | [`credit.update`](INTEGRATIONS.md#출처-크레딧-수정) | Text, appearance and output-time visibility without changing title/captions/cards. Maximum 100 UTF-16 code units; not included in subtitle files. |
 | Set text coordinates | Title, credit, shared caption or selected card → **Position…** | Enter horizontal/vertical percentages and Apply together; unchanged axes retain their stored values. |
 | Move a card without resizing | Selected card → **Move in time…** | Enter a new start in output seconds **after speed**; both endpoints update together as one undoable edit. |
-| Script timed cards | [`overlays.add`, `overlays.update`, `overlays.remove`](INTEGRATIONS.md#스크립트에-맞춰-카드-추가삭제) | Individual IDs and output time **after speed**, without replacing the project. Additions append; `overlays.move` changes card stacking. UI offers **Bring to front / Send to back** (front/back) within the card stack. |
+| Script timed cards | [`overlays.add`, `overlays.update`, `overlays.remove`](INTEGRATIONS.md#스크립트에-맞춰-카드-추가삭제) | Individual IDs and output time **after speed**, without replacing the project. Additions append; `overlays.move` changes card stacking. In the selected card’s stacking controls, **Bring forward / Send backward** moves one stored-card position (including disabled/off-time cards); **Bring to front / Send to back** jumps to an edge. One undo step, no timing/content change; only card order, not its layer relationship to captions. |
 
 **Position…** edits the layer's normalized anchor, not its rendered bounding box.
 Changed title coordinates accept X **5–95%**, Y **6–93%**; credit, shared captions

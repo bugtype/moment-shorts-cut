@@ -27,9 +27,15 @@ export function mountEffectsPanel(root, api) {
     target.querySelector('#resetEffects').onclick=api.reset;
   } else {
     const card=state.overlays.find(item=>item.id===api.selected)||state.overlays[0];
+    const cardIndex=state.overlays.indexOf(card);
     target.innerHTML=`<div class="section-label">${text('panels.cardsByTime')} <span class="muted">${state.overlays.length} / 12</span></div><button class="button dark full" id="addSceneCard" ${state.overlays.length>=12?'disabled':''}>${text('panels.addCard')}</button><button class="text-button" id="toggleSceneLayers" style="margin-top:10px">${state.overlays.some(c=>c.enabled!==false)?text('panels.hideCards'):text('panels.showCards')}</button><p class="tiny-note">${text('panels.cardNotice')}</p><div class="scene-list">${state.overlays.map((item,index)=>`<button class="scene-list-item ${item.id===card?.id?'active':''}" data-scene-select="${esc(item.id)}"><span>${String(index+1).padStart(2,'0')}</span><div><strong>${text(item.label ? 'panels.cardSummary' : 'panels.unnamedCardSummary', {label:item.label,content:item.text})}</strong><small>${text('panels.secondsRange', {start:item.start.toFixed(1),end:item.end.toFixed(1)})}</small></div></button>`).join('')}</div>${card?`
       <div class="scene-editor"><div class="section-label">${text('panels.selectedCard')} <button class="text-button" id="removeSceneCard">${text('panels.delete')}</button></div>
-      <div class="panel-actions" role="group" ${attrs('aria-label', 'panels.stacking')}><button class="button" id="sceneToFront" ${state.overlays.at(-1)===card?'disabled':''}>${text('panels.front')}</button><button class="button" id="sceneToBack" ${state.overlays[0]===card?'disabled':''}>${text('panels.back')}</button></div>
+      <div class="panel-actions scene-stacking-actions" role="group" ${attrs('aria-label', 'panels.stacking')}>
+        <button class="button" id="sceneForward" ${cardIndex===state.overlays.length-1?'disabled':''}>${text('panels.cardForward')}</button>
+        <button class="button" id="sceneBackward" ${cardIndex===0?'disabled':''}>${text('panels.cardBackward')}</button>
+        <button class="button" id="sceneToFront" ${cardIndex===state.overlays.length-1?'disabled':''}>${text('panels.front')}</button>
+        <button class="button" id="sceneToBack" ${cardIndex===0?'disabled':''}>${text('panels.back')}</button>
+      </div>
       <label class="design-check"><input type="checkbox" data-card="enabled" ${card.enabled!==false?'checked':''}>${text('panels.showCard')}</label>
       <label class="panel-label">${text('panels.cardRole')}<select class="panel-select" data-card="role"><option value="headline" ${(card.role||'headline')==='headline'?'selected':''} ${mark('panels.roleHeadline')}>${esc(t('panels.roleHeadline'))}</option><option value="free" ${card.role==='free'?'selected':''} ${mark('panels.roleFree')}>${esc(t('panels.roleFree'))}</option></select></label>
       <label class="panel-label">${text('panels.background')}<select class="panel-select" data-card="presentation"><option value="plain" ${(card.presentation||'plain')==='plain'?'selected':''} ${mark('panels.backgroundPlain')}>${esc(t('panels.backgroundPlain'))}</option><option value="panel" ${card.presentation==='panel'?'selected':''} ${mark('panels.backgroundPanel')}>${esc(t('panels.backgroundPanel'))}</option></select></label>
@@ -71,13 +77,24 @@ export function mountEffectsPanel(root, api) {
         };
       }
 
-      for(const [id, toIndex, opposite] of [['sceneToFront',state.overlays.length-1,'sceneToBack'],['sceneToBack',0,'sceneToFront']]){
-        target.querySelector('#'+id).onclick=()=>{
-          if(renderOwners.get(root)!==owner || root.querySelector('#effectControls')!==target || state.overlays[toIndex]===card)return;
-          if(!api.move(card.id,toIndex))return;
-          const controls=root.querySelector('#effectControls'), preferred=controls?.querySelector('#'+id), other=controls?.querySelector('#'+opposite);
-          const focusTarget=preferred&&!preferred.disabled?preferred:other&&!other.disabled?other:
-            [...(controls?.querySelectorAll('[data-scene-select]')||[])].find(button=>button.dataset.sceneSelect===card.id);
+      const stackActions = [
+        ['sceneForward', cardIndex + 1, 'sceneBackward'],
+        ['sceneBackward', cardIndex - 1, 'sceneForward'],
+        ['sceneToFront', state.overlays.length - 1, 'sceneToBack'],
+        ['sceneToBack', 0, 'sceneToFront']
+      ];
+      for (const [id, toIndex, opposite] of stackActions) {
+        const button = target.querySelector('#' + id);
+        button.onclick = event => {
+          if (composing || event?.isComposing || event?.keyCode === 229 ||
+              renderOwners.get(root) !== owner || root.querySelector('#effectControls') !== target ||
+              target.querySelector('#' + id) !== button || api.current?.() === false || api.canMoveCard?.(card.id) === false ||
+              toIndex < 0 || toIndex >= state.overlays.length || state.overlays[toIndex] === card) return;
+          if (!api.move(card.id, toIndex)) return;
+          const controls = root.querySelector('#effectControls');
+          const preferred = controls?.querySelector('#' + id), other = controls?.querySelector('#' + opposite);
+          const focusTarget = preferred && !preferred.disabled ? preferred : other && !other.disabled ? other :
+            [...(controls?.querySelectorAll('[data-scene-select]') || [])].find(item => item.dataset.sceneSelect === card.id);
           focusTarget?.focus({preventScroll:true});
         };
       }

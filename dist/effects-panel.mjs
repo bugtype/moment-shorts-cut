@@ -4,8 +4,10 @@ import { t, text, mark, attrs, setText, setValidity } from './i18n.mjs';
 const renderOwners = new WeakMap();
 const esc = value => String(value).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 export function mountEffectsPanel(root, api) {
-  const owner = {}; renderOwners.set(root, owner);
-  const { state, total, tab } = api, effects = state.effects;
+  const owner = {};
+  renderOwners.set(root, owner);
+  const { state, total, tab } = api;
+  const effects = state.effects;
   const select=(label,key,value,options)=>`<label class="panel-label" for="effect-${key}">${text(label)}</label><select id="effect-${key}" class="panel-select" data-effect="${key}">${options.map(([v,l])=>`<option value="${v}" ${String(v)===String(value)?'selected':''} ${mark(l)}>${esc(t(l))}</option>`).join('')}</select>`;
   const range=(label,key,value,min,max,step=.01)=>`<label class="design-range"><span>${text(label)}<output data-effect-output="${key}">${value}</output></span><input type="range" data-effect="${key}" value="${value}" min="${min}" max="${max}" step="${step}"></label>`;
   root.innerHTML=`<h1 class="panel-heading">${text('panels.effects')}</h1><div class="layer-tabs" role="tablist" ${attrs('aria-label', 'panels.effectTools')}><button data-effect-tab="cards" role="tab" aria-selected="${tab==='cards'}" id="effect-tab-cards" aria-controls="effect-panel-cards" tabindex="${tab==='cards'?0:-1}" class="${tab==='cards'?'active':''}">${text('panels.timedCards')}</button><button data-effect-tab="motion" role="tab" aria-selected="${tab==='motion'}" id="effect-tab-motion" aria-controls="effect-panel-motion" tabindex="${tab==='motion'?0:-1}" class="${tab==='motion'?'active':''}">${text('panels.motionColor')}</button></div>${['cards','motion'].map(value=>`<div id="effect-panel-${value}" role="tabpanel" aria-labelledby="effect-tab-${value}"${tab===value?'':' hidden'}>${tab===value?'<div id="effectControls"></div>':''}</div>`).join('')}`;
@@ -18,16 +20,23 @@ export function mountEffectsPanel(root, api) {
       <div class="design-divider"></div><label class="design-check"><input type="checkbox" data-effect="progress" ${effects.progress?'checked':''}>${text('panels.progress')}</label>
       ${select('panels.progressPosition','progressPosition',effects.progressPosition,[['top','panels.top'],['bottom','panels.bottom']])}<label class="design-color">${text('panels.barColor')}<input type="color" data-effect="progressColor" value="${effects.progressColor}"></label>
       <button class="button full" id="resetEffects">${text('panels.resetEffects')}</button>`;
-    target.querySelectorAll('[data-effect]').forEach(input=>{
-      const continuous=['range','color'].includes(input.type);
-      const update=()=>{if(!continuous)api.snapshot();let value=input.type==='checkbox'?input.checked:input.type==='range'?Number(input.value):input.value;api.update(p=>p.effects[input.dataset.effect]=value);const output=target.querySelector(`[data-effect-output="${input.dataset.effect}"]`);if(output)output.textContent=input.value;};
-      if(continuous)api.input(input,()=>effects[input.dataset.effect],update);
-      else input.onchange=update;
+    target.querySelectorAll('[data-effect]').forEach(input => {
+      const continuous = ['range', 'color'].includes(input.type);
+      const update = () => {
+        if (!continuous) api.snapshot();
+        let value = input.type === 'checkbox' ? input.checked
+          : input.type === 'range' ? Number(input.value) : input.value;
+        api.update(p => p.effects[input.dataset.effect] = value);
+        const output = target.querySelector(`[data-effect-output="${input.dataset.effect}"]`);
+        if (output) output.textContent = input.value;
+      };
+      if (continuous) api.input(input, () => effects[input.dataset.effect], update);
+      else input.onchange = update;
     });
-    target.querySelector('#resetEffects').onclick=api.reset;
+    target.querySelector('#resetEffects').onclick = api.reset;
   } else {
-    const card=state.overlays.find(item=>item.id===api.selected)||state.overlays[0];
-    const cardIndex=state.overlays.indexOf(card);
+    const card = state.overlays.find(item => item.id === api.selected) || state.overlays[0];
+    const cardIndex = state.overlays.indexOf(card);
     target.innerHTML=`<div class="section-label">${text('panels.cardsByTime')} <span class="muted">${state.overlays.length} / 12</span></div><button class="button dark full" id="addSceneCard" ${state.overlays.length>=12?'disabled':''}>${text('panels.addCard')}</button><button class="text-button" id="toggleSceneLayers" style="margin-top:10px">${state.overlays.some(c=>c.enabled!==false)?text('panels.hideCards'):text('panels.showCards')}</button><p class="tiny-note">${text('panels.cardNotice')}</p><div class="scene-list">${state.overlays.map((item,index)=>`<button class="scene-list-item ${item.id===card?.id?'active':''}" data-scene-select="${esc(item.id)}"><span>${String(index+1).padStart(2,'0')}</span><div><strong>${text(item.label ? 'panels.cardSummary' : 'panels.unnamedCardSummary', {label:item.label,content:item.text})}</strong><small>${text('panels.secondsRange', {start:item.start.toFixed(1),end:item.end.toFixed(1)})}</small></div></button>`).join('')}</div>${card?`
       <div class="scene-editor"><div class="section-label">${text('panels.selectedCard')} <button class="text-button" id="removeSceneCard">${text('panels.delete')}</button></div>
       <div class="panel-actions scene-stacking-actions" role="group" ${attrs('aria-label', 'panels.stacking')}>
@@ -51,29 +60,36 @@ export function mountEffectsPanel(root, api) {
       ${[['x','panels.horizontal',.1,.9,.01],['y','panels.vertical',.08,.8,.01],['width','panels.cardWidth',.4,.82,.01],['size','panels.textSize',20,48,1],['stroke','panels.blackStroke',0,6,.5],['backgroundOpacity','panels.backgroundOpacity',0,1,.05]].map(([key,label,min,max,step])=>`<label class="design-range"><span>${text(label)}<output data-card-output="${key}">${card[key]}</output></span><input type="range" data-card="${key}" value="${card[key]}" min="${min}" max="${max}" step="${step}"></label>`).join('')}
       <button class="button" id="openCardPosition">${text('panels.position')}</button>
       <div class="panel-actions scene-appearance-actions" role="group" ${attrs('aria-label', 'panels.cardStyle')}><button class="button" id="copySceneAppearance">${text('panels.copyStyle')}</button><button class="button" id="pasteSceneAppearance" ${api.hasCopiedAppearance?'':'disabled'}>${text('panels.pasteStyle')}</button></div><div class="panel-actions"><button class="button" id="duplicateSceneCard">${text('panels.duplicateCard')}</button><button class="button" id="previewSceneCard">${text('panels.previewCard')}</button></div></div>`:`<p class="empty-text">${text('panels.cardEmpty')}</p>`}`;
-    target.querySelector('#addSceneCard').onclick=api.add;
-    target.querySelector('#toggleSceneLayers').onclick=api.toggleAll;
-    target.querySelectorAll('[data-scene-select]').forEach(button=>button.onclick=()=>api.select(button.dataset.sceneSelect));
-    if(card){
-      let composing=false;
-      target.oncompositionstart=()=>{composing=true;};
-      target.oncompositionend=()=>{composing=false;};
-      const position=target.querySelector('#openCardPosition');
-      position.onclick=event=>{
-        if(composing||event?.isComposing||event?.keyCode===229||renderOwners.get(root)!==owner||root.querySelector('#effectControls')!==target||api.current?.()===false)return;
+    target.querySelector('#addSceneCard').onclick = api.add;
+    target.querySelector('#toggleSceneLayers').onclick = api.toggleAll;
+    target.querySelectorAll('[data-scene-select]').forEach(button => {
+      button.onclick = () => api.select(button.dataset.sceneSelect);
+    });
+    if (card) {
+      let composing = false;
+      target.oncompositionstart = () => { composing = true; };
+      target.oncompositionend = () => { composing = false; };
+      const position = target.querySelector('#openCardPosition');
+      position.onclick = event => {
+        if (composing || event?.isComposing || event?.keyCode === 229 ||
+            renderOwners.get(root) !== owner || root.querySelector('#effectControls') !== target ||
+            api.current?.() === false) return;
         api.position?.(card.id);
       };
-      const moveTime=target.querySelector('#moveSceneTime');
-      moveTime.onclick=event=>{
-        if(composing || event?.isComposing || event?.keyCode===229 || renderOwners.get(root)!==owner || root.querySelector('#effectControls')!==target || api.current?.()===false)return;
+      const moveTime = target.querySelector('#moveSceneTime');
+      moveTime.onclick = event => {
+        if (composing || event?.isComposing || event?.keyCode === 229 ||
+            renderOwners.get(root) !== owner || root.querySelector('#effectControls') !== target ||
+            api.current?.() === false) return;
         api.moveTime(card.id);
       };
-      for(const [id, action] of [['copySceneAppearance','copyAppearance'],['pasteSceneAppearance','pasteAppearance']]){
-        target.querySelector('#'+id).onclick=()=>{
-          if(renderOwners.get(root)!==owner || root.querySelector('#effectControls')!==target || api.current?.()===false)return;
-          if(!api[action](card.id))return;
-          const button=root.querySelector('#effectControls')?.querySelector('#'+id);
-          if(button && !button.disabled)button.focus();
+      for (const [id, action] of [['copySceneAppearance', 'copyAppearance'], ['pasteSceneAppearance', 'pasteAppearance']]) {
+        target.querySelector('#' + id).onclick = () => {
+          if (renderOwners.get(root) !== owner || root.querySelector('#effectControls') !== target ||
+              api.current?.() === false) return;
+          if (!api[action](card.id)) return;
+          const button = root.querySelector('#effectControls')?.querySelector('#' + id);
+          if (button && !button.disabled) button.focus();
         };
       }
 
@@ -92,28 +108,47 @@ export function mountEffectsPanel(root, api) {
               toIndex < 0 || toIndex >= state.overlays.length || state.overlays[toIndex] === card) return;
           if (!api.move(card.id, toIndex)) return;
           const controls = root.querySelector('#effectControls');
-          const preferred = controls?.querySelector('#' + id), other = controls?.querySelector('#' + opposite);
+          const preferred = controls?.querySelector('#' + id);
+          const other = controls?.querySelector('#' + opposite);
           const focusTarget = preferred && !preferred.disabled ? preferred : other && !other.disabled ? other :
             [...(controls?.querySelectorAll('[data-scene-select]') || [])].find(item => item.dataset.sceneSelect === card.id);
           focusTarget?.focus({preventScroll:true});
         };
       }
-      target.querySelector('#removeSceneCard').onclick=()=>api.remove(card.id);target.querySelector('#duplicateSceneCard').onclick=()=>api.duplicate(card.id);target.querySelector('#previewSceneCard').onclick=()=>api.play(card.start);
-      target.querySelectorAll('[data-card]').forEach(input=>{
-        const continuous=['text','range','color','textarea'].includes(input.type);
-        const update=()=>{
-          const key=input.dataset.card,value=input.type==='checkbox'?input.checked:['range','number'].includes(input.type)?Number(input.value):input.value;
-          if(key==='start'||key==='end'){
-            const start=key==='start'?value:card.start,end=key==='end'?value:card.end;
-            if(!Number.isFinite(value)||start<0||end<=start||end>total){setValidity(input, 'panels.cardTimingInvalid');input.reportValidity();return;}
+      target.querySelector('#removeSceneCard').onclick = () => api.remove(card.id);
+      target.querySelector('#duplicateSceneCard').onclick = () => api.duplicate(card.id);
+      target.querySelector('#previewSceneCard').onclick = () => api.play(card.start);
+      target.querySelectorAll('[data-card]').forEach(input => {
+        const continuous = ['text', 'range', 'color', 'textarea'].includes(input.type);
+        const update = () => {
+          const key = input.dataset.card;
+          const value = input.type === 'checkbox' ? input.checked
+            : ['range', 'number'].includes(input.type) ? Number(input.value) : input.value;
+          if (key === 'start' || key === 'end') {
+            const start = key === 'start' ? value : card.start;
+            const end = key === 'end' ? value : card.end;
+            if (!Number.isFinite(value) || start < 0 || end <= start || end > total) {
+              setValidity(input, 'panels.cardTimingInvalid');
+              input.reportValidity();
+              return;
+            }
           }
-          setValidity(input, '');if(!continuous)api.snapshot();api.update(p=>p.overlays.find(item=>item.id===card.id)[key]=value);
-          const item = [...target.querySelectorAll('[data-scene-select]')].find(button=>button.dataset.sceneSelect===card.id);
-          if (item) { setText(item.querySelector('strong'), card.label ? 'panels.cardSummary' : 'panels.unnamedCardSummary', {label:card.label,content:card.text}); setText(item.querySelector('small'), 'panels.secondsRange', {start:card.start.toFixed(1),end:card.end.toFixed(1)}); }
-          const output=target.querySelector(`[data-card-output="${key}"]`);if(output)output.textContent=input.value;
+          setValidity(input, '');
+          if (!continuous) api.snapshot();
+          api.update(p => p.overlays.find(item => item.id === card.id)[key] = value);
+          const item = [...target.querySelectorAll('[data-scene-select]')]
+            .find(button => button.dataset.sceneSelect === card.id);
+          if (item) {
+            setText(item.querySelector('strong'), card.label ? 'panels.cardSummary' : 'panels.unnamedCardSummary',
+              { label: card.label, content: card.text });
+            setText(item.querySelector('small'), 'panels.secondsRange',
+              { start: card.start.toFixed(1), end: card.end.toFixed(1) });
+          }
+          const output = target.querySelector(`[data-card-output="${key}"]`);
+          if (output) output.textContent = input.value;
         };
-        if(continuous)api.input(input,()=>card[input.dataset.card],update);
-        else input.onchange=update;
+        if (continuous) api.input(input, () => card[input.dataset.card], update);
+        else input.onchange = update;
       });
     }
   }

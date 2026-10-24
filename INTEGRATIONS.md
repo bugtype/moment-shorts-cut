@@ -169,6 +169,7 @@ JavaScript에서 직접 호출할 때도 JSON으로 왕복 가능한 값을 전�
 | `project.get` | 없음 | 편집 설정 문서 |
 | `templates.list` | 없음 | 기본 템플릿 목록 |
 | `captions.export` | 선택 `format: "srt"`, `"vtt"`, `"txt"` | 편집 구간·배속을 반영한 `{format, text}`; 기본 SRT |
+| `captions.list` | 선택 `offset`, `limit` | 저장된 자막 페이지와 현재 배열 위치; 읽기 전용 |
 | `captions.inspect` | `maxGraphemesPerSecond`, 선택 `limit` | 편집 후 표시 속도 초과 구간 요약; 프로젝트 변경 없음 |
 | `render.plan` | `quality`, `format` | 출력 설정·프로젝트·필요한 미디어 목록; **파일 생성 아님** |
 
@@ -376,6 +377,57 @@ UI의 복제는 새로 넣은 구간을 선택하고 그 시작 위치로 이동
 취소합니다. MCP에는 선택·재생 위치·실행 취소 기능이 없고, 성공 결과
 `{updated:true, outputDuration}` 확인 후 `project.get`으로 문서를 저장해야 합니다.
 응답을 놓치면 현재 배열부터 확인하세요. 무조건 재시도하면 구간이 다시 늘어납니다.
+
+### 저장된 자막을 나눠 조회
+
+`captions.list`는 전체 문서 대신 필요한 **작성 자막**만 읽습니다. 출력에서 반복된
+구간이 아니라 현재 배열 순서이며, Unicode·화자·키워드·추정 시간 표시를 그대로
+돌려줍니다. 없는 `basis`도 추가하지 않습니다(원본 기준). 시간은 배속 전입니다.
+
+| 입력·결과 | 계약 |
+|---|---|
+| `offset` | 정수 0–10,000, 기본 0 |
+| `limit` | 정수 1–50, 기본 20 |
+| `totalCaptions`, `offset`, `limit` | 현재 총 자막 수와 적용한 조회 범위 |
+| `captions[]` | `{captionIndex, caption}`; 현재 배열 위치와 분리된 원본 자막 사본 |
+| `nextOffset` | 더 있으면 `offset + 반환 개수`, 끝이면 `null` |
+
+현재 자막 수를 넘는 유효한 offset은 빈 배열과 `null`을 반환합니다. 호출마다 현재
+상태를 읽으므로 스냅샷·고정 버전·안정된 ID가 아닙니다. 합치기·나누기·교체 후에는
+다시 조회하세요. 응답량만 제한하며 실행 비용이 페이지 크기에만 비례하지는 않습니다.
+읽기 전용이며 `project.batch`에는 넣을 수 없습니다.
+
+표시 속도 검사 → 보고된 위치 주변 조회 → 해당 자막 수정 순서로 사용합니다.
+아래 코드는 데모 파일을 만들고, 문제가 없으면 수정하지 않습니다. 기준 `1`은 추천
+규격이 아니라 예제입니다. 저장 경로가 이미 있으면 CLI가 거절합니다.
+
+```sh
+node cli/moment.mjs init --out caption-review.json
+node --input-type=module <<'JS'
+import {execFileSync} from 'node:child_process';
+const run=(command,args,extra=[])=>JSON.parse(execFileSync(process.execPath,
+  ['cli/moment.mjs','exec',command,'--project','caption-review.json',
+   '--json',JSON.stringify(args),...extra],{encoding:'utf8'})).data;
+const issue=run('captions.inspect',{maxGraphemesPerSecond:1,limit:1}).issues[0];
+if(issue) {
+  console.log(run('captions.list',{offset:Math.max(0,issue.captionIndex-1),limit:3}));
+  run('captions.update',{captionIndex:issue.captionIndex,patch:{text:'짧은 문장'}},
+    ['--out','caption-reviewed.json']);
+}
+// 같은 파일을 변경하지 않는 동안 페이지를 차례로 읽습니다.
+let offset=0;
+do {
+  const page=run('captions.list',{offset,limit:20});
+  console.log(page.captions);
+  offset=page.nextOffset;
+} while(offset!==null);
+JS
+```
+
+직접 호출: `node cli/moment.mjs exec captions.list --project caption-review.json --json '{"offset":0,"limit":20}'`.
+선택 `--out caption-page.json`은 **페이지 결과**만 저장하며 프로젝트 설정 문서가
+아니므로 `project.import`에 사용할 수 없습니다. `--dry-run`은 읽기 결과를 preview에도
+추가하고 파일을 쓰지 않습니다. MCP에서는 같은 인수에 `projectId:"session"`을 넣습니다.
 
 ### 편집 후 자막 표시 속도 점검
 

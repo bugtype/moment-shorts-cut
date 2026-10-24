@@ -32,6 +32,7 @@ test('stdio negotiates its supported version, waits for initialization and lists
   assert.equal(replies[1].result.protocolVersion, '2025-11-25');
   assert.deepEqual(replies[1].result.capabilities, {tools: {}});
   assert.equal(replies[2].error.code, -32600);
+  assert.equal(replies[3].result.tools.length,29);
   assert.ok(replies[3].result.tools.some(tool => tool.name === 'moment_project_import'));
   assert.ok(replies[3].result.tools.every(tool => tool.inputSchema.required.includes('projectId')));
   assert.equal(replies[3].result.resultType, undefined);
@@ -85,4 +86,17 @@ test('stdio rejects malformed initialization and oversized frames without protoc
   assert.equal(child.status, 1);
   assert.equal(child.stdout, '');
   assert.match(child.stderr, /oversized input/);
+});
+
+
+test('stdio reads bounded authored pages from 10000 cues and applies a targeted edit without full-list output',()=>{
+ const p=createDemoProject();p.captions=Array.from({length:10000},(_,i)=>({start:0,end:1,text:'Cue '+i,...(i===9999?{basis:'timeline',speaker:'1',keywords:'last',timing:'estimated'}:{})}));
+ const replies=run([init,ready,call(2,'project_import',{document:createProjectDocument(p)}),call(3,'captions_list',{offset:9998,limit:2}),call(4,'captions_list',{limit:51}),call(5,'captions_update',{captionIndex:9999,patch:{text:'Reviewed'}}),call(6,'captions_list',{offset:9999,limit:1}),call(7,'captions_list',{offset:10000})]);
+ const byId=new Map(replies.map(reply=>[reply.id,reply]));
+ const first=byId.get(3).result.structuredContent.data;assert.equal(first.totalCaptions,10000);assert.equal(first.nextOffset,null);assert.deepEqual(first.captions,[9998,9999].map(captionIndex=>({captionIndex,caption:p.captions[captionIndex]})));
+ assert.equal(byId.get(4).result.isError,true);assert.equal(byId.get(4).result.structuredContent.error.code,'INVALID_ARGUMENT');
+ assert.equal(byId.get(5).result.isError,false);const last=byId.get(6).result.structuredContent.data;
+ assert.deepEqual(last.captions,[{captionIndex:9999,caption:{...p.captions[9999],text:'Reviewed'}}]);
+ assert.deepEqual(byId.get(7).result.structuredContent.data,{totalCaptions:10000,offset:10000,limit:20,nextOffset:null,captions:[]});
+ assert.ok(Buffer.byteLength(JSON.stringify(byId.get(6)))<2000,'Actual returned page stays small for this fixture');
 });

@@ -168,10 +168,24 @@ The permissive parser may skip malformed cues; it is not a full standard validat
 Success returns `{updated:true, outputDuration, importedCaptions}`; the last field
 is the applied cue count. Read the project separately to save the document.
 
+## Read a caption page
+
+Use `captions.list` with optional `offset` (0–10,000, default 0) and `limit`
+(1–50, default 20). MCP adds `projectId:"session"`. Read `data.captions[]` entries
+`{captionIndex,caption}`; repeat at `data.nextOffset` until it is `null`.
+The returned cue is an exact detached authored copy, not a repeated output occurrence.
+Pre-speed times and missing `basis` (source) are preserved. Reads do not edit history
+and cannot be batched. Pagination bounds response size, not total processing cost.
+
+For an inspection issue, read nearby cues, review the text, then update the reported
+current index. Each page reflects live state; no snapshot or stable ID is promised.
+Re-read after structural edits or uncertain results. A page is not a project backup.
+See [contracts and executable workflow](../../../../INTEGRATIONS.md#저장된-자막을-나눠-조회).
+
 ## Edit one authored caption
 
 Prefer `captions.update` / `moment_captions_update` for one cue rather than sending
-all captions again. Read the current authored array, then supply its `captionIndex`
+all captions again. Read a current `captions.list` page (MCP: `moment_captions_list`), then supply its `captionIndex`
 and a `patch` containing only requested `text`, `start`, `end`, `speaker` or `keywords`.
 MCP adds `projectId:"session"`. Basis and estimated-timing metadata cannot be patched;
 all unspecified fields and other cues are retained. Text allows empty strings up

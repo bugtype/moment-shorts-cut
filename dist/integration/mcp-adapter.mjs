@@ -1,5 +1,5 @@
 import { API_VERSION, commandDefinitions } from '../core/commands.mjs';
-import { FORMAT, FORMAT_VERSION } from '../core/project.mjs';
+import { FORMAT, FORMAT_VERSION, captionSchema } from '../core/project.mjs';
 import { CommandError, assertJson, validate } from '../core/validation.mjs';
 import { errorResult } from './editor-service.mjs';
 
@@ -41,6 +41,12 @@ function dataSchema(command) {
     case 'captions.import': return record({
       updated: { enum: [true] }, importedCaptions: { type: 'integer', minimum: 1, maximum: 10000 },
       outputDuration: { type: 'number', minimum: 0 },
+    });
+    case 'captions.list': return record({
+      totalCaptions:{type:'integer',minimum:0,maximum:10000},
+      offset:{type:'integer',minimum:0,maximum:10000},limit:{type:'integer',minimum:1,maximum:50},
+      nextOffset:{type:['integer','null'],minimum:0,maximum:10000},
+      captions:{type:'array',maxItems:50,items:record({captionIndex:{type:'integer',minimum:0,maximum:9999},caption:structuredClone(captionSchema)})},
     });
     case 'captions.inspect': return record({
       metric:{enum:['non-whitespace-graphemes-per-second']},maxGraphemesPerSecond:{type:'number',exclusiveMinimum:0},
@@ -94,9 +100,13 @@ function inputSchema(command) {
   };
   schema.required = ['projectId', ...schema.required];
   const p = schema.properties;
+  if (command.name === 'captions.list') {
+    p.offset.description = 'Zero-based authored array offset, default 0, integer 0–10,000. At or beyond the current count returns an empty page and nextOffset:null. This is ordinary tool pagination, not an MCP tools/list cursor. Pages are independent reads; indices may change after edits.';
+    p.limit.description = 'Maximum returned authored cues, default 20, integer 1–50. Returns exact text and optional metadata without sorting, normalization, clipping, repetition or speed conversion. Missing basis means source; source and timeline times are both BEFORE speed. nextOffset is the next authored index or null. Read-only; does not change project/history.';
+  }
   if (command.name === 'captions.inspect') {
     p.maxGraphemesPerSecond.description = 'Required positive review threshold, not a universal language/Netflix standard. Count Intl grapheme clusters except whitespace-only clusters; punctuation and literal markup count. Rate uses each derived output occurrence after cuts/repeats/speed, not source duration. Does not assess speech alignment, rendered fit or export validity.';
-    p.limit.description = 'Maximum returned issues, default20, integer1..100. Reports all occurrence/flagged totals, then highest rates first with start/occurrenceIndex tie-breaking. No text payload. Inspect project.get for authored cue text. No project/history changes.';
+    p.limit.description = 'Maximum returned issues, default20, integer1..100. Reports all occurrence/flagged totals, then highest rates first with start/occurrenceIndex tie-breaking. No text payload. Use captions.list for nearby authored cue text. No project/history changes.';
   }
   if (command.name === 'project.batch') {
     p.operations.description = '1–20 sequential in-memory edit operations, prepared against each preceding result and committed once. All fail together on validation error. Not JSON-RPC batching, not a cross-writer/storage transaction. Reads, provider jobs, project.import and nested batches are forbidden. Indices/times refer to the evolving project; inspect project.get before retrying non-idempotent edits.';

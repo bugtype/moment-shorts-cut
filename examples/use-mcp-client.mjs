@@ -72,7 +72,7 @@ async function withClient(work) {
 
 const saved = await withClient(async ({request, call, data}) => {
   const {tools} = await request('tools/list', {});
-  assert.equal(tools.length, 28);
+  assert.equal(tools.length, 29);
   assert.ok(tools.some(tool => tool.name === 'moment_project_import'));
   await data('moment_project_import', {document: createProjectDocument(createDemoProject())});
   await data('moment_project_update', {patch: {name: 'MCP 예제', speed: 2}});
@@ -86,6 +86,9 @@ const saved = await withClient(async ({request, call, data}) => {
   assert.equal(inspection.metric, 'non-whitespace-graphemes-per-second');
   assert.ok(inspection.flaggedOccurrences > 0);
   assert.ok(inspection.issues.length <= 2);
+  const inspectedCue = await data('moment_captions_list', {offset:inspection.issues[0].captionIndex,limit:1});
+  assert.equal(inspectedCue.captions[0].captionIndex,inspection.issues[0].captionIndex);
+  assert.equal(inspectedCue.captions[0].caption.text,beforeInspection.project.captions[inspection.issues[0].captionIndex].text);
   assert.deepEqual(await data('moment_project_get'), beforeInspection);
   await data('moment_timeline_replace', {clips: [{start: 2, end: 6}]});
   const imported = await data('moment_captions_import', {text: '1\n00:00:02,000 --> 00:00:04,000\n안녕하세요', basis: 'source'});
@@ -167,6 +170,10 @@ const saved = await withClient(async ({request, call, data}) => {
   ]});
   assert.equal(batch.operationCount, 2);
   assert.equal((await data('moment_project_get')).project.name, 'Atomic edit');
+  // Fetch only the authored cue and its neighbor, not the complete project.
+  const nearby = await data('moment_captions_list', {offset:0,limit:2});
+  assert.equal(nearby.captions[0].captionIndex,0);
+  assert.equal(nearby.captions[0].caption.text,'Hello');
   const cueUpdate = await data('moment_captions_update', {captionIndex:0,patch:{text:'Hello again'}});
   assert.equal(cueUpdate.captionIndex, 0);
   assert.equal((await data('moment_project_get')).project.captions[0].text, 'Hello again');
@@ -178,4 +185,4 @@ await withClient(async ({data}) => {
   await data('moment_project_import', {document: saved});
   assert.deepEqual(await data('moment_project_get'), saved);
 });
-console.log(JSON.stringify({ok: true, tools: 28, recoveredFromInvalidInput: true, reimported: true, rendered: false}));
+console.log(JSON.stringify({ok: true, tools: 29, recoveredFromInvalidInput: true, reimported: true, rendered: false}));

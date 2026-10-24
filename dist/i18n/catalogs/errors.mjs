@@ -1,5 +1,7 @@
 // Product-owned diagnostics and progress. Project-authored text is never translated.
 const entries = [
+  ["errors.captionListOffset","자막 시작 위치는 0~10,000 사이 정수로 입력하세요.","Caption offset must be an integer from 0 to 10,000.","字幕起始位置必须是 0 至 10,000 的整数。"],
+  ["errors.captionListLimit","자막 조회 개수는 1~50 사이 정수로 입력하세요.","Caption page size must be an integer from 1 to 50.","字幕查询数量必须是 1 至 50 的整数。"],
   ["errors.value","허용되지 않은 값입니다.","This value is not allowed.","此值不受支持。"],
   ["errors.object","객체가 필요합니다.","An object is required.","需要对象。"],
   ["errors.field","지원하지 않는 필드입니다.","This field is not supported.","此字段不受支持。"],

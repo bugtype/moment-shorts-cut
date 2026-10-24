@@ -49,7 +49,7 @@ its supported version, `2025-11-25`, even if the proposed version differs; a cli
 that cannot support that version should disconnect, not continue with another
 wire format. `ping` is supported. Initialize only once per process.
 
-All twenty-eight tools require **`projectId: "session"`**. Each process owns one independent
+All twenty-nine tools require **`projectId: "session"`**. Each process owns one independent
 in-memory project, initially the demo. This value is neither a path nor a credential.
 Other project IDs return a tool error. A second client process does not share state.
 
@@ -113,6 +113,7 @@ ranges at runtime. Schema discovery does not bypass that validation.
 | `moment_project_get` | none | Full portable project document |
 | `moment_templates_list` | none | Built-in template summaries: `id`, `name`, `category`, `description` |
 | `moment_captions_export` | optional `format: "srt"`, `"vtt"` or `"txt"` | `{format, text}` with the selected format |
+| `moment_captions_list` | optional `offset`, `limit` | Authored cue page with current array indexes |
 | `moment_captions_inspect` | `maxGraphemesPerSecond`, optional `limit` | Read-only output-occurrence rate report |
 | `moment_render_plan` | optional `quality`, `format` | Plan, project snapshot, output settings, required media and `rendered:false` |
 
@@ -493,6 +494,41 @@ The tool does not read files or upload media. Use the [CLI args-file recipe](../
 for local files, or pass already-read text through your client. Save the edited
 document using `moment_project_get`; the acknowledgment is not the project.
 
+### Read authored captions in pages
+
+Use `moment_captions_list` to retrieve literal cue text near an inspection result
+without requesting the entire project. This is ordinary tool input, **not MCP
+cursor pagination**:
+
+```json
+{"projectId":"session","offset":0,"limit":20}
+```
+
+| Field | Contract |
+|---|---|
+| Input `offset` | Integer 0–10,000; default 0 |
+| Input `limit` | Integer 1–50; default 20 |
+| Result `totalCaptions`, `offset`, `limit` | Current authored count and effective request values |
+| Result `captions[]` | `{captionIndex, caption}`: zero-based current array index and detached, exact authored cue |
+| Result `nextOffset` | `offset + captions.length` when more remain; otherwise `null` |
+
+Repeat using `nextOffset` and stop at `null`. An allowed offset beyond the current
+count returns `captions:[]`, `nextOffset:null`. See the [executable CLI review and
+pagination recipe](../INTEGRATIONS.md#저장된-자막을-나눠-조회).
+
+The page preserves authored order, Unicode and metadata, including an absent
+`basis` (which means source). Cue times are **before speed**, not derived output
+occurrences. A repeated source cue is still one authored entry. The response is a
+copy, not an editable reference. This limits response volume, not runtime to O(page).
+
+After `moment_captions_inspect`, request a page around an issue's `captionIndex`,
+review its literal text, then use `moment_captions_update` with that current index.
+Retrieve `moment_project_get` separately to save edits. Pages are not project
+backup documents. Each request reads live state: no snapshot, stable revision or
+cross-writer guarantee. Re-read after structural edits or uncertain mutations;
+do not keep an index across a split, merge or replacement without checking it.
+This read-only tool changes no history and is not allowed inside `project.batch`.
+
 ### Inspect caption timing density
 
 Call `moment_captions_inspect` after editing, with a threshold you choose:
@@ -521,7 +557,7 @@ rendered text fitting or an SRT/VTT export-validity check.
 | `issues[].start`, `end`, `graphemeCount`, `graphemesPerSecond` | After-speed output times, counted graphemes and unrounded rate |
 
 Issues are ordered by rate descending, start ascending, then occurrence index ascending. No full caption text is returned. Resolve the
-reported authored caption index against `project.captions`; a derived occurrence
+reported authored caption index using `moment_captions_list` or `project.captions`; a derived occurrence
 is not an independently editable cue. Check omitted issues before concluding that
 all dense passages have been reviewed.
 

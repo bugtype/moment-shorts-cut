@@ -195,6 +195,16 @@ not a whole-library or project backup. CLI/MCP cannot list or persist that brows
 library, but can apply an exported document as described below. Never use a file
 path as a template ID.
 
+The browser also renames an existing custom template from its card. Use the
+current-name dialog; names are trimmed, nonblank and limited to 40 UTF-16 code
+units. Identical names are a no-op without a write; duplicate names on different
+IDs remain allowed. Renaming preserves the ID, favorites, settings, cards, timing
+and current project, and works at the 20-template capacity. It affects gallery
+search and subsequent export filenames, not an already-exported file.
+Cancel, a deleted target, a blocked library recovery state or a write failure
+preserves the original library. A write failure leaves the dialog open to retry.
+This is browser-library management, not a new CLI/MCP rename tool.
+
 ## Apply a supplied template document
 
 Use CLI `template.apply.document` or MCP `moment_template_apply_document` for an

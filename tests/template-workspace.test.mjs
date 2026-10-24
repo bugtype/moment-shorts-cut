@@ -16,7 +16,7 @@ function workspace(templates = [], options = {}) {
     getProject: () => result.project,
     query,
     modal: { close: () => result.events.push('close') },
-    openModal: title => result.events.push(title),
+    openModal: (title, body, foot) => { result.events.push(title); result.dialog = { title, body, foot }; },
     thumbnail() {}, preview: item => result.events.push(item.id),
     refresh: () => controller.render({}),
     navigate: panel => { result.events.push(panel); controller.render({}); },
@@ -205,4 +205,43 @@ test('template export refuses missing IDs and oversized UTF-8 output without par
   assert.equal(a.events.length,2);
   assert.match(a.events.at(-1),/256 KiB/);
   assert.deepEqual(a.writes,[]);
+});
+
+
+test('rename preserves identity, favorites and project at full capacity and updates export name', () => {
+  const item=saveCustomTemplate('<기존 "이름">',createDemoProject());
+  const a=workspace(Array.from({length:20},(_,i)=>({...item,id:`custom-${i}`})));
+  a.api.favorite('custom-0'); const before=structuredClone(a.api.custom), project=structuredClone(a.project);
+  a.api.rename('custom-0'); assert.match(a.dialog.body,/&lt;기존 &quot;이름&quot;&gt;/);
+  a.query('#renameTemplateName').value='  새 이름 🎬  '; a.query('#confirmRenameTemplate').onclick();
+  assert.deepEqual(a.api.custom,[{...before[0],name:'새 이름 🎬'},...before.slice(1)]);
+  assert.deepEqual(a.project,project); assert.deepEqual(a.api.favorites,['custom-0']);
+  assert.deepEqual(a.writes,['moment-favorites-v1','moment-templates-v1']);
+  a.api.export('custom-0'); assert.equal(a.downloads[0].name,'새 이름 🎬.moment-template.json');
+});
+
+test('rename validates without truncation, no-ops unchanged names, cancels and retries write failure', () => {
+  const item=saveCustomTemplate('기존',createDemoProject()),a=workspace([item]);
+  a.api.rename(item.id);
+  for(const name of ['   ','🎬'.repeat(21)]){a.query('#renameTemplateName').value=name;a.query('#confirmRenameTemplate').onclick();}
+  assert.equal(a.writes.length,0); assert.equal(a.query('#renameTemplateName').focused,true);
+  a.query('#renameTemplateName').value=' 기존 ';a.query('#confirmRenameTemplate').onclick();assert.equal(a.writes.length,0);
+  a.api.rename(item.id);a.query('#cancelRenameTemplate').onclick();assert.equal(a.writes.length,0);
+  a.api.rename(item.id);a.query('#renameTemplateName').value='변경';a.failKey='moment-templates-v1';
+  const closes=a.events.filter(x=>x==='close').length;a.query('#confirmRenameTemplate').onclick();a.render();
+  assert.deepEqual(a.api.custom,[item]);assert.equal(a.events.filter(x=>x==='close').length,closes);
+  a.failKey='';a.query('#confirmRenameTemplate').onclick();assert.equal(a.api.custom[0].name,'변경');
+});
+
+test('rename resolves current library on confirmation and never resurrects a deleted item', async () => {
+  const item=saveCustomTemplate('기존',createDemoProject()),a=workspace([item]);
+  a.api.rename(item.id); const confirm=a.query('#confirmRenameTemplate').onclick;
+  a.api.remove(item.id);a.query('#confirmRemoveTemplate').onclick();
+  a.query('#renameTemplateName').value='복원 안됨';confirm();assert.deepEqual(a.api.custom,[]);assert.equal(a.writes.length,1);
+  assert.match(a.events.at(-1),/찾을 수 없습니다/);
+  const b=workspace([item]),file=pendingFile(),pending=b.api.import(file);
+  b.api.rename(item.id);b.query('#renameTemplateName').value='대기 중 변경';b.query('#confirmRenameTemplate').onclick();
+  file.resolve(await templateFile(item).arrayBuffer());await pending;
+  assert.equal(b.api.custom[0].name,'대기 중 변경');assert.equal(b.api.custom.length,2);
+  const blocked=workspace([],{raw:'invalid'});blocked.api.rename(item.id);assert.match(blocked.events.at(-1),/차단/);assert.equal(blocked.writes.length,0);
 });

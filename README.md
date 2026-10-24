@@ -60,6 +60,13 @@ with a new ID; it does not replace a saved template, change favorites or apply
 the template to the current project. Preview it, then choose style-only or
 example-content application as usual.
 
+**Rename a saved template** from its custom card without making another copy.
+Names are trimmed, nonblank and at most 40 UTF-16 code units. The ID, favorites,
+saved styling/content and current project stay intact, even with a full 20-entry
+library. Names need not be unique; gallery search and export filenames use the
+new name. Cancel or a failed save keeps the original. A failed save leaves the
+dialog open for retry.
+
 | File | What it carries | What it does not do |
 |---|---|---|
 | Project JSON | Editing settings, timeline and captions | Embed source media |

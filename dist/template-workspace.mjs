@@ -96,6 +96,43 @@ export function createTemplateWorkspace({
             toast(error.message || '템플릿을 저장하지 못했습니다.');
         }
     }
+    function renameTemplate(id) {
+        if (templateLibraryBlocked()) return;
+        const item = savedTemplates.find(template => template.id === id);
+        if (!item) {
+            toast('이름을 바꿀 템플릿을 찾을 수 없습니다.');
+            return;
+        }
+        modalOpen('템플릿 이름 변경', `<label class="panel-label" for="renameTemplateName">템플릿 이름</label><input class="panel-input" id="renameTemplateName" maxlength="40" value="${esc(item.name)}">`, '<div class="modal-foot"><button class="button" id="cancelRenameTemplate">취소</button><button class="button primary" id="confirmRenameTemplate">이름 변경</button></div>');
+        $('#cancelRenameTemplate').onclick = () => modal.close();
+        $('#confirmRenameTemplate').onclick = () => {
+            if (templateLibraryBlocked()) return;
+            const current = savedTemplates.find(template => template.id === id);
+            if (!current) {
+                toast('이름을 바꿀 템플릿을 찾을 수 없습니다.');
+                return;
+            }
+            const name = $('#renameTemplateName').value.trim();
+            if (!name || name.length > 40) {
+                toast('템플릿 이름은 1~40자로 입력하세요.');
+                $('#renameTemplateName').focus();
+                return;
+            }
+            if (name === current.name) {
+                modal.close();
+                return;
+            }
+            const previous = savedTemplates;
+            savedTemplates = savedTemplates.map(template => template.id === id ? { ...template, name } : template);
+            if (!persistTemplateLibrary('moment-templates-v1', savedTemplates)) {
+                savedTemplates = previous;
+                return;
+            }
+            modal.close();
+            refresh();
+            toast('템플릿 이름을 바꿨습니다.');
+        };
+    }
     function renderGallery(target) {
         mount(target, {
             ui: galleryUI,
@@ -107,6 +144,7 @@ export function createTemplateWorkspace({
             save: saveTemplateDialog,
             import: importTemplate,
             export: exportTemplate,
+            rename: renameTemplate,
             favorite(id) {
                 if (templateLibraryBlocked())
                     return;

@@ -71,6 +71,7 @@
 | `overlays.update` | `id`, `patch` | 기존 시간별 카드 수정; `{updated:true, outputDuration}` |
 | `overlays.add` | `id`, `patch` | 카드 하나 추가; `{updated:true, outputDuration, id}` |
 | `overlays.remove` | `id` | 카드 하나 삭제; `{updated:true, outputDuration, id}` |
+| `overlays.move` | `id`, `toIndex` | 카드 쌓임 순서 변경; `{updated, outputDuration, id, toIndex}` |
 
 ### 자막 변경
 
@@ -341,6 +342,31 @@ node cli/moment.mjs exec overlays.remove --project story.json --json '{"id":"cta
 겹치는 headline은 마지막 활성 카드가 우선하며 기본 제목을 가릴 수 있습니다.
 명령별 검증·반영은 한 번씩이며, 여러 명령 전체를 묶는 트랜잭션은 아닙니다.
 
+### 카드 쌓임 순서 변경
+
+`overlays.move`는 기존 ID의 카드를 배열의 **최종 위치** `toIndex`로 옮깁니다.
+`0`은 맨 뒤, `project.overlays.length - 1`은 맨 앞이며 비활성 카드도 위치에 포함합니다.
+위 예제의 `story.json`에서 첫 카드를 세 카드 중 맨 앞으로 옮기려면:
+
+```sh
+node cli/moment.mjs exec overlays.move --project story.json --json '{"id":"hook","toIndex":2}' --out story-stacked.json
+```
+
+이동은 시간·문구를 바꾸지 않습니다. 겹치는 `free` 카드는 배열 순서대로 그리며,
+`headline`은 마지막 활성 카드만 표시합니다. 자막·기본 제목 등 다른 종류의
+레이어와의 순서를 바꾸는 기능은 아닙니다. UI의 **맨 앞으로 / 맨 뒤로**도 같은
+카드 배열만 바꾸며 선택을 유지합니다.
+
+| 확인할 것 | 동작 |
+|---|---|
+| `id` | 비어 있지 않은 정확한 기존 ID, 최대 2,000 UTF-16 코드 단위; 기존 공백 ID도 가능. 없으면 `NOT_FOUND`, 현재 `project.overlays`를 다시 조회 |
+| `toIndex` | `0` 이상, 카드 수 미만인 정수; 범위 밖이면 `INVALID_ARGUMENT`, 변경 없음 |
+| 이미 같은 위치 | `updated:false`; 커밋·브라우저 실행 취소 기록 없음 |
+| 응답을 놓침 | 현재 ID와 배열 순서를 다시 읽고 목적 위치를 확인한 뒤 재시도 |
+
+성공 결과는 `{updated, id, toIndex, outputDuration}`입니다. MCP에서는 별도
+`project.get`으로 문서를 읽어 저장하세요. 카드 간 상대 순서 외에는 유지합니다.
+
 ### 실제 카드 ID를 조회하는 CLI 예제
 
 ```sh
@@ -391,7 +417,7 @@ JavaScript에서 직접 호출할 때도 JSON으로 왕복 가능한 값을 전�
 
 배속이나 편집 길이 변경 시 출력 글자의 시간은 **한 번만** 비례 조정합니다.
 
-`title.update`는 기본 제목을 수정합니다. 구간별 제목이 나오는 시간에는 기본 제목이 숨겨집니다. 기존 구간별 문구는 `overlays.update`로 수정할 수 있습니다. 추가·삭제는 `overlays.add`/`overlays.remove`를 사용하며 카드 순서 변경 명령이나 UI는 없으며, 순서를 바꾸려면 검증된 전체 문서 가져오기를 사용합니다.
+`title.update`는 기본 제목을 수정합니다. 구간별 제목이 나오는 시간에는 기본 제목이 숨겨집니다. 기존 구간별 문구는 `overlays.update`로 수정할 수 있습니다. 추가·삭제는 `overlays.add`/`overlays.remove`를 사용하며 카드끼리 겹치는 순서는 `overlays.move` 또는 UI의 맨 앞으로/맨 뒤로로 바꿉니다.
 
 ## 실제 CLI 사용
 

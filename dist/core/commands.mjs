@@ -44,6 +44,7 @@ const definitions=[
   command('timeline.split','지정한 클립을 원본 영상 시간에서 둘로 나눕니다. 각 구간은 0.1초 이상이어야 합니다.',object({clipIndex:{type:'integer',minimum:0,maximum:MAX_CLIPS-1},sourceTime:number(0,86400)},['clipIndex','sourceTime']),true),
   command('timeline.replace','원본 영상 시간 기준 클립 목록을 교체합니다.',object({clips:array(clipSchema,MAX_CLIPS,1)},['clips']),true),
   command('title.update','기본 제목의 두 줄 문구와 스타일을 수정합니다.',object({patch:titleSchema},['patch']),true),
+  command('overlays.move','장면 카드의 쌓임 순서를 변경합니다. 마지막 카드가 앞쪽입니다.',object({id:{...string(2000),minLength:1},toIndex:{type:'integer',minimum:0,maximum:11}},['id','toIndex']),true),
   command('overlays.add','장면 카드를 지정한 ID로 끝에 추가합니다. 표시 시간은 배속 후 출력 초입니다.',object({id:{...string(2000),minLength:1},patch:{...overlayPatchSchema,required:['text','start','end']}},['id','patch']),true),
   command('overlays.remove','지정한 ID의 장면 카드 하나를 삭제합니다.',object({id:{...string(2000),minLength:1}},['id']),true),
   command('overlays.update','기존 장면 카드의 지정한 문구·스타일·출력 표시 시간만 수정합니다. 카드 ID와 순서는 유지합니다.',object({id:{...string(2000),minLength:1},patch:overlayPatchSchema},['id','patch']),true),
@@ -71,6 +72,17 @@ export function prepareCommand(project,name,args={}){
     captions=captions.map(caption=>({...caption,basis:args.basis}));
     const prepared=prepareCommand(project,'captions.replace',{captions});
     return {...prepared,data:{...prepared.data,importedCaptions:captions.length}};
+  }
+  if(name==='overlays.move'){
+    if(!args.id.length)fail('이동할 장면 카드 ID를 입력하세요.','arguments.id');
+    const from=project.overlays.findIndex(card=>card.id===args.id);
+    if(from<0)throw new CommandError('NOT_FOUND','장면 카드를 찾을 수 없습니다.');
+    if(!Number.isInteger(args.toIndex)||args.toIndex<0||args.toIndex>=project.overlays.length)
+      fail('장면 카드의 이동 위치를 확인하세요.','arguments.toIndex');
+    const data={updated:from!==args.toIndex,id:args.id,toIndex:args.toIndex,outputDuration:outputDuration(project)};
+    if(!data.updated)return {data};
+    const next=structuredClone(project),[card]=next.overlays.splice(from,1);
+    next.overlays.splice(args.toIndex,0,card);validateProject(next);return {project:next,data};
   }
   if(name==='captions.timing.shift'){
     const result=shiftCaptionTiming(project.captions,args,args.basis==='source'?project.duration:timelineDuration(project));

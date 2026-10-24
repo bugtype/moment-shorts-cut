@@ -49,7 +49,7 @@ its supported version, `2025-11-25`, even if the proposed version differs; a cli
 that cannot support that version should disconnect, not continue with another
 wire format. `ping` is supported. Initialize only once per process.
 
-All twenty tools require **`projectId: "session"`**. Each process owns one independent
+All twenty-one tools require **`projectId: "session"`**. Each process owns one independent
 in-memory project, initially the demo. This value is neither a path nor a credential.
 Other project IDs return a tool error. A second client process does not share state.
 
@@ -168,6 +168,7 @@ The service emits no BOM.
 | `moment_overlays_update` | `id`, `patch` | `{updated:true, outputDuration}` |
 | `moment_overlays_add` | `id`, `patch` requiring `text`, `start`, `end` | `{updated:true, outputDuration, id}` |
 | `moment_overlays_remove` | `id` | `{updated:true, outputDuration, id}` |
+| `moment_overlays_move` | `id`, `toIndex` | `{updated, outputDuration, id, toIndex}` |
 
 ### Caption changes
 
@@ -502,6 +503,31 @@ Retain caller-chosen IDs across retries. If a response is lost, read the live
 project before adding again: a duplicate error is not permission to overwrite
 or generate another copy. Appended headline cards can hide the base title; when
 headlines overlap, the last active one wins. No media is uploaded or encoded.
+
+### Change card stacking
+
+Read `project.overlays`, then call `moment_overlays_move` with the existing ID
+and its zero-based **final destination**. For the three-card example above,
+before removing the CTA:
+
+```json
+{"projectId":"session","id":"hook","toIndex":2}
+```
+
+| Input/result | Meaning |
+|---|---|
+| `id` | Exact nonempty existing ID, at most 2,000 UTF-16 code units, including legacy whitespace-only IDs; missing → `NOT_FOUND`, re-read the current cards |
+| `toIndex` | Integer from `0` to card count minus one, including disabled cards; outside → `INVALID_ARGUMENT` |
+| Stack order | Index `0` is back; last index is front among cards, not among all renderer layers |
+| Result | `{updated, id, toIndex, outputDuration}`; same index → `updated:false`, no commit |
+
+Timing, text and all other card properties remain unchanged; the other cards
+keep their relative order. Overlapping `free` cards draw in array order; only
+the last active `headline` is shown. This does not move cards above/below captions
+or other base layers. Browser **맨 앞으로 / 맨 뒤로** uses the same card stack and
+keeps the selected card. Real UI moves have one undo step; MCP has no undo tool.
+If the response is lost, inspect the current ID/order before retrying; retrieve
+`moment_project_get` afterward to save the document.
 
 ### Time coordinates
 

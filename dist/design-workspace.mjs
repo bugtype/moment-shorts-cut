@@ -124,6 +124,7 @@ export function createDesignWorkspace(app) {
                     app.seekTo(Math.min(card.end - .001, card.start + .2) * app.state.speed);
                 app.renderPanel();
             },
+            move: (id, toIndex) => app.runEditorCommand('overlays.move', { id, toIndex }),
             remove(id) {
                 app.edit(() => {
                     app.state.overlays = app.state.overlays.filter(card => card.id !== id);

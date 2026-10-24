@@ -243,11 +243,22 @@ do not create a fresh ID blindly. Each call commits independently, not as a batc
 Other cards/order and unrelated content remain unchanged. Appended overlapping
 headlines take precedence and can hide the base title; avoid accidental overlaps.
 
+To change stacking, read the current `project.overlays` and call `overlays.move`
+(or `moment_overlays_move`) with `{id, toIndex}`. `toIndex` is the zero-based final
+position, `0` at the back and the last index at the front, including disabled cards.
+Only card order changes: overlapping free cards draw in array order and only the
+last active headline is shown. This cannot reorder cards relative to captions or
+other renderer layers. Same-index moves return `updated:false` without a commit;
+otherwise the acknowledgment is `{updated:true, id, toIndex, outputDuration}`.
+A missing ID is `NOT_FOUND`; an invalid index is `INVALID_ARGUMENT`. After a lost
+response, re-read IDs/order before retrying. See the [CLI example](../../../../INTEGRATIONS.md#카드-쌓임-순서-변경).
+
+
 ## Replacement operations and styles
 
 - `moment_timeline_replace`: submit the complete desired `clips` list, preserving unrequested clips and their order. Clips may repeat or overlap source ranges. Each must have `end > start` and remain within original media duration; the list must contain 1–1,000 clips.
 - `moment_captions_replace`: submit the complete desired caption array. Preserve `basis`, speaker and keyword fields unless changing them is requested. An empty array intentionally removes all captions. Each text is limited to 2,000 UTF-16 code units; do not silently truncate authored text.
-- `moment_title_update`: `patch.lines` is exactly two strings. To leave the second line blank, use `""`, not an omitted array slot. This edits the base title; timed cards can hide it while active. Use `moment_overlays_update` for an existing card and `moment_overlays_add`/`moment_overlays_remove` to add or remove one. There is no card-reordering control or command; changing order requires a validated full-document import.
+- `moment_title_update`: `patch.lines` is exactly two strings. To leave the second line blank, use `""`, not an omitted array slot. This edits the base title; timed cards can hide it while active. Use `moment_overlays_update` for an existing card and `moment_overlays_add`/`moment_overlays_remove` to add or remove one. Use `overlays.move` / `moment_overlays_move` to change card stacking without replacing the document.
 - `moment_template_apply`: discover IDs with `moment_templates_list`. Only built-in templates are exposed, not the browser's custom-template localStorage. `withContent: false` preserves authored title, credit and card content; `true` applies template example title, credit and card content.
 - Project updates reset zoom/pan when the aspect ratio changes. Timeline or speed changes retime output layers through the shared command logic; do not separately rescale those fields again.
 

@@ -31,6 +31,7 @@ function dataSchema(command) {
       updated: {type: 'boolean'}, matches: {type: 'integer', minimum: 0},
       changedCaptions: {type: 'integer', minimum: 0, maximum: 10000},
     });
+    case 'overlays.move': return record({updated:{type:'boolean'},id:{type:'string',minLength:1,maxLength:2000},toIndex:{type:'integer',minimum:0,maximum:11},outputDuration:{type:'number',minimum:0}});
     case 'overlays.add':
     case 'overlays.remove': return record({updated:{enum:[true]},outputDuration:{type:'number',minimum:0},id:{type:'string',minLength:1,maxLength:2000}});
     case 'captions.import': return record({
@@ -112,6 +113,10 @@ function inputSchema(command) {
   if (command.name === 'project.update') {
     p.patch.description = 'Only supplied settings change. Changing ratio resets zoom/pan; speed changes retime output text.';
     p.patch.properties.speed.description = 'Playback speed multiplier; output duration is edited timeline duration divided by speed.';
+  }
+  if (command.name === 'overlays.move') {
+    p.id.description = 'Exact existing scene-card ID, including legacy whitespace IDs. Does not rename or duplicate the card.';
+    p.toIndex.description = 'Final zero-based destination in the current overlays array, 0..length-1. Last is foreground among scene cards; the last active enabled headline wins. Same index is a no-op. All card fields/times and other project data stay unchanged.';
   }
   if (command.name === 'overlays.remove') p.id.description = 'Exact existing scene-card ID, including legacy whitespace IDs. Removes one card and preserves remaining order. Missing ID returns NOT_FOUND; does not delete media or captions.';
   if (command.name === 'overlays.update' || command.name === 'overlays.add') {

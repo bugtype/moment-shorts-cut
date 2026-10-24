@@ -1,5 +1,7 @@
+const renderOwners = new WeakMap();
 const esc = value => String(value).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 export function mountEffectsPanel(root, api) {
+  const owner = {}; renderOwners.set(root, owner);
   const { state, total, tab } = api, effects = state.effects;
   const select=(label,key,value,options)=>`<label class="panel-label" for="effect-${key}">${label}</label><select id="effect-${key}" class="panel-select" data-effect="${key}">${options.map(([v,l])=>`<option value="${v}" ${String(v)===String(value)?'selected':''}>${l}</option>`).join('')}</select>`;
   const range=(label,key,value,min,max,step=.01)=>`<label class="design-range"><span>${label}<output data-effect-output="${key}">${value}</output></span><input type="range" data-effect="${key}" value="${value}" min="${min}" max="${max}" step="${step}"></label>`;
@@ -24,6 +26,7 @@ export function mountEffectsPanel(root, api) {
     const card=state.overlays.find(item=>item.id===api.selected)||state.overlays[0];
     target.innerHTML=`<div class="section-label">시간별 문구 <span class="muted">${state.overlays.length} / 12</span></div><button class="button dark full" id="addSceneCard" ${state.overlays.length>=12?'disabled':''}>+ 현재 위치에 문구 추가</button><button class="text-button" id="toggleSceneLayers" style="margin-top:10px">${state.overlays.some(c=>c.enabled!==false)?'모든 구간 문구 숨기기':'모든 구간 문구 표시'}</button><p class="tiny-note">상단 타이틀 문구는 기본 제목과 같은 자리에서 교체됩니다. 영상 중앙은 비워둡니다.</p><div class="scene-list">${state.overlays.map((item,index)=>`<button class="scene-list-item ${item.id===card?.id?'active':''}" data-scene-select="${esc(item.id)}"><span>${String(index+1).padStart(2,'0')}</span><div><strong>${esc(item.label||'카드')} · ${esc(item.text)}</strong><small>${item.start.toFixed(1)}–${item.end.toFixed(1)}초</small></div></button>`).join('')}</div>${card?`
       <div class="scene-editor"><div class="section-label">선택한 문구 <button class="text-button" id="removeSceneCard">삭제</button></div>
+      <div class="panel-actions" role="group" aria-label="문구 쌓임 순서"><button class="button" id="sceneToFront" ${state.overlays.at(-1)===card?'disabled':''}>맨 앞으로</button><button class="button" id="sceneToBack" ${state.overlays[0]===card?'disabled':''}>맨 뒤로</button></div>
       <label class="design-check"><input type="checkbox" data-card="enabled" ${card.enabled!==false?'checked':''}>이 문구 표시</label>
       <label class="panel-label">문구 역할<select class="panel-select" data-card="role"><option value="headline" ${(card.role||'headline')==='headline'?'selected':''}>상단 타이틀 · 기본 제목 대체</option><option value="free" ${card.role==='free'?'selected':''}>자유 배치 · 추가 문구</option></select></label>
       <label class="panel-label">배경<select class="panel-select" data-card="presentation"><option value="plain" ${(card.presentation||'plain')==='plain'?'selected':''}>없음 · 글자와 테두리만</option><option value="panel" ${card.presentation==='panel'?'selected':''}>반투명 배경 패널</option></select></label>
@@ -41,6 +44,16 @@ export function mountEffectsPanel(root, api) {
     target.querySelector('#toggleSceneLayers').onclick=api.toggleAll;
     target.querySelectorAll('[data-scene-select]').forEach(button=>button.onclick=()=>api.select(button.dataset.sceneSelect));
     if(card){
+      for(const [id, toIndex, opposite] of [['sceneToFront',state.overlays.length-1,'sceneToBack'],['sceneToBack',0,'sceneToFront']]){
+        target.querySelector('#'+id).onclick=()=>{
+          if(renderOwners.get(root)!==owner || root.querySelector('#effectControls')!==target || state.overlays[toIndex]===card)return;
+          if(!api.move(card.id,toIndex))return;
+          const controls=root.querySelector('#effectControls'), preferred=controls?.querySelector('#'+id), other=controls?.querySelector('#'+opposite);
+          const focusTarget=preferred&&!preferred.disabled?preferred:other&&!other.disabled?other:
+            [...(controls?.querySelectorAll('[data-scene-select]')||[])].find(button=>button.dataset.sceneSelect===card.id);
+          focusTarget?.focus({preventScroll:true});
+        };
+      }
       target.querySelector('#removeSceneCard').onclick=()=>api.remove(card.id);target.querySelector('#duplicateSceneCard').onclick=()=>api.duplicate(card.id);target.querySelector('#previewSceneCard').onclick=()=>api.play(card.start);
       target.querySelectorAll('[data-card]').forEach(input=>{
         const continuous=['text','range','color','textarea'].includes(input.type);

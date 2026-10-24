@@ -36,6 +36,7 @@ const inputs = {
   'template.apply': { templateId: 'reference', withContent: false },
   'timeline.split': {clipIndex:0,sourceTime:6},
   'timeline.replace': { clips: [{ start: 0, end: 12 }] },
+  'overlays.move': {id:'schema-card',toIndex:0},
   'overlays.add': {id:'schema-added',patch:{text:'추가',start:0,end:1}},
   'overlays.remove': {id:'schema-added'},
   'overlays.update': {id:'schema-card',patch:{text:'카드 교정'}},

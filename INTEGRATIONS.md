@@ -814,8 +814,8 @@ node cli/moment.mjs exec captions.inspect --project inspect-source.json --json '
 ### 긴 자막을 전체 또는 범위로 분할
 
 `captions.split.long`은 기존 브라우저 긴 자막 분할을 CLI/MCP에서 수행합니다.
-브라우저의 기존 버튼은 계속 전체 목록에 적용하며, 이 명령이 UI 범위 선택을
-추가하지는 않습니다. 커서 기준 `captions.split`과 별도입니다.
+브라우저의 기존 분할 버튼은 전체 목록, 옆의 범위 동작은 양 끝을 포함하는
+1부터 시작하는 원본 행 번호를 사용합니다. 둘 다 커서 기준 `captions.split`과 별도입니다.
 
 | 입력/결과 | 의미 |
 |---|---|

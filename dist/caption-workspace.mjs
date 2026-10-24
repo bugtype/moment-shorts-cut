@@ -1,3 +1,4 @@
+import { createCaptionSplitRangeDialog } from './caption-split-range-dialog.mjs';
 import { createCaptionReplaceRangeDialog } from './caption-replace-range-dialog.mjs';
 import { createCaptionSpeakerDialog } from './caption-speaker-dialog.mjs';
 import { createCaptionShiftDialog } from './caption-shift-dialog.mjs';
@@ -37,12 +38,14 @@ export function createCaptionWorkspace(app) {
     const removal = createCaptionRangeDialog(app, metadataUnavailable);
     const importer = createCaptionImportDialog(app, metadataUnavailable);
     const rangeSpeaker = createCaptionSpeakerDialog(app, metadataUnavailable);
+    const rangeSplit = createCaptionSplitRangeDialog(app, metadataUnavailable);
     const rangeShift = createCaptionShiftDialog(app, metadataUnavailable);
     const rangeReplace = createCaptionReplaceRangeDialog(app, metadataUnavailable);
     return createCaptionPanel({
         blocked: () => app.panel !== 'captions' || app.modal.open || metadataUnavailable(),
         importFile: () => importer.open(),
         removeRange: index => removal.open(index),
+        splitRange: (index, limit) => rangeSplit.open(index, limit),
         shiftRange: index => rangeShift.open(index),
         speakerRange: index => rangeSpeaker.open(index),
         replaceRange: options => rangeReplace.open(options),

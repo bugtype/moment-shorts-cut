@@ -971,8 +971,10 @@ outside the current timeline remain valid; this is not full-array `captions.repl
 clock validation. Input UTF-16 and derived export byte/occurrence/rounding limits
 still apply, so inspect the audio and exports separately. Re-read after uncertain
 results: changed row counts make old positional indexes unsafe to retry blindly.
-The command is batch-eligible; the existing browser bulk button still targets all
-cues, not a new UI range selection. Save separately with `moment_project_get`.
+The command is batch-eligible. In the browser, the existing bulk button targets all
+cues; the adjacent range action uses inclusive 1-based authored positions and one
+Undo for a changed result. MCP does not control that dialog or offer browser Undo.
+Save separately with `moment_project_get`.
 [Executable CLI example](../INTEGRATIONS.md#긴-자막을-전체-또는-범위로-분할).
 
 ### Split one caption at a text boundary

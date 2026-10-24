@@ -404,7 +404,7 @@ Generated arguments can be piped as one JSON object with [`--args-file -`](INTEG
 | Shift a constant subtitle delay | [`captions.timing.shift`](INTEGRATIONS.md#자막-시간을-앞뒤로-이동) | Choose source/timeline and signed seconds **before speed**. Optional authored-row range, then basis filtering; omitted range moves all matching cues. Any out-of-bounds result rejects the whole edit. Browser caption tools apply a real change as one undo step. |
 | Review overlapping times | **Caption timing overlaps** or [`captions.overlaps`](INTEGRATIONS.md#자막-시간-겹침-점검) | One representative conflict per overlapping output occurrence, not all pairs or a visibility prediction. Read total/flagged/omitted counts. |
 | Review dense caption timing | Browser **Check reading speed** or [`captions.inspect`](INTEGRATIONS.md#편집-후-자막-표시-속도-점검) | Read-only ranking against your chosen non-whitespace-graphemes/second threshold after cuts, repeats and speed. Not a language standard, speech-alignment or export-validity check. |
-| Split long captions in bulk or a range | [`captions.split.long`](INTEGRATIONS.md#긴-자막을-전체-또는-범위로-분할) | 12/18/24-grapheme targets, estimated timing and trimmed split-boundary whitespace. API can target authored rows; the existing browser button still covers all cues. |
+| Split long captions in bulk or a range | [`captions.split.long`](INTEGRATIONS.md#긴-자막을-전체-또는-범위로-분할) | 12/18/24-grapheme targets, estimated timing and trimmed split-boundary whitespace. API or browser **Range…** can target authored rows; the original split button still covers all cues. |
 | Split one caption at the caret | [`captions.split`](INTEGRATIONS.md#자막-하나를-커서-위치에서-분할) or the row split action | Keeps literal text and metadata; estimates timing by grapheme counts, not speech alignment. A caret boundary must not cut an emoji/combined character. Separate from bulk long-caption splitting. |
 | Merge adjacent captions | [`captions.merge`](INTEGRATIONS.md#인접한-자막-합치기) or row action **Merge with next caption** | Combines the next authored row, even across pages. Requires matching clock/speaker/keywords and non-overlapping chronological times; merged text also appears across any gap. One browser undo step. |
 | Change appearance | [`captions.style.update`](INTEGRATIONS.md#자막-스타일-수정) | Size, position, colors, animation and the two speaker labels/colors: only supplied fields change, without resubmitting the project. Visual styles are absent from plain SRT/VTT. |
@@ -430,6 +430,13 @@ counts. **Captions** focuses the authored row without seeking; **View range** pa
 seeks that specific output occurrence, then focuses its row. Re-run if the project or threshold
 changed since inspection. Inspection/navigation does not edit, save or add undo history.
 
+For only part of the list, choose **Range…** beside the long-caption split control.
+Enter inclusive first/last authored positions (1-based); both initially point to
+this page's first cue. The dialog carries the selected 12/18/24 preset, which you
+can change before applying. A changed result is one Undo; no change closes without
+editing or pausing. Other rows keep their text, metadata and clock. Splitting still
+trims boundary whitespace and estimates timing—review it against the audio.
+
 Caption-row start/end inputs retain stored fractional seconds instead of rounding
 to tenths; editing one endpoint preserves the other. The cue's source or pre-speed
 timeline clock and existing validation are unchanged. An explicit change event
@@ -443,7 +450,7 @@ visible range. With more than 50 cues, enter a **1-based page number** and press
 preserves the page-input draft and focus. Paging alone does not edit, save, create
 undo history or seek playback. Search, timeline
 selection, import and adding a caption reveal the target row’s page. Search,
-replace-all and long-caption splitting still cover the full authored list; exports
+replace-all and the whole-list long-caption split still cover the full authored list; exports
 retain the whole project’s clip/speed rules, not just the visible page. Existing
 10,000-cue and 2 MiB limits are unchanged.
 

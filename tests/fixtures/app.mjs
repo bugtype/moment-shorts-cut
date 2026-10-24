@@ -1,3 +1,4 @@
+import { createCaptionSplitRangeDialog } from '../../dist/caption-split-range-dialog.mjs';
 import { createClipDuplicateDialog } from '../../dist/clip-duplicate-dialog.mjs';
 import { createCaptionReplaceRangeDialog } from '../../dist/caption-replace-range-dialog.mjs';
 import { createScenePngExport } from '../../dist/scene-png-export.mjs';
@@ -142,7 +143,7 @@ export async function createAppFixture({sessionMediaDependencies = {}} = {}) {
     cancelAnimationFrame(id) { pendingFrames.delete(id); },
     setTimeout() {}, clearTimeout() {}, setInterval() {}, clearInterval() {},
     console, URL, Blob, TextDecoder, performance, Number, Math, Promise, structuredClone,
-    ...i18n, createClipDuplicateDialog, createCaptionReplaceRangeDialog, createScenePngExport, createScenePngDialog, createCaptionKeywordsDialog, projectGraphicsText, createCaptionSpeakerDialog, createCaptionShiftDialog, createClipComplementDialog, createCaptionImportDialog, createFramingDialog, createPositionDialog, createCaptionRangeDialog, downloadBlob, createClipRange, createCaptionOverlapDialog, createCardTimingDialog, createSessionMediaDialog, createClipMove, createPreviewExport, createCaptionNavigation, createSpeedDialog, createShellPresentation, msg: i18n.message, ...projectModule, createSeekDialog, createCaptionInspectionDialog, replaceCaptionText, prepareCommand, CommandError, LocalizedError, hasMinimumDuration, createEditorService, ...captionModule,
+    ...i18n, createCaptionSplitRangeDialog, createClipDuplicateDialog, createCaptionReplaceRangeDialog, createScenePngExport, createScenePngDialog, createCaptionKeywordsDialog, projectGraphicsText, createCaptionSpeakerDialog, createCaptionShiftDialog, createClipComplementDialog, createCaptionImportDialog, createFramingDialog, createPositionDialog, createCaptionRangeDialog, downloadBlob, createClipRange, createCaptionOverlapDialog, createCardTimingDialog, createSessionMediaDialog, createClipMove, createPreviewExport, createCaptionNavigation, createSpeedDialog, createShellPresentation, msg: i18n.message, ...projectModule, createSeekDialog, createCaptionInspectionDialog, replaceCaptionText, prepareCommand, CommandError, LocalizedError, hasMinimumDuration, createEditorService, ...captionModule,
     adjacentCut, renderCaptionTrack, renderCaptionTrackError, updateTimelineMarkup, createTimelineView, createInspectorView, createInputHistory,
     ...effectsModule, ...templateModule, readTemplateLibrary, validateTemplateLibrary,
     mountTemplateGallery, mountEffectsPanel, ...typographyModule, createCompositionRenderer,

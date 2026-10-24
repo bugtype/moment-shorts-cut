@@ -1,5 +1,7 @@
 // Flat semantic keys; keep each Korean, English and Simplified Chinese entry aligned.
 const entries = {
+  "panels.splitRangeOpen": ["범위의 긴 자막 나누기…","Split long captions in range…","拆分指定范围的长字幕…"],
+  "panels.splitRangeAction": ["범위…","Range…","范围…"],
   "panels.positionApply": ["적용","Apply","应用"],
   "panels.keepGaps": ["빈 구간만 유지…","Keep gaps…","仅保留间隙…"],
   "panels.keepGapsConfirm": ["빈 구간 유지","Keep gaps","保留间隙"],

@@ -83,6 +83,7 @@ export function captionsPanelMarkup({ captions, speakerLabels }, { toolsOpen, tr
         `<option value="24" ${mark('panels.chunkLong')}>${esc(t('panels.chunkLong'))}</option>` +
         `</select>` +
         `<button class="button compact" id="splitLongCaptions">${text('panels.splitLong')}</button>` +
+        `<button class="button compact" id="splitCaptionRange" ${attrs('aria-label', 'panels.splitRangeOpen')} ${captions.length ? '' : 'disabled'}>${text('panels.splitRangeAction')}</button>` +
         `</div>` +
         `<p class="tiny-note">${text('panels.splitNotice')}</p>` +
         `<button class="text-button" id="captionDesignShortcut">${text('panels.captionDesign')}</button>` +

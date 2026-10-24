@@ -237,7 +237,8 @@ Atomic result cap10,000 and computed-time validity apply, not new current-timeli
 clamping. Existing export limits still matter. Inspect `{updated,changedCaptions,
 addedCaptions,outputDuration}`; counters distinguish changed originals from net
 new rows. No change means no commit. Re-read shifted indexes after uncertain results,
-then save via project.get. Browser bulk splitting still covers all authored rows.
+then save via project.get. The browser has separate whole-list and inclusive
+1-based range actions; range is not a persisted selection or output occurrence.
 See [bounds and runnable recipe](../../../../INTEGRATIONS.md#긴-자막을-전체-또는-범위로-분할).
 
 ## Split one caption at the caret boundary

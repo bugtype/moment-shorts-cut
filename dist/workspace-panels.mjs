@@ -141,6 +141,40 @@ export function createWorkspacePanels(app) {
         setAttr(button, 'aria-label', 'shell.previewPngDimensions', dimensions);
     }
 
+    function bindAudioGain(id, key, generation) {
+        const input = $('#' + id), project = app.state;
+        const video = app.sources.videoFile, audio = app.sources.audioFile;
+        const current = () => generation === renderGeneration && app.panel === 'audio' &&
+            $('#' + id) === input && app.state === project && app.sources.videoFile === video && app.sources.audioFile === audio;
+        const unavailable = () => !app.editorReady || app.modal.open || app.exporting || app.loadingMedia || app.transcribing ||
+            app.audioRecording.requesting || app.audioRecording.current ||
+            (app.persistence.restorePhase !== 'ready' && !(app.persistence.restorePhase === 'failed' && app.persistence.recoveryValid));
+        app.inputHistory.bind(input, () => project[key], value => {
+            project[key] = value;
+            app.renderInspector();
+            app.scheduleSave();
+        });
+        for (const name of ['oninput', 'onpointerdown', 'onpointerup', 'onpointercancel', 'onblur']) {
+            const handler = input[name];
+            if (!handler) continue;
+            input[name] = event => {
+                if (!current()) return;
+                if (name === 'oninput') {
+                    if (unavailable() || event?.isComposing || event?.keyCode === 229) {
+                        input.value = String(project[key]);
+                        return;
+                    }
+                    const value = Number(input.value);
+                    if (!input.value.trim() || !Number.isFinite(value) || value < 0 || value > 1) {
+                        input.value = String(project[key]);
+                        return;
+                    }
+                }
+                handler(event);
+            };
+        }
+    }
+
     function renderPanel() {
         const generation = ++renderGeneration;
         const target = $('#panelContent');
@@ -177,6 +211,7 @@ export function createWorkspacePanels(app) {
             target.innerHTML = audioPanelMarkup(app.state, !!app.sources.audioFile, app.sources.audioFile ? app.duration() : 0);
             $('#chooseAudio').onclick = () => $('#audioInput').click();
             $('#recordButton').onclick = app.toggleRecording;
+            if (app.state.kind === 'video') bindAudioGain('audioSourceVolume', 'volume', generation);
             if (app.sources.audioFile) {
                 const file = app.sources.audioFile, project = app.state, audioURL = app.sources.audioURL;
                 const button = $('#downloadOriginalAudio');
@@ -213,12 +248,7 @@ export function createWorkspacePanels(app) {
                         ? { ...caption, start: Math.max(0, caption.start + delta), end: Math.max(.001, caption.end + delta) }
                         : caption);
                 }, true);
-                app.inputHistory.bind($('#audioVolume'), () => app.state.audioVolume, value => {
-                    app.state.audioVolume = value;
-                    $('#audioVolumeOutput').textContent = Math.round(app.state.audioVolume * 100) + '%';
-                    app.renderInspector();
-                    app.scheduleSave();
-                });
+                bindAudioGain('audioVolume', 'audioVolume', generation);
             }
         }
         else if (app.panel === 'text') {

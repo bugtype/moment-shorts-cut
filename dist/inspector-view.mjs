@@ -11,10 +11,14 @@ export function createInspectorView($, $$) {
     }
 
     function render(state, selected, canUndo, canRedo) {
-        for (const [id, key] of [['mobileZoom', 'zoom'], ['panelVolume', 'volume']]) {
+        for (const [id, key] of [['mobileZoom', 'zoom'], ['panelVolume', 'volume'], ['audioSourceVolume', 'volume'], ['audioVolume', 'audioVolume']]) {
             const control = $('#' + id), value = String(state[key]);
             if (control && control.value !== value)
                 control.value = value;
+        }
+        for (const [id, key] of [['audioSourceVolumeOutput', 'volume'], ['audioVolumeOutput', 'audioVolume']]) {
+            const output = $('#' + id);
+            if (output) output.textContent = `${Math.round(state[key] * 100)}%`;
         }
         const c = state.clips[selected] || state.clips[0];
         if (inspectorTrimContext?.clip !== c || inspectorTrimContext.index !== selected

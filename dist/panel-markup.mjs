@@ -120,13 +120,16 @@ export function mediaPanelMarkup({ kind, duration, fileName }, thumbnail) {
     );
 }
 
-export function audioPanelMarkup({ audioName, audioOffset, audioVolume, speed }, hasAudio, timelineDuration) {
+export function audioPanelMarkup({ kind, volume, audioName, audioOffset, audioVolume, speed }, hasAudio, timelineDuration) {
     const connection = hasAudio
         ? `<section class="asset-section" ${attrs('aria-label', 'panels.addedAudioSettings')}>${audioConnectionMarkup({ audioName, audioOffset, audioVolume, speed }, timelineDuration)}</section>`
         : '';
     return (
         `<section class="asset-workspace" aria-labelledby="audioPanelHeading">` +
         `<h1 class="panel-heading" id="audioPanelHeading">${text('panels.audio')}</h1>` +
+        (kind === 'video' ? `<section class="asset-section" ${attrs('aria-label', 'audioMix.source')}>` +
+            `<label class="slider-label" for="audioSourceVolume">${text('audioMix.source')} <output id="audioSourceVolumeOutput">${Math.round(volume * 100)}%</output></label>` +
+            `<input id="audioSourceVolume" type="range" min="0" max="1" step="0.01" value="${volume}" style="width:100%" ${attrs('aria-label', 'audioMix.source')}></section>` : '') +
         connection +
         `<section class="asset-section" ${attrs('aria-label', 'panels.importRecordAudio')}>` +
         `<div class="asset-actions">` +
@@ -215,7 +218,7 @@ function audioConnectionMarkup({ audioName, audioOffset, audioVolume, speed }, t
         `</div>` +
         `<label class="panel-label" for="audioOffset">${text('panels.audioStart')}</label>` +
         `<input class="panel-input" id="audioOffset" type="number" min="0" max="${timelineDuration / speed}" step="0.1" value="${audioOffset / speed}">` +
-        `<label class="slider-label">${text('panels.audioVolume')} <output id="audioVolumeOutput">${Math.round(audioVolume * 100)}%</output>` +
+        `<label class="slider-label" for="audioVolume">${text('panels.addedAudioVolume')} <output id="audioVolumeOutput">${Math.round(audioVolume * 100)}%</output>` +
         `</label>` +
         `<input id="audioVolume" type="range" min="0" max="1" step="0.01" value="${audioVolume}" style="width:100%" ${attrs('aria-label', 'panels.addedAudioVolume')}>`;
 }

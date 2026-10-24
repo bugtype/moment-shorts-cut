@@ -596,6 +596,15 @@ At 1,000 clips, delete a clip before splitting another.
 
 **Automatic captions:** the original video must be **180 seconds or shorter**, even after trimming. Selected audio is processed for at most 180 seconds. Recognition, manual speaker labels and estimated split timing need review.
 
+**Balance the mix in Audio:** both existing project gains are available together when their sources apply.
+
+| Audio control | Scope |
+|---|---|
+| **Original video volume** | Video projects only; the same source gain remains available in Frame |
+| **Added audio volume** | Shown when an added audio file is connected |
+
+Both use 0–100% global gains, not per-clip mixing or new audio processing. A video project does not necessarily contain an audio track. These controls change the recorded mix; the session-only monitor mute below remains separate.
+
 **Preview mute is not export silence.** The preview speaker button mutes only what
 you hear, including during export; the recorded mix still uses the project's
 source-volume and added-audio-volume settings. Set **both volumes to 0** for a

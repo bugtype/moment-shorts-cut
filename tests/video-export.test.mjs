@@ -113,3 +113,28 @@ test('caption rendering choice is copied per request and reset without stale-rel
   assert.equal(f.session.request, second);
   assert.equal(f.session.renderOptions.includeCaptions, true);
 });
+
+test('audio omission adds zero tracks without reading audio source and retains source ownership', () => {
+  for (const includeAudio of [true,false]) {
+    const f=fixture(), source={stops:0,clones:0,stop(){this.stops++;},clone(){this.clones++;return {stop(){source.cloneStops=(source.cloneStops||0)+1;}};}};
+    let reads=0;
+    const audio={get getAudioTracks(){reads++;if(!includeAudio)throw new Error('off must never read audio');return ()=>[source];}};
+    const options={includeAudio,includeCaptions:false}, token=f.session.begin(options);options.includeAudio=!includeAudio;
+    f.session.createSurface('9:16',720);
+    const recorder=f.session.capture(token,{mime:'video/webm'},720,audio,{onError(){},onStop(){}});
+    assert.equal(recorder.stream.getTracks().length,includeAudio?2:1);
+    assert.equal(reads,includeAudio?1:0);assert.equal(source.clones,includeAudio?1:0);
+    assert.equal(f.session.renderOptions.includeCaptions,false);
+    f.session.release(token);
+    assert.equal(source.stops,0);assert.equal(source.cloneStops||0,includeAudio?1:0);
+    assert.equal(f.tracks[0].stops,1);assert.equal(f.session.renderOptions.includeAudio,true);
+  }
+});
+
+test('video-only recorder failure still releases video tracks and resets both request options',()=>{
+  const f=fixture({failRecorder:true}),token=f.session.begin({includeAudio:false,includeCaptions:false});
+  f.session.createSurface('9:16',720);
+  assert.throws(()=>f.session.capture(token,{mime:'video/webm'},720,null,{}),/recorder construction/);
+  f.session.release(token);assert.equal(f.tracks.length,1);assert.equal(f.tracks[0].stops,1);
+  assert.deepEqual(f.session.renderOptions,{includeAudio:true,includeCaptions:true});
+});

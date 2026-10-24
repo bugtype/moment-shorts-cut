@@ -411,10 +411,21 @@ is session-only (reload defaults to unmuted), not a saved project field.
 
 **Video export:** keep the tab visible; hiding it cancels recording. MP4/WebM support depends on the browser. Recording is real-time, with a 30 fps target rather than a fixed-rate guarantee. The historical 4-second Chromium test averaged about 21.7 fps; see [the measured report](docs/BROWSER_QA.md).
 
-In the export dialog, **Include captions in video** starts checked each time.
-Uncheck it to omit only Moment’s authored caption layer from this video export;
-leave it checked to keep the project's existing caption visibility setting.
-The choice is captured when you start and does not edit/save the project or add history.
+Both export options start checked whenever you open the dialog. Their values are
+captured on Start for that request only; they do not edit/save the project or add history.
+
+| Export option | When unchecked |
+|---|---|
+| **Include captions in video** | Omits only Moment’s authored caption layer; checked still respects the project's caption visibility setting |
+| **Include audio** | Omits audio tracks from the recording stream, rather than recording a silent mix |
+
+Audio inclusion does not change project volumes or preview mute/monitoring. To keep
+an audio track with a silent mix instead, leave it checked and set both project
+volumes to 0. Existing audio preparation and browser codec checks still apply;
+unchecking is not a workaround for audio preparation errors. Cancel/retry cannot
+reuse a previous request's options; a newly opened dialog starts checked again.
+
+Caption inclusion affects these outputs:
 
 | Output | Effect of unchecking |
 |---|---|

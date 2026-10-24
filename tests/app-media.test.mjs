@@ -212,7 +212,7 @@ test('media persistence, recording and export ownership', async () => {
   assert.deepEqual(evaluate('state'),monitorState);assert.deepEqual(evaluate('history'),monitorHistory);
   console.log('PASS: export start/double-click guard/cancel/restart/completion, output dimensions and media-track cleanup with mocked codecs.');
   const cleanState=evaluate('state'), cleanHistory=evaluate('history');
-  await vm.runInContext('exportFlow.startExport({mime:"video/webm;codecs=vp8,opus",ext:"webm"},720,{includeCaptions:false})',context);
+  await vm.runInContext('exportFlow.startExport({mime:"video/webm;codecs=vp8,opus",ext:"webm"},720,{includeCaptions:false,includeAudio:false})',context);
   context.captionDraws=[];
   vm.runInContext('composition.draw=(...args)=>captionDraws.push({target:args[0]===videoExport.context?"export":"preview",options:args[5]});draw();',context);
   assert.equal(context.captionDraws.length,1,'recording keeps one render, mirrored to editor');
@@ -298,7 +298,7 @@ test('media persistence, recording and export ownership', async () => {
   vm.runInContext('ensureAudio=dialogAudioWait;exportDialog();',context);
   assert.equal(evaluate('modal.open'),true);
   element('#exportFormat').value='0';element('#exportQuality').value='720';
-  assert.equal(element('#exportIncludeCaptions').checked,true);
+  assert.equal(element('#exportIncludeCaptions').checked,true);assert.equal(element('#exportIncludeAudio').checked,true);
   vm.runInContext('loadingMedia=true;',context);
   await element('#startExport').onclick();
   assert.equal(evaluate('exporting'),false);assert.equal(evaluate('modal.open'),true);
@@ -308,13 +308,14 @@ test('media persistence, recording and export ownership', async () => {
   await element('#startExport').onclick();
   vm.runInContext('loadingMedia=false;',context);
   element('#exportIncludeCaptions').checked=false;
+  assert.equal(element('#exportIncludeAudio').checked,true);element('#exportIncludeAudio').checked=false;
   const dialogState=evaluate('state'), dialogHistory=evaluate('history');
   const oldStart=element('#startExport').onclick;
   assert.equal(oldStart({isComposing:true}),undefined);
   const dialogCounts=[recorderStarts,downloads],dialogExport=oldStart();
-  assert.equal(evaluate('videoExport.renderOptions.includeCaptions'),false);
-  element('#exportIncludeCaptions').checked=true;
-  assert.equal(evaluate('videoExport.renderOptions.includeCaptions'),false);
+  assert.equal(evaluate('videoExport.renderOptions.includeCaptions'),false);assert.equal(evaluate('videoExport.renderOptions.includeAudio'),false);
+  element('#exportIncludeCaptions').checked=true;element('#exportIncludeAudio').checked=true;
+  assert.equal(evaluate('videoExport.renderOptions.includeCaptions'),false);assert.equal(evaluate('videoExport.renderOptions.includeAudio'),false);
   assert.deepEqual(evaluate('state'),dialogState);assert.deepEqual(evaluate('history'),dialogHistory);
   assert.equal(evaluate('exporting'),true);assert.equal(evaluate('modal.open'),true);
   assert.match(element('#modal').innerHTML,/내보내기 준비 중/);
@@ -323,9 +324,9 @@ test('media persistence, recording and export ownership', async () => {
   finishDialogAudio();await dialogExport;
   assert.deepEqual([recorderStarts,downloads],dialogCounts);
   assert.equal(evaluate('videoExport.canvas'),null);assert.equal(evaluate('videoExport.recorder'),null);
-  assert.equal(evaluate('videoExport.renderOptions.includeCaptions'),true);
+  assert.equal(evaluate('videoExport.renderOptions.includeCaptions'),true);assert.equal(evaluate('videoExport.renderOptions.includeAudio'),true);
   vm.runInContext('ensureAudio=dialogAudio;delete globalThis.dialogAudio;exportDialog();',context);
-  assert.equal(element('#exportIncludeCaptions').checked,true);
+  assert.equal(element('#exportIncludeCaptions').checked,true);assert.equal(element('#exportIncludeAudio').checked,true);
   assert.equal(oldStart(),undefined,'detached old Start does not own reopened dialog');
   assert.equal(evaluate('exporting'),false);
   element('#cancelExportDialog').onclick();
@@ -338,8 +339,8 @@ test('media persistence, recording and export ownership', async () => {
    context.exportWait=()=>{entered=true;return pending;};
    if(stage==='fonts')doc.fonts.ready={then(resolve,reject){entered=true;pending.then(resolve,reject);}};
    else vm.runInContext(stage==='audio'?'ensureAudio=exportWait':'seekVideo=exportWait',context);
-   const old=vm.runInContext('exportFlow.startExport({mime:"video/webm;codecs=vp8,opus",ext:"webm"},720,{includeCaptions:false})',context);
-   assert.equal(evaluate('videoExport.renderOptions.includeCaptions'),false);
+   const old=vm.runInContext('exportFlow.startExport({mime:"video/webm;codecs=vp8,opus",ext:"webm"},720,{includeCaptions:false,includeAudio:false})',context);
+   assert.equal(evaluate('videoExport.renderOptions.includeCaptions'),false);assert.equal(evaluate('videoExport.renderOptions.includeAudio'),false);
    for(let i=0;i<5;i++)await Promise.resolve();assert.equal(entered,true,stage+' await reached');
    assert.match(element('#modal').innerHTML,/내보내기 준비 중/);
    assert.match(element('#modal').innerHTML,/id="cancelRunningExport"/);
@@ -361,6 +362,7 @@ test('media persistence, recording and export ownership', async () => {
    assert.equal(vm.runInContext('videoExport.recorder',context),active);assert.deepEqual([recorderStarts,stoppedExportTracks,downloads],counts);
    assert.equal(element('#toast').textContent,'current state');
    assert.equal(evaluate('videoExport.renderOptions.includeCaptions'),true,'cancelled false choice cannot leak into default retry');
+   assert.equal(evaluate('videoExport.renderOptions.includeAudio'),true,'cancelled no-audio choice cannot leak into default retry');
    if(retry)vm.runInContext('stopExport(true)',context);
   }
   for(const stage of ['audio','fonts','seek']){

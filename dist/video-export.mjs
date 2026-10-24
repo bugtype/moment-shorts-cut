@@ -1,11 +1,11 @@
 // Owns export generations and native resources; preparation, playback and UI stay in the app.
 export function createVideoExport({ createCanvas, createRecorder, onRelease }) {
     let request = 0, canvas = null, context = null, stream = null, recorder = null;
-    let renderOptions = Object.freeze({ includeCaptions: true });
+    let renderOptions = Object.freeze({ includeCaptions: true, includeAudio: true });
     const owns = token => token === request;
 
-    function begin({ includeCaptions = true } = {}) {
-        renderOptions = Object.freeze({ includeCaptions: includeCaptions !== false });
+    function begin({ includeCaptions = true, includeAudio = true } = {}) {
+        renderOptions = Object.freeze({ includeCaptions: includeCaptions !== false, includeAudio: includeAudio !== false });
         return ++request;
     }
 
@@ -19,7 +19,8 @@ export function createVideoExport({ createCanvas, createRecorder, onRelease }) {
 
     function capture(token, type, quality, audioStream, { onError, onStop }) {
         stream = canvas.captureStream(30);
-        audioStream.getAudioTracks().forEach(track => stream.addTrack(track.clone()));
+        if (renderOptions.includeAudio)
+            audioStream.getAudioTracks().forEach(track => stream.addTrack(track.clone()));
         const chunks = [], active = recorder = createRecorder(stream, {
             mimeType: type.mime,
             videoBitsPerSecond: quality === 1080 ? 8000000 : 4500000,
@@ -44,7 +45,7 @@ export function createVideoExport({ createCanvas, createRecorder, onRelease }) {
         if (!owns(token))
             return;
         ++request;
-        renderOptions = Object.freeze({ includeCaptions: true });
+        renderOptions = Object.freeze({ includeCaptions: true, includeAudio: true });
         onRelease();
         if (recorder)
             recorder.ondataavailable = recorder.onerror = recorder.onstop = null;

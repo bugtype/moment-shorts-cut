@@ -239,7 +239,7 @@ JavaScript에서 직접 호출할 때도 JSON으로 왕복 가능한 값을 전�
 |---|---|---|
 | `captions.replace` | `captions` | 대사 자막 교체 |
 | `captions.insert` | `captionIndex`, `caption` | 지정 위치에 한 자막 추가; `{updated:true, captionIndex, totalCaptions, outputDuration}` |
-| `captions.remove` | `captionIndex` | 지정 위치 삭제; 같은 결과 형식, 삭제 전 위치 반환 |
+| `captions.remove` | `captionIndex`, 선택 `count`(기본 1) | 지정 위치부터 연속 삭제; 같은 결과 형식, 삭제 전 시작 위치 반환 |
 | `captions.update` | `captionIndex`, `patch` | 자막 하나 부분 수정; `{updated:true, outputDuration, captionIndex}` |
 | `captions.merge` | `captionIndex` | 다음 저장 행과 병합; `{updated:true, outputDuration, mergedCaptionIndex}` |
 | `captions.split` | `captionIndex`, `textOffset` | 지정 자막을 둘로 분할; `{updated:true, outputDuration, createdCaptionIndex}` |
@@ -255,7 +255,7 @@ JavaScript에서 직접 호출할 때도 JSON으로 왕복 가능한 값을 전�
 
 | 작업 | 예제 |
 |---|---|
-| 자막 | [시간 겹침](#자막-시간-겹침-점검) · [표시 속도 점검](#편집-후-자막-표시-속도-점검) · [가져오기](#srtvtt-본문을-명령으로-가져오기) · [커서 분할](#자막-하나를-커서-위치에서-분할) · [합치기](#인접한-자막-합치기) · [추가·삭제](#자막-하나를-추가하거나-삭제) · [개별 수정](#자막-하나만-수정) · [문구 교정](#자막-문구-일괄-교정) · [시간 이동](#자막-시간을-앞뒤로-이동) · [스타일](#자막-스타일-수정) |
+| 자막 | [시간 겹침](#자막-시간-겹침-점검) · [표시 속도 점검](#편집-후-자막-표시-속도-점검) · [가져오기](#srtvtt-본문을-명령으로-가져오기) · [커서 분할](#자막-하나를-커서-위치에서-분할) · [합치기](#인접한-자막-합치기) · [추가·삭제](#자막-하나-추가연속-범위-삭제) · [개별 수정](#자막-하나만-수정) · [문구 교정](#자막-문구-일괄-교정) · [시간 이동](#자막-시간을-앞뒤로-이동) · [스타일](#자막-스타일-수정) |
 | 타임라인 | [클립 분할](#클립-구간-분할) · [클립 복제](#클립-구간-복제) |
 | 구성 | [크레딧](#출처-크레딧-수정) · [영상 효과](#영상-효과-수정) · [카드 수정](#기존-시간별-카드-수정) · [카드 추가·삭제](#스크립트에-맞춰-카드-추가삭제) · [쌓임 순서](#카드-쌓임-순서-변경) |
 | 묶음·템플릿 | [한 번에 편집](#여러-편집을-한-번에-반영) · [템플릿 파일 관리](#개별-사용자-템플릿-파일) · [현재 구성 내보내기](#현재-구성을-템플릿으로-내보내기) · [파일 적용](#내보낸-템플릿을-climcp로-적용) |
@@ -690,7 +690,9 @@ node cli/moment.mjs exec captions.merge --project merge-ready.json --json '{"cap
 있습니다. UI의 **다음 자막과 합치기**는 페이지 경계도 처리하며 합친 행에 초점을
 유지하고 한 번에 실행 취소합니다. MCP에는 실행 취소가 없으므로 이전 문서를 보관하세요.
 
-### 자막 하나를 추가하거나 삭제
+<a id="자막-하나를-추가하거나-삭제"></a>
+
+### 자막 하나 추가·연속 범위 삭제
 
 `captions.list`로 현재 위치를 확인한 뒤 `captions.insert` / `captions.remove`를
 사용하세요. 전체 배열을 다시 보내지 않으며, 다른 자막의 순서·시간은 바꾸지 않습니다.
@@ -699,21 +701,25 @@ node cli/moment.mjs exec captions.merge --project merge-ready.json --json '{"cap
 |---|---|
 | insert `captionIndex` | 정수 0부터 현재 개수까지; 개수와 같으면 마지막에 추가 |
 | insert `caption` | 필수 `start`, `end`, `text`; 선택 `basis`, `speaker`, `keywords`, `timing` |
-| 자막 시간 | `0 <= start < end`, 원본 길이 또는 `basis:"timeline"`의 배속 전 편집 길이 이하; 끝점 86,400초 이하 |
+| insert 자막 시간 | `0 <= start < end`, 원본 길이 또는 `basis:"timeline"`의 배속 전 편집 길이 이하; 끝점 86,400초 이하 |
 | 문구·메타데이터 | text 최대 2,000 UTF-16 코드 단위(빈 값 허용), speaker `""`/`"0"`/`"1"`, keywords 최대 500, timing은 `"estimated"`만 |
 | 시간 기준 | basis 생략 또는 `"source"`는 원본; `"timeline"`은 편집 타임라인. 출력 기준이 아님 |
-| remove `captionIndex` | 현재 존재하는 위치; 마지막 자막도 삭제하여 빈 배열 가능 |
+| remove `captionIndex` | 현재 존재하는 0부터 시작하는 위치 |
+| remove `count` | 선택 정수 1..10,000, 기본 1; `captionIndex + count <= 현재 개수`. 전체 삭제하여 빈 배열 가능 |
 | 한도·결과 | 최대 10,000개; `{updated:true, captionIndex, totalCaptions, outputDuration}` |
 
-잘못된 위치·한도 초과·자막 스키마·시간 위반은 `INVALID_ARGUMENT`로 거절하며 일부만 반영하지 않습니다.
+잘못된 위치·삭제 범위 또는 삽입 한도·자막 스키마·시간 위반은 `INVALID_ARGUMENT`로 거절하며 일부만 반영하지 않습니다.
 자동 정렬·다른 자막 시간 이동은 없습니다. 빈 문구가 저장 가능하다고 SRT/VTT 출력까지
-보장되지는 않습니다. 삭제 결과의 `captionIndex`는 **삭제 전** 위치입니다.
+보장되지는 않습니다. 삭제 결과의 `captionIndex`는 **삭제 전 시작** 위치입니다.
+삭제는 작성 배열의 연속 범위에만 적용하며 현재 타임라인 밖의 생존 자막도 그대로
+보존합니다. 범위를 초과한 요청은 줄여서 적용하지 않고 전체 거절합니다.
 
 ```sh
 node cli/moment.mjs init --out cue-source.json
 node cli/moment.mjs exec captions.list --project cue-source.json --json '{"offset":0,"limit":3}'
 node cli/moment.mjs exec captions.insert --project cue-source.json --json '{"captionIndex":1,"caption":{"start":1,"end":2,"text":"추가한 자막","basis":"source"}}' --out cue-added.json
 node cli/moment.mjs exec captions.remove --project cue-added.json --json '{"captionIndex":1}' --out cue-removed.json
+node cli/moment.mjs exec captions.remove --project cue-added.json --json '{"captionIndex":0,"count":2}' --out cue-range-removed.json
 node cli/moment.mjs exec project.batch --project cue-source.json --json '{"operations":[{"command":"captions.remove","arguments":{"captionIndex":0}},{"command":"captions.insert","arguments":{"captionIndex":0,"caption":{"start":0,"end":2,"text":"새 첫 자막"}}}]}' --out cue-batch.json
 ```
 
@@ -767,7 +773,7 @@ node cli/moment.mjs exec captions.update --project cue-edit-source.json --json '
 | 결과 | `{updated:boolean, matches:number, changedCaptions:number}`; 전체 문서가 아님 |
 | 변경 없음 | 일치 없음 또는 동일한 대체 문구이면 `updated:false`; 저장 반영·실행 취소 이력 추가 없음 |
 
-빈 `replacement`는 허용하지만, 바뀐 자막이 `trim()` 후 비거나 2,000 UTF-16 코드 단위를 넘으면 **전체 변경을 거절**합니다. 문구를 조용히 삭제하거나 잘라내지 않습니다. 구간 삭제는 UI의 개별 삭제 또는 명시적인 `captions.replace`를 사용하세요. 제목·크레딧·시간별 문구는 이 명령의 대상이 아닙니다.
+빈 `replacement`는 허용하지만, 바뀐 자막이 `trim()` 후 비거나 2,000 UTF-16 코드 단위를 넘으면 **전체 변경을 거절**합니다. 문구를 조용히 삭제하거나 잘라내지 않습니다. 구간 삭제는 UI의 개별/범위 삭제 또는 `captions.remove`를 사용하세요. 제목·크레딧·시간별 문구는 이 명령의 대상이 아닙니다.
 
 ```sh
 node cli/moment.mjs exec captions.text.replace --project edited.json --json '{"find":"하루","replacement":"하루의 기록"}' --dry-run

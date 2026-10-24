@@ -6,7 +6,7 @@ import { splitCaptionText } from './effects.mjs';
 import { CAPTION_PAGE_SIZE, captionsPanelMarkup } from './panel-markup.mjs';
 
 export function createCaptionPanel({
-    query: $, queryAll: $$, getProject, getDuration, sourceTime, edit, refresh, toast, execute, inspect, view, overlaps,
+    query: $, queryAll: $$, getProject, getDuration, sourceTime, edit, refresh, toast, execute, inspect, view, overlaps, removeRange,
 }) {
     const timingFields = { basis: 'source', delta: '0' };
     let exportFormat = 'srt';
@@ -172,6 +172,9 @@ export function createCaptionPanel({
             jumpPage();
         };
         $('#goCaptionPage').onclick = jumpPage;
+        $('#removeCaptionRange').onclick = event => {
+            if (!composing && !event?.isComposing && event?.keyCode !== 229) removeRange?.(page * CAPTION_PAGE_SIZE);
+        };
         target.oncompositionstart = () => { if (generation === renderGeneration) composing = true; };
         target.oncompositionend = () => { if (generation === renderGeneration) composing = false; };
         for (const [id, key] of [['captionFind', 'find'], ['captionReplacement', 'replacement']]) {
@@ -274,7 +277,7 @@ export function createCaptionPanel({
             ...$$('[data-view-caption]'), ...$$('[data-split-caption]'), ...$$('[data-merge-caption]'), ...$$('[data-caption-keywords]'), ...$$('[data-caption-speaker]'), ...$$('[data-delete-caption]'),
             ...['captionFind', 'captionReplacement', 'previousCaptionPage', 'nextCaptionPage',
                 'captionPageNumber', 'goCaptionPage', 'previousCaptionMatch', 'nextCaptionMatch', 'replaceAllCaptions', 'splitLongCaptions',
-                'addCaption', 'importSrt', 'captionExportFormat', 'downloadCaptions', 'generateCaptions',
+                'addCaption', 'removeCaptionRange', 'importSrt', 'captionExportFormat', 'downloadCaptions', 'generateCaptions',
                 'inspectCaptionOverlaps', 'inspectCaptions', 'captionDesignShortcut', 'captionShiftBasis', 'captionShiftDelta', 'shiftCaptionTiming'].map(id => $('#' + id)),
         ];
         for (const control of controls) for (const event of ['onclick', 'onchange', 'oninput', 'onkeydown']) {

@@ -1,3 +1,4 @@
+import {createCaptionRangeDialog} from '../../dist/caption-range-dialog.mjs';
 import { downloadBlob } from '../../dist/download.mjs';
 import { createTemplateScene } from '../../dist/template-scene.mjs';
 import { createCaptionOverlapDialog } from '../../dist/caption-overlap-dialog.mjs';
@@ -128,7 +129,7 @@ export async function createAppFixture({sessionMediaDependencies = {}} = {}) {
     cancelAnimationFrame(id) { pendingFrames.delete(id); },
     setTimeout() {}, clearTimeout() {}, setInterval() {}, clearInterval() {},
     console, URL, Blob, TextDecoder, performance, Number, Math, Promise, structuredClone,
-    ...i18n, downloadBlob, createClipRange, createCaptionOverlapDialog, createCardTimingDialog, createSessionMediaDialog, createClipMove, createPreviewExport, createCaptionNavigation, createSpeedDialog, createShellPresentation, msg: i18n.message, ...projectModule, createSeekDialog, createCaptionInspectionDialog, replaceCaptionText, prepareCommand, CommandError, LocalizedError, hasMinimumDuration, createEditorService, ...captionModule,
+    ...i18n, createCaptionRangeDialog, downloadBlob, createClipRange, createCaptionOverlapDialog, createCardTimingDialog, createSessionMediaDialog, createClipMove, createPreviewExport, createCaptionNavigation, createSpeedDialog, createShellPresentation, msg: i18n.message, ...projectModule, createSeekDialog, createCaptionInspectionDialog, replaceCaptionText, prepareCommand, CommandError, LocalizedError, hasMinimumDuration, createEditorService, ...captionModule,
     adjacentCut, renderCaptionTrack, renderCaptionTrackError, updateTimelineMarkup, createTimelineView, createInspectorView, createInputHistory,
     ...effectsModule, ...templateModule, readTemplateLibrary, validateTemplateLibrary,
     mountTemplateGallery, mountEffectsPanel, ...typographyModule, createCompositionRenderer,

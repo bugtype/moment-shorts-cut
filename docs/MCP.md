@@ -196,7 +196,7 @@ The service emits no BOM.
 |---|---|---|
 | `moment_captions_replace` | `captions` | Update acknowledgment and output duration |
 | `moment_captions_insert` | `captionIndex`, `caption` | `{updated:true, captionIndex, totalCaptions, outputDuration}` |
-| `moment_captions_remove` | `captionIndex` | Same acknowledgment; index is the removed position |
+| `moment_captions_remove` | `captionIndex`, optional `count` (default 1) | Same acknowledgment; index is the first removed position |
 | `moment_captions_update` | `captionIndex`, `patch` | `{updated:true, outputDuration, captionIndex}` |
 | `moment_captions_merge` | `captionIndex` | `{updated:true, outputDuration, mergedCaptionIndex}` |
 | `moment_captions_split` | `captionIndex`, `textOffset` | `{updated:true, outputDuration, createdCaptionIndex}` |
@@ -341,7 +341,7 @@ the example. Discover exact input fields in the [tool catalog](#tool-catalog).
 
 | Task | Recipes |
 |---|---|
-| Captions | [Check overlaps](#check-caption-time-overlaps) · [Inspect timing density](#inspect-caption-timing-density) · [Import](#import-subtitle-text-with-an-explicit-clock) · [Split](#split-one-caption-at-a-text-boundary) · [Merge](#merge-two-adjacent-authored-captions) · [Insert/remove](#insert-or-remove-one-authored-caption) · [Edit one cue](#edit-one-authored-caption) · [Correct text](#correct-caption-text-without-replacing-cues) · [Shift timing](#shift-caption-timing-without-replacing-text) · [Style](#adjust-global-caption-appearance) |
+| Captions | [Check overlaps](#check-caption-time-overlaps) · [Inspect timing density](#inspect-caption-timing-density) · [Import](#import-subtitle-text-with-an-explicit-clock) · [Split](#split-one-caption-at-a-text-boundary) · [Merge](#merge-two-adjacent-authored-captions) · [Insert/remove](#insert-one-caption-or-remove-a-range) · [Edit one cue](#edit-one-authored-caption) · [Correct text](#correct-caption-text-without-replacing-cues) · [Shift timing](#shift-caption-timing-without-replacing-text) · [Style](#adjust-global-caption-appearance) |
 | Timeline | [Read clip clocks](#read-timeline-positions-in-pages) · [Split a clip](#split-one-clip-occurrence) · [Repeat a clip](#repeat-one-clip-occurrence) · [Move a clip](#move-one-clip-to-a-final-position) |
 | Composition | [Credit](#set-a-source-credit-independently) · [Effects](#adjust-video-effects-independently) · [Edit a card](#edit-an-existing-timed-card) · [Add/remove cards](#create-scripted-cards-without-importing-a-whole-project) · [Stacking](#change-card-stacking) |
 | Grouped/template edits | [One commit](#apply-related-edits-in-one-commit) · [Export a composition](#export-the-current-composition-as-a-template) · [Apply a template file](#apply-an-exported-custom-template) |
@@ -808,10 +808,12 @@ retrying: merging again at the same index can consume another row. Browser
 **Merge with next caption** works across page boundaries and is one undo step;
 standalone MCP has no undo tool. See the [complete CLI example](../INTEGRATIONS.md#인접한-자막-합치기).
 
-### Insert or remove one authored caption
+<a id="insert-or-remove-one-authored-caption"></a>
 
-Read `moment_captions_list` before editing. These tools change one authored array
-entry, not a derived output occurrence, without resubmitting all cues:
+### Insert one caption or remove a range
+
+Read `moment_captions_list` before editing. These tools insert one authored cue or remove a contiguous authored range,
+not derived output occurrences, without resubmitting all cues:
 
 ```json
 {"projectId":"session","captionIndex":1,"caption":{"start":1,"end":2,"text":"New cue","basis":"source"}}
@@ -819,21 +821,26 @@ entry, not a derived output occurrence, without resubmitting all cues:
 
 Use those arguments with `moment_captions_insert`. To remove that inserted cue,
 call `moment_captions_remove` with `{"projectId":"session","captionIndex":1}`.
+To remove two consecutive cues starting at index 0, use
+`{"projectId":"session","captionIndex":0,"count":2}` after reading the current list.
 
 | Input/constraint | Contract |
 |---|---|
 | Insert index | Integer 0 through current count inclusive; count means append |
-| Remove index | Integer identifying an existing cue; removing the last cue may leave none |
+| Remove index | Integer identifying the first existing cue to remove, zero-based |
+| Remove count | Optional integer 1..10,000, default 1; index + count must fit the current array. Removing all cues is allowed |
 | Required caption fields | `start`, `end`, `text` |
 | Optional caption fields | `basis`: `source`/`timeline`; `speaker`: `""`/`"0"`/`"1"`; `keywords`: up to 500 UTF-16 code units; `timing`: `estimated` |
 | Text | Up to 2,000 UTF-16 code units; empty is legal, not a guarantee of valid subtitle export |
-| Time | `0 <= start < end`, within the selected pre-speed duration and the existing 86,400-second endpoint ceiling |
+| Insert time | `0 <= start < end`, within the selected pre-speed duration and the existing 86,400-second endpoint ceiling |
 | Capacity | Insert rejects when 10,000 cues already exist |
-| Invalid input | Bad position, capacity overflow, cue schema or clock violation returns `INVALID_ARGUMENT`; no partial edit |
-| Result | `{updated:true, captionIndex, totalCaptions, outputDuration}`; removal returns the old deleted position |
+| Invalid input | Bad position/removal range, or insertion capacity/schema/clock violation returns `INVALID_ARGUMENT`; no partial edit |
+| Result | `{updated:true, captionIndex, totalCaptions, outputDuration}`; removal returns the old first deleted position |
 
 Omitted `basis` means source. Timeline basis uses edited seconds **before speed**.
-There is no sorting, retiming or alteration of other cue metadata. Both commands
+There is no sorting, retiming or alteration of other cue metadata; surviving cues
+outside the current timeline are retained. An overflowing range is rejected, not
+shortened. Both commands
 are non-idempotent: indices shift after insertion/removal. On an uncertain result,
 read again instead of blindly retrying; the next removal could delete a different cue.
 
@@ -841,7 +848,7 @@ Both are supported in `project.batch`, using each preceding step's current array
 For example, remove index 0, then insert at index 0 to replace the first entry.
 All steps validate before one commit; 24 editing command names are allowed, but
 there are still at most 20 operations per batch. See the [executable CLI sequence
-and batch recipe](../INTEGRATIONS.md#자막-하나를-추가하거나-삭제).
+and batch recipe](../INTEGRATIONS.md#자막-하나-추가연속-범위-삭제).
 Mutation acknowledgments are not saved documents: retrieve `moment_project_get`
 and save separately. CLI mutations require `--out` or `--dry-run`; their output
 is a full project document, unlike a `captions.list` page.

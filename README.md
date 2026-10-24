@@ -303,7 +303,7 @@ Generated arguments can be piped as one JSON object with [`--args-file -`](INTEG
 | Task | Use | Keep in mind |
 |---|---|---|
 | Read nearby authored captions | [`captions.list`](INTEGRATIONS.md#저장된-자막을-나눠-조회) | Read up to 50 exact cues per page, then target a current index with `captions.update`. Pre-speed times; live pages are not snapshots or project backups. |
-| Insert or remove one caption | [`captions.insert` / `captions.remove`](INTEGRATIONS.md#자막-하나를-추가하거나-삭제) | Use the current authored index; no sorting or retiming of other cues. Re-read after uncertain results—blind retries can affect the wrong cue. |
+| Insert a caption or remove a range | [`captions.insert` / `captions.remove`](INTEGRATIONS.md#자막-하나-추가연속-범위-삭제) | Use the current authored index; no sorting or retiming of other cues. Re-read after uncertain results—blind retries can affect the wrong cue. |
 | Edit one authored caption | [`captions.update`](INTEGRATIONS.md#자막-하나만-수정) | Patch text, timing, speaker or keywords without resending all cues. Read the current array index first; basis and estimated-timing metadata are preserved. |
 | Correct repeated wording | [`captions.text.replace`](INTEGRATIONS.md#자막-문구-일괄-교정) | Literal, case-sensitive, non-overlapping; no regex/Unicode normalization. Preserves timing, speaker/keyword metadata and order. Blank or overlong results reject the whole edit. Browser UI previews occurrence counts and applies one undo step. |
 | Locate a caption in the edit | Row action **View in video** | One occurrence seeks directly; repeated occurrences let you choose. Temporal navigation only, not an edit. |
@@ -345,6 +345,15 @@ selection, import and adding a caption reveal the target row’s page. Search,
 replace-all and long-caption splitting still cover the full authored list; exports
 retain the whole project’s clip/speed rules, not just the visible page. Existing
 10,000-cue and 2 MiB limits are unchanged.
+
+In caption tools, **Remove caption range…** accepts inclusive, **1-based authored
+row numbers**, even across pages. Both fields start at the current page's first
+row; they do not select search matches or derived video occurrences. Removing all
+rows is allowed. One undoable edit preserves surviving cues exactly, including
+out-of-timeline cues, without retiming; focus moves to a survivor's page or **Add
+caption** if empty. Playback pauses but keeps its position. Cancel makes no additional edit and preserves the page and search draft; opening
+the dialog may already commit a row edit through the field’s normal blur/change behavior. Re-read positions after structural edits;
+valid failed-recovery edits still need a settings backup, not browser saving.
 
 **Clips and composition**
 

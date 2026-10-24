@@ -1,5 +1,11 @@
 // Flat semantic keys; keep each Korean, English and Simplified Chinese entry aligned.
 const entries = {
+  "panels.removeCaptionRange": ["자막 범위 삭제…","Remove caption range…","删除字幕范围…"],
+  "panels.firstCaption": ["첫 자막 (포함)","First caption (inclusive)","首条字幕（包含）"],
+  "panels.lastCaption": ["마지막 자막 (포함)","Last caption (inclusive)","末条字幕（包含）"],
+  "panels.removeCaptionRangeConfirm": ["범위 삭제","Remove range","删除范围"],
+  "panels.captionRangeInvalid": ["1~{total} 사이의 순서대로 된 자막 번호를 입력해 주세요.","Enter an ordered caption range from 1 to {total}.","请输入 1 至 {total} 内的顺序字幕范围。"],
+  "panels.captionRangeStale": ["프로젝트가 변경되었습니다. 자막 범위 삭제 창을 다시 여세요.","The project changed. Reopen Remove caption range.","项目已更改。请重新打开删除字幕范围窗口。"],
   "panels.downloadOriginalAudio": ["원본 오디오 다운로드","Download original audio","下载原始音频"],
   "panels.originalAudioDownloadFailed": ["원본 오디오를 다운로드하지 못했습니다. 다시 시도해 주세요.","Could not download the original audio. Try again.","无法下载原始音频。请重试。"],
   "panels.removeClipRange": ["클립 범위 삭제…","Remove clip range…","删除片段范围…"],

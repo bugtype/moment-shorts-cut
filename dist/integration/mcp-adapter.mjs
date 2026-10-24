@@ -263,7 +263,8 @@ function inputSchema(command) {
     p.caption.properties.basis.description = 'source (default when omitted) uses original media seconds; timeline uses edited seconds BEFORE speed. A source cue can repeat across clips. Ownership is preserved exactly as supplied.';
   }
   if (command.name === 'captions.remove') {
-    p.captionIndex.description = 'Required existing zero-based authored caption index from captions.list, not an output occurrence. Removes exactly one cue and may leave an empty array. Remaining indices shift left without retiming. Returned captionIndex is the removed old position. Non-idempotent: reread before retrying an uncertain removal.';
+    p.count.description = 'Optional integer 1..10000, default 1. Removes this many consecutive authored rows starting at captionIndex. The complete range must exist; overflow rejects atomically, never truncates. Surviving content, timing and ownership are unchanged.';
+    p.captionIndex.description = 'Required existing zero-based authored caption index from captions.list, not an output occurrence. Removes count consecutive authored cues (default 1) and may leave an empty array. Remaining indices shift left without retiming. Returned captionIndex is the removed old position. Non-idempotent: reread before retrying an uncertain removal.';
   }
   if (command.name === 'captions.update') {
     p.captionIndex.description = 'Existing zero-based authored cue index, not an output occurrence or stable ID. Read current project before updating; preceding structural edits can shift indices.';

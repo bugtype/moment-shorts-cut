@@ -4,6 +4,7 @@ const entries = [
   ["errors.exportTemplateName","템플릿 이름을 입력하세요.","Enter a template name.","请输入模板名称。"],
   ["errors.exportTemplateId","템플릿 ID는 공백만으로 지정할 수 없습니다.","Template ID must not be blank.","模板 ID 不能为空白。"],
   ["errors.insertCaptionIndex","현재 자막 목록 안의 삽입 위치 또는 맨 끝 위치를 정수로 입력하세요.","Enter an integer insertion position within the current caption list, including its end.","请输入当前字幕列表中的整数插入位置，也可选择列表末尾。"],
+  ["errors.removeCaptionCount","삭제 개수는 1~10,000 사이 정수여야 하며 마지막 자막을 넘을 수 없습니다.","Removal count must be an integer from 1 to 10,000 and cannot extend beyond the final caption.","删除数量必须是 1 至 10,000 的整数，且不能超出最后一条字幕。"],
   ["errors.removeCaptionIndex","삭제할 자막의 현재 번호를 정수로 입력하세요.","Enter the current integer index of the caption to remove.","请输入要删除字幕的当前整数索引。"],
   ["errors.insertCaptionClock","새 자막의 시작·끝을 선택한 배속 전 시간 기준 안에서 확인하세요.","Check the new caption's start and end within its chosen pre-speed clock.","请检查新字幕的起止时间是否在所选变速前时间范围内。"],
   ["errors.timelineListOffset","클립 시작 위치는 0~1,000 사이 정수로 입력하세요.","Clip offset must be an integer from 0 to 1,000.","片段起始位置必须是 0 至 1,000 的整数。"],

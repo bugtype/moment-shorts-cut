@@ -8,7 +8,7 @@
 
 | Workflow | Start here |
 |---|---|
-| Captions | [Inspect timing density](#inspect-caption-timing-density) · [Import](#import-srtvtt-without-constructing-cue-arrays) · [Insert/remove](#insert-or-remove-one-cue) · [Edit one cue](#edit-one-authored-caption) · [Text correction](#correct-repeated-caption-text) · [Split](#split-one-caption-at-the-caret-boundary) · [Merge](#merge-adjacent-authored-captions) · [Timing](#shift-a-constant-subtitle-delay) · [Style](#adjust-shared-caption-styling) |
+| Captions | [Inspect timing density](#inspect-caption-timing-density) · [Import](#import-srtvtt-without-constructing-cue-arrays) · [Insert/remove](#insert-one-cue-or-remove-a-range) · [Edit one cue](#edit-one-authored-caption) · [Text correction](#correct-repeated-caption-text) · [Split](#split-one-caption-at-the-caret-boundary) · [Merge](#merge-adjacent-authored-captions) · [Timing](#shift-a-constant-subtitle-delay) · [Style](#adjust-shared-caption-styling) |
 | Timeline | [Split/repeat a clip](#split-a-clip-without-rebuilding-the-timeline) |
 | Composition | [Effects](#adjust-video-effects-without-changing-content) · [Existing cards](#edit-an-existing-timed-card-by-id) · [Scripted cards/stacking](#build-a-hook-tip-and-cta-with-individual-cards) · [Credit](../../../../docs/MCP.md#set-a-source-credit-independently) |
 | Grouped/template edits | [One commit](#apply-related-edits-together) · [Browser template sharing](#share-one-browser-custom-template) · [Apply a supplied template](#apply-a-supplied-template-document) |
@@ -238,22 +238,27 @@ current index. Each page reflects live state; no snapshot or stable ID is promis
 Re-read after structural edits or uncertain results. A page is not a project backup.
 See [contracts and executable workflow](../../../../INTEGRATIONS.md#저장된-자막을-나눠-조회).
 
-## Insert or remove one cue
+<a id="insert-or-remove-one-cue"></a>
+
+## Insert one cue or remove a range
 
 Read `captions.list` first. `captions.insert` takes `{captionIndex,caption}` at
 0 through current count (inclusive for append); `captions.remove` takes an existing
-`{captionIndex}`. MCP names are `moment_captions_insert` / `moment_captions_remove`,
+`{captionIndex,count?}`; count defaults to 1 and must be an integer 1..10,000.
+The contiguous range must fit the current authored array; all cues may be removed.
+Overflow is rejected, not shortened; surviving out-of-timeline cues remain intact.
+MCP names are `moment_captions_insert` / `moment_captions_remove`,
 with `projectId:"session"`. The caption needs `start`, `end`, `text`; optional basis
 is source by default or timeline, both before speed. Times must fit that duration
 and the 86,400-second endpoint cap; insertion cannot exceed 10,000 cues.
 Empty text is legal but may not export as subtitles. Other cues are not sorted or retimed.
 
 Both return `{updated:true,captionIndex,totalCaptions,outputDuration}`; removal's
-index is its old position. Save the full project separately. These operations shift
+index is the old first removed position. Save the full project separately. These operations shift
 indices and are not idempotent: re-read after uncertainty, never blindly retry.
 In `project.batch`, use sequential current indices, not original positions; the
 20-operation cap is unchanged. [Field limits and executable insert/remove/batch
-recipes](../../../../INTEGRATIONS.md#자막-하나를-추가하거나-삭제) cover the complete contract.
+recipes](../../../../INTEGRATIONS.md#자막-하나-추가연속-범위-삭제) cover the complete contract.
 
 ## Edit one authored caption
 

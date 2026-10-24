@@ -120,3 +120,9 @@ test('stdio lists clip-only output clocks after edits and rejects malformed page
  assert.equal(replies.find(r=>r.id===5).result.structuredContent.error.code,'INVALID_ARGUMENT');
  assert.deepEqual(replies.find(r=>r.id===6).result.structuredContent.data.clips,[]);
 });
+
+test('stdio removes authored ranges atomically and allows removing all remaining captions',()=>{
+ const replies=run([init,ready,call(2,'captions_remove',{captionIndex:1,count:3}),call(3,'captions_list'),call(4,'captions_remove',{captionIndex:1,count:2}),call(5,'captions_remove',{captionIndex:0,count:1}),call(6,'captions_list')]);
+ assert.equal(replies.find(r=>r.id===2).result.structuredContent.error.code,'INVALID_ARGUMENT');assert.equal(replies.find(r=>r.id===3).result.structuredContent.data.totalCaptions,3);
+ assert.equal(replies.find(r=>r.id===4).result.structuredContent.data.totalCaptions,1);assert.deepEqual(replies.find(r=>r.id===6).result.structuredContent.data.captions,[]);
+});

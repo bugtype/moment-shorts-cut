@@ -1,3 +1,4 @@
+import {createCaptionRangeDialog} from './caption-range-dialog.mjs';
 import {createCaptionPanel} from './caption-panel.mjs';
 import {createCaptionInspectionDialog} from './caption-inspection-dialog.mjs';
 import {createCaptionNavigation} from './caption-navigation.mjs';
@@ -29,7 +30,9 @@ export function createCaptionWorkspace(app) {
         ...navigation, blocked: () => app.panel !== 'captions' || metadataUnavailable(),
         seekBlocked: () => !app.mediaReady(),
     });
+    const removal = createCaptionRangeDialog(app, metadataUnavailable);
     return createCaptionPanel({
+        removeRange: index => removal.open(index),
         view: index => rowNavigation.open(index), inspect: () => inspection.open(), overlaps: () => overlaps.open(),
         execute: (command, args) => app.runEditorCommand(command, args),
         query: app.query, queryAll: app.queryAll,

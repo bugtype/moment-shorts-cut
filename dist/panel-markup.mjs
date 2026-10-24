@@ -43,6 +43,11 @@ export function captionsPanelMarkup({ captions, speakerLabels }, { toolsOpen, tr
         `<section aria-label="자막 찾기 및 바꾸기">` +
         `<label class="panel-label" for="captionFind">찾을 내용</label>` +
         `<input class="panel-input" id="captionFind" type="text" maxlength="2000" autocomplete="off" spellcheck="false">` +
+        `<div class="panel-actions" role="group" aria-label="검색된 자막 이동">` +
+        `<button class="button" id="previousCaptionMatch" aria-label="이전 검색 자막" disabled>이전</button>` +
+        `<output id="captionSearchStatus" role="status" aria-live="polite" aria-atomic="true">자막 0 / 0</output>` +
+        `<button class="button" id="nextCaptionMatch" aria-label="다음 검색 자막" disabled>다음</button>` +
+        `</div>` +
         `<label class="panel-label" for="captionReplacement">바꿀 내용</label>` +
         `<input class="panel-input" id="captionReplacement" type="text" maxlength="2000" autocomplete="off" spellcheck="false">` +
         `<button class="button full" id="replaceAllCaptions" aria-live="polite" disabled>모두 바꾸기</button>` +

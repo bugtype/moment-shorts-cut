@@ -136,6 +136,12 @@ Existing output files are protected; use `--overwrite` only when you intend to r
 
 **Caption corrections:** the caption tools show a match preview before replace-all; an applied change is one undo step. Matching is literal, case-sensitive and non-overlapping, with no regex or Unicode normalization. Times, speaker/keyword metadata and cue order stay unchanged. An empty or overlong resulting caption rejects the whole edit rather than deleting/truncating it. See [exact limits and results](INTEGRATIONS.md#자막-문구-일괄-교정).
 
+**Review before replacing:** previous/next search controls move through matching
+caption rows, show the current/total row count, and focus/select each row’s first
+literal match. They include authored captions outside the trimmed video and wrap
+at either end. One row counts once even if it contains several matches; replace-all
+still counts occurrences. Navigation does not seek playback, edit or save the project.
+
 **Caption appearance:** `captions.style.update` changes shared caption styling without resubmitting the full project. Only supplied fields change; styling applies to the visual renderer, not plain SRT/VTT files. [Style options](INTEGRATIONS.md#자막-스타일-수정) include size, position, colors and animation.
 
 **Clip splitting:** `timeline.split` divides one indexed clip without replacing the full timeline. It takes original source time, not output time; [the example and limits](INTEGRATIONS.md#클립-구간-분할) explain repeated clips and boundary checks.

@@ -11,6 +11,7 @@ function fixture({ blocked = false } = {}) {
   function query(selector) {
     if (!nodes.has(selector)) nodes.set(selector, {
       value: '', dataset: {},
+      setSelectionRange: (start, end) => log.push(['selection', selector, start, end]),
       focus: options => log.push(['focus', selector, options]),
       scrollIntoView: options => log.push(['scroll', selector, options]),
       click: () => log.push(['click', selector]),
@@ -192,4 +193,63 @@ test('a blocked app edit does not announce replacement success or alter captions
   f.query('#replaceAllCaptions').onclick();
   assert.equal(f.project().captions, before);
   assert.equal(f.log.length, 0);
+});
+
+test('search navigates matching rows, selects the first literal UTF-16 match and wraps without edits', () => {
+  const f = fixture();
+  f.project().captions = [
+    { start:0,end:1,text:'앞🎬 한글.* 한글.*' },
+    { start:1,end:2,text:'unmatched' },
+    { start:2,end:3,text:'한글.*' },
+  ];
+  const before=structuredClone(f.project());
+  replacementInput(f,'한글.*',''); // One entire cue would become empty; search still works.
+  assert.equal(f.query('#captionSearchStatus').textContent,'자막 0 / 2');
+  assert.equal(f.query('#nextCaptionMatch').disabled,false);
+  f.query('#nextCaptionMatch').onclick();
+  assert.equal(f.query('#captionSearchStatus').textContent,'자막 1 / 2');
+  assert.deepEqual(f.log.at(-1),['selection','[data-caption-text="0"]',4,8]);
+  f.query('#nextCaptionMatch').onclick();
+  assert.deepEqual(f.log.at(-1),['selection','[data-caption-text="2"]',0,4]);
+  f.query('#nextCaptionMatch').onclick();
+  assert.equal(f.query('#captionSearchStatus').textContent,'자막 1 / 2');
+  f.query('#previousCaptionMatch').onclick();
+  assert.equal(f.query('#captionSearchStatus').textContent,'자막 2 / 2');
+  assert.deepEqual(f.project(),before);
+  assert.ok(!f.log.some(event=>event[0]==='edit'||event[0]==='toast'));
+});
+
+test('search resets by query or project identity and preserves a surviving caption across renders/reordering', () => {
+  const f=fixture(), first={start:0,end:1,text:'hit'}, second={start:1,end:2,text:'hit'};
+  f.project().captions=[first,second]; replacementInput(f,'hit','same');
+  f.query('#previousCaptionMatch').onclick();
+  assert.equal(f.query('#captionSearchStatus').textContent,'자막 2 / 2');
+  f.project().captions=[second,first]; f.panel.render(f.target,{},{});
+  assert.equal(f.query('#captionSearchStatus').textContent,'자막 1 / 2');
+  assert.equal(f.query('#captionFind').value,'hit');
+  f.project().captions.splice(0,1); f.panel.render(f.target,{},{});
+  assert.equal(f.query('#captionSearchStatus').textContent,'자막 0 / 1');
+  f.query('#nextCaptionMatch').onclick();
+  const next={...f.project(),captions:[first]}; f.replace(next); f.panel.render(f.target,{},{});
+  assert.equal(f.query('#captionSearchStatus').textContent,'자막 0 / 1');
+  replacementInput(f,'HIT','same');
+  assert.equal(f.query('#nextCaptionMatch').disabled,true);
+  replacementInput(f,'hit','same');
+  assert.equal(f.query('#captionSearchStatus').textContent,'자막 0 / 1');
+  f.query('#previousCaptionMatch').onclick();
+  assert.equal(f.query('#captionSearchStatus').textContent,'자막 1 / 1');
+});
+
+test('search recomputes edited text, missing results and deletion immediately before navigation', () => {
+  const f=fixture(); f.project().captions=[{start:0,end:1,text:'🎬'},{start:1,end:2,text:'🎬'}];
+  replacementInput(f,'🎬','x'); f.query('#nextCaptionMatch').onclick();
+  assert.deepEqual(f.log.at(-1),['selection','[data-caption-text="0"]',0,2]);
+  f.project().captions[0].text='gone'; f.query('#nextCaptionMatch').onclick();
+  assert.deepEqual(f.log.at(-1),['selection','[data-caption-text="1"]',0,2]);
+  f.project().captions=[]; const before=f.log.length; f.query('#previousCaptionMatch').onclick();
+  assert.equal(f.log.length,before);
+  assert.equal(f.query('#captionSearchStatus').textContent,'자막 0 / 0');
+  assert.equal(f.query('#previousCaptionMatch').disabled,true);
+  replacementInput(f,'','x'); f.query('#nextCaptionMatch').onclick();
+  assert.equal(f.log.length,before);
 });

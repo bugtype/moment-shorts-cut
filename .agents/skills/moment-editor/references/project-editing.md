@@ -93,6 +93,16 @@ The result is `{updated, matches, changedCaptions}`, not the document. With no m
 
 An empty replacement can remove a substring, not a whole cue: if any changed cue becomes blank after `trim()` or exceeds 2,000 UTF-16 code units, the entire operation fails before commit. Do not bypass this by dropping cues or silently truncating text. Explicit cue deletion uses `captions.replace`; preserve all other entries. UI replace-all is one undo step; MCP has no undo tool.
 
+In the browser, review matches with previous/next before replace-all. Navigation
+counts matching **authored rows**, not occurrences, including captions outside
+trimmed source ranges. It wraps, scrolls/focuses the row and selects its first
+literal case-sensitive match; it does not seek playback or change project/history/
+saved state. Multiple matches in one row are one navigation result, while
+replace-all still counts every non-overlapping occurrence. Matches are recalculated
+from current content. The query persists, but navigation position resets safely
+when the query/project changes or the selected match disappears. This is a browser
+review aid, not a new CLI/MCP command.
+
 ## Adjust shared caption styling
 
 For “larger captions,” use `captions.style.update` rather than rewriting the project:

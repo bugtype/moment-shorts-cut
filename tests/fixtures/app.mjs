@@ -74,6 +74,7 @@ export async function createAppFixture() {
        focusEvents.push({ target: this, action: 'focus', options });
      },
      scrollIntoView(options) { focusEvents.push({ target: this, action: 'scroll', options }); },
+     setSelectionRange(start, end) { this.selectionStart=start;this.selectionEnd=end; },
      pause() {}, play() { return Promise.resolve(); },
      getBoundingClientRect() { return { left: 0, top: 0, width: 540, height: 960 }; },
      showModal() { this.open = true; }, close() { this.open = false; },

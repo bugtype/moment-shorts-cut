@@ -7,6 +7,37 @@ export function createCaptionPanel({
     query: $, queryAll: $$, getProject, getDuration, sourceTime, edit, refresh, toast,
 }) {
     const replacementFields = { find: '', replacement: '' };
+    let searchProject = null, searchQuery = '', selectedSearchCaption = null;
+    function searchResults() {
+        const project = getProject(), query = replacementFields.find;
+        if (project !== searchProject || query !== searchQuery) {
+            selectedSearchCaption = null;
+            searchProject = project;
+            searchQuery = query;
+        }
+        const rows = [];
+        if (query) project.captions.forEach((caption, index) => {
+            const start = caption.text.indexOf(query);
+            if (start >= 0) rows.push({ caption, index, start });
+        });
+        const current = rows.findIndex(row => row.caption === selectedSearchCaption);
+        if (current < 0) selectedSearchCaption = null;
+        $('#captionSearchStatus').textContent = `자막 ${current + 1} / ${rows.length}`;
+        $('#previousCaptionMatch').disabled = !rows.length;
+        $('#nextCaptionMatch').disabled = !rows.length;
+        return { rows, current };
+    }
+    function navigateSearch(direction) {
+        const { rows, current } = searchResults();
+        if (!rows.length) return;
+        const index = current < 0 ? (direction > 0 ? 0 : rows.length - 1)
+            : (current + direction + rows.length) % rows.length;
+        const row = rows[index];
+        selectedSearchCaption = row.caption;
+        searchResults();
+        focusCaption(row.index);
+        $('[data-caption-text="' + row.index + '"]').setSelectionRange(row.start, row.start + searchQuery.length);
+    }
     function previewReplacement() {
         const button = $('#replaceAllCaptions');
         button.textContent = '모두 바꾸기';
@@ -81,8 +112,12 @@ export function createCaptionPanel({
             field.oninput = () => {
                 replacementFields[key] = field.value;
                 previewReplacement();
+                searchResults();
             };
         }
+        $('#previousCaptionMatch').onclick = () => navigateSearch(-1);
+        $('#nextCaptionMatch').onclick = () => navigateSearch(1);
+        searchResults();
         $('#replaceAllCaptions').onclick = replaceAllCaptions;
         previewReplacement();
         $('#captionDesignShortcut').onclick = actions.design;
@@ -109,7 +144,11 @@ export function createCaptionPanel({
             edit(() => getProject().captions.splice(index, 1), true);
             focusCaption(Math.min(index, getProject().captions.length - 1));
         });
-        $$('[data-caption-text]').forEach(el => el.onchange = () => edit(() => getProject().captions[+el.dataset.captionText].text = el.value));
+        $$('[data-caption-text]').forEach(el => el.onchange = () => {
+            edit(() => getProject().captions[+el.dataset.captionText].text = el.value);
+            searchResults();
+            previewReplacement();
+        });
         for (const side of ['start', 'end'])
             $$(`[data-caption-${side}]`).forEach(el => el.onchange = () => {
                 const i = +el.dataset[side === 'start' ? 'captionStart' : 'captionEnd'];

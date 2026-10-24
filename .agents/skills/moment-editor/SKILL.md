@@ -5,11 +5,17 @@ description: Edit Moment Shorts Studio project JSON through its CLI or MCP tools
 
 # Moment editor
 
+**Edit project metadata through the existing CLI/MCP contracts, or change the shared editor source without duplicating its rules.**
+
 ## Choose the task and interface
 
-- **Edit a supplied project:** read [project-editing](references/project-editing.md). Use CLI for files or MCP for a connected in-memory session. Inspect live schemas with `node cli/moment.mjs commands` or `tools/list`; do not invent tool names or fields.
-- **Connect or troubleshoot MCP:** read [docs/MCP.md](../../../docs/MCP.md) for the actual transport, tool catalog, response fields and recovery. The server is `node cli/mcp.mjs`, not an HTTP endpoint.
-- **Change this repository:** read [contributing](references/contributing.md) and [CONTRIBUTING.md](../../../CONTRIBUTING.md). `dist/` is maintained source, not generated output. Reuse its shared commands and validation.
+| Task | Start here | Interface |
+|---|---|---|
+| Edit a supplied project | [Project editing](references/project-editing.md) | CLI for files; MCP for a live in-memory session |
+| Connect or troubleshoot MCP | [MCP guide](../../../docs/MCP.md) | `node cli/mcp.mjs`, not HTTP |
+| Change repository code | [Contributing reference](references/contributing.md) and [repository conventions](../../../CONTRIBUTING.md) | `dist/` is maintained source, not build output |
+
+Inspect live schemas with `node cli/moment.mjs commands` or `tools/list`; do not invent fields or duplicate shared validation.
 
 Paths in command examples are relative to the repository root. Read only the reference needed for the current task.
 
@@ -23,7 +29,13 @@ Paths in command examples are relative to the repository root. Read only the ref
 
 ## Time and media limits
 
-Clips and default captions use **source seconds**. Captions with `basis: "timeline"` use **edited timeline seconds before speed adjustment**. Titles, credits and timed cards use **output seconds after speed adjustment**. Never apply speed twice; see the worked example in the project-editing reference.
+| Value | Time basis |
+|---|---|
+| Clips and default captions | Source seconds |
+| Captions with `basis: "timeline"` | Edited timeline seconds **before speed** |
+| Titles, credits and timed cards | Output seconds **after speed** |
+
+Never apply speed twice; see the worked example in the project-editing reference.
 
 Project JSON carries metadata, not media bytes. The local MCP process cannot access browser IndexedDB or the open editor, and has no media-job provider. `render.plan` produces a plan with `rendered: false`, not video. Do not describe mock-provider output or a plan as an encoded file.
 
@@ -31,4 +43,6 @@ Project JSON carries metadata, not media bytes. The local MCP process cannot acc
 
 For project edits, return the saved artifact and what changed, with the interface actually verified. If file saving failed, preserve the live MCP process where possible and report that the work remains only in memory.
 
-For code, follow the focused validation checklist in the contributing reference. Keep layout, accessible names, warnings and error handling; avoid adding redundant helper copy. Aim for cohesive files around 500 readable lines, not arbitrary slices. Report tests actually run and distinguish simulated DOM/protocol checks from real browser, client-app or codec verification.
+For code, follow the validation checklist in the contributing reference. Keep layout, accessible names, warnings and error handling; avoid redundant helper copy. Aim for cohesive files around 500 readable lines, not arbitrary slices.
+
+Report tests actually run. **Simulated DOM/protocol checks are not real browser, client-app or codec verification.**

@@ -1,5 +1,7 @@
 # Working on Moment source
 
+**Change the existing responsibility owner, preserve its public contract, and test through the real entry point.**
+
 Read [CONTRIBUTING.md](../../../../CONTRIBUTING.md) for repository conventions. Use this map to keep changes in the existing responsibility boundary rather than adding an integration-only implementation.
 
 ## Find the owner
@@ -10,6 +12,11 @@ Read [CONTRIBUTING.md](../../../../CONTRIBUTING.md) for repository conventions. 
 | Public editing input schemas and copy-before-commit commands | `dist/core/commands.mjs` |
 | Serialized execution, commit port, sanitized errors, optional jobs | `dist/integration/editor-service.mjs` |
 | Tool naming, project resolution, MCP result mapping | `dist/integration/mcp-adapter.mjs` |
+
+### Runtime entry points
+
+| Change | Owner |
+|---|---|
 | Stdio lifecycle and framing | `cli/mcp.mjs`, `cli/mcp-session.mjs` |
 | CLI file loading, safe output publication and options | `cli/moment.mjs` |
 | Browser orchestration and integration boundary | `dist/app.js` |
@@ -36,7 +43,15 @@ node examples/use-editor-service.mjs
 node --test tests/mcp-stdio.test.mjs
 ```
 
-Run the documented CLI and MCP examples too when changing integration behavior. The full suite covers shared editing, actual CLI/subprocess protocol behavior, synthetic DOM/media flows and provider mocks. Add a regression that fails before a behavior fix; include repeated use, cancellation/failure/retry or unchanged-state checks when they are part of the affected workflow.
+Run documented CLI/MCP examples when changing integration behavior. Add a regression that fails before a behavior fix, including repeated use, cancellation/retry or unchanged state when relevant.
+
+| Check | What it establishes |
+|---|---|
+| Full test suite | Shared editing, CLI/subprocess protocols, synthetic DOM/media and provider mocks |
+| CLI/MCP examples | Documented input/output workflows still execute |
+| Direct owner + entry-point tests | A responsibility extraction preserves behavior across its boundary |
+
+None of these establishes actual browser rendering or codec behavior.
 
 For a refactor, preserve observable input/output and errors, then test the extracted owner directly and through its existing entry point. Keep files readable and cohesive around 500 lines; do not compress or split solely to meet a number.
 

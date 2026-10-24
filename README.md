@@ -9,7 +9,7 @@
 
 Moment is a local-first video editor with a Korean interface. Trim a clip, choose a template, add captions or narration, and export a short without uploading your media to an app server. No account or API key is required.
 
-The editor also exposes a shared command core, a project JSON/SRT CLI, and an MCP adapter for integrations. This is an early-stage project; see [tested behavior and remaining gaps](docs/BROWSER_QA.md) before relying on a particular browser or codec.
+The editor also exposes a shared command core, a project JSON/SRT CLI, and a local stdio MCP server for AI clients. This is an early-stage project; see [tested behavior and remaining gaps](docs/BROWSER_QA.md) before relying on a particular browser or codec.
 
 ![Moment editor with a template gallery, vertical video preview, and editing timeline](docs/editor-desktop.png)
 
@@ -43,12 +43,12 @@ Use **사용 가이드 (Help) → 편집 설정 저장 (Save editing settings)**
 
 ## Features
 
-- **Timeline editing:** trim, split, reorder, delete, change playback speed, pan and zoom, and undo/redo.
-- **Templates and typography:** 10 built-in compositions, template search and favorites, up to 20 browser-local custom templates, title/credit styling, and up to 12 timed text layers.
-- **Captions:** SRT/VTT import, edited-timeline SRT export, keyword highlighting, two manually assigned speakers, entrance effects, and long-caption splitting with estimated timing.
-- **Audio and speech:** original-audio volume, an additional audio file or microphone recording, and on-device automatic captions using Transformers.js 3.8.1 and `Xenova/whisper-tiny`.
-- **Visual effects:** slow zoom, fade-to-black or flash at clip boundaries, brightness, contrast, saturation, vignette, and an optional progress bar.
-- **Local projects and export:** browser storage, project JSON import/export, and Canvas/Web Audio composition recorded through MediaRecorder.
+| Work on | Available tools | Important boundary |
+| --- | --- | --- |
+| Video and timing | Trim, split, reorder, delete, speed, pan/zoom, undo/redo; brightness, contrast, saturation, vignette, slow zoom and progress bar | One source video and one video track; boundary fades/flash do not overlap clips |
+| Layout and text | 10 built-in templates, search/favorites, up to 20 local custom templates, title/credit styling and 12 timed text layers | Style-only preserves authored text; example content replaces title, credit and timed cards |
+| Captions and audio | SRT/VTT import, edited SRT export, highlighting, effects, two manual speakers; one added audio file or microphone narration | On-device ASR uses Transformers.js 3.8.1 + `Xenova/whisper-tiny`; recognition and estimated split timing need review |
+| Save and automate | Browser storage, project JSON, CLI, repository skill and stdio MCP; Canvas/Web Audio → MediaRecorder export | Project JSON contains no media; CLI/MCP do not encode video |
 
 The built-in templates cover review stories, bold opening lines, vlogs, explainers, interviews, recipes, rankings, product reviews, quizzes, and cinematic moments. Preview each with its animated sample. Quiz choices and countdowns are video graphics, not interactive polls.
 
@@ -103,28 +103,72 @@ node cli/moment.mjs exec captions.export --project edited.json --out captions.sr
 node cli/moment.mjs commands
 ```
 
-Existing output files are protected; use `--overwrite` only when you intend to replace one. Add `--dry-run` to an `exec` command to inspect its result without writing output. JSON inputs are limited to 10 MB.
+Existing output files are protected; use `--overwrite` only when you intend to replace one. Add `--dry-run` to an `exec` command to inspect its result without writing output. JSON inputs are limited to 10 MiB (10,485,760 bytes).
 
-You can also call `window.moment` from the editor page or connect the MCP tool adapter to your own host. Run `node examples/use-editor-service.mjs` for a local service/adapter example.
+### Choose an integration
 
-**The CLI does not encode video.** `render.plan` produces a plan, not an MP4. The MCP adapter does not include a running server, transport, or authentication. See [INTEGRATIONS.md](INTEGRATIONS.md) for command contracts, caption time bases, media relinking, and host responsibilities.
+| Need | Use | Start here |
+| --- | --- | --- |
+| Edit JSON/SRT files | Node CLI; existing outputs are protected | [Command contracts and file workflow](INTEGRATIONS.md) |
+| Give an AI agent project guidance | Repository skill, no global installation | [Moment editor skill](.agents/skills/moment-editor/SKILL.md) |
+| Connect an AI client | Local stdio MCP server: `node cli/mcp.mjs` | [Client setup, tools, errors and recovery](docs/MCP.md) |
+| Integrate with your own code | Same-page `window.moment` or the reusable service/adapter | `node examples/use-editor-service.mjs` |
+
+Run `node examples/use-mcp-client.mjs` for an executable handshake → import → edit → SRT → restart/reimport example. It launches local Node processes and keeps its exported document in memory; it does not write your files or connect to a browser.
+
+**MCP changes disappear when its process exits.** Retrieve `moment_project_get` and save `structuredContent.data` through your client's authorized file workflow. The bundled server has one temporary `session` project, not your open browser project.
+
+**`render.plan` does not produce an MP4.** Neither the CLI nor the bundled MCP server uploads media or encodes video. A custom remote host must supply its own transport, authentication and storage. An external AI client may send project text to its provider; review that client's privacy settings before sharing private captions.
 
 ## Privacy and limits
 
 **Media stays on your device, but the app is not fully offline.** Fonts load from Google Fonts; automatic captions download code from jsDelivr and model/runtime assets from Hugging Face and related runtime sources. Speech inference runs in a browser worker. See [SECURITY.md](SECURITY.md) for network requests and trust boundaries.
 
-- **Storage:** media is stored in IndexedDB and editing state in localStorage. They are written separately; a failed save can leave them out of sync. Storage belongs to the current browser and origin; changing the host or port opens a different storage area. Clearing browser data, private browsing, or storage exhaustion can lose work. There is no cloud sync or remote backup.
-- **Input limits:** video up to 500 MB, additional audio up to 100 MB, project JSON up to 10 MB, and SRT/VTT up to 2 MB. Projects allow at most 1,000 clips; splitting at the limit requires deleting a clip first. Subtitles allow at most 10,000 cues and 2,000 characters per cue. These limits do not guarantee enough device memory or codec support.
-- **Text imports:** save project JSON and SRT/VTT files as UTF-8; a leading UTF-8 BOM is supported. Subtitle LF, CRLF and CR line endings are normalized to LF while preserving payload line breaks. Invalid UTF-8 is rejected without replacing the current project or captions. Other encodings are not detected or converted automatically.
-- **Pending imports:** if the project changes while a text file is being read or waiting to apply, the import is rejected; select the file again to apply it to the current project. Selecting another JSON/SRT/VTT file supersedes the earlier pending import, even if the newer file fails. These checks cover applied project state, not uncommitted text-field drafts.
-- **Pending transcription:** results are not applied if the source media or existing captions changed, or the project was replaced; added-audio results also require unchanged audio offset and edited duration. Generate again against the updated input. Appearance changes remain usable. This protects applied edits, not uncommitted text-field drafts, and does not promise to stop model computation when a conflict is detected.
-- **Derived caption limits:** the timeline caption lane and SRT export support at most 10,000 edited occurrences and 2 MiB of UTF-8 caption text, counting each clip repetition. The completed SRT has a separate 2 MiB limit including escaping, timing, separators and any emitted BOM (browser exports include a BOM; CLI/service exports do not). Exceeding a limit rejects the entire derived output, including for older projects; reduce repeated clips or captions to restore it. Original caption editing, project JSON, undo and saving remain available. These budgets do not guarantee UI responsiveness or available memory.
-- **SRT text:** blank lines separate cues. Export rejects empty cues or blank lines inside an exported caption instead of dropping paragraphs or assigning new times. Remove the blank lines to export SRT; project JSON retains the original text. Ordinary multiline captions are supported, with CRLF/CR normalized to LF in output. Subtitle-player markup support varies; universal compatibility is not claimed.
-- **SRT timing:** timestamps round to milliseconds after trimming and speed changes. Export rejects a cue whose rounded start and end are equal; adjust its interval or playback speed. It does not extend, drop or move cues automatically, and the original project keeps its precise timing.
-- **Long-caption splitting:** the 12/18/24-character targets and estimated timing weights count grapheme clusters, keeping combining marks and joined emoji together without Unicode normalization. Whitespace at split boundaries is removed as whole clusters. This action requires native `Intl.Segmenter`; unsupported runtimes show an error and leave captions unchanged. The separate 2,000 UTF-16 code-unit input limit and UTF-8 byte budgets still apply. Segmentation depends on the runtime’s Unicode data, and estimated timing still needs review against the audio.
-- **Automatic captions:** the original video must be **180 seconds or shorter**, even if its edited timeline is shorter. The selected audio is processed for at most 180 seconds. Check recognition results yourself; speaker labels are manual and split-caption timing is estimated.
-- **Export:** recording runs in real time and is cancelled when the tab is hidden. Available MP4/WebM codecs depend on the browser. The capture target is 30 fps, **not a fixed-frame-rate guarantee**; the documented 4-second Chromium test averaged about 21.7 fps.
-- **Editing model:** one source video, a single video track, and one additional audio file/recording. Fades occur at clip boundaries; clips do not overlap for cross-dissolves.
+| Input or project limit | Maximum |
+| --- | --- |
+| Video / additional audio | 500 MiB / 100 MiB |
+| Project JSON / SRT or VTT input | 10 MiB / 2 MiB, UTF-8 |
+| Clips / source caption cues | 1,000 / 10,000; 2,000 UTF-16 code units per cue |
+| Custom templates / timed text layers | 20 / 12 |
+
+At 1,000 clips, delete a clip before splitting another.
+
+**These are validation limits, not memory or codec guarantees.** Browser storage is not a backup: media and settings are written separately and can fall out of sync after a failed save. Keep the original media and export project JSON regularly.
+
+**Automatic captions:** the original video must be **180 seconds or shorter**, even after trimming. Selected audio is processed for at most 180 seconds. Recognition, manual speaker labels and estimated split timing need review.
+
+**Video export:** keep the tab visible; hiding it cancels recording. MP4/WebM support depends on the browser. Recording is real-time, with a 30 fps target rather than a fixed-rate guarantee. The historical 4-second Chromium test averaged about 21.7 fps; see [the measured report](docs/BROWSER_QA.md).
+
+<details>
+<summary>Storage, pending imports and transcription conflicts</summary>
+
+**Storage:** media is stored in IndexedDB and editing state in localStorage. They are written separately; a failed save can leave them out of sync. Storage belongs to the current browser and origin; changing the host or port opens a different storage area. Clearing browser data, private browsing, or storage exhaustion can lose work. There is no cloud sync or remote backup.
+
+**Pending imports:** if the project changes while a text file is being read or waiting to apply, the import is rejected; select the file again to apply it to the current project. Selecting another JSON/SRT/VTT file supersedes the earlier pending import, even if the newer file fails. These checks cover applied project state, not uncommitted text-field drafts.
+
+**Pending transcription:** results are not applied if the source media or existing captions changed, or the project was replaced; added-audio results also require unchanged audio offset and edited duration. Generate again against the updated input. Appearance changes remain usable. This protects applied edits, not uncommitted text-field drafts, and does not promise to stop model computation when a conflict is detected.
+
+</details>
+
+<details>
+<summary>UTF-8, SRT text and timing rules</summary>
+
+**Text imports:** save project JSON and SRT/VTT files as UTF-8; a leading UTF-8 BOM is supported. Subtitle LF, CRLF and CR line endings are normalized to LF while preserving payload line breaks. Invalid UTF-8 is rejected without replacing the current project or captions. Other encodings are not detected or converted automatically.
+
+**SRT text:** blank lines separate cues. Export rejects empty cues or blank lines inside an exported caption instead of dropping paragraphs or assigning new times. Remove the blank lines to export SRT; project JSON retains the original text. Ordinary multiline captions are supported, with CRLF/CR normalized to LF in output. Subtitle-player markup support varies; universal compatibility is not claimed.
+
+**SRT timing:** timestamps round to milliseconds after trimming and speed changes. Export rejects a cue whose rounded start and end are equal; adjust its interval or playback speed. It does not extend, drop or move cues automatically, and the original project keeps its precise timing.
+
+</details>
+
+<details>
+<summary>Derived caption budgets and long-caption splitting</summary>
+
+**Derived caption limits:** the timeline caption lane and SRT export support at most 10,000 edited occurrences and 2 MiB of UTF-8 caption text, counting each clip repetition. The completed SRT has a separate 2 MiB limit including escaping, timing, separators and any emitted BOM (browser exports include a BOM; CLI/service exports do not). Exceeding a limit rejects the entire derived output, including for older projects; reduce repeated clips or captions to restore it. Original caption editing, project JSON, undo and saving remain available. These budgets do not guarantee UI responsiveness or available memory.
+
+**Long-caption splitting:** the 12/18/24-character targets and estimated timing weights count grapheme clusters, keeping combining marks and joined emoji together without Unicode normalization. Whitespace at split boundaries is removed as whole clusters. This action requires native `Intl.Segmenter`; unsupported runtimes show an error and leave captions unchanged. The separate 2,000 UTF-16 code-unit input limit and UTF-8 byte budgets still apply. Segmentation depends on the runtime’s Unicode data, and estimated timing still needs review against the audio.
+
+</details>
 
 ### Troubleshooting
 
@@ -140,9 +184,10 @@ You can also call `window.moment` from the editor page or connect the MCP tool a
 ```sh
 npm test
 node examples/use-editor-service.mjs
+node examples/use-mcp-client.mjs
 ```
 
-`npm test` runs syntax checks, editor regression checks, and Node tests for CLI file I/O, project validation, MCP request isolation, subtitle parsing, and the local HTTP server. Each `tests/app-*.test.mjs` suite uses its own synthetic app VM and DOM; `verify.mjs` retains composition and gesture checks. Run `npm test` for the complete regression set. CI is configured for Node 20/22/24 on Linux and Node 24 on Windows; the badge links to actual results.
+`npm test` runs syntax checks, editor regression checks, and Node tests for CLI file I/O, project validation, MCP lifecycle/schema/request isolation, the interactive MCP client example, subtitle parsing, and the local HTTP server. Each `tests/app-*.test.mjs` suite uses its own synthetic app VM and DOM; `verify.mjs` retains composition and gesture checks. Run `npm test` for the complete regression set. CI is configured for Node 20/22/24 on Linux and Node 24 on Windows; the badge links to actual results.
 
 Storage tests inject synthetic transaction failures to check cancellation, queued retries, and save status. They do not verify real browser quota failures, eviction, or crash recovery.
 
@@ -152,21 +197,17 @@ Storage tests inject synthetic transaction failures to check cancellation, queue
 dist/               Browser UI, rendering, captions, and local persistence
   core/             DOM-free project model, validation, and editing commands
   integration/      Editor service and MCP adapter
-cli/                Node.js project JSON/SRT command-line interface
+cli/                Node.js JSON/SRT CLI, stdio MCP session and transport
 scripts/            Local preview server
-examples/           Command arguments and a runnable integration example
+examples/           Command arguments and runnable service/MCP examples
 tests/              Node test suites
 verify.mjs          Composition and preview-gesture regression checks
 ```
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for changes and bug reports, [ROADMAP.md](ROADMAP.md) for planned work, and [SECURITY.md](SECURITY.md) for private vulnerability reporting. Supporting documents are currently in Korean.
+See [CONTRIBUTING.md](CONTRIBUTING.md) for changes and bug reports, [ROADMAP.md](ROADMAP.md) for planned work, and [SECURITY.md](SECURITY.md) for private vulnerability reporting. Some supporting documents are in Korean; MCP setup and skill references are also available in English.
 
 The [browser verification report](docs/BROWSER_QA.md) records a Chromium/macOS test of upload, captions, persistence, and MP4 export, with its performance limits. [QA.md](QA.md) describes regression coverage. Automated tests use simulated browser APIs where needed; they do not establish microphone, speech recognition, or cross-browser compatibility.
 
 ## License
 
 Project code and documentation are licensed under [MIT](LICENSE). Downloaded fonts, libraries, and models retain their own terms; see [THIRD_PARTY.md](THIRD_PARTY.md).
-
-## AI / MCP
-
-[Repository skill and local stdio MCP setup](docs/MCP.md). Edit project metadata with AI; changes stay in memory until your client saves the exported document. No media upload or unattended rendering.

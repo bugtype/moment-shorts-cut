@@ -1,8 +1,15 @@
 # Local MCP and AI skill
 
 Moment provides a dependency-free **stdio MCP server for project metadata** and a
-repository skill for agents. It does not install a service, connect to your open
-browser, upload media or encode video.
+repository skill for agents. **Save the edited document before disconnecting: the
+session is temporary.** It does not install a service, connect to your open browser,
+upload media or encode video.
+
+| Goal | Start here |
+|---|---|
+| Check the local connection | [Connect a client](#connect-a-client) |
+| Edit and keep a project | [Import, edit, inspect, save](#import-edit-inspect-save) |
+| Find fields or recover an error | [Tool catalog](#tool-catalog) · [Responses and recovery](#responses-and-recovery) |
 
 ## Connect a client
 
@@ -73,10 +80,15 @@ Example request after importing a document:
 {"jsonrpc":"2.0","id":4,"method":"tools/call","params":{"name":"moment_project_update","arguments":{"projectId":"session","patch":{"name":"수정한 쇼츠","ratio":"9:16"}}}}
 ```
 
-A successful mutation's `structuredContent.data` is an acknowledgment such as
+A successful mutation returns an acknowledgment such as
 `{updated:true, outputDuration:12}` or `{imported:true}`, **not the edited document**.
-Retrieve it with `moment_project_get`. To save SRT, use `moment_captions_export`'s
-`structuredContent.data.text`, not the JSON envelope.
+
+| Needed result | Tool | Field to save |
+|---|---|---|
+| Project JSON | `moment_project_get` | `structuredContent.data` |
+| SRT text | `moment_captions_export` | `structuredContent.data.text` |
+
+Do not save the JSON-RPC envelope as either artifact.
 
 **Changes disappear when the process exits.** The server neither reads nor writes
 project files, autosaves, synchronizes browser IndexedDB, nor exposes an undo tool.
@@ -93,18 +105,30 @@ result shape. Nested project state is intentionally an open object there; the
 shared project validator still checks its version, required fields, types and
 ranges at runtime. Schema discovery does not bypass that validation.
 
+### Read and export
+
 | Tool | Editing input | Successful `structuredContent.data` |
 |---|---|---|
 | `moment_project_get` | none | Full portable project document |
+| `moment_templates_list` | none | Built-in template summaries: `id`, `name`, `category`, `description` |
+| `moment_captions_export` | none | `{format:"srt", text:"..."}` |
+| `moment_render_plan` | optional `quality`, `format` | Plan, project snapshot, output settings, required media and `rendered:false` |
+
+### Project and template changes
+
+| Tool | Editing input | Successful `structuredContent.data` |
+|---|---|---|
 | `moment_project_update` | `patch` | Update acknowledgment and output duration |
 | `moment_project_import` | `document` | `{imported:true}` |
-| `moment_templates_list` | none | Built-in template summaries: `id`, `name`, `category`, `description` |
 | `moment_template_apply` | `templateId`, optional `withContent` | Update acknowledgment and output duration |
+
+### Timeline and text changes
+
+| Tool | Editing input | Successful `structuredContent.data` |
+|---|---|---|
 | `moment_timeline_replace` | `clips: [{start,end}]` | Update acknowledgment and output duration |
 | `moment_title_update` | `patch` | Update acknowledgment and output duration |
 | `moment_captions_replace` | `captions` | Update acknowledgment and output duration |
-| `moment_captions_export` | none | `{format:"srt", text:"..."}` |
-| `moment_render_plan` | optional `quality`, `format` | Plan, project snapshot, output settings, required media and `rendered:false` |
 
 Replacement tools replace the **entire array**. Preserve unrequested clips/captions
 rather than sending only the changed entry. `withContent:true` applies example title, credit
@@ -122,10 +146,12 @@ transcription tool or video-rendering tool on this host.
 
 ### Time coordinates
 
-- Clip start/end and source captions: original media seconds.
-- Captions with `basis:"timeline"`: edited timeline seconds **before** speed.
-- Title, credit and timed card ranges: output seconds **after** speed.
-- SRT export: final output seconds, including clip ordering/repetition and speed.
+| Value | Time basis |
+|---|---|
+| Clips and source captions | Original media seconds |
+| Captions with `basis:"timeline"` | Edited timeline seconds **before speed** |
+| Title, credit and timed cards | Output seconds **after speed** |
+| Exported SRT | Final output seconds, with clip order/repetition and speed applied |
 
 For clips `[2,6]` and `[8,12]` at speed 2, edited duration is 8 seconds and output is
 4 seconds. A source caption `[3,5]` appears at output `[0.5,1.5]`. A timeline caption
@@ -149,19 +175,33 @@ translated error messages. Transport success alone does not mean an edit succeed
 Tool annotations are discovery hints, not authorization; validate inputs and inspect
 results regardless of those hints.
 
+### Protocol failures
+
 | Failure | Meaning and safe next step |
 |---|---|
 | JSON-RPC `-32700` | Malformed JSON or UTF-8; fix the frame. No tool ran. |
 | JSON-RPC `-32600` | Invalid request or tools before initialization; fix the request/lifecycle. |
 | JSON-RPC `-32601` | Unsupported method; use advertised methods. |
 | JSON-RPC `-32602` | Invalid initialization/params, unknown tool or unsupported pagination; rediscover names and schemas. |
-| JSON-RPC `-32603` | Unexpected dispatch failure; inspect current project before repeating a mutation. |
+
+JSON-RPC **`-32603`** means an unexpected dispatch failure. Inspect the current
+project before repeating a mutation.
+
+### Editing failures
+
+| Failure | Meaning and safe next step |
+|---|---|
 | Tool `INVALID_ARGUMENT` | Input validation failed; correct the field indicated by `path`. |
 | Tool `NOT_FOUND` | Inaccessible project or unknown built-in template; use `session` and discover template IDs. |
 | Tool `UNSUPPORTED_VERSION` | Preserve the document and use a compatible editor; do not falsify its version. |
 | Tool `CAPTION_OUTPUT_LIMIT` | Derived SRT exceeds its cue/byte budget; keep the project and reduce output only as requested. |
-| Tool `INTERNAL_ERROR` | Do not assume a mutation failed atomically in every host; inspect the session before retrying. |
-| Process exits / response lost | Unsaved state may be gone. If alive, read before replay; otherwise import the last saved document into a new session. |
+
+Tool **`INTERNAL_ERROR`** does not establish atomic failure in every custom host.
+Inspect the session before retrying.
+
+**Process exited or response lost:** unsaved state may be gone. If the process is
+alive, read before replaying the edit. Otherwise import the last saved document
+into a new session.
 
 The shared service validates a copied project before committing. The local host's
 commit replaces its in-memory project; reusable custom hosts must supply their own

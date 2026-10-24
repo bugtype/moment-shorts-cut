@@ -1,5 +1,7 @@
 # Project editing workflows
 
+**Inspect the supplied document, preview the requested edit, then save a separate result. MCP changes remain in memory until your client saves them.**
+
 ## Discover and inspect
 
 Run commands from the repository root with Node.js 20+. No package installation is required.
@@ -22,7 +24,15 @@ node cli/moment.mjs exec project.update --project supplied.moment.json --json '{
 node cli/moment.mjs exec captions.export --project edited.moment.json --out edited.srt
 ```
 
-These shell examples use POSIX quoting. For other shells or complex text, put the arguments in a UTF-8 JSON file and use `--args-file args.json` instead of `--json`. Existing output files are protected; do not add `--overwrite` merely to make a failed command pass. CLI failures use exit code 1 and stderr JSON; success uses exit code 0 and stdout JSON. A dry run's `preview` field is the proposed document (or read result); it is not a saved file.
+These examples use POSIX quoting. For other shells or complex text, use a UTF-8 arguments file with `--args-file args.json` instead of `--json`.
+
+| CLI result | Where to look | File effect |
+|---|---|---|
+| Success, exit 0 | stdout JSON | `--out` names the saved output |
+| Failure, exit 1 | stderr JSON | Inspect the error; do not assume a file was created |
+| `exec --dry-run` | `preview` field | Proposed document/read result only; no file write |
+
+**Existing outputs are protected.** Do not add `--overwrite` merely to make a failed command pass.
 
 Equivalent MCP tool arguments for a rename are:
 
@@ -30,7 +40,14 @@ Equivalent MCP tool arguments for a rename are:
 {"projectId":"session","patch":{"name":"수정한 쇼츠"}}
 ```
 
-Call `moment_project_update`, check `isError === false` and `structuredContent.ok === true`, then call `moment_project_get`. Save that call's `structuredContent.data`, not the entire JSON-RPC response, text-content wrapper, or mutation acknowledgment. Save SRT from `moment_captions_export` → `structuredContent.data.text`.
+Call `moment_project_update` and check both `isError === false` and `structuredContent.ok === true` before continuing.
+
+| Artifact | Retrieve with | Save this field |
+|---|---|---|
+| Edited project JSON | `moment_project_get` | `structuredContent.data` |
+| SRT text | `moment_captions_export` | `structuredContent.data.text` |
+
+Do not save the JSON-RPC envelope, text-content wrapper or mutation acknowledgment as a project document.
 
 ## Replacement operations and styles
 
@@ -46,22 +63,36 @@ Live schemas are authoritative. Examples do not extend the supported fields: the
 
 With source clips `[2,6]` then `[8,12]`, the pre-speed edited timeline is 8 seconds. At `speed: 2`, output duration is 4 seconds.
 
-- A source caption `[3,5]` appears at output `[0.5,1.5]`.
-- A timeline-basis caption `[2,4]` appears at output `[1,2]`, regardless of removed source gaps.
-- A title/card's `[1,2]` is already output time; do not divide it again.
-- Source captions repeat when their source range occurs in several clips. SRT export handles trimming, repetition and speed; do not manually offset it a second time.
+| Value | Supplied range | Output range |
+|---|---|---|
+| Source caption | `[3,5]` | `[0.5,1.5]` |
+| Timeline-basis caption | `[2,4]` | `[1,2]`, independent of removed source gaps |
+| Title/card | `[1,2]` | `[1,2]`, already output time |
+
+Source captions repeat when their range occurs in several clips. SRT export handles trimming, repetition and speed; do not offset it again.
 
 The project's `duration` describes the source, not the sum of the clips or final video length. Derive edited duration from the clips; derive output duration by dividing by speed. Do not infer whether a timeline caption is linked to an audio track from `basis` alone.
 
 ## Recover without losing work
 
-- **`INVALID_ARGUMENT`:** inspect `error.path`, discover the current schema, correct the input and retry. Validation rejects unknown fields and invalid ranges before committing.
-- **`NOT_FOUND`:** for local MCP use exactly `session`; for a template lookup rediscover built-in IDs. Do not substitute a different project or template silently.
-- **`BUSY`:** finish/cancel the active browser job before retrying there. The standalone stdio host is not that browser session.
-- **`MEDIA_RELINK_REQUIRED`:** browser import needs the matching original video/audio connected first. Matching is by video name/duration and audio name, not a content hash. Keep the original media; MCP cannot relink it remotely.
-- **`UNSUPPORTED_VERSION`:** preserve the supplied document and use a compatible version. Do not rewrite its version number to bypass validation.
-- **`CAPTION_OUTPUT_LIMIT`:** derived SRT exceeds its cue or byte budget. Reduce repetition/cues only with the user's intent; keep the source document. Metadata editing and JSON export remain separate from SRT output limits.
-- **CLI `FILE_EXISTS`, `FILE_ERROR`, `FILE_TOO_LARGE`, `INVALID_JSON`:** fix the destination, permissions or UTF-8 input. JSON files have a 10 MiB byte limit; input may have one UTF-8 BOM. Never convert undecodable bytes to replacement characters silently.
-- **MCP disconnect or lost response:** do not claim persistence. If the process is still live, read the project to determine whether the change applied before repeating it. If it exited, start a new session and import the last saved document. Reapply only verified missing edits.
+**Correct the cause before retrying; preserve the supplied document and any live unsaved session.**
+
+| Error | Recovery |
+|---|---|
+| `INVALID_ARGUMENT` | Inspect `error.path` and the live schema. Unknown fields and invalid ranges are rejected before commit. |
+| `NOT_FOUND` | Use exactly `session` for local MCP, or rediscover built-in template IDs. Do not silently switch projects/templates. |
+| `BUSY` | Finish/cancel the browser job before retrying there. Standalone stdio is not that browser session. |
+| `UNSUPPORTED_VERSION` | Use a compatible editor. Do not falsify the document's version number. |
+
+**Media relinking:** `MEDIA_RELINK_REQUIRED` means browser import needs the matching originals connected first. Matching uses video name/duration and audio name, not a content hash. Keep the original media; MCP cannot relink it remotely.
+
+**SRT limits:** `CAPTION_OUTPUT_LIMIT` affects derived SRT, not metadata editing or JSON export. Reduce repeated clips/cues only as requested; do not discard the source document.
+
+| File/session failure | Recovery |
+|---|---|
+| CLI `FILE_EXISTS` / `FILE_ERROR` | Correct destination or permissions. Preserve the original; overwriting needs intent. |
+| CLI `FILE_TOO_LARGE` / `INVALID_JSON` | Use valid UTF-8 JSON within 10 MiB. One leading UTF-8 BOM is allowed; do not silently replace undecodable bytes. |
+| Lost MCP response | If the process is alive, read the project before repeating a mutation. |
+| MCP process exited | Import the last saved document into a new session. Reapply only verified missing edits; do not claim unsaved state persisted. |
 
 MCP has no undo tool or durable history. Keep a prior exported document when reversible editing matters. Importing that document can restore metadata in the same live session; it cannot restore media bytes or unsaved changes lost on exit.

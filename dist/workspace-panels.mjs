@@ -212,6 +212,11 @@ export function createWorkspacePanels(app) {
                     app.scheduleSave();
                 });
             }
+            const framing = $('#openPanelFraming'), framingProject = app.state, framingGeneration = renderGeneration;
+            framing.onclick = event => {
+                if (app.panel === 'settings' && app.state === framingProject && framingGeneration === renderGeneration && $('#openPanelFraming') === framing &&
+                    !event?.isComposing && event?.keyCode !== 229) app.openFraming('openPanelFraming');
+            };
             const savePreview = $('#savePreviewPng'), previewProject = app.state;
             syncPreviewExportLabel();
             savePreview.onclick = () => {

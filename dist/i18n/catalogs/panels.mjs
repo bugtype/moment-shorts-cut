@@ -1,6 +1,11 @@
 // Flat semantic keys; keep each Korean, English and Simplified Chinese entry aligned.
 const entries = {
   "panels.positionApply": ["적용","Apply","应用"],
+  "panels.framing": ["영상 구도…","Framing…","视频构图…"],
+  "panels.framingX": ["가로 이동 (%)","Horizontal offset (%)","水平偏移 (%)"],
+  "panels.framingY": ["세로 이동 (%)","Vertical offset (%)","垂直偏移 (%)"],
+  "panels.framingZoom": ["확대 (%)","Zoom (%)","缩放 (%)"],
+  "panels.framingStale": ["편집 상태가 바뀌었습니다. 영상 구도를 다시 여세요.","The edit changed. Reopen Framing.","编辑状态已更改。请重新打开视频构图。"],
   "panels.position": ["위치…","Position…","位置…"],
   "panels.positionX": ["가로 위치 (%)","Horizontal position (%)","水平位置 (%)"],
   "panels.positionY": ["세로 위치 (%)","Vertical position (%)","垂直位置 (%)"],

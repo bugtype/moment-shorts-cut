@@ -81,6 +81,10 @@ export function bindUi(app) {
         app.renderInspector();
     };
     $('#speed').onchange = event => app.changeSpeed(event.target.value);
+    const framing = $('#openFraming');
+    framing.onclick = event => {
+        if ($('#openFraming') === framing && !event?.isComposing && event?.keyCode !== 229) app.openFraming('openFraming');
+    };
     app.inputHistory.bind($('#zoom'), () => app.state.zoom, value => {
         app.state.zoom = value;
         app.draw();

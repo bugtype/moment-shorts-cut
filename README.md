@@ -66,6 +66,7 @@ Settings files must fit **10 MiB (10,485,760 UTF-8 bytes)** for both save and re
 | Next task | Read only what you need |
 |---|---|
 | Navigate the preview | [Fine steps, cut boundaries and exact output time](#navigate-the-preview) |
+| Reframe without dragging | [Exact source offsets and zoom](#reframe-the-source-video) |
 | Edit timing | [Capture trim values and set an exact speed](#edit-timing-from-the-preview) |
 | Save an image | [Click-time preview PNG and bitmap dimensions](#save-a-preview-image) |
 | Back up added audio | [Original audio file, not an edited mix](#back-up-added-audio) |
@@ -190,6 +191,25 @@ The value uses output time **after speed**, from zero through the output end.
 Confirming pauses and seeks; cancel leaves playback unchanged. It does not edit,
 save or add undo history. Reopen if the project or media source changed; busy/recovery guards apply.
 This is time navigation, not frame/sample-accurate seeking.
+
+### Reframe the source video
+
+Choose **Framing…** beside zoom in the desktop Frame inspector or the **Frame**
+panel on compact screens. Enter fractional percentages, then **Apply**:
+
+| Control | Meaning |
+|---|---|
+| Horizontal / Vertical offset | −100–100%; zero centers the fitted video, positive moves right/down relative to the video frame region |
+| Zoom | 100–300%; multiplies the existing cover/contain fit and clip-effect zoom |
+
+Only changed fields are applied in one undoable edit; untouched values retain
+stored precision. Content/timing and the current playhead position stay unchanged.
+Cancel or unchanged values add no command or pause; opening the dialog can still
+trigger another field's normal blur/change. Reopen after project/media/context
+changes. Valid failed-recovery edits remain in memory and need a settings backup.
+This edits metadata even without ready media, so a missing source may show no visual
+change. Offsets are not source-pixel coordinates or necessarily whole-canvas
+percentages; clipping and uncovered space are possible, with no safe-area guarantee.
 
 ### Edit timing from the preview
 

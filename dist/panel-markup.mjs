@@ -153,6 +153,7 @@ export function settingsPanelMarkup({ ratio, fit, zoom, captionSize, captionY, v
         `</div>` +
         `<label class="panel-label" for="mobileZoom">${text('panels.zoom')}</label>` +
         `<input id="mobileZoom" type="range" min="1" max="3" step=".01" value="${zoom}" style="width:100%">` +
+        `<button class="button" id="openPanelFraming">${text('panels.framing')}</button>` +
         `<p class="tiny-note">${text('panels.dragFrame')}</p>` +
         `<div class="panel-actions"><button class="button" id="savePreviewPng">${text('shell.savePreviewPng')}</button></div>` +
         `<button class="button full" id="resetPosition">${icon('reset')} ${text('panels.resetPosition')}</button>` +

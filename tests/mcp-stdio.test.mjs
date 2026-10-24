@@ -32,7 +32,7 @@ test('stdio negotiates its supported version, waits for initialization and lists
   assert.equal(replies[1].result.protocolVersion, '2025-11-25');
   assert.deepEqual(replies[1].result.capabilities, {tools: {}});
   assert.equal(replies[2].error.code, -32600);
-  assert.equal(replies[3].result.tools.length,34);
+  assert.equal(replies[3].result.tools.length,35);
   assert.ok(replies[3].result.tools.some(tool => tool.name === 'moment_project_import'));
   assert.ok(replies[3].result.tools.every(tool => tool.inputSchema.required.includes('projectId')));
   assert.equal(replies[3].result.resultType, undefined);
@@ -111,4 +111,12 @@ test('stdio inserts, removes the final cue and recovers from a stale removal ind
  assert.equal(byId.get(6).result.structuredContent.data.totalCaptions,0);assert.deepEqual(byId.get(7).result.structuredContent.data.captions,[]);
  assert.equal(byId.get(8).result.isError,true);assert.equal(byId.get(8).result.structuredContent.error.code,'INVALID_ARGUMENT');
  assert.deepEqual(byId.get(10).result.structuredContent.data.captions,[{captionIndex:0,caption:initial}]);
+});
+
+test('stdio lists clip-only output clocks after edits and rejects malformed pages',()=>{
+ const replies=run([init,ready,call(2,'timeline_duplicate',{clipIndex:0}),call(3,'project_update',{patch:{speed:2}}),call(4,'timeline_list',{offset:1,limit:1}),call(5,'timeline_list',{offset:1.5}),call(6,'timeline_list',{offset:1000})]);
+ const page=replies.find(r=>r.id===4).result.structuredContent.data;
+ assert.equal(page.totalClips,2);assert.deepEqual(page.clips,[{clipIndex:1,sourceStart:0,sourceEnd:12,timelineStart:12,timelineEnd:24,outputStart:6,outputEnd:12}]);
+ assert.equal(replies.find(r=>r.id===5).result.structuredContent.error.code,'INVALID_ARGUMENT');
+ assert.deepEqual(replies.find(r=>r.id===6).result.structuredContent.data.clips,[]);
 });

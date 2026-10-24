@@ -192,6 +192,7 @@ JavaScript에서 직접 호출할 때도 JSON으로 왕복 가능한 값을 전�
 
 | 명령 | 주요 입력 | 결과 |
 |---|---|---|
+| `timeline.list` | 선택 `offset`, `limit` | 구간 위치와 원본·편집·출력 시간 페이지 |
 | `project.get` | 없음 | 편집 설정 문서 |
 | `template.export` | `id`, `name` | 현재 구성의 `moment-template` 문서; 읽기 전용, 라이브러리 저장 아님 |
 | `templates.list` | 없음 | 기본 템플릿 목록 |
@@ -379,6 +380,48 @@ node cli/moment.mjs exec timeline.split --project split-source.json --json '{"cl
 분할 경계를 가로지르는 원본 자막은 출력에서 인접한 두 구간으로 나뉠 수
 있으므로 **SRT/VTT 바이트가 이전과 같다는 뜻은 아닙니다.** 기존 UI 분할과
 동일한 동작이며 UI에서는 한 번에 실행 취소할 수 있습니다.
+
+### 타임라인 구간과 시간 나눠 조회
+
+분할·이동·복제 전에 `timeline.list`로 현재 구간 위치와 시간 기준을 읽으세요.
+
+| 입력·결과 | 계약 |
+|---|---|
+| `offset`, `limit` | 선택 정수 0–1,000 / 1–50; 기본 0 / 20 |
+| `totalClips`, `offset`, `limit`, `speed` | 현재 총 구간 수·적용 범위·프로젝트 배속 |
+| `nextOffset` | 더 있으면 다음 위치, 끝이면 null; 현재 끝 이상은 빈 clips/null |
+| `clips[].clipIndex` | 현재 0기반 배열 위치; 같은 원본 반복도 별개 |
+| `sourceStart`, `sourceEnd` | 배속 전 원본 초 |
+| `timelineStart`, `timelineEnd` | 재생 누적 순서에 따른 배속 전 편집 초 |
+| `outputStart`, `outputEnd` | 편집 구간 시간을 배속으로 나눈 출력 초 |
+
+총 길이 필드·자막 본문·미디어는 반환하지 않습니다. 잘못된 값·null·알 수 없는 인수는
+`INVALID_ARGUMENT`입니다. 읽기 전용이며 문서·저장·기록을 바꾸지 않고 배치에도 넣지
+않습니다. 다음 예제는 같은 파일을 유지하며 `nextOffset`이 null이 될 때까지 읽습니다.
+
+```sh
+node cli/moment.mjs init --out timeline-source.json
+node cli/moment.mjs exec timeline.split --project timeline-source.json --json '{"clipIndex":0,"sourceTime":6}' --out timeline-two.json
+node --input-type=module <<'JS'
+import {execFileSync} from 'node:child_process';
+let offset=0;
+do {
+  const result=JSON.parse(execFileSync(process.execPath,
+    ['cli/moment.mjs','exec','timeline.list','--project','timeline-two.json',
+     '--json',JSON.stringify({offset,limit:1})],{encoding:'utf8'}));
+  console.log(result.data.clips);
+  offset=result.data.nextOffset;
+} while(offset!==null);
+JS
+```
+
+각 요청은 실시간 현재 상태를 읽으며 스냅샷이 아닙니다. 편집·불확실한 응답 뒤에는
+다시 읽고, 위치를 안정된 ID로 취급하지 마세요. 누적 합은 기존 재생 순서의 일반
+부동소수점 계산으로 아주 작은 파생 구간 폭이 수치상 사라질 수도 있습니다. 프레임·
+샘플 정확도나 전역 시간 계산 변경을 뜻하지 않습니다. 페이지는 응답량을 제한하지
+실행 비용이 페이지 크기에만 비례한다고 보장하지 않습니다. 선택 `--out`은 페이지
+보고서만 저장하며 프로젝트 백업이 아닙니다. MCP는 `moment_timeline_list`에
+`projectId:"session"`을 추가합니다. MCP 커서 페이징과는 다른 일반 명령 인수입니다.
 
 ### 클립을 지정한 위치로 이동
 

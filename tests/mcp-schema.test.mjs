@@ -56,6 +56,7 @@ const inputs = {
   'captions.text.replace': {find:'자막',replacement:'교정'},
   'captions.timing.shift': {basis:'source',delta:.1},
   'captions.style.update': {patch:{captionSize:44,captionY:.8}},
+  'timeline.list': {offset:0,limit:2},
   'captions.list': {offset:0,limit:2},
   'captions.overlaps': {limit:20},
   'captions.inspect': {maxGraphemesPerSecond:1,limit:2},

@@ -134,9 +134,25 @@ storage transaction or protection from other writers. After uncertain commit or
 lost response, inspect current state before retrying non-idempotent edits. See the
 [CLI preview and failure example](../../../../INTEGRATIONS.md#여러-편집을-한-번에-반영).
 
+## Read indexed clip clocks
+
+Use read-only `timeline.list` / `moment_timeline_list` with optional `offset`
+(0–1,000, default 0), `limit` (1–50, default 20); MCP adds `projectId:"session"`.
+The result includes totalClips/speed and indexed clips with source, cumulative
+pre-speed timeline and after-speed output start/end pairs. No duration totals or
+caption/media content. Follow `nextOffset` until null; a page beyond the current end
+is empty. This is not MCP cursor pagination, a snapshot or a stable clip identity.
+
+Re-read before positional edits after any structural change or uncertain result.
+Repeated source ranges are distinct indexed entries. Ordinary playback floating
+precision applies, including possible tiny derived-width collapse; do not infer
+sample precision or new timing rules. Paging limits response volume, not overall
+processing cost. No history/storage change or batch admission. A CLI `--out` page
+is not a project backup. [Fields and executable pagination](../../../../INTEGRATIONS.md#타임라인-구간과-시간-나눠-조회).
+
 ## Split a clip without rebuilding the timeline
 
-Inspect the current `clips` array first. `timeline.split` takes a zero-based
+Inspect current positions with `timeline.list` or the `clips` array first. `timeline.split` takes a zero-based
 `clipIndex` and `sourceTime` in **original source seconds**, not edited or output
 time. This complete CLI example uses the known 12-second demo:
 

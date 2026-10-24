@@ -47,6 +47,15 @@ function dataSchema(command) {
       updated: { enum: [true] }, importedCaptions: { type: 'integer', minimum: 1, maximum: 10000 },
       outputDuration: { type: 'number', minimum: 0 },
     });
+    case 'timeline.list': return record({
+      totalClips:{type:'integer',minimum:1,maximum:1000},
+      offset:{type:'integer',minimum:0,maximum:1000},limit:{type:'integer',minimum:1,maximum:50},
+      nextOffset:{type:['integer','null'],minimum:0,maximum:1000},speed:{type:'number',minimum:.25,maximum:4},
+      clips:{type:'array',maxItems:50,items:record({clipIndex:{type:'integer',minimum:0,maximum:999},
+        sourceStart:{type:'number',minimum:0,maximum:86400},sourceEnd:{type:'number',minimum:0,maximum:86400},
+        timelineStart:{type:'number',minimum:0},timelineEnd:{type:'number',minimum:0},
+        outputStart:{type:'number',minimum:0},outputEnd:{type:'number',minimum:0}})},
+    });
     case 'captions.list': return record({
       totalCaptions:{type:'integer',minimum:0,maximum:10000},
       offset:{type:'integer',minimum:0,maximum:10000},limit:{type:'integer',minimum:1,maximum:50},
@@ -118,6 +127,10 @@ function inputSchema(command) {
   if (command.name === 'template.export') {
     p.id.description = 'Caller-chosen stable template ID, nonblank, maximum 200 UTF-16 code units; preserved exactly and must not conflict with a built-in template. No browser-library entry is created.';
     p.name.description = 'Required name, maximum 40 UTF-16 code units before trimming; surrounding whitespace is trimmed, blank names rejected. Returns a portable moment-template document in data, not a project or media file. Captures visual settings, title/credit text and cards using existing relative output timing; excludes captions, clips and media. Cards are clipped to the output range and sorted by start. Existing 256 KiB pretty-printed UTF-8 budget applies. Read-only, with no project/history/storage changes.';
+  }
+  if (command.name === 'timeline.list') {
+    p.offset.description = 'Zero-based current clip position, default 0, integer 0..1000. Authored order, including repeated source ranges. Reread after edits; positional indices are not stable IDs or a cross-request snapshot.';
+    p.limit.description = 'Maximum rows, default 20, integer 1..50. Source bounds are original-media seconds; timeline positions accumulate edited intervals before speed; output positions divide by speed. Ordinary floating-point precision, no rounding or frame alignment. No captions, media access or project changes.';
   }
   if (command.name === 'captions.list') {
     p.offset.description = 'Zero-based authored array offset, default 0, integer 0–10,000. At or beyond the current count returns an empty page and nextOffset:null. This is ordinary tool pagination, not an MCP tools/list cursor. Pages are independent reads; indices may change after edits.';

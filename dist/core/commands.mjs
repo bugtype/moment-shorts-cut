@@ -47,6 +47,7 @@ const definitions=[
   command('templates.list','기본 템플릿 목록을 읽습니다.',object()),
   command('template.apply','기본 템플릿을 적용합니다. withContent=true는 제목과 구간 문구를 예시로 교체합니다.',object({templateId:string(100),withContent:boolean},['templateId']),true),
   command('template.apply.document','템플릿 파일의 스타일을 적용합니다. withContent=true는 제목·크레딧·장면 카드도 교체하며 자막은 유지합니다.',object({document:{type:'object'},withContent:boolean},['document']),true),
+  command('timeline.list','클립의 원본 구간과 배속 전·후 편집 위치를 제한된 페이지로 읽습니다.',object({offset:{type:'integer',minimum:0,maximum:MAX_CLIPS},limit:{type:'integer',minimum:1,maximum:50}})),
   command('timeline.move','클립을 지정한 최종 위치로 이동합니다. 원본 구간과 자막·출력 레이어의 시간 값은 유지합니다.',object({clipIndex:{type:'integer',minimum:0,maximum:MAX_CLIPS-1},toIndex:{type:'integer',minimum:0,maximum:MAX_CLIPS-1}},['clipIndex','toIndex']),true),
   command('timeline.duplicate','선택한 클립의 원본 구간을 바로 뒤에 복제합니다. 출력 글자 시간은 편집 길이에 비례 조정됩니다.',object({clipIndex:{type:'integer',minimum:0,maximum:MAX_CLIPS-1}},['clipIndex']),true),
   command('timeline.split','지정한 클립을 원본 영상 시간에서 둘로 나눕니다. 각 구간은 0.1초 이상이어야 합니다.',object({clipIndex:{type:'integer',minimum:0,maximum:MAX_CLIPS-1},sourceTime:number(0,86400)},['clipIndex','sourceTime']),true),
@@ -117,6 +118,21 @@ export function prepareCommand(project,name,args={}){
     return {data:createTemplateDocument(template)};
   }
   if(name==='project.get')return {data:createProjectDocument(project)};
+  if(name==='timeline.list'){
+    const offset=args.offset===undefined?0:args.offset,limit=args.limit===undefined?20:args.limit;
+    if(!Number.isInteger(offset)||offset<0||offset>MAX_CLIPS)fail(msg('errors.timelineListOffset'),'arguments.offset');
+    if(!Number.isInteger(limit)||limit<1||limit>50)fail(msg('errors.timelineListLimit'),'arguments.limit');
+    const clips=[];let position=0;
+    // Match playback's prefix accumulation; do not round or retime source intervals.
+    for(let clipIndex=0;clipIndex<Math.min(project.clips.length,offset+limit);clipIndex++){
+      const clip=project.clips[clipIndex],timelineStart=position;
+      position+=clip.end-clip.start;
+      if(clipIndex>=offset)clips.push({clipIndex,sourceStart:clip.start,sourceEnd:clip.end,
+        timelineStart,timelineEnd:position,outputStart:timelineStart/project.speed,outputEnd:position/project.speed});
+    }
+    const totalClips=project.clips.length,next=offset+clips.length;
+    return {data:{totalClips,offset,limit,nextOffset:next<totalClips?next:null,speed:project.speed,clips}};
+  }
   if(name==='captions.list'){
     const offset=args.offset===undefined?0:args.offset,limit=args.limit===undefined?20:args.limit;
     if(!Number.isInteger(offset)||offset<0||offset>MAX_CAPTIONS)fail(msg('errors.captionListOffset'),'arguments.offset');

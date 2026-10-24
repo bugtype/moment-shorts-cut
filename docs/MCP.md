@@ -49,7 +49,7 @@ its supported version, `2025-11-25`, even if the proposed version differs; a cli
 that cannot support that version should disconnect, not continue with another
 wire format. `ping` is supported. Initialize only once per process.
 
-All thirty-four tools require **`projectId: "session"`**. Each process owns one independent
+All thirty-five tools require **`projectId: "session"`**. Each process owns one independent
 in-memory project, initially the demo. This value is neither a path nor a credential.
 Other project IDs return a tool error. A second client process does not share state.
 
@@ -121,6 +121,7 @@ that validation.
 
 | Tool | Editing input | Successful `structuredContent.data` |
 |---|---|---|
+| `moment_timeline_list` | optional `offset`, `limit` | Paged clip positions with source/timeline/output intervals |
 | `moment_project_get` | none | Full portable project document |
 | `moment_template_export` | `id`, `name` | Portable `{format:"moment-template", formatVersion:1, template}` document |
 | `moment_templates_list` | none | Built-in template summaries: `id`, `name`, `category`, `description` |
@@ -341,7 +342,7 @@ the example. Discover exact input fields in the [tool catalog](#tool-catalog).
 | Task | Recipes |
 |---|---|
 | Captions | [Check overlaps](#check-caption-time-overlaps) · [Inspect timing density](#inspect-caption-timing-density) · [Import](#import-subtitle-text-with-an-explicit-clock) · [Split](#split-one-caption-at-a-text-boundary) · [Merge](#merge-two-adjacent-authored-captions) · [Insert/remove](#insert-or-remove-one-authored-caption) · [Edit one cue](#edit-one-authored-caption) · [Correct text](#correct-caption-text-without-replacing-cues) · [Shift timing](#shift-caption-timing-without-replacing-text) · [Style](#adjust-global-caption-appearance) |
-| Timeline | [Split a clip](#split-one-clip-occurrence) · [Repeat a clip](#repeat-one-clip-occurrence) · [Move a clip](#move-one-clip-to-a-final-position) |
+| Timeline | [Read clip clocks](#read-timeline-positions-in-pages) · [Split a clip](#split-one-clip-occurrence) · [Repeat a clip](#repeat-one-clip-occurrence) · [Move a clip](#move-one-clip-to-a-final-position) |
 | Composition | [Credit](#set-a-source-credit-independently) · [Effects](#adjust-video-effects-independently) · [Edit a card](#edit-an-existing-timed-card) · [Add/remove cards](#create-scripted-cards-without-importing-a-whole-project) · [Stacking](#change-card-stacking) |
 | Grouped/template edits | [One commit](#apply-related-edits-in-one-commit) · [Export a composition](#export-the-current-composition-as-a-template) · [Apply a template file](#apply-an-exported-custom-template) |
 
@@ -479,6 +480,39 @@ a fresh library ID, import media or persist a browser-library entry.
 with `moment_project_get`, not the acknowledgment. For protected file-oriented
 work, see the [CLI wrapper example](../INTEGRATIONS.md#내보낸-템플릿을-climcp로-적용).
 
+### Read timeline positions in pages
+
+Use `moment_timeline_list` before an indexed split, move or duplicate:
+
+```json
+{"projectId":"session","offset":0,"limit":20}
+```
+
+| Input/result | Contract |
+|---|---|
+| `offset` | Optional integer 0–1,000; default 0 |
+| `limit` | Optional integer 1–50; default 20 |
+| `totalClips`, `offset`, `limit`, `speed` | Current clip count, effective request and project speed |
+| `nextOffset` | Next offset if more remain; otherwise `null` |
+| `clips[].clipIndex` | Current zero-based position; repeated identical source ranges remain separate entries |
+| `sourceStart`, `sourceEnd` | Original-source seconds, before speed |
+| `timelineStart`, `timelineEnd` | Cumulative edited-playback seconds, before speed |
+| `outputStart`, `outputEnd` | That timeline interval divided by speed |
+
+A valid offset at/beyond the current end returns an empty page and `nextOffset:null`.
+These are ordinary tool arguments, not MCP cursor pagination. No duration totals,
+caption text or media bytes are returned. This is read-only, creates no history
+and is excluded from `project.batch`. Invalid/null/unknown inputs return
+`INVALID_ARGUMENT`.
+
+Follow `nextOffset` until null while the project stays unchanged. Each page reads
+live state, not a snapshot or stable revision. Re-read after edits or uncertain
+mutations; positional indexes are not clip IDs. Cumulative values follow existing
+playback addition order with ordinary floating-point precision: very small derived
+widths may collapse numerically, so do not treat these as frame/sample-accurate
+coordinates or a new global clock policy. Response paging does not promise O(page)
+work or change the renderer's timing rules. [Executable CLI pagination](../INTEGRATIONS.md#타임라인-구간과-시간-나눠-조회).
+
 ### Split one clip occurrence
 
 Read `moment_project_get` first and inspect `project.clips` within its returned
@@ -508,7 +542,7 @@ is one undo step; standalone MCP still has no undo tool.
 
 ### Move one clip to a final position
 
-Read `moment_project_get` and inspect the current `project.clips` array, then call
+Read `moment_timeline_list` (or `moment_project_get`) for current positions, then call
 `moment_timeline_move`. For a project with at least three clips:
 
 ```json

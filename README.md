@@ -337,6 +337,7 @@ retain the whole project’s clip/speed rules, not just the visible page. Existi
 
 | Task | Use | Keep in mind |
 |---|---|---|
+| Inspect clip positions and clocks | [`timeline.list`](INTEGRATIONS.md#타임라인-구간과-시간-나눠-조회) | Up to 50 indexed clips per page with source, pre-speed timeline and after-speed output times. Re-read positional indexes after edits. |
 | Move a clip directly | **Move clip…** in the clip inspector or **Frame**, or [`timeline.move`](INTEGRATIONS.md#클립을-지정한-위치로-이동) | UI positions are 1-based; API indices are 0-based final destinations. Same position/cancel are no-ops. |
 | Apply related edits together | [`project.batch`](INTEGRATIONS.md#여러-편집을-한-번에-반영) | Validate 1–20 supported edits in sequence, then commit once; a rejected step leaves the project unchanged. Not a JSON-RPC batch or a cross-host storage transaction. |
 | Repeat a clip | [`timeline.duplicate`](INTEGRATIONS.md#클립-구간-복제) | Inserts the same source interval immediately after the selected occurrence, not a media-file copy. Source captions repeat; timed output layers rescale. |

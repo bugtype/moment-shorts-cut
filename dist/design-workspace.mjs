@@ -1,3 +1,4 @@
+import { createCaptionKeywordsDialog } from './caption-keywords-dialog.mjs';
 import {createPositionDialog} from './position-dialog.mjs';
 import { createCardTimingDialog } from './card-timing-dialog.mjs';
 import { setText, setAttr, message } from './i18n.mjs';
@@ -12,6 +13,7 @@ export function createDesignWorkspace(app) {
     const appearanceKeys = ['color', 'accent', 'background', 'size', 'stroke', 'backgroundOpacity', 'presentation', 'animation'];
     let copiedAppearance = null;
     const position = createPositionDialog(app);
+    const keywords = createCaptionKeywordsDialog(app);
     const cardTiming = createCardTimingDialog(app);
 
     function selectedSceneLayer() {
@@ -64,6 +66,7 @@ export function createDesignWorkspace(app) {
         mountDesignPanel(target, {
             state: app.state,
             layer: app.textLayer,
+            clearKeywords: () => keywords.open(),
             current: () => app.panel === 'text' && app.state === project,
             tabCurrent: () => !app.modal.open,
             position: () => { if (app.panel === 'text' && app.state === project && app.textLayer === layer) position.open(layer); },

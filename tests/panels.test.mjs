@@ -16,7 +16,7 @@ test('design, effects and template panel controls and hierarchy', () => {
   const custom=templateModule.saveCustomTemplate('내 요리 구성',savedProject);
   // Panel controls are exercised with supplied DOM controls (not a browser layout test).
   function control(type,dataset,value){return {attributes: {}, setAttribute(name, value) { this.attributes[name] = String(value); }, getAttribute(name) { return this.attributes[name] ?? null; }, removeAttribute(name) { delete this.attributes[name]; },type,dataset,value,checked:false,setCustomValidity(message){this.error=message;},reportValidity(){this.reported=true;}};}
-  function panelRoot(lists={},byId={}){byId={'#openPosition':{},...byId};return {innerHTML:'',querySelectorAll(selector){return lists[selector]||[];},querySelector(selector){return byId[selector]||null;}};}
+  function panelRoot(lists={},byId={}){byId={'#openPosition':{},'#clearKeywordEmphasis':{},...byId};return {innerHTML:'',querySelectorAll(selector){return lists[selector]||[];},querySelector(selector){return byId[selector]||null;}};}
   const inputs=[control('number',{design:'design.title.start'},'5'),control('number',{design:'design.title.end'},'3'),control('text',{design:'speakerLabels.1'},'인터뷰이'),control('text',{design:'globalKeywords'},'순간, C++'),control('range',{design:'captionY',unit:'%'},'75')];
   let panelProject=structuredClone(defaults),snapshots=0;
   const panelRanges=createInputHistory(()=>snapshots++);

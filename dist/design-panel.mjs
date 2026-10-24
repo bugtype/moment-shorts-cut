@@ -40,7 +40,7 @@ export function mountDesignPanel(root, api) {
     ${range('panels.vertical', 'captionY', Math.round(state.captionY * 100), 10, 90, 1, '%')}
     <button class="button" id="openPosition">${text('panels.position')}</button>
     <label class="panel-label" for="captionAnimation">${text('panels.animation')}</label><select class="panel-select" id="captionAnimation" data-design="captionAnimation"><option value="none" ${state.captionAnimation === 'none' ? 'selected' : ''} ${mark('panels.none')}>${escape(t('panels.none'))}</option><option value="pop" ${state.captionAnimation === 'pop' ? 'selected' : ''} ${mark('panels.shortPop')}>${escape(t('panels.shortPop'))}</option><option value="fade" ${state.captionAnimation === 'fade' ? 'selected' : ''} ${mark('panels.fade')}>${escape(t('panels.fade'))}</option><option value="slide" ${state.captionAnimation === 'slide' ? 'selected' : ''} ${mark('panels.slide')}>${escape(t('panels.slide'))}</option></select>
-    <div class="design-divider"></div><label class="panel-label" for="globalKeywords">${text('panels.globalKeywords')}</label><input class="panel-input" id="globalKeywords" data-design="globalKeywords" maxlength="150" value="${escape(state.globalKeywords)}" ${attrs('placeholder', 'panels.globalKeywordsPlaceholder')}><p class="tiny-note">${text('panels.globalKeywordsNotice')}</p>${state.speakerLabels.map((name,i)=>`<label class="panel-label" for="speakerLabel${i}">${text('panels.speakerName', {index: i + 1})}</label><input class="panel-input" id="speakerLabel${i}" data-design="speakerLabels.${i}" maxlength="24" value="${escape(name)}">${color('panels.speakerColor', `speakerColors.${i}`, state.speakerColors[i], {index: i + 1})}`).join('')}<p class="tiny-note">${text('panels.speakerNotice')}</p>
+    <div class="design-divider"></div><label class="panel-label" for="globalKeywords">${text('panels.globalKeywords')}</label><input class="panel-input" id="globalKeywords" data-design="globalKeywords" maxlength="150" value="${escape(state.globalKeywords)}" ${attrs('placeholder', 'panels.globalKeywordsPlaceholder')}><p class="tiny-note">${text('panels.globalKeywordsNotice')}</p><button class="button" id="clearKeywordEmphasis">${text('keywords.clear')}</button>${state.speakerLabels.map((name,i)=>`<label class="panel-label" for="speakerLabel${i}">${text('panels.speakerName', {index: i + 1})}</label><input class="panel-input" id="speakerLabel${i}" data-design="speakerLabels.${i}" maxlength="24" value="${escape(name)}">${color('panels.speakerColor', `speakerColors.${i}`, state.speakerColors[i], {index: i + 1})}`).join('')}<p class="tiny-note">${text('panels.speakerNotice')}</p>
     <button class="button full subtle" id="openCaptionEditor">${text('panels.editCaptionText')}</button>`;
   if (layer === 'credit') controls = `
     ${check('panels.showCredit', 'design.credit.enabled', d.credit.enabled)}
@@ -71,6 +71,13 @@ export function mountDesignPanel(root, api) {
     button.onclick = event => {
       if (!composing && !event?.isComposing && event?.keyCode !== 229 && renderOwners.get(root) === owner && root.querySelector('#openPosition') === button) api.position?.();
     };
+    if (layer === 'caption') {
+      const clear = root.querySelector('#clearKeywordEmphasis');
+      clear.onclick = event => {
+        if (!composing && !event?.isComposing && event?.keyCode !== 229 && renderOwners.get(root) === owner &&
+            root.querySelector('#clearKeywordEmphasis') === clear && api.current?.() !== false) api.clearKeywords?.();
+      };
+    }
   }
   root.querySelectorAll('[data-layout-preset]').forEach(button => button.onclick = () => api.preset(button.dataset.layoutPreset));
   bindPanelTabs(root, { selector: '[data-text-layer]', key: 'textLayer', active: layer, select: api.select,

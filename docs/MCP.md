@@ -348,7 +348,9 @@ exceeds these limits.
 
 VTT is plain UTF-8 WebVTT with a `WEBVTT` header and dot-separated milliseconds.
 It uses the same clip/speed mapping and text escaping as SRT, not rich styles,
-regions or speaker metadata. NUL characters are rejected for VTT. Empty VTT
+regions or speaker metadata. SRT/VTT/TXT all reject NUL (`U+0000`) in exported cue text rather than stripping it.
+Correct/remove the unsupported character and retry; authored project text stays
+intact and a failed CLI export preserves the existing output file. Empty VTT
 export returns valid `WEBVTT\n\n`; the browser instead skips empty downloads.
 SRT/VTT reject blank cues/paragraphs and intervals that collapse when rounded to
 milliseconds rather than silently dropping or retiming them; TXT permits them.

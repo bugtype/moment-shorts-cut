@@ -161,6 +161,7 @@ const entries = [
   ["errors.txtNul","TXT 출력 {index}번째 자막에 NUL 문자가 있습니다. 제거한 뒤 다시 저장하세요.","TXT caption {index} contains a NUL character. Remove it before saving.","TXT 第 {index} 条字幕包含 NUL 字符。请删除后再保存。"],
   ["errors.subtitlePrecision","{format} 출력 {index}번째 자막의 시작과 끝이 밀리초 단위에서 같습니다. 자막 구간이나 배속을 조정한 뒤 다시 저장하세요.","{format} caption {index} starts and ends at the same millisecond. Adjust its interval or speed before saving.","{format} 第 {index} 条字幕的开始与结束时间在毫秒精度下相同。请调整区间或倍速后再保存。"],
   ["errors.subtitleBlank","{format} 출력 {index}번째 자막에 빈 줄이 있습니다. 빈 줄을 제거한 뒤 다시 저장하세요.","{format} caption {index} contains a blank line. Remove it before saving.","{format} 第 {index} 条字幕包含空行。请删除空行后再保存。"],
+  ["errors.srtNul","SRT 출력 {index}번째 자막에 NUL 문자가 있습니다. 제거한 뒤 다시 저장하세요.","SRT caption {index} contains a NUL character. Remove it before saving.","SRT 第 {index} 条字幕包含 NUL 字符。请删除后再保存。"],
   ["errors.vttNul","VTT 출력 {index}번째 자막에 NUL 문자가 있습니다. 제거한 뒤 다시 저장하세요.","VTT caption {index} contains a NUL character. Remove it before saving.","VTT 第 {index} 条字幕包含 NUL 字符。请删除后再保存。"],
   ["errors.subtitleBytes","{format} 파일은 UTF-8 2 MiB까지 저장할 수 있습니다. 반복 클립이나 자막을 줄여 주세요.","{format} output supports up to 2 MiB of UTF-8. Reduce repeated clips or captions.","{format} 输出最多支持 2 MiB UTF-8 数据。请减少重复片段或字幕。"],
   ["errors.inspectionPrecision","출력 자막 {index}의 표시 시간이 너무 작아 읽기 속도를 계산할 수 없습니다.","Output caption {index} is too short to calculate its reading rate.","输出字幕 {index} 的显示时间太短，无法计算阅读速度。"],

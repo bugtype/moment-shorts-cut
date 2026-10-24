@@ -105,6 +105,7 @@ export function projectSubtitles(p,{format='srt',bom=false}={}){
     if(start===end)fail(msg('errors.subtitlePrecision',{format:label,index:i+1}));
     const lines=c.text.replace(/\r\n?/g,'\n');
     if(/^[ \t]*$/m.test(lines))fail(msg('errors.subtitleBlank',{format:label,index:i+1}));
+    if(format==='srt'&&lines.includes('\0'))fail(msg('errors.srtNul',{index:i+1}));
     if(format==='vtt'&&lines.includes('\0'))fail(msg('errors.vttNul',{index:i+1}));
     const text=lines.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\u00a0/g,'&nbsp;');
     const chunk=`${i+1}\n${start} --> ${end}\n${text}\n`;

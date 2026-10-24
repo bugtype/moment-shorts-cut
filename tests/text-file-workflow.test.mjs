@@ -126,3 +126,13 @@ test('TXT workflow saves literal latest edited text without BOM and correct MIME
  assert.equal(f.downloads[0].blob.type,'text/plain;charset=utf-8');assert.equal(await f.downloads[0].blob.text(),'<대사> & 한글\n\n다음\n');
  assert.notDeepEqual([...new Uint8Array(await f.downloads[0].blob.arrayBuffer())].slice(0,3),[239,187,191]);
 });
+
+test('SRT NUL failure downloads nothing and preserves text, with a usable corrected retry',()=>{
+ const f=fixture();f.project.captions=[{start:0,end:1,text:'Before\0After 한글'}];
+ const before=structuredClone(f.project);
+ f.workflow.downloadSrt();
+ assert.equal(f.downloads.length,0);assert.deepEqual(f.project,before);
+ assert.match(f.messages.at(-1),/SRT.*NUL/);
+ f.project.captions[0].text='Before After 한글';f.workflow.downloadSrt();
+ assert.equal(f.downloads.length,1);
+});

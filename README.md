@@ -126,6 +126,12 @@ with a new ID; it does not replace a saved template, change favorites or apply
 the template to the current project. Preview it, then choose style-only or
 example-content application as usual.
 
+**Move several saved templates together:** choose **Export my template collection** in the gallery, then use the existing import action in another browser.
+
+- **Add copies:** fresh IDs under **My templates**, no overwrite or automatic application. An empty collection adds nothing.
+- **Validate together:** collection ≤6 MiB, each template ≤256 KiB; the combined library must pass validation and fit 20 entries. Invalid entries or a failed save reject the entire addition.
+- **Not a full restore:** favorites, project and media are excluded. [Collection contract](INTEGRATIONS.md#사용자-템플릿-컬렉션)
+
 **Duplicate a saved custom template** with its **Duplicate…** action. Edit the
 suggested copy name (trimmed, nonblank, at most 40 UTF-16 code units), then confirm.
 The new ID holds an independent copy of the **saved** settings, cards, timing and
@@ -152,12 +158,13 @@ Cancel or a failed save preserves the original; a failed save allows retry.
 |---|---|---|
 | Project JSON | Editing settings, timeline and captions | Embed source media |
 | Single-template JSON | Saved styles, title/credit/card text, keywords and speaker labels | Back up the whole library or current project |
+| Custom-template collection JSON | All saved custom templates in their current order | Restore favorites, built-ins, UI preferences or the project |
 | SRT/VTT | Edited subtitle text and timing | Preserve visual styling or media |
 | TXT | Edited caption text in output order | Recover timing or act as a project backup |
 
 **Review saved wording before sharing a template.** There is no video/audio in the
 file, but titles, credits, cards, global keywords and speaker labels can be private.
-Import accepts UTF-8 JSON up to 256 KiB, including an optional leading BOM, and
+Single-template import accepts UTF-8 JSON up to 256 KiB, including an optional leading BOM, and
 requires room in the 20-template library. Invalid files or failed saves leave the
 library and current project unchanged. [File contract and recovery](INTEGRATIONS.md#개별-사용자-템플릿-파일)
 cover format/version checks and concurrent selections. This browser-library

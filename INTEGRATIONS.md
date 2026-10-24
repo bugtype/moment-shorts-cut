@@ -1260,6 +1260,49 @@ JS
 그 결과도 256 KiB 이하여야 합니다. 따라서 압축된 입력 파일이 한도 안이어도
 정규 출력 형태가 한도를 넘으면 가져오기를 거절합니다.
 
+## 사용자 템플릿 컬렉션
+
+갤러리의 **내 템플릿 모음 내보내기**로 저장된 사용자 템플릿 전체를 순서대로 한 파일에 담고, 기존 가져오기로
+다른 라이브러리에 **사본을 추가**할 수 있습니다. 전체 라이브러리 복원이나 현재
+프로젝트 저장과는 다릅니다. 개별 템플릿 파일도 계속 지원합니다.
+
+| 항목 | 계약 |
+|---|---|
+| 문서 | `{format:"moment-template-collection", formatVersion:1, templates:[...]}`; 배열 원소는 각각 기존 `moment-template` 문서 |
+| 개수·중복 | 0–20개, 컬렉션 안의 중복 템플릿 ID 거절 |
+| 입력 | UTF-8 JSON, 선택적 시작 BOM 포함 실제 파일 최대 6 MiB; 잘못된 UTF-8 거절 |
+| 크기 | 컬렉션 들여쓰기 UTF-8 JSON 최대 6 MiB(6,291,456바이트); 각 개별 문서는 기존 256 KiB 제한 유지 |
+| 내용 | 저장된 사용자 템플릿과 순서; 즐겨찾기·기본 템플릿·프로젝트·미디어·UI 환경설정 제외 |
+| 가져오기 | 현재 목록 뒤에 새 ID 사본을 `내 템플릿` 카테고리로 추가; 덮어쓰기·자동 적용 없음 |
+| 결과 검증 | 기존 항목과 합쳐 최대 20개 및 기존 라이브러리 전체 검증을 통과해야 함; 개별 파일이 유효해도 합친 결과는 거절될 수 있음 |
+| 빈 컬렉션 | 코어 형식은 허용; UI에서 빈 목록 내보내기는 비활성, 빈 컬렉션 가져오기는 쓰기·목록 새로고침 없음 |
+| 실패 | 항목 하나라도 잘못되거나 용량/저장 검증 실패 시 전체 추가 거절; 일부만 저장하지 않음 |
+
+성공 시 템플릿 저장 키를 한 번 쓰며, 즐겨찾기나 현재 프로젝트를 바꾸지 않습니다.
+이 작업은 CLI/MCP 명령이 아닙니다. `template.apply.document`에는 컬렉션 전체가
+아닌 **개별** `moment-template` 문서만 전달하세요. 공유 전 모든 항목의 저장된
+제목·크레딧·카드·키워드·화자 이름을 확인하세요.
+
+### 컬렉션 문서 검증 예제
+
+저장소 루트에서 실행하는 순수 JavaScript 예제입니다. 파일·브라우저 저장소에
+쓰거나 ID를 재발급하지 않으며, 브라우저 가져오기가 새 ID 부여와 저장을 담당합니다.
+
+```sh
+node --input-type=module <<'JS'
+import { createDemoProject } from './dist/core/project.mjs';
+import { saveCustomTemplate } from './dist/template-catalog.mjs';
+import { createTemplateCollectionDocument, readTemplateCollectionDocument } from './dist/template-collection.mjs';
+const first = saveCustomTemplate('Collection example', createDemoProject(), {id:'collection-example'});
+const document = createTemplateCollectionDocument([first]);
+const templates = readTemplateCollectionDocument(JSON.parse(JSON.stringify(document)));
+console.log({format:document.format, count:templates.length, name:templates[0].name});
+JS
+```
+
+헬퍼는 파싱된 객체와 정규 JSON 크기를 검증합니다. 파일의 실제 바이트·UTF-8 검사는
+브라우저 읽기 단계의 별도 책임이며, 객체 검증만으로 파일 인코딩을 검증하지 않습니다.
+
 ## 현재 구성을 템플릿으로 내보내기
 
 읽기 전용 `template.export`로 현재 프로젝트 구성을 개별 템플릿 문서로 만듭니다.

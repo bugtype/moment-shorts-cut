@@ -1,6 +1,7 @@
 import { t, text, formatError, message } from './i18n.mjs';
 import { readTemplateLibrary, validateTemplateLibrary, createTemplateDocument, readTemplateDocument, MAX_TEMPLATE_FILE_BYTES } from './template-library.mjs';
-import { saveCustomTemplate } from './template-catalog.mjs';
+import { createTemplateCollectionDocument, readTemplateCollectionDocument, MAX_TEMPLATE_COLLECTION_BYTES } from './template-collection.mjs';
+import { saveCustomTemplate, TEMPLATES } from './template-catalog.mjs';
 import { mountTemplateGallery } from './template-gallery.mjs';
 import { esc } from './ui-format.mjs';
 
@@ -54,22 +55,44 @@ export function createTemplateWorkspace({
         if (templateLibraryBlocked())
             return;
         try {
-            if (file.size > MAX_TEMPLATE_FILE_BYTES)
-                throw templateError('templates.importSize');
+            if (file.size > MAX_TEMPLATE_COLLECTION_BYTES)
+                throw templateError('templates.collectionSize');
             const bytes = await file.arrayBuffer();
             if (request !== importRequest)
                 return;
-            if (bytes.byteLength > MAX_TEMPLATE_FILE_BYTES)
-                throw templateError('templates.importSize');
+            if (bytes.byteLength > MAX_TEMPLATE_COLLECTION_BYTES)
+                throw templateError('templates.collectionSize');
             let text;
             try { text = new TextDecoder('utf-8', { fatal: true }).decode(bytes); }
             catch { throw templateError('templates.utf8'); }
-            const template = readTemplateDocument(JSON.parse(text));
-            if (savedTemplates.length >= 20)
+            const document = JSON.parse(text);
+            const collection = document?.format === 'moment-template-collection';
+            if (!collection && (file.size > MAX_TEMPLATE_FILE_BYTES || bytes.byteLength > MAX_TEMPLATE_FILE_BYTES))
+                throw templateError('templates.importSize');
+            const imported = collection ? readTemplateCollectionDocument(document) : [readTemplateDocument(document)];
+            if (!imported.length) {
+                toast(message('templates.collectionEmpty'));
+                return;
+            }
+            if (savedTemplates.length + imported.length > 20)
                 throw templateError('templates.capacity');
-            template.id = makeId();
-            template.category = '내 템플릿';
-            const next = [...savedTemplates, template];
+            // Reserve IDs across the current library and this entire incoming batch.
+            const ids = new Set([...TEMPLATES, ...savedTemplates, ...imported].map(item => item.id));
+            for (const template of imported) {
+                let id;
+                for (let attempt = 0; attempt < 20; attempt++) {
+                    const candidate = makeId();
+                    if (typeof candidate === 'string' && candidate.trim() && candidate.length <= 200 && !ids.has(candidate)) {
+                        id = candidate;
+                        break;
+                    }
+                }
+                if (!id) throw templateError('templates.collectionIdentity');
+                ids.add(id);
+                template.id = id;
+                template.category = '내 템플릿';
+            }
+            const next = [...savedTemplates, ...imported];
             validateTemplateLibrary(next, favoriteTemplates);
             const previous = savedTemplates;
             savedTemplates = next;
@@ -79,11 +102,23 @@ export function createTemplateWorkspace({
             }
             galleryUI.category = '내 템플릿';
             refresh();
-            toast(message('templates.imported'));
+            toast(collection ? message('templates.collectionImported', {count: imported.length}) : message('templates.imported'));
         }
         catch (error) {
             if (request === importRequest)
                 toast(errorMessage(error, 'templates.invalidFile'));
+        }
+    }
+    function exportCollection() {
+        if (templateLibraryBlocked() || !savedTemplates.length) return;
+        try {
+            const document = createTemplateCollectionDocument(savedTemplates);
+            const blob = new Blob([JSON.stringify(document, null, 2)], { type: 'application/json' });
+            if (blob.size > MAX_TEMPLATE_COLLECTION_BYTES)
+                throw templateError('templates.collectionSize');
+            download(blob, 'templates.moment-template-collection.json');
+        } catch (error) {
+            toast(errorMessage(error, 'templates.exportError'));
         }
     }
     function exportTemplate(id) {
@@ -233,6 +268,7 @@ export function createTemplateWorkspace({
             save: saveTemplateDialog,
             import: importTemplate,
             export: exportTemplate,
+            exportCollection,
             rename: renameTemplate,
             duplicate: duplicateTemplate,
             update: updateTemplate,

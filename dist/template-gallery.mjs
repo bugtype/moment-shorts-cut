@@ -16,7 +16,7 @@ export function mountTemplateGallery(root, api) {
       {name:'templates.categoryGroup',categories:['전체','초반 훅','리뷰','정보','라이프','대화','참여']},
       {name:'templates.personalGroup',categories:['즐겨찾기','내 템플릿']}
     ].map(group=>`<div class="template-filters" role="group" ${attrs('aria-label',group.name)}>${group.categories.map(category=>`<button data-category="${category}" class="${ui.category===category?'active':''}" aria-pressed="${ui.category===category}">${text(templateCategoryKey(category))}</button>`).join('')}</div>`).join('')}</div>
-    <div class="gallery-summary"><span id="templateCount"></span></div>
+    <div class="gallery-summary panel-actions"><span id="templateCount"></span><button class="text-button" id="exportTemplateCollection" ${api.custom.length ? '' : 'disabled'}>${text('templates.exportCollection')}</button></div>
     <div class="template-grid" id="templateGrid"></div>`;
   const grid = root.querySelector('#templateGrid');
   const current = () => galleryOwners.get(root) === owner && root.querySelector('#templateGrid') === grid;
@@ -52,6 +52,11 @@ export function mountTemplateGallery(root, api) {
   root.querySelector('#templateSearch').oninput=event=>{ui.query=event.target.value;renderCards();};
   root.querySelectorAll('[data-category]').forEach(button=>button.onclick=()=>{ui.category=button.dataset.category;root.querySelectorAll('[data-category]').forEach(b=>{b.classList.toggle('active',b===button);b.setAttribute('aria-pressed',b===button);});renderCards();});
   root.querySelector('#saveMyTemplate').onclick=api.save;
+  const collectionButton = root.querySelector('#exportTemplateCollection');
+  collectionButton.onclick = event => {
+    if (current() && root.querySelector('#exportTemplateCollection') === collectionButton &&
+        api.custom.length && !event?.isComposing && event?.keyCode !== 229) api.exportCollection();
+  };
   const fileInput=root.querySelector('#templateFileInput');
   root.querySelector('#importMyTemplate').onclick=()=>fileInput.click();
   fileInput.onchange=()=>{const file=fileInput.files?.[0];fileInput.value='';if(file)return api.import(file);};

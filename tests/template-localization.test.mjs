@@ -1,10 +1,11 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { messages } from '../dist/i18n/catalogs/templates.mjs';
-import { TEMPLATES, templateDisplay, templateSearchText, templateCategoryKey, applyTemplate } from '../dist/template-catalog.mjs';
+import { TEMPLATES, templateDisplay, templateSearchText, templateCategoryKey, applyTemplate, saveCustomTemplate } from '../dist/template-catalog.mjs';
 import { createDemoProject } from '../dist/core/project.mjs';
 import { createAppFixture } from './fixtures/app.mjs';
 import { setLocale } from '../dist/i18n.mjs';
+import { createTemplateDocument } from '../dist/template-library.mjs';
 import { createTemplateWorkspace } from '../dist/template-workspace.mjs';
 
 test('template catalogs have matching keys and interpolation parameters', () => {
@@ -96,7 +97,9 @@ test('template errors retain translation metadata through visible app toasts', a
   }, {readStorage:()=>null, writeStorage:()=>{}, mount(_target,api) { actions=api; }});
   try {
     workspace.render({});
-    await actions.import({size:1024*1024});
+    const single = createTemplateDocument(saveCustomTemplate('Single template', createDemoProject()));
+    // The unified picker reads the format before applying the smaller single-file limit.
+    await actions.import(new Blob([JSON.stringify(single), ' '.repeat(256 * 1024)]));
     const node=f.element('#toast');
     assert.equal(node.getAttribute('data-i18n'),'templates.importSize');
     setLocale('en',{persist:false});

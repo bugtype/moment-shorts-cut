@@ -627,6 +627,27 @@ template schema and 256 KiB limit before saving; a deleted target is not recreat
 This is not a CLI/MCP browser-library operation and
 is distinct from applying an exported template document to a project.
 
+## Transfer a browser custom-template collection
+
+Use **Export my template collection** and the gallery’s existing import action to transfer all saved
+custom templates in their current order. A `moment-template-collection` version-1
+file contains 0–20 individual `moment-template` documents, not a project document.
+The collection is limited to 6 MiB of pretty UTF-8 JSON; each entry retains its
+256 KiB validation. Duplicate IDs within the collection are rejected.
+
+Import appends fresh-ID copies under `내 템플릿`, never overwrites or applies them. The combined
+library must pass its existing validation and 20-entry capacity; individually
+valid entries do not guarantee a valid combined library. Failure leaves the
+library/project unchanged rather than importing a subset. An empty collection
+is a no-write no-op; empty-library export is disabled.
+
+Favorites, built-in templates, UI preferences, project and media are excluded:
+this is not a full library restore. Review all saved wording before sharing.
+There is no collection CLI/MCP command, and `template.apply.document` still takes
+one individual template document. The optional pure JavaScript helpers validate
+objects only; they do not access browser storage or allocate imported IDs.
+[Exact wrapper and executable helper example](../../../../INTEGRATIONS.md#사용자-템플릿-컬렉션)
+
 ## Capture the current composition as a portable template
 
 Use read-only `template.export` / `moment_template_export` with required `id` and

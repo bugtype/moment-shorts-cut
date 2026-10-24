@@ -27,7 +27,7 @@ test('gallery imports selected files, resets the picker and exports only custom 
   };
   mountTemplateGallery(root, {
     ui:{query:'',category:'전체'},custom:[item],favorites:[],
-    duplicate:id=>events.push(['duplicate',id]), update:id=>events.push(['update',id]), save:()=>events.push('save'), import:async file=>events.push(file), export:id=>events.push(id), rename:id=>events.push(['rename',id]),
+    duplicate:id=>events.push(['duplicate',id]), update:id=>events.push(['update',id]), save:()=>events.push('save'), exportCollection:()=>events.push('collection'), import:async file=>events.push(file), export:id=>events.push(id), rename:id=>events.push(['rename',id]),
   });
   assert.match(root.innerHTML,/id="importMyTemplate"><span data-i18n="templates.import"[^>]*>불러오기<\/span>/);
   assert.match(root.innerHTML,/id="templateFileInput" type="file"[^>]*hidden/);
@@ -38,6 +38,10 @@ test('gallery imports selected files, resets the picker and exports only custom 
   assert.equal([...cards.matchAll(/data-update-template=/g)].length,1);
   assert.match(cards,/&lt;내 스타일&gt; 현재 구성으로 업데이트/);
   assert.equal([...cards.matchAll(/data-duplicate-template=/g)].length,1);
+  assert.match(root.innerHTML, /id="exportTemplateCollection" >.*내 템플릿 모음 내보내기/);
+  query('#exportTemplateCollection').onclick({isComposing:true});
+  query('#exportTemplateCollection').onclick();
+  assert.equal(events.pop(), 'collection');
   duplicateButton.onclick();assert.deepEqual(events.pop(),['duplicate',item.id]);
   updateButton.onclick();
   renameButton.onclick();
@@ -48,4 +52,29 @@ test('gallery imports selected files, resets the picker and exports only custom 
   assert.equal(picker.value,'');
   picker.files=[]; await picker.onchange();
   assert.deepEqual(events,[['update',item.id],['rename',item.id],item.id,'picker',file]);
+});
+
+test('collection export is disabled when empty and ignores detached or composing controls', () => {
+  const nodes = new Map();
+  const query = id => {
+    if (!nodes.has(id)) nodes.set(id, {setAttribute() {}, removeAttribute() {}});
+    return nodes.get(id);
+  };
+  const root = {innerHTML:'',querySelector:query,querySelectorAll:()=>[]};
+  let exports = 0;
+  const api = {ui:{query:'',category:'전체'},custom:[],favorites:[],exportCollection(){exports++;}};
+  mountTemplateGallery(root,api);
+  assert.match(root.innerHTML,/id="exportTemplateCollection" disabled/);
+  query('#exportTemplateCollection').onclick();
+  assert.equal(exports,0);
+  api.custom=[saveCustomTemplate('My style',createDemoProject())];
+  mountTemplateGallery(root,api);
+  const old = query('#exportTemplateCollection').onclick;
+  old({keyCode:229});
+  assert.equal(exports,0);
+  mountTemplateGallery(root,api);
+  old();
+  assert.equal(exports,0);
+  query('#exportTemplateCollection').onclick();
+  assert.equal(exports,1);
 });

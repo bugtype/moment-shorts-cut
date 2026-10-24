@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
 import { createInterface } from 'node:readline';
 import { fileURLToPath } from 'node:url';
+import {newCard} from '../dist/effects.mjs';
 import {saveCustomTemplate} from '../dist/template-catalog.mjs';
 import {createTemplateDocument} from '../dist/template-library.mjs';
 import { createDemoProject, createProjectDocument } from '../dist/core/project.mjs';
@@ -71,7 +72,7 @@ async function withClient(work) {
 
 const saved = await withClient(async ({request, call, data}) => {
   const {tools} = await request('tools/list', {});
-  assert.equal(tools.length, 15);
+  assert.equal(tools.length, 16);
   assert.ok(tools.some(tool => tool.name === 'moment_project_import'));
   await data('moment_project_import', {document: createProjectDocument(createDemoProject())});
   await data('moment_project_update', {patch: {name: 'MCP 예제', speed: 2}});
@@ -103,12 +104,17 @@ const saved = await withClient(async ({request, call, data}) => {
   const split = await data('moment_timeline_split', {clipIndex: 0, sourceTime: 4});
   assert.equal(split.outputDuration, 2);
   assert.deepEqual((await data('moment_project_get')).project.clips, [{start: 2, end: 4}, {start: 4, end: 6}]);
-  const portable = createTemplateDocument(saveCustomTemplate('공유 스타일', createDemoProject()));
+  const styleSource = createDemoProject();
+  styleSource.overlays = [{...newCard(12), id: 'shared-card'}];
+  const portable = createTemplateDocument(saveCustomTemplate('공유 스타일', styleSource));
   portable.template.settings.captionSize = 40;
-  await data('moment_template_apply_document', {document: portable});
+  await data('moment_template_apply_document', {document: portable, withContent: true});
   assert.equal((await data('moment_project_get')).project.captionSize, 40);
   await data('moment_effects_update', {patch: {brightness: 1.1, saturation: .8, motion: 'none', transition: 'none'}});
   assert.equal((await data('moment_project_get')).project.effects.brightness, 1.1);
+  const card = (await data('moment_project_get')).project.overlays[0];
+  await data('moment_overlays_update', {id: card.id, patch: {text: 'MCP 장면 문구', start: 0, end: 1}});
+  assert.equal((await data('moment_project_get')).project.overlays[0].text, 'MCP 장면 문구');
   const plan = await data('moment_render_plan', {quality: 720, format: 'webm'});
   assert.equal(plan.rendered, false);
   assert.equal(plan.output.duration, 2);
@@ -120,4 +126,4 @@ await withClient(async ({data}) => {
   await data('moment_project_import', {document: saved});
   assert.deepEqual(await data('moment_project_get'), saved);
 });
-console.log(JSON.stringify({ok: true, tools: 15, recoveredFromInvalidInput: true, reimported: true, rendered: false}));
+console.log(JSON.stringify({ok: true, tools: 16, recoveredFromInvalidInput: true, reimported: true, rendered: false}));

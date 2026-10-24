@@ -142,6 +142,8 @@ Existing output files are protected; use `--overwrite` only when you intend to r
 
 **Video effects:** `effects.update` adjusts brightness, contrast, motion, boundary overlays and progress styling without replacing content or timing. [Options and examples](INTEGRATIONS.md#영상-효과-수정) distinguish boundary fades from crossfades.
 
+**Timed cards:** `overlays.update` edits an existing card’s text, style or output-time interval by its real ID. It does not add/delete/reorder cards; [the example](INTEGRATIONS.md#실제-카드-id를-조회하는-cli-예제) reads the ID before editing.
+
 ### Choose an integration
 
 | Need | Use | Start here |

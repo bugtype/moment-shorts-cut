@@ -1,3 +1,4 @@
+import {newCard} from '../dist/effects.mjs';
 import {saveCustomTemplate} from '../dist/template-catalog.mjs';
 import {createTemplateDocument} from '../dist/template-library.mjs';
 import test from 'node:test';
@@ -25,15 +26,17 @@ function matches(schema, value) {
   }).length === 1;
 }
 
+const schemaProject=createDemoProject();schemaProject.overlays=[{...newCard(12),id:'schema-card'}];
 const inputs = {
   'project.get': {},
   'project.update': { patch: { name: '스키마 검사' } },
-  'project.import': { document: createProjectDocument(createDemoProject()) },
+  'project.import': { document: createProjectDocument(schemaProject) },
   'templates.list': {},
   'template.apply.document': {document:createTemplateDocument(saveCustomTemplate('스키마',createDemoProject()))},
   'template.apply': { templateId: 'reference', withContent: false },
   'timeline.split': {clipIndex:0,sourceTime:6},
   'timeline.replace': { clips: [{ start: 0, end: 12 }] },
+  'overlays.update': {id:'schema-card',patch:{text:'카드 교정'}},
   'title.update': { patch: { lines: ['첫째 줄', '둘째 줄'] } },
   'captions.replace': { captions: [{ start: 0, end: 1, text: '자막' }] },
   'captions.text.replace': {find:'자막',replacement:'교정'},

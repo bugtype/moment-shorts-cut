@@ -106,6 +106,23 @@ function inputSchema(command) {
     p.patch.description = 'Only supplied settings change. Changing ratio resets zoom/pan; speed changes retime output text.';
     p.patch.properties.speed.description = 'Playback speed multiplier; output duration is edited timeline duration divided by speed.';
   }
+  if (command.name === 'overlays.update') {
+    p.id.description = 'Exact ID of an existing scene card from project.get.project.overlays. Does not create, delete, reorder or rename IDs.';
+    p.patch.description = 'Partial scene-card update. Unspecified fields, other cards, base title, captions, clips and media stay unchanged. Content-only edits do not clamp existing card times.';
+    const fields = p.patch.properties;
+    fields.start.description = 'Start in final output seconds AFTER speed. If start or end is supplied, the resulting interval must satisfy 0 <= start < end <= current output duration.';
+    fields.end.description = 'Exclusive end in final output seconds AFTER speed, not source time. No fixed 24-hour cap; bounded by the current edited output.';
+    fields.role.description = 'An active enabled headline card can hide the base title during its interval; free does not replace the base title.';
+    fields.presentation.description = 'plain draws text without a panel; panel uses background and backgroundOpacity.';
+    fields.kind.description = 'card is ordinary scene text; countdown adds remaining-time text during the interval, not an interactive quiz.';
+    fields.x.description = 'Normalized horizontal center; renderer clamps it to scene-card safe bounds.';
+    fields.y.description = 'Normalized vertical center; renderer clamps it to scene-card safe bounds.';
+    fields.size.description = 'Scene font size scales by min(canvas width / 540, canvas height / 960), with text fitting; not fixed output pixels.';
+    fields.stroke.description = 'Stroke width uses the same scene scaling as size.';
+    fields.width.description = 'Requested fraction of composition width; renderer caps it at 0.82 and treats 0 as the existing 0.78 default.';
+    for (const key of ['text', 'detail', 'label']) fields[key].description = 'Authored scene text, at most 2,000 UTF-16 code units. Does not modify dialogue captions or SRT/VTT text.';
+    for (const key of ['color', 'accent', 'background']) fields[key].description = 'Color in #RRGGBB or #RRGGBBAA hexadecimal form.';
+  }
   if (command.name === 'effects.update') {
     p.patch.description = 'Partial visual effects update only. Unspecified effect settings, captions, titles/cards, clips, audio and timing stay unchanged. Does not apply a template.';
     const fields = p.patch.properties;

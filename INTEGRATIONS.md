@@ -59,6 +59,7 @@
 | `timeline.split` | `clipIndex`, `sourceTime` | 지정 클립 구간 분할; `{updated:true, outputDuration}` |
 | `title.update` | `patch` | 기본 제목과 스타일 수정 |
 | `effects.update` | `patch` | 영상 효과 설정; `{updated:true, outputDuration}` |
+| `overlays.update` | `id`, `patch` | 기존 시간별 카드 수정; `{updated:true, outputDuration}` |
 
 ### 자막 변경
 
@@ -182,6 +183,58 @@ node cli/moment.mjs exec effects.update --project effects-source.json --json '{"
 별도 초기화 명령은 없습니다. 필요한 필드에 위 기본값을 명시하세요. 이 명령은
 편집 설정만 수정하며 영상 인코딩을 실행하지 않고 SRT/VTT에 효과를 넣지 않습니다.
 
+### 기존 시간별 카드 수정
+
+`overlays.update`는 `project.get` 문서의 `project.overlays`에서 찾은 정확한
+`id`와 필수 `patch`를 받습니다. ID는 공백뿐인 값이 아닌 최대 2,000 UTF-16
+코드 단위 문자열입니다. 해당 카드가 없으면 `NOT_FOUND`이며 새로 만들지
+않습니다. 추가·삭제·순서 변경·ID 변경 명령이 아닙니다.
+
+| 문구·종류 필드 | 허용 값 |
+|---|---|
+| `text`, `detail`, `label` | 각각 최대 2,000 UTF-16 코드 단위 |
+| `kind`, `role` | `card`/`countdown`, `headline`/`free` |
+| `presentation`, `animation` | `plain`/`panel`, `none`/`fade`/`slide`/`pop` |
+| `enabled` | boolean |
+
+| 모양 필드 | 허용 값 |
+|---|---|
+| `color`, `accent`, `background` | `#RRGGBB` 또는 `#RRGGBBAA` |
+| `x`, `y`, `width` | 각각 0–1 |
+| `size`, `stroke` | 10–120, 0–20 |
+| `backgroundOpacity` | 0–1 |
+
+**시간은 배속 적용 후 출력 초입니다.** `start`, `end`는 0 이상의 유한 숫자이며
+둘 중 하나라도 보내면 최종 `0 <= start < end <= outputDuration`을 검사합니다.
+일률적인 86,400초 상한은 없습니다. 문구만 바꾸면 기존의 유효한 프로젝트에
+남아 있는 출력 범위 밖 카드 시간을 자동으로 자르거나 조정하지 않습니다.
+
+### 실제 카드 ID를 조회하는 CLI 예제
+
+```sh
+node cli/moment.mjs init --out cards-source.json
+node cli/moment.mjs exec template.apply --project cards-source.json --json '{"templateId":"recipe","withContent":true}' --out cards.json
+node cli/moment.mjs exec project.get --project cards.json
+node --input-type=module <<'JS'
+import { readFile, writeFile } from 'node:fs/promises';
+const document = JSON.parse(await readFile('cards.json', 'utf8'));
+const card = document.project.overlays[0];
+if (!card) throw new Error('No existing card to edit');
+await writeFile('card-edit.args.json', JSON.stringify({id:card.id, patch:{text:'준비부터 시작해요'}}), {flag:'wx'});
+JS
+node cli/moment.mjs exec overlays.update --project cards.json --args-file card-edit.args.json --out cards-edited.json
+```
+
+예제는 첫 카드를 선택하지만 실제 요청에서는 조회한 내용과 ID로 의도한 카드를
+고르세요. 다른 카드·기본 제목·자막·미디어·클립은 유지하며 빈 `patch`도 표준
+`{updated:true, outputDuration}` 응답을 반환합니다.
+
+**화면 동작:** 활성 `headline` 카드는 기본 제목을 가릴 수 있으며 여러 개가
+겹치면 배열에서 마지막 활성 headline이 표시됩니다. 크기·외곽선 단위는
+`min(너비/540, 높이/960)`으로 확대·축소하고 글자 맞춤 처리가 추가됩니다.
+위치는 안전 영역에 맞추며, `width:0`은 기존 0.78 기본 폭으로 처리하고 최대
+표시 폭은 캔버스의 0.82입니다. 저장한 숫자가 고정 출력 픽셀을 뜻하지 않습니다.
+
 ### 결과와 검증
 
 | 결과 | 형식 |
@@ -206,7 +259,7 @@ JavaScript에서 직접 호출할 때도 JSON으로 왕복 가능한 값을 전�
 
 배속이나 편집 길이 변경 시 출력 글자의 시간은 **한 번만** 비례 조정합니다.
 
-`title.update`는 기본 제목을 수정합니다. 구간별 제목이 나오는 시간에는 기본 제목이 숨겨집니다. 구간별 문구 수정은 문서 편집 후 `project.import` 또는 현재 UI를 사용합니다.
+`title.update`는 기본 제목을 수정합니다. 구간별 제목이 나오는 시간에는 기본 제목이 숨겨집니다. 기존 구간별 문구는 `overlays.update`로 수정할 수 있습니다. 카드 추가·삭제·순서 변경은 현재 UI 또는 검증된 전체 문서 가져오기를 사용합니다.
 
 ## 실제 CLI 사용
 

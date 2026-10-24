@@ -48,7 +48,7 @@ its supported version, `2025-11-25`, even if the proposed version differs; a cli
 that cannot support that version should disconnect, not continue with another
 wire format. `ping` is supported. Initialize only once per process.
 
-All fifteen tools require **`projectId: "session"`**. Each process owns one independent
+All sixteen tools require **`projectId: "session"`**. Each process owns one independent
 in-memory project, initially the demo. This value is neither a path nor a credential.
 Other project IDs return a tool error. A second client process does not share state.
 
@@ -140,6 +140,7 @@ Save `structuredContent.data.text` as UTF-8 `.vtt`; the server does not save fil
 | `moment_timeline_split` | `clipIndex`, `sourceTime` | `{updated:true, outputDuration}` |
 | `moment_title_update` | `patch` | Update acknowledgment and output duration |
 | `moment_effects_update` | `patch` | `{updated:true, outputDuration}` |
+| `moment_overlays_update` | `id`, `patch` | `{updated:true, outputDuration}` |
 
 ### Caption changes
 
@@ -321,6 +322,53 @@ Motion zoom scales from 1 to `1 + strength` for `in` and reverses for `out`,
 multiplying the existing framing zoom. These are the existing renderer’s effects,
 not new rendering capabilities. Saving a project requires `moment_project_get`;
 plain SRT/VTT do not carry effects, and `moment_render_plan` does not encode video.
+
+### Edit an existing timed card
+
+Read `moment_project_get`, select the intended entry in the returned
+`project.overlays`, then call `moment_overlays_update`. Do not invent an ID:
+
+```js
+const card = document.project.overlays[0]; // Select the intended existing card.
+if (!card) throw new Error("No existing card to edit");
+const argumentsForTool = {projectId:"session", id:card.id, patch:{text:"준비부터 시작해요"}};
+// Send argumentsForTool to moment_overlays_update via tools/call.
+```
+
+Required `id` is an exact existing ID, at most 2,000 UTF-16 code units and not
+whitespace-only. A missing card returns `NOT_FOUND`. Required `patch` may be empty;
+success uses `{updated:true, outputDuration}`. No card creation, deletion,
+reordering or ID renaming is provided by this tool.
+
+| Text/type fields | Accepted values |
+|---|---|
+| `text`, `detail`, `label` | Each at most 2,000 UTF-16 code units |
+| `kind`, `role` | `card`/`countdown`, `headline`/`free` |
+| `presentation`, `animation` | `plain`/`panel`, `none`/`fade`/`slide`/`pop` |
+| `enabled` | Boolean |
+
+| Appearance fields | Accepted values |
+|---|---|
+| `color`, `accent`, `background` | `#RRGGBB` or `#RRGGBBAA` |
+| `x`, `y`, `width` | Each 0–1 |
+| `size`, `stroke` | 10–120, 0–20 |
+| `backgroundOpacity` | 0–1 |
+
+`start` and `end` are finite nonnegative **output seconds after speed**. Supplying
+either validates the complete resulting interval: `0 <= start < end <= outputDuration`.
+There is no fixed 86,400-second cap. Content-only edits leave already-valid stored
+out-of-output-range timing untouched rather than clamping it.
+
+Other cards, the base title, captions, media and clips are unchanged. In the
+existing renderer, an active headline can hide the base title; the last active
+headline in array order wins. Size/stroke scale by `min(width/540, height/960)`,
+with text fitting; normalized positions are constrained to safe bounds. Card width
+0 retains the 0.78 fallback, with displayed width capped at 0.82 of the canvas.
+Do not promise fixed-pixel output from these values.
+
+The [CLI example](../INTEGRATIONS.md#실제-카드-id를-조회하는-cli-예제) creates recipe
+cards and reads a real ID. Save the edited project via a separate read; no video
+is encoded by this tool.
 
 ### Time coordinates
 

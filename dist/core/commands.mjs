@@ -23,6 +23,14 @@ const effectsSchema=object({
   brightness:number(.7,1.3),contrast:number(.7,1.5),saturation:number(0,1.6),vignette:number(0,.6),
   progress:boolean,progressPosition:choice('top','bottom'),progressColor:captionColorSchema,
 });
+const overlayPatchSchema=object({
+  text:string(2000),detail:string(2000),label:string(2000),
+  color:captionColorSchema,accent:captionColorSchema,background:captionColorSchema,
+  x:number(0,1),y:number(0,1),width:number(0,1),size:number(10,120),stroke:number(0,20),
+  backgroundOpacity:number(0,1),presentation:choice('plain','panel'),role:choice('headline','free'),
+  animation:choice('none','fade','slide','pop'),kind:choice('card','countdown'),enabled:boolean,
+  start:{type:'number',minimum:0},end:{type:'number',minimum:0},
+});
 const command=(name,description,inputSchema,mutates=false)=>({name,description,inputSchema,mutates});
 const definitions=[
   command('project.get','편집 설정을 이식 가능한 JSON으로 읽습니다. 미디어 파일은 포함하지 않습니다.',object()),
@@ -35,6 +43,7 @@ const definitions=[
   command('timeline.split','지정한 클립을 원본 영상 시간에서 둘로 나눕니다. 각 구간은 0.1초 이상이어야 합니다.',object({clipIndex:{type:'integer',minimum:0,maximum:MAX_CLIPS-1},sourceTime:number(0,86400)},['clipIndex','sourceTime']),true),
   command('timeline.replace','원본 영상 시간 기준 클립 목록을 교체합니다.',object({clips:array(clipSchema,MAX_CLIPS,1)},['clips']),true),
   command('title.update','기본 제목의 두 줄 문구와 스타일을 수정합니다.',object({patch:titleSchema},['patch']),true),
+  command('overlays.update','기존 장면 카드의 지정한 문구·스타일·출력 표시 시간만 수정합니다. 카드 ID와 순서는 유지합니다.',object({id:{...string(2000),minLength:1},patch:overlayPatchSchema},['id','patch']),true),
   command('captions.replace','자막을 교체합니다. source는 원본, timeline은 배속 전 편집 시간입니다.',object({captions:array(captionSchema,MAX_CAPTIONS)},['captions']),true),
   command('captions.text.replace','자막 본문에서 대소문자를 구분해 같은 문자열을 모두 바꿉니다. 시간과 메타데이터는 유지합니다.',object({find:{...string(2000),minLength:1},replacement:string(2000)},['find','replacement']),true),
   command('captions.style.update','자막의 공통 크기·위치·색상·표현만 수정합니다. 본문·시간과 SRT/VTT 내용은 유지합니다.',object({patch:captionStyleSchema},['patch']),true),
@@ -83,6 +92,16 @@ export function prepareCommand(project,name,args={}){
     next.clips.splice(args.clipIndex,1,{start:clip.start,end:args.sourceTime},{start:args.sourceTime,end:clip.end});
   }
   else if(name==='effects.update')Object.assign(next.effects,args.patch);
+  else if(name==='overlays.update'){
+    if(!args.id.length)fail('수정할 장면 카드 ID를 입력하세요.','arguments.id');
+    const card=next.overlays.find(item=>item.id===args.id);
+    if(!card)throw new CommandError('NOT_FOUND','장면 카드를 찾을 수 없습니다.');
+    Object.assign(card,args.patch);
+    if(Object.hasOwn(args.patch,'start')||Object.hasOwn(args.patch,'end')){
+      if(card.start<0||card.end<=card.start||card.end>outputDuration(next))
+        fail('장면 카드의 표시 시간은 출력 영상의 0초부터 끝 사이에서 시작보다 끝이 늦어야 합니다.','arguments.patch');
+    }
+  }
   else if(name==='title.update')Object.assign(next.design.title,args.patch);
   else if(name==='captions.style.update')Object.assign(next,args.patch);
   else if(name==='captions.replace'){

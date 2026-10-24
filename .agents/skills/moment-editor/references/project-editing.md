@@ -132,11 +132,33 @@ on existing framing. Neither changes the clip sequence or subtitle timing. Save
 the returned project via a separate read; CLI/MCP do not encode video, and plain
 SRT/VTT do not preserve these effects.
 
+## Edit an existing timed card by ID
+
+Read `project.get` / `moment_project_get` and select the intended entry from
+`project.overlays`. CLI `overlays.update` and MCP `moment_overlays_update` require
+`id` and `patch`; never use an array index or invented ID as the card ID.
+The [runnable CLI example](../../../../INTEGRATIONS.md#실제-카드-id를-조회하는-cli-예제)
+creates recipe cards and builds an argument file from an actual returned ID.
+For MCP with the selected `card`, arguments are
+`{projectId:"session", id:card.id, patch:{text:"준비부터 시작해요"}}`.
+
+Use the [field table](../../../../docs/MCP.md#edit-an-existing-timed-card) or live
+schema for wording, styling and timing. Missing IDs return `NOT_FOUND`; the tool
+does not create, delete, reorder or rename IDs. Other cards and project content
+remain intact. Empty patches are accepted with `{updated:true, outputDuration}`.
+
+`start`/`end` use output seconds after speed. If either is supplied, the resulting
+interval must satisfy `0 <= start < end <= outputDuration`; it has no fixed
+86,400-second cap. Text-only edits do not automatically clamp stored out-of-range
+card times. Active headlines can hide the base title, with the last active
+headline winning; do not confuse that visibility with deletion. Size/stroke are
+canvas-relative with fitting and safe bounds, not fixed output pixels.
+
 ## Replacement operations and styles
 
 - `moment_timeline_replace`: submit the complete desired `clips` list, preserving unrequested clips and their order. Clips may repeat or overlap source ranges. Each must have `end > start` and remain within original media duration; the list must contain 1–1,000 clips.
 - `moment_captions_replace`: submit the complete desired caption array. Preserve `basis`, speaker and keyword fields unless changing them is requested. An empty array intentionally removes all captions. Each text is limited to 2,000 UTF-16 code units; do not silently truncate authored text.
-- `moment_title_update`: `patch.lines` is exactly two strings. To leave the second line blank, use `""`, not an omitted array slot. This edits the base title; timed cards can hide it while active. Editing cards requires a validated full-document import or the UI; there is no card-update MCP tool.
+- `moment_title_update`: `patch.lines` is exactly two strings. To leave the second line blank, use `""`, not an omitted array slot. This edits the base title; timed cards can hide it while active. Use `moment_overlays_update` for an existing card; adding, deleting or reordering cards still requires the UI or a validated full-document import.
 - `moment_template_apply`: discover IDs with `moment_templates_list`. Only built-in templates are exposed, not the browser's custom-template localStorage. `withContent: false` preserves authored title, credit and card content; `true` applies template example title, credit and card content.
 - Project updates reset zoom/pan when the aspect ratio changes. Timeline or speed changes retime output layers through the shared command logic; do not separately rescale those fields again.
 

@@ -1,17 +1,17 @@
 # Project editing workflows
 
-**Inspect the supplied document, preview the requested edit, then save a separate result. MCP changes remain in memory until your client saves them.**
+**Use this reference for file/session handoff, save/recovery, grouped edits and timeline operations. For caption or composition tasks, open only the matching domain reference unless you need these shared details.**
 
-**Jump to:** [CLI basics](#apply-a-small-change-preview-and-save) ·
-[Command catalog](../../../../INTEGRATIONS.md#명령-v1) · [Clocks](#time-coordinate-example) ·
-[Recovery](#recover-without-losing-work)
-
-| Workflow | Start here |
+| Need | Read |
 |---|---|
-| Captions | [Inspect timing density](#inspect-caption-timing-density) · [Import](#import-srtvtt-without-constructing-cue-arrays) · [Insert/remove](#insert-one-cue-or-remove-a-range) · [Edit one cue](#edit-one-authored-caption) · [Text correction](#correct-repeated-caption-text) · [Split](#split-one-caption-at-the-caret-boundary) · [Merge](#merge-adjacent-authored-captions) · [Timing](#shift-a-constant-subtitle-delay) · [Style](#adjust-shared-caption-styling) |
-| Timeline | [Split/repeat a clip](#split-a-clip-without-rebuilding-the-timeline) |
-| Composition | [Effects](#adjust-video-effects-without-changing-content) · [Existing cards](#edit-an-existing-timed-card-by-id) · [Scripted cards/stacking](#build-a-hook-tip-and-cta-with-individual-cards) · [Credit](../../../../docs/MCP.md#set-a-source-credit-independently) |
-| Grouped/template edits | [One commit](#apply-related-edits-together) · [Browser template sharing](#share-one-browser-custom-template) · [Apply a supplied template](#apply-a-supplied-template-document) |
+| Caption content, timing, speakers, diagnostics or exports | [Caption workflows](captions.md) |
+| Effects, timed cards, templates or graphics review | [Composition workflows](composition.md) |
+| Clip clocks, split, move, repeat or keep gaps | [Timeline workflows](#read-indexed-clip-clocks) |
+| File/session basics and saving | [Discover](#discover-and-inspect) · [CLI edits](#apply-a-small-change-preview-and-save) · [Browser handoff](#browser-file-handoff) |
+| Related edits | [Preview](#inspect-a-proposed-edit-summary) · [Batch](#apply-related-edits-together) |
+| Shared constraints | [Clocks](#time-coordinate-example) · [Replacement warnings](#replacement-operations-and-styles) · [Recovery](#recover-without-losing-work) |
+
+The short forwarding sections retain old links; the full domain guidance lives only in its reference.
 
 ## Interface language and authored content
 
@@ -214,355 +214,61 @@ See the [complete CLI example](../../../../INTEGRATIONS.md#클립-구간-복제)
 
 ## Import SRT/VTT without constructing cue arrays
 
-Use CLI `captions.import` or MCP `moment_captions_import` with required `text` and
-`basis`. `text` must contain the file contents, not a path. For MCP:
-
-```json
-{"projectId":"session","basis":"source","text":"1\n00:00:01,000 --> 00:00:02,000\nHello\n"}
-```
-
-Choose `source` for original media seconds or `timeline` for edited-timeline
-seconds; **both are before playback speed**. This command has no output-clock option or
-automatic reversal of trim/speed. Do not promise that importing exported subtitles
-restores the original project. The command replaces all captions atomically, so
-retain the prior project when reversibility matters.
-
-The browser's dedicated file dialog separately offers **Original media** (default)
-or **Edited output**, then explicit **Replace**. Output mode parses against current
-output duration and multiplies times by the captured speed into existing timeline
-cues (a parser-clipped final endpoint uses the exact captured timeline end).
-The existing parser may clip ends/skip invalid or out-of-range cues; successful
-replacement is one browser undo step and keeps the playhead position.
-It does not infer a clock or map repeated output occurrences back to source
-cues. Back up settings first: the entire caption array is replaced. Millisecond
-quantization and missing speaker/style/keyword metadata prevent lossless recovery.
-Set added-audio offset before output-clock import: the existing browser control
-shifts **all timeline-basis cues**, including imported ones, not only audio-generated
-cues. Undo the entire offset edit if accidental. Later cuts do not automatically
-realign imported subtitles; speed/cuts keep existing timeline semantics.
-Legacy `importSrt(file)` and
-the hidden picker remain source-only; no new CLI/MCP basis or schema is introduced.
-
-
-The [CLI args-file recipe](../../../../INTEGRATIONS.md#srt-파일을-명령-인수로-감싸기)
-reads UTF-8 SRT/VTT into `{text,basis}` JSON and protects existing outputs. API text
-is limited to 100,000 UTF-16 code units; browser file import remains 2 MiB. The
-shared parser also limits output to 10,000 cues and 2,000 code units per cue.
-It clamps ends to the chosen clock duration, drops out-of-range/nonpositive cues,
-strips markup and decodes known entities once. No speaker/style/keyword metadata
-is imported. Empty/no-valid input fails without replacing the existing captions.
-The permissive parser may skip malformed cues; it is not a full standard validator.
-Success returns `{updated:true, outputDuration, importedCaptions}`; the last field
-is the applied cue count. Read the project separately to save the document.
+See [Import SRT/VTT without constructing cue arrays](captions.md#import-srtvtt-without-constructing-cue-arrays).
 
 ## Read a caption page
 
-Use `captions.list` with optional `offset` (0–10,000, default 0) and `limit`
-(1–50, default 20). MCP adds `projectId:"session"`. Read `data.captions[]` entries
-`{captionIndex,caption}`; repeat at `data.nextOffset` until it is `null`.
-The returned cue is an exact detached authored copy, not a repeated output occurrence.
-Pre-speed times and missing `basis` (source) are preserved. Reads do not edit history
-and cannot be batched. Pagination bounds response size, not total processing cost.
-
-For an inspection issue, read nearby cues, review the text, then update the reported
-current index. Each page reflects live state; no snapshot or stable ID is promised.
-Re-read after structural edits or uncertain results. A page is not a project backup.
-See [contracts and executable workflow](../../../../INTEGRATIONS.md#저장된-자막을-나눠-조회).
+See [Read a caption page](captions.md#read-a-caption-page).
 
 <a id="insert-or-remove-one-cue"></a>
 
 ## Insert one cue or remove a range
 
-Read `captions.list` first. `captions.insert` takes `{captionIndex,caption}` at
-0 through current count (inclusive for append); `captions.remove` takes an existing
-`{captionIndex,count?}`; count defaults to 1 and must be an integer 1..10,000.
-The contiguous range must fit the current authored array; all cues may be removed.
-Overflow is rejected, not shortened; surviving out-of-timeline cues remain intact.
-MCP names are `moment_captions_insert` / `moment_captions_remove`,
-with `projectId:"session"`. The caption needs `start`, `end`, `text`; optional basis
-is source by default or timeline, both before speed. Times must fit that duration
-and the 86,400-second endpoint cap; insertion cannot exceed 10,000 cues.
-Empty text is legal but may not export as subtitles. Other cues are not sorted or retimed.
-
-Both return `{updated:true,captionIndex,totalCaptions,outputDuration}`; removal's
-index is the old first removed position. Save the full project separately. These operations shift
-indices and are not idempotent: re-read after uncertainty, never blindly retry.
-In `project.batch`, use sequential current indices, not original positions; the
-20-operation cap is unchanged. [Field limits and executable insert/remove/batch
-recipes](../../../../INTEGRATIONS.md#자막-하나-추가연속-범위-삭제) cover the complete contract.
+See [Insert one cue or remove a range](captions.md#insert-one-cue-or-remove-a-range).
 
 ## Edit one authored caption
 
-Prefer `captions.update` / `moment_captions_update` for one cue rather than sending
-all captions again. Read a current `captions.list` page (MCP: `moment_captions_list`), then supply its `captionIndex`
-and a `patch` containing only requested `text`, `start`, `end`, `speaker` or `keywords`.
-MCP adds `projectId:"session"`. Basis and estimated-timing metadata cannot be patched;
-all unspecified fields and other cues are retained. Text allows empty strings up
-to 2,000 UTF-16 code units, keywords up to 500; speaker is `""`, `"0"` or `"1"`.
-
-Explicit endpoints must fit the cue’s existing pre-speed source/timeline duration
-and the 86,400-second schema cap with positive length. Content-only edits do not
-clamp old out-of-duration timing. Empty text does not guarantee valid SRT/VTT.
-Check `{updated:true, outputDuration, captionIndex}` and save separately; an empty
-patch can still commit. The index is not a stable ID. Re-read after uncertain edits,
-and account for earlier splits/merges when using this command in `project.batch`.
-See the [CLI example and field table](../../../../INTEGRATIONS.md#자막-하나만-수정).
+See [Edit one authored caption](captions.md#edit-one-authored-caption).
 
 ## Correct repeated caption text
 
-Use `captions.text.replace` instead of rebuilding cue arrays when only wording changes:
-
-```sh
-node cli/moment.mjs exec captions.text.replace --project edited.moment.json --json '{"find":"하루","replacement":"하루의 기록"}' --dry-run
-node cli/moment.mjs exec captions.text.replace --project edited.moment.json --json '{"find":"하루","replacement":"하루의 기록"}' --out corrected.moment.json
-```
-
-For MCP, call `moment_captions_text_replace` with `{"projectId":"session","find":"하루","replacement":"하루의 기록"}`. Both strings are required and limited to 2,000 UTF-16 code units; `find` must be nonempty. Matching is literal, case-sensitive and non-overlapping, without regex or Unicode normalization. Only caption text changes; preserve timings, basis, speaker, keywords and order.
-
-The result is `{updated, matches, changedCaptions}`, not the document. With no match or an identical replacement, `updated` is false and no project change is committed. `matches` counts occurrences; `changedCaptions` counts actually changed cues. Read the document separately to save it.
-
-An empty replacement can remove a substring, not a whole cue: if any changed cue becomes blank after `trim()` or exceeds 2,000 UTF-16 code units, the entire operation fails before commit. Do not bypass this by dropping cues or silently truncating text. Explicit cue deletion uses `captions.remove`; preserve all other entries. UI replace-all is one undo step; MCP has no undo tool.
-
-In the browser, previous/next counts **literal occurrences**, including multiple
-matches within one authored row and captions outside trimmed source ranges. It
-wraps across rows/pages and selects the exact substring without seeking or editing.
-Matching remains case-sensitive/non-overlapping, with UTF-16 offsets and no regex
-or Unicode normalization. Find is nonempty and at most 2,000 UTF-16 code units;
-replacement is at most 2,000, with literal `$` characters.
-
-**Replace match** uses the existing `captions.update` for only the selected
-substring, preserving cue timing/metadata in one undo step. It highlights the
-replacement without automatically advancing; Next resumes after the inserted span
-and wraps only when no later match exists; Previous may revisit earlier or inserted
-matches. Identical replacement is a no-op;
-blank/overlong resulting cue text is rejected. A stale cue/query or uncommitted
-textarea edit is refused rather than overwritten: finish the edit and reselect.
-Opening/clicking controls may still trigger the field's normal blur/change commit.
-Search/replacement drafts persist; reselect if project/content/query changes.
-Replace-all remains a separate action and existing CLI/MCP command; this adds no
-new API command.
-
-The browser mounts at most 50 editing rows per page. Search/timeline selection,
-import and added-caption focus reveal the target page. Paging alone changes no
-project/history/saved state or playback position. Search, replace-all and long-
-caption splitting still use the full authored list; exports retain full-project
-clip/speed behavior, not visible-page scope. The existing cue/byte limits remain.
+See [Correct repeated caption text](captions.md#correct-repeated-caption-text).
 
 ## Check overlapping caption times
 
-Call read-only `captions.overlaps` / `moment_captions_overlaps` with optional `limit`
-(1–100, default 20; MCP also needs `projectId:"session"`). It checks positive
-intersections of derived output occurrences after cuts, repetition and speed;
-touching boundaries do not count. It does not predict visibility or change ownership.
-
-Read total/flagged/omitted occurrence counts. Issues are occurrence-ordered and
-contain one representative conflict per flagged occurrence, **not all pairs**.
-All times are output seconds after speed; each side references the current authored
-caption and optional source clip. Use `captions.list` for text, never treat a derived
-occurrence as an independently editable cue, and re-run after edits. No automatic
-correction/history/save or batch admission; existing occurrence/text budgets apply.
-[Complete response fields and limits](../../../../docs/MCP.md#check-caption-time-overlaps)
-and [executable CLI workflow](../../../../INTEGRATIONS.md#자막-시간-겹침-점검).
+See [Check overlapping caption times](captions.md#check-overlapping-caption-times).
 
 ## Inspect caption timing density
 
-After an edit, call `captions.inspect` / `moment_captions_inspect` with required
-`maxGraphemesPerSecond` chosen for the task and optional `limit` (`1..100`, default `20`).
-MCP also needs `projectId:"session"`. This is read-only, outside `project.batch`.
-It counts non-whitespace graphemes, including punctuation/literal markup, per
-output second after cuts/repeats/speed. It is not a language standard, speech
-alignment, render-fit or export-validity check. Do not silently apply fixes.
-
-Read total, flagged and omitted counts, not just the top issues. Results rank by
-rate descending, start ascending, then occurrence index. No full text is returned;
-resolve authored indexes from the current project. Repeated derived occurrences
-are not independent editable cues. Existing derived-cue/raw-byte limits apply.
-See the [CLI workflow and precise metric](../../../../INTEGRATIONS.md#편집-후-자막-표시-속도-점검).
-
-For manual review in the browser, **Check reading speed** starts with a blank required
-positive threshold and reports the worst 20 occurrences plus total/flagged/omitted
-counts. **Captions** focuses the authored row without seeking; **View range** pauses and
-seeks the selected occurrence before focusing that row. Project or threshold
-changes invalidate the report and require a new inspection. Busy/recovery guards still apply. Neither inspection nor navigation
-changes the project, saves it or creates history; CLI/MCP cannot drive this modal
-or the browser playhead.
-
+See [Inspect caption timing density](captions.md#inspect-caption-timing-density).
 
 ## Split one caption at the caret boundary
 
-Use `captions.split` / `moment_captions_split` with `{captionIndex, textOffset}`
-(and MCP `projectId:"session"`) after reading the current authored row/text.
-`textOffset` is an internal UTF-16 code-unit offset, not a grapheme count; it must
-coincide with an `Intl.Segmenter` grapheme boundary. Do not cut an emoji or combined
-character. Literal substrings keep spaces/newlines; whitespace-only sides reject.
-Both cues retain metadata and receive `timing:"estimated"`. The inner timestamp
-uses proportional grapheme counts, not audio/word alignment; outer bounds stay fixed.
-
-A full 10,000-cue array, invalid index/boundary or missing safe segmentation support
-rejects atomically. Check `{updated:true, outputDuration, createdCaptionIndex}`;
-the second cue is inserted immediately after the first. Re-read after a lost
-response before retrying, then save the document. Existing export rounding, blank-line,
-byte and derived-cue limits still apply. Browser caret splitting is one undo step,
-not the separate bulk long-caption split. See the [CLI example](../../../../INTEGRATIONS.md#자막-하나를-커서-위치에서-분할);
-its caption replacement is for a new demo, not a prerequisite for editing real cues.
+See [Split one caption at the caret boundary](captions.md#split-one-caption-at-the-caret-boundary).
 
 ## Merge adjacent authored captions
 
-Use `captions.merge` / `moment_captions_merge` with `{captionIndex:0}` (plus MCP
-`projectId:"session"`) only after inspecting the current authored caption array.
-It merges that row with the next, not the next visible/output occurrence. Both
-must share basis (omitted means source), speaker and keywords (missing strings
-compare as empty) and have ordered,
-non-overlapping times. The first start/second end include any gap; the full merged
-text is displayed through that gap. Text is joined literally with one ASCII space,
-limited to 2,000 UTF-16 code units. Metadata is retained from the first cue, with
-estimated timing retained if either cue had it. There is no word-level alignment.
-Source text may repeat in intersecting clips; timeline cues keep their absolute
-clock. Existing export limits, including SRT/VTT blank-line rejection, still apply.
-
-Check `{updated:true, outputDuration, mergedCaptionIndex}` and save separately.
-After a lost response, re-read before retrying: the same index can now merge a third
-cue. Invalid index/timing/metadata/length rejects atomically. See the [CLI example](../../../../INTEGRATIONS.md#인접한-자막-합치기),
-which intentionally replaces demo captions first; do not replace real captions
-unless requested. The browser row action handles page boundaries in one undo step.
+See [Merge adjacent authored captions](captions.md#merge-adjacent-authored-captions).
 
 ## Shift a constant subtitle delay
 
-Read the current cue times, then use `captions.timing.shift` or MCP
-`moment_captions_timing_shift` with `{"basis":"source","delta":0.25}`
-(and `projectId:"session"` for MCP). Positive seconds delay, negative seconds
-advance; both `source` and `timeline` use **pre-speed** time. Missing cue basis
-counts as source. See the [complete CLI example](../../../../INTEGRATIONS.md#자막-시간을-앞뒤로-이동)
-for a cue that can safely move within the source duration.
-
-Optional `captionIndex`/`count` first select authored rows, then filter by basis.
-Omit both for all; index alone means that row through the end; count alone means
-first N; both mean exactly N from the index. Explicit index must exist (integer
-0..9,999), count is 1..10,000. Overflow/explicit empty-array ranges reject even for
-zero delta. No clamping or clock conversion; unselected rows are unchanged.
-Re-read indexes after structural edits. Matching cues in range move even if off-page
-or hidden by search.
-If any resulting interval is invalid or outside that clock’s duration, the whole
-edit fails: no cropping, deletion or partial application. Tiny floating-point
-roundoff at an endpoint is corrected. The existing 86,400-second caption endpoint
-cap still applies. Metadata, order, other
-project content and audio offset stay unchanged. Source shifts across trim gaps
-can alter visible output occurrences; this is not automatic sync or speed correction.
-
-Check `{updated, shiftedCaptions, outputDuration}`. Zero delta or no matching cues
-means `updated:false, shiftedCaptions:0` and no commit. Save via a separate project
-read. Browser UI offers basis/seconds/apply and one undo step for real changes;
-standalone MCP has no undo tool.
+See [Shift a constant subtitle delay](captions.md#shift-a-constant-subtitle-delay).
 
 ## Adjust shared caption styling
 
-For “larger captions,” use `captions.style.update` rather than rewriting the project:
-
-```sh
-node cli/moment.mjs exec captions.style.update --project corrected.moment.json --json '{"patch":{"captionSize":48}}' --dry-run
-node cli/moment.mjs exec captions.style.update --project corrected.moment.json --json '{"patch":{"captionSize":48}}' --out styled.moment.json
-```
-
-Call MCP `moment_captions_style_update` with `{"projectId":"session","patch":{"captionSize":48}}` for the same edit. Use the [style field table](../../../../docs/MCP.md#adjust-global-caption-appearance) or live schema for position, colors, stroke, italic and animation.
-
-Only supplied fields change. These are global caption settings, not per-cue styles; cue text, timing and metadata remain unchanged. Setting `style` alone does not trigger the UI preset’s italic/stroke defaults. Empty `patch: {}` is valid and returns `{updated:true, outputDuration}`; do not interpret it as the text-replacement command’s no-op detection.
-
-For speaker presentation, add `speakerLabels:["Host","Guest"]` and/or
-`speakerColors:["#FFFFFF","#B5FF00"]` to the patch. Each supplied array replaces
-both slots: labels are exactly two strings of at most 80 UTF-16 code units (empty
-allowed), colors exactly two hex6/hex8 strings. Slots correspond to existing cue
-speaker 0/1; no detection, reassignment or extra speakers. Highlight text keeps its
-existing precedence; speaker-label colors still use the assigned color.
-
-Save the retrieved project JSON, not the acknowledgment. Styling and speaker
-labels/colors are absent from plain SRT/VTT/TXT. CLI/MCP do not render the changed video.
+See [Adjust shared caption styling](captions.md#adjust-shared-caption-styling).
 
 ## Adjust video effects without changing content
 
-Use `effects.update` for brightness/contrast and other existing video effects,
-rather than applying a template or importing a reconstructed project:
-
-```sh
-node cli/moment.mjs exec effects.update --project edited.moment.json --json '{"patch":{"brightness":1.1,"contrast":1.05}}' --dry-run
-node cli/moment.mjs exec effects.update --project edited.moment.json --json '{"patch":{"brightness":1.1,"contrast":1.05}}' --out effects-edited.moment.json
-```
-
-MCP `moment_effects_update` takes
-`{"projectId":"session","patch":{"brightness":1.1,"contrast":1.05}}`.
-Only supplied effects fields change. Clips, speed, captions, cards, titles, audio
-and their times remain unchanged. See the [field/default tables](../../../../docs/MCP.md#adjust-video-effects-independently)
-or live schema; there is no reset command, so explicitly supply only the defaults
-you intend to restore. Empty patches are accepted with the standard
-`{updated:true, outputDuration}` acknowledgment, not no-op detection.
-
-Black/white boundary effects are overlays, not crossfades; their effective
-duration is capped at half the clip’s output duration. Motion is a zoom multiplier
-on existing framing. Neither changes the clip sequence or subtitle timing. Save
-the returned project via a separate read; CLI/MCP do not encode video, and plain
-SRT/VTT do not preserve these effects.
+See [Adjust video effects without changing content](composition.md#adjust-video-effects-without-changing-content).
 
 ## Edit an existing timed card by ID
 
-Read `project.get` / `moment_project_get` and select the intended entry from
-`project.overlays`. CLI `overlays.update` and MCP `moment_overlays_update` require
-`id` and `patch`; never use an array index or invented ID as the card ID.
-The [runnable CLI example](../../../../INTEGRATIONS.md#실제-카드-id를-조회하는-cli-예제)
-creates recipe cards and builds an argument file from an actual returned ID.
-For MCP with the selected `card`, arguments are
-`{projectId:"session", id:card.id, patch:{text:"준비부터 시작해요"}}`.
-
-Use the [field table](../../../../docs/MCP.md#edit-an-existing-timed-card) or live
-schema for wording, styling and timing. Missing IDs return `NOT_FOUND`; the tool
-does not create, delete, reorder or rename IDs. Other cards and project content
-remain intact. Empty patches are accepted with `{updated:true, outputDuration}`.
-
-`start`/`end` use output seconds after speed. If either is supplied, the resulting
-interval must satisfy `0 <= start < end <= outputDuration`; it has no fixed
-86,400-second cap. Text-only edits do not automatically clamp stored out-of-range
-card times. Active headlines can hide the base title, with the last active
-headline winning; do not confuse that visibility with deletion. Size/stroke are
-canvas-relative with fitting and safe bounds, not fixed output pixels.
-
-For appearance-only reuse, select just `color`, `accent`, `background`, `size`,
-`stroke`, `backgroundOpacity`, `presentation` and `animation` from the source card
-and send them as the target’s `overlays.update` patch. Do not copy its full object:
-position/width, role/kind/enabled, text/detail/label, times and ID must remain intact.
-The browser’s copy/paste action follows this same eight-field contract, keeps a
-snapshot only in editor memory (not OS clipboard/storage), and pastes changes as one
-undo step. An identical style is a no-op. Editing/removing the source does not alter that snapshot. CLI/MCP cannot
-access the browser’s copied snapshot; read the project and construct the patch.
+See [Edit an existing timed card by ID](composition.md#edit-an-existing-timed-card-by-id).
 
 ## Build a hook, tip and CTA with individual cards
 
-Use `overlays.add` / `moment_overlays_add` with a stable caller-chosen `id` and
-`patch` requiring `text`, `start` and `end`. Read the current project first to check
-IDs and output duration. The [scripted-card example](../../../../INTEGRATIONS.md#스크립트에-맞춰-카드-추가삭제)
-creates three sequential cards without replacing the project. Times are output
-seconds **after speed** and must satisfy `0 <= start < end <= outputDuration`.
-
-Add appends existing new-card defaults plus supplied styling fields. IDs must be
-nonblank and at most 2,000 UTF-16 code units; duplicates fail with `INVALID_ARGUMENT`,
-not upsert. The 12-card limit includes disabled cards. Remove one using
-`overlays.remove` / `moment_overlays_remove` and its exact nonempty ID; even a
-legacy whitespace-only ID is matched exactly. A missing ID returns `NOT_FOUND`.
-
-Both return `{updated:true, outputDuration, id}`. Save the project with a separate
-read. If a response is lost, check the live project for your ID before retrying;
-do not create a fresh ID blindly. Separate calls commit independently; use
-`project.batch` when these supported edits must validate and commit together.
-Other cards/order and unrelated content remain unchanged. Appended overlapping
-headlines take precedence and can hide the base title; avoid accidental overlaps.
-
-To change stacking, read the current `project.overlays` and call `overlays.move`
-(or `moment_overlays_move`) with `{id, toIndex}`. `toIndex` is the zero-based final
-position, `0` at the back and the last index at the front, including disabled cards.
-Only card order changes: overlapping free cards draw in array order and only the
-last active headline is shown. This cannot reorder cards relative to captions or
-other renderer layers. Same-index moves return `updated:false` without a commit;
-otherwise the acknowledgment is `{updated:true, id, toIndex, outputDuration}`.
-A missing ID is `NOT_FOUND`; an invalid index is `INVALID_ARGUMENT`. After a lost
-response, re-read IDs/order before retrying. See the [CLI example](../../../../INTEGRATIONS.md#카드-쌓임-순서-변경).
-
+See [Build a hook, tip and CTA with individual cards](composition.md#build-a-hook-tip-and-cta-with-individual-cards).
 
 ## Replacement operations and styles
 
@@ -586,125 +292,23 @@ Live schemas are authoritative. Examples do not extend the supported fields: the
 
 ## Assign a speaker across authored rows
 
-Read `captions.list` before `captions.speaker.assign` / `moment_captions_speaker_assign`:
-all three arguments are required, e.g. `{"captionIndex":1,"count":2,"speaker":"1"}`.
-The existing zero-based index plus count selects contiguous authored rows, including
-both time bases—not search matches, page-only rows or repeated output occurrences.
-Count is 1–10,000 and the whole range must exist; invalid input is not clamped.
-
-Only `speaker` changes. Choose existing slots `"0"`/`"1"` or unassigned `""`; no
-automatic identification or additional slots. Missing/empty already-unassigned
-values are a no-op without creating a missing field; clearing an assigned cue writes
-`""`. The result `{updated,changedCaptions,outputDuration}` counts actual changes.
-Text, times, basis, keywords and order remain intact, and plain subtitle exports do not
-gain speaker names (opt-in review TXT can include them). Set presentation separately with `captions.style.update`.
-
-The operation supports batch and read-only preview, but neither reserves row
-identity. Re-read after structural edits or uncertain outcomes; save a prior
-project document for recovery because MCP has no undo tool.
-[Executable recipe and bounds](../../../../INTEGRATIONS.md#자막-범위의-화자-배정)
+See [Assign a speaker across authored rows](captions.md#assign-a-speaker-across-authored-rows).
 
 ## Share one browser custom template
 
-Use the gallery’s import button or an individual custom card’s export action,
-not MCP `moment_project_import`. A template file is
-`{format:"moment-template", formatVersion:1, template:{...}}`, not a
-`moment-project` document. The browser accepts UTF-8 JSON up to 256 KiB including
-an optional leading BOM and validates format, version and nested template styles.
-
-Import adds a new unique-ID copy under `내 템플릿` to the current library (maximum
-20). It does not overwrite existing templates, change favorites, apply the
-template or modify the current project. Preview the imported template and choose
-style-only versus example-content application deliberately. Failed reads,
-validation, capacity checks or saves leave the existing library/project intact.
-The latest file-selection request wins; capacity is checked again after reading.
-
-Review title, credit, timed-card text, global keywords and speaker labels before
-sharing: they travel with saved styles even though video/audio do not. This is
-not a whole-library or project backup. CLI/MCP cannot list or persist that browser
-library, but can apply an exported document as described below. Never use a file
-path as a template ID.
-
-The browser also renames an existing custom template from its card. Use the
-current-name dialog; names are trimmed, nonblank and limited to 40 UTF-16 code
-units. Identical names are a no-op without a write; duplicate names on different
-IDs remain allowed. Renaming preserves the ID, favorites, settings, cards, timing
-and current project, and works at the 20-template capacity. It affects gallery
-search and subsequent export filenames, not an already-exported file.
-Cancel, a deleted target, a blocked library recovery state or a write failure
-preserves the original library. A write failure leaves the dialog open to retry.
-This is browser-library management, not a new CLI/MCP rename tool.
-
-To replace a saved custom template’s composition, use **Update from current composition** on its browser gallery card
-and explicitly confirm **Update**. It captures the current project **at confirmation**,
-replacing saved styling/settings, title/credit/card content and relative timing while
-retaining ID, name, category, descriptive metadata and favorites. It works at the 20-entry capacity without
-creating a copy. The current project, media and other projects are not changed or
-reapplied. Export the old template first if it must be retained; no version history
-is created. Cancellation or failed validation/storage preserves the original;
-failed storage allows retry. The replacement is validated against the strict portable
-template schema and 256 KiB limit before saving; a deleted target is not recreated.
-This is not a CLI/MCP browser-library operation and
-is distinct from applying an exported template document to a project.
+See [Share one browser custom template](composition.md#share-one-browser-custom-template).
 
 ## Transfer a browser custom-template collection
 
-Use **Export my template collection** and the gallery’s existing import action to transfer all saved
-custom templates in their current order. A `moment-template-collection` version-1
-file contains 0–20 individual `moment-template` documents, not a project document.
-The collection is limited to 6 MiB of pretty UTF-8 JSON; each entry retains its
-256 KiB validation. Duplicate IDs within the collection are rejected.
-
-Import appends fresh-ID copies under `내 템플릿`, never overwrites or applies them. The combined
-library must pass its existing validation and 20-entry capacity; individually
-valid entries do not guarantee a valid combined library. Failure leaves the
-library/project unchanged rather than importing a subset. An empty collection
-is a no-write no-op; empty-library export is disabled.
-
-Favorites, built-in templates, UI preferences, project and media are excluded:
-this is not a full library restore. Review all saved wording before sharing.
-There is no collection CLI/MCP command, and `template.apply.document` still takes
-one individual template document. The optional pure JavaScript helpers validate
-objects only; they do not access browser storage or allocate imported IDs.
-[Exact wrapper and executable helper example](../../../../INTEGRATIONS.md#사용자-템플릿-컬렉션)
+See [Transfer a browser custom-template collection](composition.md#transfer-a-browser-custom-template-collection).
 
 ## Capture the current composition as a portable template
 
-Use read-only `template.export` / `moment_template_export` with required `id` and
-`name` (MCP also needs `projectId:"session"`). ID is a nonblank string up to 200
-UTF-16 code units, preserved exactly and not a built-in ID. Name is at most 40 code
-units before trimming and must remain nonblank. Save result `data` as the existing
-`moment-template` version-1 document, not the response envelope; maximum 256 KiB.
-
-It captures visual style, title/credit/card content and relative output timing,
-not dialogue captions, clips or media. Existing capture clips cards to the output
-range, drops outside cards and orders by start; null title/credit ends remain null.
-Review text, global keywords and speaker labels before sharing. No project/library
-write, history or batch operation occurs. A template is not a project backup.
-Use `template.apply.document` to apply it, not `project.import`.
-[Runnable CLI/service recipes and complete limits](../../../../docs/MCP.md#export-the-current-composition-as-a-template)
-show separate protected output paths and the required apply-arguments wrapper.
+See [Capture the current composition as a portable template](composition.md#capture-the-current-composition-as-a-portable-template).
 
 ## Apply a supplied template document
 
-Use CLI `template.apply.document` or MCP `moment_template_apply_document` for an
-exported custom template. Pass the full `moment-template` envelope as `document`,
-not the inner template, file path or a project document. MCP arguments are
-`{projectId:"session", document, withContent:false}` when `document` holds the
-parsed template. See the [runnable CLI wrapper](../../../../INTEGRATIONS.md#내보낸-템플릿을-climcp로-적용):
-`--args-file` needs `{document, withContent}`, not the bare exported template file.
-
-Default `withContent:false` preserves title lines, credit text, existing cards and
-dialogue captions, but applies visual settings, title/credit timing, effects,
-global keywords and speaker labels/colors. Use `true` only when template title,
-credit and cards should replace authored content; dialogue captions remain.
-Relative title/credit timing and normalized card timing follow existing template
-semantics; do not retime them a second time.
-
-Version, known-field, nested-style and 256 KiB pretty-JSON checks precede mutation.
-Success returns `{updated:true, outputDuration}`; retrieve the project to save it.
-The applied ID becomes `templateId`, with no new ID or browser-library entry.
-This metadata edit neither reads files nor imports or encodes media.
+See [Apply a supplied template document](composition.md#apply-a-supplied-template-document).
 
 ## Time-coordinate example
 
@@ -722,56 +326,11 @@ The project's `duration` describes the source, not the sum of the clips or final
 
 ## Review saved graphics text
 
-Browser **Project files → Graphics text (.txt)** downloads
-`project-name.graphics.txt`: title lines, credit and card label/text/detail in saved
-card order, including disabled/out-of-range layers. It includes enabled flags,
-raw output-time endpoints (null stays null), and card role/kind; at most 14 text
-layers plus the report header. Headings follow UI locale, authored text/line breaks
-stay untouched. UTF-8 has no BOM; exported NUL text is rejected, not stripped.
-
-This is human review, not rendered visibility, countdown-number generation, a
-transcript, import format or project backup. Captions, media names/paths, card IDs
-and full styles are absent. Caption TXT is unchanged; edited review text is not
-automatically applied. Preserve project JSON for restoration. There is no new
-CLI/MCP command: use `project.get` for the full metadata document, or the optional
-[`projectGraphicsText` JavaScript helper](../../../../INTEGRATIONS.md#그래픽-문구-검토용-txt)
-for this report. Never mistake the helper's demo example for the user's project.
+See [Review saved graphics text](composition.md#review-saved-graphics-text).
 
 ## Subtitle format boundaries
 
-All three export formats allow at most 10,000 edited occurrences, 2 MiB repeated raw UTF-8 text and 2 MiB completed output (including escaping, timing, separators and any VTT header/BOM). CLI/MCP omit the BOM. Browser SRT downloads include it; browser VTT/TXT downloads do not. Do not silently trim authored text to meet the budget.
-
-VTT uses a `WEBVTT` header and dot-separated milliseconds. It exports plain captions, not styles, regions or speaker metadata, and rejects NUL characters. Empty VTT returns `WEBVTT\n\n` through CLI/MCP; the browser skips empty downloads. All SRT/VTT/TXT exports reject NUL (`U+0000`) in derived output cues; an authored cue wholly outside the cuts is not exported. Correct/remove it with the requested text edit, then retry—never silently strip it. Project JSON can still retain authored text, and failed CLI export preserves existing output files. SRT/VTT reject empty/blank-line cues and intervals that collapse after millisecond rounding; correct the requested text/timing rather than discarding cues.
-
-For plain edited text, call `moment_captions_export` with
-`{"projectId":"session","format":"txt"}` or use the CLI example above. TXT emits
-one paragraph per derived cue in edited output order, so repeated/split clips can
-repeat words. It is not a deduplicated or word-accurate transcript. No timestamps,
-IDs, speaker labels, titles, cards or styles are included. Literal `<>&`, whitespace
-and multiline text remain, with LF normalization, blank-line cue separators and
-a final newline. Empty output is `""`; NUL is rejected. Unlike SRT/VTT, TXT accepts
-blank-line payloads and sub-millisecond cues. It still has the derived-cue/raw-text
-budgets and a 2 MiB actual UTF-8 file budget including separators. Raw-text bytes
-are checked before newline normalization; a smaller final TXT does not bypass
-that limit. TXT cannot be
-reimported as subtitles or recover timing; retain project JSON for reversibility.
-
-For human timing/speaker review, use the same `captions.export` tool with
-`{"format":"txt","review":true}` (plus `projectId:"session"` in MCP).
-The response remains `{format:"txt",text}`. Only TXT accepts `review:true`;
-omitted/false preserves existing output. Review adds ordinary string-form
-**after-speed output seconds** and explicitly assigned nonempty speaker labels.
-Repeated/overlapping occurrences remain separate; no labels are inferred.
-Headings follow current UI locale (standalone CLI/MCP default Korean, no locale
-argument), while authored names/text stay literal with LF newline normalization.
-
-Keep the original project: this is not an import format, visibility guarantee,
-audio-verified transcript or backup. No media/project names, source coordinates,
-keywords, graphics text or styles are included. Exported text/used labels containing
-NUL reject without stripping; unused labels do not block. Existing occurrence/raw
-text limits and final 2 MiB including headings/labels apply. Empty output is `""`;
-browser **Review TXT** skips empty files and otherwise downloads `.review.txt`,
-UTF-8 without BOM. [CLI recipe and comparison](../../../../INTEGRATIONS.md#자막-검토용-txt)
+See [Subtitle format boundaries](captions.md#subtitle-format-boundaries).
 
 ## Recover without losing work
 

@@ -101,6 +101,9 @@ node cli/moment.mjs exec captions.export --project edited.json --json '{"format"
 # 시간과 화자 정보를 유지하며 자막 문구 교정
 node cli/moment.mjs exec captions.text.replace --project edited.json --json '{"find":"하루","replacement":"하루의 기록"}' --out corrected.json
 
+# 문구와 시간을 유지하며 전체 자막 크기 조절
+node cli/moment.mjs exec captions.style.update --project corrected.json --json '{"patch":{"captionSize":48}}' --out styled.json
+
 # 명령 목록과 입력 스키마 확인
 node cli/moment.mjs commands
 ```
@@ -108,6 +111,8 @@ node cli/moment.mjs commands
 기존 출력 파일은 기본적으로 보호합니다. 교체할 때만 `--overwrite`를 지정하세요. `exec`에 `--dry-run`을 붙이면 파일을 쓰지 않고 결과를 확인합니다. JSON 입력은 10 MiB(10,485,760바이트) 이하입니다.
 
 **자막 문구 교정:** 자막 도구에서 일치 개수를 확인하고 모두 바꿀 수 있으며 적용된 변경은 한 번에 실행 취소됩니다. 대소문자를 구분하는 일반 문자열 검색으로, 겹치는 일치·정규식·Unicode 정규화는 지원하지 않습니다. 시간·화자·키워드·구간 순서는 유지합니다. 결과가 빈 문구이거나 너무 길면 전체 변경을 거절하며 삭제하거나 잘라내지 않습니다. [정확한 한도와 결과](INTEGRATIONS.md#자막-문구-일괄-교정)를 확인하세요.
+
+**자막 모양:** `captions.style.update`로 전체 프로젝트를 다시 보내지 않고 공통 자막 스타일을 바꿀 수 있습니다. 전달한 필드만 변경하며 영상 화면에 적용되는 스타일은 일반 SRT/VTT에 포함되지 않습니다. [스타일 옵션](INTEGRATIONS.md#자막-스타일-수정)에서 크기·위치·색상·등장 효과를 확인하세요.
 
 ### 연동 방식 선택
 

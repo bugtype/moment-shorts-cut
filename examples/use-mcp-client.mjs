@@ -69,7 +69,7 @@ async function withClient(work) {
 
 const saved = await withClient(async ({request, call, data}) => {
   const {tools} = await request('tools/list', {});
-  assert.equal(tools.length, 11);
+  assert.equal(tools.length, 12);
   assert.ok(tools.some(tool => tool.name === 'moment_project_import'));
   await data('moment_project_import', {document: createProjectDocument(createDemoProject())});
   await data('moment_project_update', {patch: {name: 'MCP 예제', speed: 2}});
@@ -95,6 +95,9 @@ const saved = await withClient(async ({request, call, data}) => {
   const noChange = await data('moment_captions_text_replace', {find: '없는 말', replacement: '교정'});
   assert.deepEqual(noChange, {updated: false, matches: 0, changedCaptions: 0});
   assert.match((await data('moment_captions_export')).text, /안녕 세상/);
+  const styled = await data('moment_captions_style_update', {patch: {captionSize: 44, captionY: .8}});
+  assert.equal(styled.updated, true);
+  assert.equal((await data('moment_project_get')).project.captionSize, 44);
   const plan = await data('moment_render_plan', {quality: 720, format: 'webm'});
   assert.equal(plan.rendered, false);
   assert.equal(plan.output.duration, 2);
@@ -106,4 +109,4 @@ await withClient(async ({data}) => {
   await data('moment_project_import', {document: saved});
   assert.deepEqual(await data('moment_project_get'), saved);
 });
-console.log(JSON.stringify({ok: true, tools: 11, recoveredFromInvalidInput: true, reimported: true, rendered: false}));
+console.log(JSON.stringify({ok: true, tools: 12, recoveredFromInvalidInput: true, reimported: true, rendered: false}));

@@ -103,6 +103,9 @@ node cli/moment.mjs exec captions.export --project edited.json --json '{"format"
 # Replace matching caption text without changing timing or speaker metadata.
 node cli/moment.mjs exec captions.text.replace --project edited.json --json '{"find":"하루","replacement":"하루의 기록"}' --out corrected.json
 
+# Make all captions larger without replacing their text or timing.
+node cli/moment.mjs exec captions.style.update --project corrected.json --json '{"patch":{"captionSize":48}}' --out styled.json
+
 # List commands and their input schemas.
 node cli/moment.mjs commands
 ```
@@ -110,6 +113,8 @@ node cli/moment.mjs commands
 Existing output files are protected; use `--overwrite` only when you intend to replace one. Add `--dry-run` to an `exec` command to inspect its result without writing output. JSON inputs are limited to 10 MiB (10,485,760 bytes).
 
 **Caption corrections:** the caption tools show a match preview before replace-all; an applied change is one undo step. Matching is literal, case-sensitive and non-overlapping, with no regex or Unicode normalization. Times, speaker/keyword metadata and cue order stay unchanged. An empty or overlong resulting caption rejects the whole edit rather than deleting/truncating it. See [exact limits and results](INTEGRATIONS.md#자막-문구-일괄-교정).
+
+**Caption appearance:** `captions.style.update` changes shared caption styling without resubmitting the full project. Only supplied fields change; styling applies to the visual renderer, not plain SRT/VTT files. [Style options](INTEGRATIONS.md#자막-스타일-수정) include size, position, colors and animation.
 
 ### Choose an integration
 

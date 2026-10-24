@@ -56,8 +56,14 @@
 |---|---|---|
 | `timeline.replace` | `clips: [{start,end}]` | 클립 구간/순서 교체 |
 | `title.update` | `patch` | 기본 제목과 스타일 수정 |
+
+### 자막 변경
+
+| 명령 | 주요 입력 | 결과 |
+|---|---|---|
 | `captions.replace` | `captions` | 대사 자막 교체 |
 | `captions.text.replace` | `find`, `replacement` | 문구 모두 바꾸기; `{updated, matches, changedCaptions}` |
+| `captions.style.update` | `patch` | 공통 자막 스타일; `{updated:true, outputDuration}` |
 
 ### 자막 문구 일괄 교정
 
@@ -78,6 +84,31 @@ node cli/moment.mjs exec captions.text.replace --project edited.json --json '{"f
 ```
 
 `matches`는 일치 횟수, `changedCaptions`는 실제 문구가 바뀐 자막 수입니다. 동일한 문구로 바꾸면 일치가 있어도 변경 수는 0입니다. CLI에서 저장한 출력 파일은 편집 프로젝트 문서이며, 변경 없음 응답도 파일 쓰기 자체를 금지하는 뜻은 아닙니다. UI에서는 미리 표시한 개수를 확인하고 모두 바꾸며, 반영된 변경은 한 번에 실행 취소합니다. MCP에는 실행 취소 도구가 없으므로 이전 문서를 보관하세요.
+
+### 자막 스타일 수정
+
+`captions.style.update`는 기존 화면의 공통 자막 스타일을 CLI/MCP에서도 수정합니다. 새 UI나 개별 자막 스타일을 추가하는 명령이 아닙니다. 모든 자막에 적용되는 설정이며 문구·시간·화자 정보는 유지합니다.
+
+| `patch` 필드 | 허용 값 |
+|---|---|
+| `style` | `impact`, `accent`, `highlight`, `minimal` |
+| `captionSize` | 10–120; 캔버스 너비 540 기준 크기 |
+| `captionX`, `captionY` | 각각 캔버스 너비·높이의 0–1 비율 |
+| `captionColor`, `captionAccent` | `#RRGGBB` 또는 `#RRGGBBAA` |
+| `captionStroke` | 0–20; 캔버스 너비 540 기준 두께 |
+| `captionItalic` | boolean |
+| `captionAnimation` | `none`, `fade`, `slide`, `pop` |
+
+`patch`는 필수이고 내부 필드는 모두 선택입니다. 빈 `{}`도 허용하며 표준 수정 응답 `{updated:true, outputDuration}`을 반환합니다. `captions.text.replace`의 변경 없음 감지와 같은 계약은 아닙니다. 전달하지 않은 필드는 그대로 두며, **`style`만 바꿔도 화면 프리셋의 기울임·외곽선 기본값을 함께 적용하지 않습니다.** 필요하면 해당 필드를 명시하세요.
+
+```sh
+node cli/moment.mjs exec captions.style.update --project corrected.json --json '{"patch":{"captionSize":48,"captionY":0.72,"captionColor":"#FFFFFF"}}' --dry-run
+node cli/moment.mjs exec captions.style.update --project corrected.json --json '{"patch":{"captionSize":48,"captionY":0.72,"captionColor":"#FFFFFF"}}' --out styled.json
+```
+
+**화면 적용:** 글자 크기와 외곽선은 캔버스 너비에 비례해 확대·축소하며 글자가 영역을 넘으면 맞춤 처리로 더 작아질 수 있습니다. `highlight`는 어두운 글자·강조색 상자·외곽선 없음으로 표시합니다. 그 외에는 지정 화자 색상이 우선하고, 화자가 없으면 `accent` 스타일은 `captionAccent`, 나머지는 `captionColor`를 사용합니다. 따라서 `captionColor` 수정이 화자·강조 스타일 색상을 덮어쓰지는 않습니다.
+
+스타일은 프로젝트 JSON과 영상 화면에 적용하며 일반 SRT/VTT에는 기록하지 않습니다. 이 명령은 영상을 인코딩하지 않으며 `render.plan`도 계속 계획만 반환합니다.
 
 ### 결과와 검증
 

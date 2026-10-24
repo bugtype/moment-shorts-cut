@@ -98,6 +98,19 @@ function inputSchema(command) {
     p.patch.description = 'Only supplied settings change. Changing ratio resets zoom/pan; speed changes retime output text.';
     p.patch.properties.speed.description = 'Playback speed multiplier; output duration is edited timeline duration divided by speed.';
   }
+  if (command.name === 'captions.style.update') {
+    p.patch.description = 'Partial visual-only update of shared caption styling. Only supplied fields change; no preset side effects. Caption text/timing/metadata and SRT/VTT output stay unchanged.';
+    const fields = p.patch.properties;
+    fields.style.description = 'Shared rendering style only, not a template. highlight uses accent as its background and suppresses stroke; speaker colors can override the text color.';
+    fields.captionSize.description = 'Font size in shared canvas-relative units: rendered pixels = size × canvas width / 540, subject to text fitting. Not a fixed export-pixel size.';
+    fields.captionX.description = 'Normalized horizontal caption center: 0 is left and 1 is right.';
+    fields.captionY.description = 'Normalized vertical caption center: 0 is top and 1 is bottom.';
+    fields.captionColor.description = 'Caption text color in #RRGGBB or #RRGGBBAA hexadecimal form; style and speaker colors may take precedence.';
+    fields.captionAccent.description = 'Accent/highlight color in #RRGGBB or #RRGGBBAA hexadecimal form.';
+    fields.captionStroke.description = 'Stroke width in the same canvas-relative units as captionSize; highlight style suppresses the stroke.';
+    fields.captionItalic.description = 'Whether shared caption text is italic.';
+    fields.captionAnimation.description = 'Shared caption entry animation; visual only, not a subtitle-file timing change.';
+  }
   if (command.name === 'captions.text.replace') {
     p.find.description = 'Nonempty literal, case-sensitive text. No regex or Unicode normalization; matches do not overlap.';
     p.replacement.description = 'Literal replacement, including dollar signs. Empty or whitespace-only resulting cues and cues over 2000 characters reject the whole edit. Timing and metadata stay unchanged.';

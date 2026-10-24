@@ -48,7 +48,7 @@ its supported version, `2025-11-25`, even if the proposed version differs; a cli
 that cannot support that version should disconnect, not continue with another
 wire format. `ping` is supported. Initialize only once per process.
 
-All eleven tools require **`projectId: "session"`**. Each process owns one independent
+All twelve tools require **`projectId: "session"`**. Each process owns one independent
 in-memory project, initially the demo. This value is neither a path nor a credential.
 Other project IDs return a tool error. A second client process does not share state.
 
@@ -137,8 +137,14 @@ Save `structuredContent.data.text` as UTF-8 `.vtt`; the server does not save fil
 |---|---|---|
 | `moment_timeline_replace` | `clips: [{start,end}]` | Update acknowledgment and output duration |
 | `moment_title_update` | `patch` | Update acknowledgment and output duration |
+
+### Caption changes
+
+| Tool | Editing input | Successful `structuredContent.data` |
+|---|---|---|
 | `moment_captions_replace` | `captions` | Update acknowledgment and output duration |
 | `moment_captions_text_replace` | `find`, `replacement` | `{updated:boolean, matches:number, changedCaptions:number}` |
+| `moment_captions_style_update` | `patch` | `{updated:true, outputDuration}` |
 
 `moment_timeline_replace` and `moment_captions_replace` replace the **entire array**. Preserve unrequested clips/captions
 rather than sending only the changed entry. `withContent:true` applies example title, credit
@@ -179,6 +185,42 @@ Title, credit and timed-card text are not searched.
 Read `moment_project_get` to save the resulting document. MCP has no undo tool;
 retain a prior export when reversibility matters. The browser groups an applied
 replace-all into one undo step, but is a separate session.
+
+### Adjust global caption appearance
+
+Use `moment_captions_style_update` for requests such as “make captions larger,”
+without reconstructing and importing the full project. For example:
+
+```json
+{"projectId":"session","patch":{"captionSize":48,"captionY":0.72,"captionColor":"#FFFFFF"}}
+```
+
+| Optional `patch` field | Accepted values |
+|---|---|
+| `style` | `impact`, `accent`, `highlight`, `minimal` |
+| `captionSize` | 10–120, relative to a 540-wide canvas |
+| `captionX`, `captionY` | Each 0–1 of canvas width/height |
+| `captionColor`, `captionAccent` | `#RRGGBB` or `#RRGGBBAA` |
+| `captionStroke` | 0–20, relative to a 540-wide canvas |
+| `captionItalic` | Boolean |
+| `captionAnimation` | `none`, `fade`, `slide`, `pop` |
+
+`patch` is required; all fields inside it are optional. Only supplied fields change.
+An empty patch is accepted and returns the standard `{updated:true, outputDuration}`
+acknowledgment, not the no-change contract of `moment_captions_text_replace`.
+Setting `style` alone does **not** apply the UI preset’s italic/stroke defaults;
+supply those fields explicitly when intended.
+
+Size and stroke scale with canvas width; text fitting can shrink the requested
+size further. Color precedence also matters: `highlight` uses dark text on an
+accent-colored box without stroke; otherwise assigned speaker colors win, then
+`accent` style uses `captionAccent`, and other styles use `captionColor`. Changing
+`captionColor` does not override speaker colors or the highlight treatment.
+
+These existing global settings apply across caption cues in the visual renderer.
+Text, timing and speaker metadata are untouched. Plain SRT/VTT do not carry these
+styles, and this command does not encode video. Retrieve `moment_project_get`
+to save the updated project; `moment_render_plan` remains only a plan.
 
 ### Time coordinates
 

@@ -18,7 +18,10 @@ test('original audio downloads same File/name/bytes without reading, encoding or
         const bytes=await f.file.text();f.file.arrayBuffer=()=>{throw new Error('must not read');};
         f.file.stream=()=>{throw new Error('must not stream');};
         f.click({});assert.equal(f.downloads.length,1);assert.equal(f.downloads[0][0],f.file);assert.equal(f.downloads[0][1],name);
-        assert.equal(f.downloads[0][0].type,type);assert.equal(await f.downloads[0][0].text(),bytes);
+        assert.equal(f.downloads[0][0].type,type);
+        // Node 20 implements Blob.text through arrayBuffer; restore traps after the action.
+        delete f.file.arrayBuffer;delete f.file.stream;
+        assert.equal(await f.downloads[0][0].text(),bytes);
         assert.deepEqual(f.evaluate('({state,history,future,current,playing,muted,url:sources.audioURL})'),before);assert.deepEqual(f.writes,[]);
     }
 });

@@ -61,7 +61,7 @@ it is not itself a transport or an authentication server.
 
 ## Import, edit, inspect, save
 
-1. Export editing settings from Moment's browser UI and supply that JSON document
+1. Use the browser header’s folder icon, **Project files → Save settings**, and supply that `.moment.json` document
    to your AI client. Do not send raw video as a tool argument.
 2. Call `moment_project_import` with `{ "projectId": "session", "document": ... }`.
    `document` is the complete `{format:"moment-project", formatVersion:1, project:{...}}`
@@ -71,7 +71,7 @@ it is not itself a transport or an authentication server.
 4. Call `moment_project_get`, review the edited document, and save its
    **`structuredContent.data`** through the client's authorized file workflow.
    Keep the original file unless replacement was requested.
-5. Import the saved document back into the browser. Connect matching original
+5. Choose **Project files → Import settings** in the browser. Connect matching original
    video/audio first where required. Matching uses names and video duration, not
    a content hash; retain the actual original media.
 

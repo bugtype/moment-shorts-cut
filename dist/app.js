@@ -60,6 +60,7 @@ const ctx = canvas.getContext('2d'), sample = new Image(), modal = $('#modal');
 const shellPresentation = createShellPresentation({
     query: $, queryAll: $$, document, modal, openDialog: (...args) => modalOpen(...args),
     downloadSettings: () => downloadProjectSettings(),
+    filesBlocked: () => !editorReady || exporting,
     setTimer: (callback, delay) => setTimeout(callback, delay), clearTimer: timer => clearTimeout(timer),
 });
 const composition = createCompositionRenderer(() => document.createElement('canvas'));
@@ -210,7 +211,7 @@ const { importProjectSettings, downloadProjectSettings, importSrt, downloadSrt, 
     getProject: () => state,
     execute: (...args) => editorService.execute(...args),
     query: $,
-    closeModal: () => modal.close(),
+    closeModal: () => {}, // Programmatic imports do not own a dialog.
     focusImportedCaption: () => { if (panel === 'captions') focusCaption(0); },
     settingsUnavailable: () => settingsUnavailable(),
     download: (blob, name) => download(blob, name),
@@ -264,13 +265,15 @@ const app = {
     recoveryBlocked: (show = true) => recoveryBlocked(show),
     settingsUnavailable: () => settingsUnavailable(),
     runEditorCommand: (name, args) => runEditorCommand(name, args),
+    showProjectFiles: () => shellPresentation.showProjectFiles(),
     openSeek: () => seekDialog.open(), showHelp: () => showHelp(), toast: message => toast(message),
     modalOpen: (title, body, footer) => modalOpen(title, body, footer),
     confirmReset: () => confirmReset(), download: (blob, name) => download(blob, name),
     trim: (start, end) => trim(start, end), split: () => split(), duplicate: () => editingActions.duplicate(), undo: redo => undo(redo),
     generateCaptions: () => generateCaptions(), downloadSubtitles: format => downloadSubtitles(format),
     importSrt: file => importSrt(file),
-    importProjectSettings: file => importProjectSettings(file),
+    importProjectSettings: (file, closeOwnedDialog) => importProjectSettings(file, closeOwnedDialog),
+    captureSettingsImportClose: () => shellPresentation.captureImportClose(),
     downloadProjectSettings: () => downloadProjectSettings(),
     exportDialog: () => exportDialog(), startExport: (type, quality) => startExport(type, quality),
     stopExport: cancelled => stopExport(cancelled),

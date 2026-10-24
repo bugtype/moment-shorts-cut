@@ -38,9 +38,11 @@ export function bindUi(app) {
     $('#videoInput').onchange = event => event.target.files[0] && app.loadVideo(event.target.files[0]);
     $('#audioInput').onchange = event => event.target.files[0] && app.loadAudio(event.target.files[0]);
     $('#srtInput').onchange = event => event.target.files[0] && app.importSrt(event.target.files[0]);
-    $('#projectInput').onchange = event => event.target.files[0] && app.importProjectSettings(event.target.files[0]);
+    $('#projectInput').onchange = event => event.target.files[0] && app.importProjectSettings(event.target.files[0], app.captureSettingsImportClose());
+    $('#projectInput').oncancel = () => { app.captureSettingsImportClose(); };
     $('#projectName').onchange = event => app.edit(() => app.state.name = event.target.value.trim() || t('shell.untitled'));
     $('#saveButton').onclick = () => app.saveProject(true);
+    $('#projectFilesButton').onclick = () => app.showProjectFiles();
     $('#playButton').onclick = () => app.playing ? app.pause() : app.play();
     $('#timeDisplay').onclick = () => app.openSeek();
     const navigateCut = direction => {

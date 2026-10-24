@@ -27,14 +27,14 @@ export function createTextFileWorkflow({
                 throw new CommandError('CONFLICT', msg('errors.importConflict'));
         };
     }
-    async function importProjectSettings(file) {
+    async function importProjectSettings(file, closeImportedDialog = closeModal) {
         try {
             const beforeCommit = guardTextImport();
             assertProjectFileSize(file.size);
             const result = await execute('project.import', { document: JSON.parse(await readUtf8File(file, true)) }, beforeCommit);
             if (!result.ok)
                 throw new Error(result.error.message);
-            closeModal();
+            closeImportedDialog();
             toast(msg('errors.settingsApplied'));
             return result;
         }

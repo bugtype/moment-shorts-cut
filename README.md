@@ -53,7 +53,15 @@ Select **English** in the language selector. The steps below use English interfa
 4. **Audio:** add an audio file or record narration with microphone permission. Adjust its start time and volume alongside the original audio.
 5. **Export:** choose an available MP4/WebM format and 720p or 1080p. **Keep the tab visible until export finishes**, then play the downloaded file to check the result.
 
-Use **Help → Save editing settings** to back up project JSON. Settings files must fit **10 MiB (10,485,760 UTF-8 bytes)** for both save and restore; oversized output is rejected, not truncated. Keep your original video and audio separately: **the JSON does not contain media files**.
+The header folder icon opens **Project files**, including on compact screens. **Help** also provides the file actions.
+
+| Action | Where your work goes |
+|---|---|
+| **Save** | Browser storage |
+| **Project files → Save settings** | Download a `.moment.json` metadata backup |
+| **Project files → Import settings** | Restore a saved settings document |
+
+Settings files must fit **10 MiB (10,485,760 UTF-8 bytes)** for both save and restore; oversized output is rejected, not truncated. Keep your original video and audio separately: **the JSON does not contain media files**.
 
 **Preview shortcuts:** unmodified `,` / `.` move backward/forward by 1/30 of an
 output second to inspect cut or caption boundaries. Arrow keys still move one
@@ -317,9 +325,9 @@ At 1,000 clips, delete a clip before splitting another.
 - **The page does not load:** confirm `npm start` is still running. If port 4173 is occupied, stop the other server or set the `PORT` environment variable to an available port; use the address printed by the server.
 - **A video will not open, or export is unavailable:** try an H.264 MP4 or WebM input and another browser with the required media APIs. MOV support depends on the codec inside the file. For export errors, also try 720p.
 - **Automatic captions fail:** use a short original with audible speech, check the selected language and network access, or import SRT/VTT and edit manually. The built-in sample cannot be transcribed.
-- **A project appears empty:** return to the same browser, host, and port. To restore JSON in another browser, first reconnect the original video and any additional audio, then import the settings through Help.
+- **A project appears empty:** return to the same browser, host, and port. To restore JSON in another browser, first reconnect the original video and any additional audio, then choose **Project files → Import settings**.
 - **Saved templates cannot be read:** malformed custom templates or favorites are isolated for the session, and library save/delete/favorite changes are blocked to preserve the original storage values. Built-in templates and project editing remain available when the project itself loads. Reload retries reading; it does not repair the library. No entries are automatically deleted or salvaged.
-- **Restore fails:** the editor pauses project saving, media replacement, recording, and reset to preserve stored data. If settings were readable, you can edit them in memory and use Help → Save editing settings before reloading. These edits are not saved in the browser. Reload only retries loading; it cannot recover missing media or guarantee codec support. An exit warning may appear for unsaved edits, but browsers may omit it.
+- **Restore fails:** the editor pauses project saving, media replacement, recording, and reset to preserve stored data. If settings were readable, you can edit them in memory and use **Project files → Save settings** before reloading. These edits are not saved in the browser. Reload only retries loading; it cannot recover missing media or guarantee codec support. An exit warning may appear for unsaved edits, but browsers may omit it.
 
 ## Development
 

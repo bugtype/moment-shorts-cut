@@ -25,6 +25,17 @@ are localized, while existing Korean examples remain authored content. Choose AS
 language independently. API command names, IDs, field names, enums, error codes
 and paths stay unchanged. Use canonical IDs, not translated labels.
 
+## Browser file handoff
+
+The header folder icon opens **Project files**: **Save settings** downloads a
+`.moment.json` metadata backup, and **Import settings** restores a document.
+Help retains these actions; the ordinary Save button still writes browser storage.
+No media is embedded. Reconnect matching original media before restoration.
+When recovery blocks browser saving but readable settings remain, download that
+backup before reloading; this does not repair storage or recover missing media.
+The existing 10 MiB settings-file limit still applies. MCP cannot open this dialog
+or access browser storage—use the supplied document, not the user's open UI state.
+
 ## Discover and inspect
 
 Run commands from the repository root with Node.js 20+. No package installation is required.

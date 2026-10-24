@@ -4,8 +4,43 @@ import {icon, esc} from './ui-format.mjs';
 // Own shell feedback and modal markup, not editor state, history or media jobs.
 // Callbacks keep the app's public wrappers interceptable and timers injectable.
 export function createShellPresentation({query: $, queryAll, document, modal,
-    openDialog, downloadSettings, setTimer, clearTimer}) {
-    let lastSaveStatus = '', toastTimer;
+    openDialog, downloadSettings, filesBlocked = () => false, setTimer, clearTimer}) {
+    let lastSaveStatus = '', toastTimer, fileDialogGeneration = 0, pendingImportClose;
+    function bindFileActions(trigger) {
+        const generation = ++fileDialogGeneration;
+        const importButton = $('#importProjectSettingsButton');
+        const saveButton = $('#downloadProjectSettingsButton');
+        const owns = () => generation === fileDialogGeneration && modal.open &&
+            $('#importProjectSettingsButton') === importButton;
+        const close = () => {
+            if (!owns()) return;
+            fileDialogGeneration++;
+            modal.close();
+            trigger?.focus();
+        };
+        importButton.onclick = () => {
+            if (!owns() || filesBlocked()) return;
+            pendingImportClose = close;
+            $('#projectInput').click();
+        };
+        saveButton.onclick = () => { if (owns() && !filesBlocked()) downloadSettings(); };
+        modal.onclose = () => {
+            if (generation === fileDialogGeneration && !modal.open) {
+                fileDialogGeneration++;
+                trigger?.focus();
+            }
+        };
+    }
+    function captureImportClose() {
+        const close = pendingImportClose;
+        pendingImportClose = null;
+        return close || (() => {});
+    }
+    function showProjectFiles() {
+        if (filesBlocked()) return;
+        openDialog(message('shell.projectFiles'), `<div class="notice">${text('shell.settingsNotice')}</div>`, `<div class="modal-foot project-file-actions"><button class="button" id="importProjectSettingsButton">${text('shell.importSettings')}</button><button class="button primary" id="downloadProjectSettingsButton">${text('shell.saveSettings')}</button></div>`);
+        bindFileActions($('#projectFilesButton'));
+    }
     function icons(root = document) {
         queryAll('[data-icon]', root).forEach(el => {
             if (!el.querySelector('.icon'))
@@ -15,8 +50,7 @@ export function createShellPresentation({query: $, queryAll, document, modal,
 
     function showHelp() {
         openDialog(message('shell.helpTitle'), `<ol class="guide-steps"><li>${text('shell.help1')}</li><li>${text('shell.help2')}</li><li>${text('shell.help3')}</li></ol><p class="modal-copy"><span class="keyboard-key">Space</span> ${text('shell.playPause')} &nbsp; <span class="keyboard-key">Ctrl Z</span> ${text('shell.undo')} &nbsp; <span class="keyboard-key">, / .</span> ${text('shell.stepOutput')} &nbsp; <span class="keyboard-key">[ / ]</span> ${text('shell.cutNavigation')}</p><div class="notice">${text('shell.settingsNotice')}</div>`, `<div class="modal-foot"><button class="button" id="importProjectSettingsButton">${text('shell.importSettings')}</button><button class="button" id="downloadProjectSettingsButton">${text('shell.saveSettings')}</button></div>`);
-        $('#importProjectSettingsButton').onclick = () => $('#projectInput').click();
-        $('#downloadProjectSettingsButton').onclick = downloadSettings;
+        bindFileActions($('#helpButton'));
     }
     function toast(message) {
         const node = $('#toast');
@@ -40,6 +74,7 @@ export function createShellPresentation({query: $, queryAll, document, modal,
         else $('#saveStatusText').textContent = formatError(text);
     }
     function modalOpen(title, body, footer = '') {
+        fileDialogGeneration++;
         modal.onclose?.();
         modal.onclose = null;
         modal.className = '';
@@ -47,5 +82,5 @@ export function createShellPresentation({query: $, queryAll, document, modal,
         $('#closeModal').onclick = () => modal.close();
         modal.showModal();
     }
-    return {icons, showHelp, toast, saveStatus, modalOpen};
+    return {icons, showHelp, showProjectFiles, captureImportClose, toast, saveStatus, modalOpen};
 }

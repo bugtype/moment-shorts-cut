@@ -39,6 +39,7 @@ export function bindUi(app) {
     $('#projectName').onchange = event => app.edit(() => app.state.name = event.target.value.trim() || '제목 없는 쇼츠');
     $('#saveButton').onclick = () => app.saveProject(true);
     $('#playButton').onclick = () => app.playing ? app.pause() : app.play();
+    $('#timeDisplay').onclick = () => app.openSeek();
     $('#startButton').onclick = () => {
         app.pause();
         app.seekTo(0);

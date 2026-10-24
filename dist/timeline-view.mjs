@@ -183,6 +183,7 @@ export function createTimelineView($, clock = () => performance.now()) {
         const len = duration(), label = `${fmt(current / state.speed)} <span>/ ${fmt(len / state.speed)}</span>`;
         if (label !== lastTimeLabel) {
             $('#timeDisplay').innerHTML = label;
+            $('#timeDisplay').setAttribute('aria-label', `출력 시간으로 이동, ${fmt(current / state.speed)} / ${fmt(len / state.speed)}`);
             lastTimeLabel = label;
         }
         $('#seek').value = current;

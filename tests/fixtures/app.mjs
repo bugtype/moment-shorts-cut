@@ -1,3 +1,4 @@
+import { createSeekDialog } from '../../dist/seek-dialog.mjs';
 import { createCaptionInspectionDialog } from '../../dist/caption-inspection-dialog.mjs';
 import { shiftCaptionTiming } from '../../dist/core/caption-timing.mjs';
 import { replaceCaptionText } from '../../dist/core/caption-text.mjs';
@@ -108,7 +109,7 @@ export async function createAppFixture() {
     cancelAnimationFrame(id) { pendingFrames.delete(id); },
     setTimeout() {}, clearTimeout() {}, setInterval() {}, clearInterval() {},
     console, URL, Blob, TextDecoder, performance, Number, Math, Promise, structuredClone,
-    ...projectModule, createCaptionInspectionDialog, replaceCaptionText, prepareCommand, CommandError, hasMinimumDuration, createEditorService, ...captionModule,
+    ...projectModule, createSeekDialog, createCaptionInspectionDialog, replaceCaptionText, prepareCommand, CommandError, hasMinimumDuration, createEditorService, ...captionModule,
     renderCaptionTrack, renderCaptionTrackError, updateTimelineMarkup, createTimelineView, createInspectorView, createInputHistory,
     ...effectsModule, ...templateModule, readTemplateLibrary, validateTemplateLibrary,
     mountTemplateGallery, mountEffectsPanel, ...typographyModule, createCompositionRenderer,

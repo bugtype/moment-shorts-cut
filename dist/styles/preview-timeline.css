@@ -170,6 +170,11 @@
   fill:currentColor
 }
 .timecode {
+  border:0;
+  background:transparent;
+  color:inherit;
+  padding:4px;
+  cursor:pointer;
   font-size:10px;
   font-variant-numeric:tabular-nums;
   min-width:85px;

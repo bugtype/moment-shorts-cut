@@ -48,6 +48,13 @@ source-frame accuracy or frame-grid snapping—and retains any starting subframe
 offset. It is ignored in editing fields, during IME composition, with modifier
 keys or while busy.
 
+**Go to an output time:** click the preview time display (**출력 시간으로 이동**),
+enter seconds such as `2.5`, `01:02.5` or `00:01:02.5`, then choose **이동**.
+The value uses output time **after speed**, from zero through the output end.
+Confirming pauses and seeks; cancel leaves playback unchanged. It does not edit,
+save or add undo history. Reopen if the project or media source changed; busy/recovery guards apply.
+This is time navigation, not frame/sample-accurate seeking.
+
 ## Features
 
 | Work on | Available tools | Important boundary |

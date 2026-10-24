@@ -1,3 +1,4 @@
+import { createSeekDialog } from './seek-dialog.mjs';
 import { createCaptionInspectionDialog } from './caption-inspection-dialog.mjs';
 import { createTextFileWorkflow } from './text-file-workflow.mjs';
 import { createMediaSources } from './media-sources.mjs';
@@ -134,6 +135,13 @@ const templateWorkspace = createTemplateWorkspace({
     download: (blob, name) => download(blob, name),
     toast: message => toast(message),
 });
+const seekDialog = createSeekDialog({
+    getProject: () => state, getCurrent: () => current, getDuration: () => duration(),
+    getMedia: () => [sources.videoFile, sources.audioFile], query: $, modal,
+    openModal: (...args) => modalOpen(...args),
+    blocked: () => !editorReady || exporting || loadingMedia || transcribing || persistence.restorePhase !== 'ready' || audioRecording.requesting || audioRecording.current,
+    pause, seek: time => seekTo(time), toast: message => toast(message),
+});
 const captionInspection = createCaptionInspectionDialog({
     getProject: () => state, query: $, modal,
     openModal: (...args) => modalOpen(...args),
@@ -252,7 +260,7 @@ const app = {
     recoveryBlocked: (show = true) => recoveryBlocked(show),
     settingsUnavailable: () => settingsUnavailable(),
     runEditorCommand: (name, args) => runEditorCommand(name, args),
-    showHelp: () => showHelp(), toast: message => toast(message),
+    openSeek: () => seekDialog.open(), showHelp: () => showHelp(), toast: message => toast(message),
     modalOpen: (title, body, footer) => modalOpen(title, body, footer),
     confirmReset: () => confirmReset(), download: (blob, name) => download(blob, name),
     trim: (start, end) => trim(start, end), split: () => split(), duplicate: () => editingActions.duplicate(), undo: redo => undo(redo),

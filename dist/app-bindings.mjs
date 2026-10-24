@@ -90,7 +90,7 @@ export function bindUi(app) {
         pinch = {
             distance: touchDistance(event.touches),
             zoom: app.timelineView.getZoom(),
-            at: area.width > 0 ? Math.max(0, Math.min(1, (timelineBody.scrollLeft + mid - area.left) / area.width)) : 0,
+            at: area.width > 0 ? Math.max(0, Math.min(1, (mid - area.left) / area.width)) : 0,
         };
     }, { passive: true });
     timelineBody.addEventListener('touchmove', event => {
@@ -106,7 +106,8 @@ export function bindUi(app) {
         app.renderTimeline();
         const area = $('#tracksArea').getBoundingClientRect();
         const mid = (event.touches[0].clientX + event.touches[1].clientX) / 2;
-        timelineBody.scrollLeft = Math.max(0, pinch.at * area.width - (mid - area.left));
+        // The client rect is already shifted by scrolling; apply only the anchor delta.
+        timelineBody.scrollLeft = Math.max(0, timelineBody.scrollLeft + pinch.at * area.width - (mid - area.left));
     }, { passive: false });
     ['touchend', 'touchcancel'].forEach(name => timelineBody.addEventListener(name, event => {
         if (event.touches.length < 2)

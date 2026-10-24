@@ -1,3 +1,5 @@
+import {LocalizedError} from '../dist/core/validation.mjs';
+import {message as msg} from '../dist/i18n.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -25,7 +27,7 @@ test('caption workspace, budgets and asynchronous recognition lifecycle', async 
   const createIsOpen=()=>/id="captionCreate" open/.test(captionMarkup());
   assert.ok(captionMarkup().indexOf('id="captionRows"')<captionMarkup().indexOf('id="captionCreate"'));
   assert.equal(createIsOpen(),false);
-  assert.ok(captionMarkup().includes('role="region" aria-label="자막 목록" tabindex="0"'));
+  assert.match(captionMarkup(), /role="region" aria-label="자막 목록"[^>]* tabindex="0"/);
   vm.runInContext('state.captions=[];renderPanel()',context);assert.equal(createIsOpen(),true);
   element('#addCaption').onclick();assert.equal(evaluate('state.captions.length'),1);
   assertCaptionVisibleTarget(element('[data-caption-text="0"]'));
@@ -120,7 +122,7 @@ test('caption workspace, budgets and asynchronous recognition lifecycle', async 
   }
   console.log('PASS: no-op/repeated caption splits preserve redo, save and focus; actual text/timing/metadata and mixed splits remain undoable.');
   // Older/custom runtimes must leave the whole operation untouched, including redo/focus.
-  const unsupportedSplit=vm.runInNewContext(fs.readFileSync('dist/effects.mjs','utf8').replaceAll('export ','')+';splitCaptionText',{Intl:{}});
+  const unsupportedSplit=vm.runInNewContext(fs.readFileSync('dist/effects.mjs','utf8').replace(/^import .*;\n/gm,'').replaceAll('export ','')+';splitCaptionText',{Intl:{},LocalizedError,msg});
   setCaptionLimitFixture([{start:0,end:4,text:'e\u0301'.repeat(25)}]);
   context.splitCaptionText=unsupportedSplit;
   const unsupportedBefore=evaluate('({state,history,future})'),unsupportedTimer=vm.runInContext('persistence.saveTimer',context);
@@ -314,7 +316,7 @@ test('caption workspace, budgets and asynchronous recognition lifecycle', async 
    else{assert.equal(task.worker.terminateCalls,undefined);assert.equal(task.worker.onmessage,null);}
    const retry=await startAsr('video');assert.equal(retry.worker===task.worker,failure==='message');
    const status=evaluate('transcriptionStatus');oldMessage({data:{type:'progress',message:'stale progress'}});oldMessage({data:{type:'result',result:{text:'stale result'}}});oldError();
-   assert.equal(evaluate('transcriptionStatus'),status);assert.equal(evaluate('transcribing'),true);assert.equal(typeof retry.worker.onmessage,'function');
+   assert.deepEqual(evaluate('transcriptionStatus'),status);assert.equal(evaluate('transcribing'),true);assert.equal(typeof retry.worker.onmessage,'function');
    assert.deepEqual(asrSnapshot(),before);assert.equal(retry.worker.terminated,undefined);
    asrResult(retry.worker,'retried');await retry.pending;assert.equal(evaluate('state.captions[0].text'),'retried');
   }
@@ -342,7 +344,7 @@ test('caption workspace, budgets and asynchronous recognition lifecycle', async 
   const retryAfterCancel=await startAsr('video');assert.notEqual(retryAfterCancel.worker,cancelled.worker);
   lateResult({data:{type:'result',result:{text:'stale cancelled result'}}});assert.deepEqual(asrSnapshot(),cancelBefore);
   const retryStatus=evaluate('transcriptionStatus');lateResult({data:{type:'progress',message:'cancelled progress'}});lateError();
-  assert.equal(evaluate('transcriptionStatus'),retryStatus);assert.equal(typeof retryAfterCancel.worker.onmessage,'function');assert.equal(cancelled.worker.terminateCalls,1);
+  assert.deepEqual(evaluate('transcriptionStatus'),retryStatus);assert.equal(typeof retryAfterCancel.worker.onmessage,'function');assert.equal(cancelled.worker.terminateCalls,1);
   asrResult(retryAfterCancel.worker,'new job');await retryAfterCancel.pending;assert.equal(evaluate('state.captions[0].text'),'new job');
   // Cancel can arrive after the result promise resolves but before it is consumed.
   resetAsr();const resolved=await startAsr('video'),resolvedBefore=asrSnapshot();

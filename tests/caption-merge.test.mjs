@@ -75,7 +75,7 @@ test('merge controls retain global page indices and disable only the final autho
  const p=project();p.captions=Array.from({length:51},(_,i)=>({start:i,end:i+1,text:'cue'}));
  const first=captionsPanelMarkup(p,{page:0}),last=captionsPanelMarkup(p,{page:1});
  assert.equal([...first.matchAll(/data-merge-caption=/g)].length,50);
- assert.match(first,/data-merge-caption="49"[^>]*>합치기/);
+ assert.match(first,/data-merge-caption="49"[^>]*><span[^>]*>합치기<\/span>/);
  assert.doesNotMatch(first,/data-merge-caption="49"[^>]*disabled/);
  assert.match(last,/data-merge-caption="50"[^>]*disabled/);
 });

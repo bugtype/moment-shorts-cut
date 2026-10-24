@@ -8,7 +8,13 @@ test('gallery imports selected files, resets the picker and exports only custom 
   const item = saveCustomTemplate('<내 스타일>', createDemoProject());
   const nodes = new Map(), events = [];
   const query = key => {
-    if (!nodes.has(key)) nodes.set(key, {innerHTML:'', value:'', click:()=>events.push('picker')});
+    if (!nodes.has(key)) {
+      const attributes=new Map();
+      nodes.set(key, {innerHTML:'', value:'', click:()=>events.push('picker'),
+        setAttribute:(name,value)=>attributes.set(name,String(value)),
+        getAttribute:name=>attributes.get(name)??null,
+        removeAttribute:name=>attributes.delete(name)});
+    }
     return nodes.get(key);
   };
   const updateButton = {dataset:{updateTemplate:item.id}};
@@ -22,7 +28,7 @@ test('gallery imports selected files, resets the picker and exports only custom 
     ui:{query:'',category:'전체'},custom:[item],favorites:[],
     update:id=>events.push(['update',id]), save:()=>events.push('save'), import:async file=>events.push(file), export:id=>events.push(id), rename:id=>events.push(['rename',id]),
   });
-  assert.match(root.innerHTML,/id="importMyTemplate">불러오기/);
+  assert.match(root.innerHTML,/id="importMyTemplate"><span data-i18n="templates.import"[^>]*>불러오기<\/span>/);
   assert.match(root.innerHTML,/id="templateFileInput" type="file"[^>]*hidden/);
   const cards = query('#templateGrid').innerHTML;
   assert.equal([...cards.matchAll(/data-export-template=/g)].length,1);

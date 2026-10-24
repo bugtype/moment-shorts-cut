@@ -1,3 +1,4 @@
+import { formatError } from '../dist/i18n.mjs';
 import test from 'node:test';
 import fs from 'node:fs';
 import assert from 'node:assert/strict';
@@ -12,7 +13,7 @@ function fixture(count=101){
  const log=[],history=[],future=[];
  const target={querySelector:selector=>nodes.get(selector)||null,get innerHTML(){return html;},set innerHTML(value){
   html=value;nodes=new Map();
-  const node=(selector,dataset={})=>{const n={dataset,value:'',focus(){if (!this.disabled) log.push(['focus',selector]);},scrollIntoView(){},setSelectionRange(a,b){log.push(['selection',selector,a,b]);}};nodes.set(selector,n);return n;};
+  const node=(selector,dataset={})=>{const n={attributes: {}, setAttribute(name, value) { this.attributes[name] = String(value); }, getAttribute(name) { return this.attributes[name] ?? null; }, removeAttribute(name) { delete this.attributes[name]; },dataset,value:'',focus(){if (!this.disabled) log.push(['focus',selector]);},scrollIntoView(){},setSelectionRange(a,b){log.push(['selection',selector,a,b]);}};nodes.set(selector,n);return n;};
   for(const match of value.matchAll(/<[^>]+\bid="([^"]+)"[^>]*>/g)) {
    const n=node('#'+match[1]);n.disabled=/\bdisabled(?:\s|>)/.test(match[0]);
   }
@@ -24,7 +25,7 @@ function fixture(count=101){
  const queryAll=selector=>[...nodes].filter(([key])=>key.startsWith(selector.slice(0,-1)+'=')).map(([,node])=>node);
  let panel;const render=()=>panel.render(target,{},{});
  panel=createCaptionPanel({query,queryAll,getProject:()=>project,getDuration:()=>project.duration,sourceTime:()=>0,
-  edit(change,refresh){if(blocked)return;history.push(structuredClone(project));change();log.push(['edit']);if(refresh)render();},refresh:render,toast:message=>log.push(['toast',message])});
+  edit(change,refresh){if(blocked)return;history.push(structuredClone(project));change();log.push(['edit']);if(refresh)render();},refresh:render,toast:message=>log.push(['toast',formatError(message)])});
  render();
  return {panel,query,target,log,history,render,project:()=>project,setProject:p=>{project=p;render();},block:()=>blocked=true,
   undo(){future.push(project);project=history.pop();render();},redo(){project=future.pop();render();}};
@@ -36,7 +37,8 @@ test('only 50 globally indexed rows mount, pagination/focus are presentation-onl
  const f=fixture(10000),before=structuredClone(f.project());
  assert.equal(rows(f).length,50);assert.equal(f.query('[data-caption-text="50"]'),null);
  // 50 split/merge action groups bring this estimated-cue fixture to 79,824 bytes, still bounded independently of 10,000 cues.
- assert.ok(Buffer.byteLength(f.target.innerHTML)<82000);
+ // Explicit locale text/attribute markers add bounded metadata to the same 50 rows.
+ assert.ok(Buffer.byteLength(f.target.innerHTML)<180000);
  f.panel.focus(49);assert.equal(rows(f)[0],0);
  f.panel.focus(50);assert.equal(rows(f)[0],50);assert.equal(f.query('[data-caption-text="49"]'),null);
  assert.match(f.target.innerHTML,/51–100 \/ 10000/);
@@ -89,9 +91,9 @@ test('blocked add/delete/split neither focus nor announce success and full list 
 test('markup hides pagination for <=50 cues and bounds a supplied page after array shrink',()=>{
  const css=fs.readFileSync(new URL('../dist/styles/workspace-state.css',import.meta.url),'utf8');
  assert.match(css,/\.caption-pages\[hidden\]\s*\{\s*display:\s*none/);
- const p=createDemoProject();assert.match(captionsPanelMarkup(p,{}),/aria-label="자막 페이지" hidden/);
+ const p=createDemoProject();assert.match(captionsPanelMarkup(p,{}),/aria-label="자막 페이지"[^>]* hidden/);
  const f=fixture(51);f.panel.focus(50);f.setProject({...f.project(),captions:f.project().captions.slice(0,1)});
- assert.deepEqual(rows(f),[0]);assert.match(f.target.innerHTML,/aria-label="자막 페이지" hidden/);
+ assert.deepEqual(rows(f),[0]);assert.match(f.target.innerHTML,/aria-label="자막 페이지"[^>]* hidden/);
 });
 
 

@@ -290,3 +290,27 @@ test('browser command API, imports and subtitle output guards', async () => {
   assert.equal(emittedBytes.byteLength,Buffer.byteLength(projectModule.projectSrt(evaluate('state'),{bom:true})));
   console.log('PASS: derived limits preserve editing, JSON/storage, playback eligibility and undo; lane/SRT recover completely.');
 });
+
+
+test('localized malformed-file errors survive the app VM and preserve editing in all three languages',async()=>{
+ for(const locale of ['ko','en','zh-CN']){
+  const {context,evaluate,element}=await createAppFixture();
+  vm.runInContext("setLocale('"+locale+"');history=[];future=[];globalThis.localErrorSaves=0;scheduleSave=()=>localErrorSaves++;",context);
+  assert.equal(vm.runInContext("typeof LocalizedError",context),'function');
+  const before=evaluate('({state,history,future,current,selected})');
+  for(const handler of ['importSrt','importProjectSettings']){
+   await vm.runInContext(handler+"(new Blob([new Uint8Array([255])]))",context);
+   const display=element('#toast').textContent;
+   assert.match(display,/UTF-8/);
+   assert.doesNotMatch(display,/LocalizedError is not defined|\[object Object\]/);
+   if(locale!=='ko')assert.doesNotMatch(display,/[가-힣]/);
+   assert.deepEqual(evaluate('({state,history,future,current,selected})'),before);
+  }
+  const result=await context.window.moment.execute('project.update',{patch:{speed:0}});
+  assert.equal(result.ok,false);assert.equal(result.error.code,'INVALID_ARGUMENT');
+  assert.deepEqual(Object.keys(result.error).sort(),['code','message','path']);
+  if(locale!=='ko')assert.doesNotMatch(result.error.message,/[가-힣]/);
+  assert.equal(evaluate('localErrorSaves'),0);
+  vm.runInContext("setLocale('ko');",context);
+ }
+});

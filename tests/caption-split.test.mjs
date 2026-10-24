@@ -1,3 +1,5 @@
+import {LocalizedError} from '../dist/core/validation.mjs';
+import {message as msg} from '../dist/i18n.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
@@ -34,7 +36,7 @@ test('invalid offsets, whitespace halves, exhausted precision and capacity rejec
 });
 test('missing Intl refuses without codepoint fallback; newline and source/timeline export semantics remain explicit',async()=>{
  const source=await fs.readFile(new URL('../dist/effects.mjs',import.meta.url),'utf8');
- const helper=vm.runInNewContext(source.replace(/export /g,'')+';splitCaptionAtOffset',{Intl:{}});
+ const helper=vm.runInNewContext(source.replace(/^import .*;$/gm,'').replace(/export /g,'')+';splitCaptionAtOffset',{Intl:{},LocalizedError,msg});
  assert.throws(()=>helper({start:0,end:2,text:'AB'},1),/안전한 문자 분할/);
  const p=project();p.captions=[{start:0,end:2,text:'AB'}];p.clips=[{start:0,end:2},{start:0,end:2}];p.speed=2;
  assert.equal(projectSubtitles(split(p,1).project,{format:'txt'}),'A\n\nB\n\nA\n\nB\n');
@@ -74,7 +76,8 @@ test('real CLI splits dry-run and saved project, preserving existing file on inv
 
 test('split/merge/delete actions share a wrapping group outside time fields',async()=>{
  const html=captionsPanelMarkup(project(),{});
- assert.match(html,/<div class="caption-row-actions" role="group" aria-label="자막 1 편집">/);
+ const actions=html.match(/<div class="caption-row-actions"[^>]*>/)?.[0];
+ assert.ok(actions);assert.match(actions,/role="group"/);assert.match(actions,/aria-label="자막 1 편집"/);assert.match(actions,/data-i18n-aria-label="panels.cueEdit"/);
  assert.match(html,/data-split-caption="0"[^>]*title="커서 위치에서 나누기"/);
  assert.ok(html.indexOf('caption-row-actions')>html.indexOf('</textarea>'));
  const css=await fs.readFile(new URL('../dist/styles/inspector-dialogs.css',import.meta.url),'utf8');

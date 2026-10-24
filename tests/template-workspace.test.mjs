@@ -1,3 +1,4 @@
+import {formatError} from '../dist/i18n.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createTemplateWorkspace } from '../dist/template-workspace.mjs';
@@ -21,7 +22,7 @@ function workspace(templates = [], options = {}) {
     thumbnail() {}, preview: item => result.events.push(item.id),
     refresh: () => controller.render({}),
     navigate: panel => { result.events.push(panel); controller.render({}); },
-    toast: message => result.events.push(message),
+    toast: message => result.events.push(formatError(message)),
     download: (blob, name) => result.downloads.push({ blob, name }),
   }, {
     readStorage: key => stored.get(key) ?? null,

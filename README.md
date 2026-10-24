@@ -2,12 +2,12 @@
 
 **Turn your footage into short videos, with editing, captions, and export in your browser.**
 
-**English** · [한국어](README.ko.md)
+**English** · [한국어](README.ko.md) · [简体中文](README.zh-CN.md)
 
 [![CI](https://github.com/bugtype/moment-shorts-cut/actions/workflows/ci.yml/badge.svg)](https://github.com/bugtype/moment-shorts-cut/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
-Moment is a local-first video editor with a Korean interface. Trim a clip, choose a template, add captions or narration, and export a short without uploading your media to an app server. No account or API key is required.
+Moment is a local-first video editor with Korean, English and Simplified Chinese interfaces. Trim a clip, choose a template, add captions or narration, and export a short without uploading your media to an app server. No account or API key is required.
 
 The editor also exposes a shared command core, a project JSON CLI with SRT/VTT/TXT export, and a local stdio MCP server for AI clients. This is an early-stage project; see [tested behavior and remaining gaps](docs/BROWSER_QA.md) before relying on a particular browser or codec.
 
@@ -29,17 +29,31 @@ Open [http://127.0.0.1:4173](http://127.0.0.1:4173). The editor starts with a **
 
 Keep the server running while editing; press `Ctrl+C` to stop it. It binds to `127.0.0.1` and serves only `dist/`. Open the HTTP address rather than double-clicking `dist/index.html`, because the app uses JavaScript modules, workers, and browser storage.
 
+### Interface language
+
+Choose **한국어**, **English** or **简体中文** in the language selector. A saved
+choice takes priority over a supported browser language; otherwise the editor uses
+Korean. If browser storage is unavailable, switching still works for the current
+session, but the choice may not survive a reload.
+
+Changing the interface language does **not** translate your project name, captions,
+titles, credits, speaker names, imported files or saved custom-template content.
+Existing Korean demo and built-in example text stays Korean; applying example
+content remains an explicit edit. Language selection does not change the speech
+recognition language. Choose that separately for the source audio.
+Screenshots and rendered examples below show their original Korean content.
+
 ### Make your first short
 
-The interface is currently in Korean. These labels will help you find each step:
+Select **English** in the language selector. The steps below use English interface labels:
 
-1. **미디어 (Media):** upload a video, or keep the sample. Use **화면 (Frame)** to choose 9:16, 1:1, or 16:9 and adjust the framing; trim, split, and reorder clips on the timeline.
-2. **템플릿 (Templates):** choose a composition. **스타일만 적용 (Apply style only)** keeps your text; applying the example composition replaces title, credit, and timed-text content while preserving footage and dialogue captions.
-3. **자막 (Captions):** import SRT/VTT, write captions, or generate them locally from speech. Review the text and timing. Use **타이틀 (Title)** and **연출 (Effects)** for headlines and timed text.
-4. **오디오 (Audio):** add an audio file or record narration with microphone permission. Adjust its start time and volume alongside the original audio.
-5. **내보내기 (Export):** choose an available MP4/WebM format and 720p or 1080p. **Keep the tab visible until export finishes**, then play the downloaded file to check the result.
+1. **Media:** upload a video, or keep the sample. Use **Frame** to choose 9:16, 1:1, or 16:9 and adjust the framing; trim, split, and reorder clips on the timeline.
+2. **Templates:** choose a composition. **Apply style only** keeps your text; applying the example composition replaces title, credit, and timed-text content while preserving footage and dialogue captions.
+3. **Captions:** import SRT/VTT, write captions, or generate them locally from speech. Review the text and timing. Use **Title** and **Effects** for headlines and timed text.
+4. **Audio:** add an audio file or record narration with microphone permission. Adjust its start time and volume alongside the original audio.
+5. **Export:** choose an available MP4/WebM format and 720p or 1080p. **Keep the tab visible until export finishes**, then play the downloaded file to check the result.
 
-Use **사용 가이드 (Help) → 편집 설정 저장 (Save editing settings)** to back up project JSON. Settings files must fit **10 MiB (10,485,760 UTF-8 bytes)** for both save and restore; oversized output is rejected, not truncated. Keep your original video and audio separately: **the JSON does not contain media files**.
+Use **Help → Save editing settings** to back up project JSON. Settings files must fit **10 MiB (10,485,760 UTF-8 bytes)** for both save and restore; oversized output is rejected, not truncated. Keep your original video and audio separately: **the JSON does not contain media files**.
 
 **Preview shortcuts:** unmodified `,` / `.` move backward/forward by 1/30 of an
 output second to inspect cut or caption boundaries. Arrow keys still move one
@@ -48,8 +62,8 @@ source-frame accuracy or frame-grid snapping—and retains any starting subframe
 offset. It is ignored in editing fields, during IME composition, with modifier
 keys or while busy.
 
-**Go to an output time:** click the preview time display (**출력 시간으로 이동**),
-enter seconds such as `2.5`, `01:02.5` or `00:01:02.5`, then choose **이동**.
+**Go to an output time:** click the preview time display (**Go to output time**),
+enter seconds such as `2.5`, `01:02.5` or `00:01:02.5`, then choose **Go**.
 The value uses output time **after speed**, from zero through the output end.
 Confirming pauses and seeks; cancel leaves playback unchanged. It does not edit,
 save or add undo history. Reopen if the project or media source changed; busy/recovery guards apply.
@@ -66,8 +80,8 @@ This is time navigation, not frame/sample-accurate seeking.
 
 The built-in templates cover review stories, bold opening lines, vlogs, explainers, interviews, recipes, rankings, product reviews, quizzes, and cinematic moments. Preview each with its animated sample. Quiz choices and countdowns are video graphics, not interactive polls.
 
-**Reuse a card’s appearance:** choose **스타일 복사** on the selected timed card, select
-another card, then **스타일 붙여넣기**. Only color, text size/stroke, background styling, presentation
+**Reuse a card’s appearance:** choose **Copy style** on the selected timed card, select
+another card, then **Paste style**. Only color, text size/stroke, background styling, presentation
 and animation transfer; text, timing, position/width, role, type and enabled state stay intact.
 The copied snapshot lives only in editor memory, not the OS clipboard or storage;
 later source edits/deletion do not change it. A changed paste is one undo step;
@@ -76,7 +90,7 @@ pasting an identical style changes nothing.
 ### Share a custom template
 
 Export an individual custom-template card in the gallery, then use the gallery’s
-import button in another browser. Import adds a **new copy** under **내 템플릿**,
+import button in another browser. Import adds a **new copy** under **My templates**,
 with a new ID; it does not replace a saved template, change favorites or apply
 the template to the current project. Preview it, then choose style-only or
 example-content application as usual.
@@ -88,7 +102,7 @@ library. Names need not be unique; gallery search and export filenames use the
 new name. Cancel or a failed save keeps the original. A failed save leaves the
 dialog open for retry.
 
-**Update a saved custom template from the current composition** using its card’s **현재 구성으로 업데이트** action, then confirm **업데이트**. The composition is captured when you confirm, replacing
+**Update a saved custom template from the current composition** using its card’s **Update from current composition** action, then confirm **Update**. The composition is captured when you confirm, replacing
 saved styling/content while keeping the template’s ID, name, category and favorites.
 This works even with 20 templates: it replaces one, not appends a copy. It does not
 change the current project, media or other projects, or automatically apply a template.
@@ -181,15 +195,15 @@ Existing output files are protected; use `--overwrite` only when you intend to r
 | Correct repeated wording | [`captions.text.replace`](INTEGRATIONS.md#자막-문구-일괄-교정) | Literal, case-sensitive, non-overlapping; no regex/Unicode normalization. Preserves timing, speaker/keyword metadata and order. Blank or overlong results reject the whole edit. Browser UI previews occurrence counts and applies one undo step. |
 | Review matches first | Browser previous/next search controls | Wrap through authored rows, including trimmed-out captions; scroll/focus/select each row’s first match and show current/total rows. One row counts once; replace-all counts occurrences. No playback seek, project edit or save. |
 | Shift a constant subtitle delay | [`captions.timing.shift`](INTEGRATIONS.md#자막-시간을-앞뒤로-이동) | Choose source/timeline and signed seconds **before speed**. All cues in that basis move; any out-of-bounds result rejects the whole edit. Browser caption tools apply a real change as one undo step. |
-| Review dense caption timing | Browser **읽기 속도 검사** or [`captions.inspect`](INTEGRATIONS.md#편집-후-자막-표시-속도-점검) | Read-only ranking against your chosen non-whitespace-graphemes/second threshold after cuts, repeats and speed. Not a language standard, speech-alignment or export-validity check. |
+| Review dense caption timing | Browser **Check reading speed** or [`captions.inspect`](INTEGRATIONS.md#편집-후-자막-표시-속도-점검) | Read-only ranking against your chosen non-whitespace-graphemes/second threshold after cuts, repeats and speed. Not a language standard, speech-alignment or export-validity check. |
 | Split one caption at the caret | [`captions.split`](INTEGRATIONS.md#자막-하나를-커서-위치에서-분할) or the row split action | Keeps literal text and metadata; estimates timing by grapheme counts, not speech alignment. A caret boundary must not cut an emoji/combined character. Separate from bulk long-caption splitting. |
-| Merge adjacent captions | [`captions.merge`](INTEGRATIONS.md#인접한-자막-합치기) or row action **다음 자막과 합치기** | Combines the next authored row, even across pages. Requires matching clock/speaker/keywords and non-overlapping chronological times; merged text also appears across any gap. One browser undo step. |
+| Merge adjacent captions | [`captions.merge`](INTEGRATIONS.md#인접한-자막-합치기) or row action **Merge with next caption** | Combines the next authored row, even across pages. Requires matching clock/speaker/keywords and non-overlapping chronological times; merged text also appears across any gap. One browser undo step. |
 | Change appearance | [`captions.style.update`](INTEGRATIONS.md#자막-스타일-수정) | Size, position, colors and animation: only supplied fields change, without resubmitting the project. Visual styles are absent from plain SRT/VTT. |
 | Import subtitle text | [`captions.import`](INTEGRATIONS.md#srtvtt-본문을-명령으로-가져오기) | Replaces all captions. Supply contents, not a path, and source/timeline time **before speed**, not output time. API: 100,000 UTF-16 code units; browser files: 2 MiB. |
 
-In **읽기 속도 검사**, enter your own positive threshold; none is preselected.
+In **Check reading speed**, enter your own positive threshold; none is preselected.
 The report shows up to 20 highest-rate occurrences plus total, flagged and omitted
-counts. **자막** focuses the authored row without seeking; **구간 보기** pauses and
+counts. **Captions** focuses the authored row without seeking; **View range** pauses and
 seeks that specific output occurrence, then focuses its row. Re-run if the project or threshold
 changed since inspection. Inspection/navigation does not edit, save or add undo history.
 
@@ -209,7 +223,7 @@ retain the whole project’s clip/speed rules, not just the visible page. Existi
 | Split one clip | [`timeline.split`](INTEGRATIONS.md#클립-구간-분할) | Original source time, not output time; identify the intended occurrence and check boundaries. No full-timeline replacement. |
 | Adjust video effects | [`effects.update`](INTEGRATIONS.md#영상-효과-수정) | Brightness, contrast, motion, boundary overlays and progress styling without replacing content or timing. Boundary overlays are not crossfades. |
 | Set a source credit | [`credit.update`](INTEGRATIONS.md#출처-크레딧-수정) | Text, appearance and output-time visibility without changing title/captions/cards. Maximum 100 UTF-16 code units; not included in subtitle files. |
-| Script timed cards | [`overlays.add`, `overlays.update`, `overlays.remove`](INTEGRATIONS.md#스크립트에-맞춰-카드-추가삭제) | Individual IDs and output time **after speed**, without replacing the project. Additions append; `overlays.move` changes card stacking. UI offers **맨 앞으로 / 맨 뒤로** (front/back) within the card stack. |
+| Script timed cards | [`overlays.add`, `overlays.update`, `overlays.remove`](INTEGRATIONS.md#스크립트에-맞춰-카드-추가삭제) | Individual IDs and output time **after speed**, without replacing the project. Additions append; `overlays.move` changes card stacking. UI offers **Bring to front / Send to back** (front/back) within the card stack. |
 
 ### Choose an integration
 

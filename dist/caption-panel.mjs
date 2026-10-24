@@ -1,3 +1,4 @@
+import { setText, formatError, message } from './i18n.mjs';
 import { shiftCaptionTiming } from './core/caption-timing.mjs';
 import { replaceCaptionText } from './core/caption-text.mjs';
 import { MAX_CAPTIONS } from './captions.mjs';
@@ -27,7 +28,7 @@ export function createCaptionPanel({
         });
         const current = rows.findIndex(row => row.caption === selectedSearchCaption);
         if (current < 0) selectedSearchCaption = null;
-        $('#captionSearchStatus').textContent = `자막 ${current + 1} / ${rows.length}`;
+        setText($('#captionSearchStatus'), 'panels.searchStatus', {current:current + 1,count:rows.length});
         $('#previousCaptionMatch').disabled = !rows.length;
         $('#nextCaptionMatch').disabled = !rows.length;
         return { rows, current };
@@ -46,13 +47,13 @@ export function createCaptionPanel({
     }
     function previewReplacement() {
         const button = $('#replaceAllCaptions');
-        button.textContent = '모두 바꾸기';
+        setText(button, 'panels.replaceAll');
         button.disabled = !replacementFields.find;
         if (!replacementFields.find)
             return;
         try {
             const result = replaceCaptionText(getProject().captions, replacementFields);
-            button.textContent = `모두 바꾸기 · ${result.matches}곳`;
+            setText(button, 'panels.replaceMatches', {count:result.matches});
             button.disabled = !result.changedCaptions;
         }
         catch {
@@ -76,16 +77,16 @@ export function createCaptionPanel({
                 return;
             previewReplacement();
             $('#captionFind').focus({ preventScroll: true });
-            toast(`${result.changedCaptions}개 자막을 바꿨습니다.`);
+            toast(message('panels.replaced', {count:result.changedCaptions}));
         }
         catch (error) {
-            toast(error.message);
+            toast(error.messageKey ? error : formatError(error));
         }
     }
     function shiftTiming() {
         if (composing) return;
         try {
-            if (!timingFields.delta.trim()) throw new Error('이동할 초를 입력하세요.');
+            if (!timingFields.delta.trim()) throw Object.assign(new Error(), message('panels.enterShift'));
             const project = getProject(), basis = timingFields.basis;
             const result = shiftCaptionTiming(project.captions, { basis, delta: Number(timingFields.delta) },
                 basis === 'source' ? project.duration : getDuration());
@@ -94,8 +95,8 @@ export function createCaptionPanel({
             edit(() => { getProject().captions = result.captions; applied = true; }, true);
             if (!applied) return;
             $('#shiftCaptionTiming').focus({ preventScroll: true });
-            toast(`${result.shiftedCaptions}개 자막의 시간을 이동했습니다.`);
-        } catch (error) { toast(error.message); }
+            toast(message('panels.shifted', {count:result.shiftedCaptions}));
+        } catch (error) { toast(error.messageKey ? error : formatError(error)); }
     }
     function splitLongCaptions() {
         const limit = Number($('#captionChunkSize').value), captions = [];
@@ -103,28 +104,28 @@ export function createCaptionPanel({
             for (const caption of getProject().captions) {
                 const parts = splitCaptionText(caption, limit);
                 if (captions.length + parts.length > MAX_CAPTIONS) {
-                    toast('자막은 10,000개 이하만 지원합니다.');
+                    toast(message('panels.captionLimit'));
                     return;
                 }
                 captions.push(...parts);
             }
         }
         catch (error) {
-            toast(error.message);
+            toast(error.messageKey ? error : formatError(error));
             return;
         }
         const original = getProject().captions;
         const unchanged = captions.length === original.length && captions.every((caption, i) =>
             caption === original[i] || JSON.stringify(caption) === JSON.stringify(original[i]));
         if (unchanged) {
-            toast('나눌 긴 자막이 없습니다.');
+            toast(message('panels.nothingToSplit'));
             return;
         }
         let applied = false;
         edit(() => { getProject().captions = captions; applied = true; }, true);
         if (!applied) return;
         $('#splitLongCaptions').focus();
-        toast('긴 자막을 나눴습니다. 시간은 글자 수 기준으로 배분했으니 음성과 확인해 주세요.');
+        toast(message('panels.splitComplete'));
     }
     function render(target, status, actions) {
         const generation = ++renderGeneration;
@@ -178,13 +179,13 @@ export function createCaptionPanel({
         $('#generateCaptions').onclick = actions.generate;
         $('#addCaption').onclick = () => {
             if (getProject().captions.length >= MAX_CAPTIONS) {
-                toast('자막은 10,000개 이하만 지원합니다.');
+                toast(message('panels.captionLimit'));
                 return;
             }
             let applied = false;
             edit(() => {
-                const t = Math.min(sourceTime(), Math.max(0, getProject().duration - .1));
-                getProject().captions.push({ start: t, end: Math.min(getProject().duration, t + 3), text: '새로운 자막을 입력하세요' });
+                const captionTime = Math.min(sourceTime(), Math.max(0, getProject().duration - .1));
+                getProject().captions.push({ start: captionTime, end: Math.min(getProject().duration, captionTime + 3), text: '새로운 자막을 입력하세요' });
                 applied = true;
             }, true);
             if (applied) focusCaption(getProject().captions.length - 1);
@@ -200,11 +201,11 @@ export function createCaptionPanel({
             if (composing) return;
             const index = +button.dataset.splitCaption, input = $(`[data-caption-text="${index}"]`);
             if (!input || input.selectionStart !== input.selectionEnd) {
-                toast('선택 영역 없이 나눌 커서 위치를 지정하세요.');
+                toast(message('panels.chooseCaret'));
                 return;
             }
             if (input.value !== getProject().captions[index]?.text) {
-                toast('자막 입력을 마친 뒤 다시 나누세요.');
+                toast(message('panels.finishTyping'));
                 return;
             }
             if (execute('captions.split', { captionIndex: index, textOffset: input.selectionStart }))
@@ -234,7 +235,7 @@ export function createCaptionPanel({
                 if (!Number.isFinite(value) || value < 0 ||
                     value > (c.basis === 'timeline' ? getDuration() : getProject().duration) ||
                     (side === 'start' ? value >= c.end : value <= c.start)) {
-                    toast('시작은 끝보다 작고, 영상 길이 안에 있어야 합니다.');
+                    toast(message('panels.captionTimingInvalid'));
                     refresh();
                     return;
                 }

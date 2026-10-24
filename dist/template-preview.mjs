@@ -1,5 +1,6 @@
+import { text, setText, message } from './i18n.mjs';
 import { createDemoProject } from './core/project.mjs';
-import { applyTemplate, REFERENCE_SOURCES } from './template-catalog.mjs';
+import { applyTemplate, REFERENCE_SOURCES, templateCategoryKey } from './template-catalog.mjs';
 import { esc } from './ui-format.mjs';
 
 export function createTemplatePreview({ composition, getMedia, modal, openModal: modalOpen, query: $, onApply }, {
@@ -40,9 +41,9 @@ export function createTemplatePreview({ composition, getMedia, modal, openModal:
 
     function open(template) {
         const reference = REFERENCE_SOURCES[template.source];
-        modalOpen(esc(template.name), previewBody(template, reference), '<div class="modal-foot">' +
-            '<button class="button" id="applyTemplateStructure">예시 구성까지 적용</button>' +
-            '<button class="button primary" id="applyTemplateStyle">스타일만 적용</button>' +
+        modalOpen(template.custom ? template.name : message('templates.builtin.'+template.id+'.name'), previewBody(template, reference), '<div class="modal-foot">' +
+            `<button class="button" id="applyTemplateStructure">${text('templates.applyContent')}</button>` +
+            `<button class="button primary" id="applyTemplateStyle">${text('templates.applyStyle')}</button>` +
             '</div>');
         modal.classList.add('template-modal');
         draw($('#templateDemo'), template, .4);
@@ -67,12 +68,12 @@ export function createTemplatePreview({ composition, getMedia, modal, openModal:
         $('#toggleTemplateDemo').onclick = () => {
             if (running) {
                 stop();
-                $('#toggleTemplateDemo').textContent = '▶ 예시 재생';
+                setText($('#toggleTemplateDemo'), 'templates.play');
             }
             else {
                 running = true;
                 started = clock();
-                $('#toggleTemplateDemo').textContent = 'Ⅱ 일시정지';
+                setText($('#toggleTemplateDemo'), 'templates.pause');
                 frame = requestFrame(animate);
             }
         };
@@ -93,25 +94,25 @@ function previewBody(template, reference) {
         `<div class="template-demo-stage">` +
         `<canvas id="templateDemo" width="432" height="768">` +
         `</canvas>` +
-        `<button class="button" id="toggleTemplateDemo">▶ 예시 재생</button>` +
-        `<small>샘플 그래픽 · 12초 미리보기</small>` +
+        `<button class="button" id="toggleTemplateDemo">${text('templates.play')}</button>` +
+        `<small>${text('templates.sample')}</small>` +
         `</div>` +
         `<div class="template-details">` +
-        `<span class="template-category">${esc(template.category)}</span>` +
-        `<p class="modal-copy">${esc(template.description)}</p>` +
+        `<span class="template-category">${template.custom&&template.category!=='내 템플릿'?esc(template.category):text(templateCategoryKey(template.category))}</span>` +
+        `<p class="modal-copy">${template.custom?esc(template.description):text('templates.builtin.'+template.id+'.description')}</p>` +
         `<div class="template-flow">${template.flow.map((line, i) => (
             `<div>` +
             `<b>${i + 1}</b>` +
-            `<span>${esc(line)}</span>` +
+            `<span>${template.custom?esc(line):text('templates.builtin.'+template.id+'.flow'+i)}</span>` +
             `</div>`
         )).join('')}</div>` +
         `<div class="notice">` +
-        `<strong>스타일만 적용</strong>` +
-        `<br>기존 타이틀 문구·자막·카드를 유지합니다.<br>` +
+        `<strong>${text('templates.applyStyle')}</strong>` +
+        `<br>${text('templates.keepContent')}<br>` +
         `<br>` +
-        `<strong>예시 구성까지 적용</strong>` +
-        `<br>예시 타이틀·크레딧·구간별 문구로 교체합니다. 대사 자막과 영상은 유지됩니다. 실행 취소할 수 있습니다.</div>${reference ? (
-            `<a class="reference-link" href="${reference.url}" target="_blank" rel="noopener noreferrer">참고한 공식 자료 ↗</a>`
+        `<strong>${text('templates.applyContent')}</strong>` +
+        `<br>${text('templates.replaceContent')}</div>${reference ? (
+            `<a class="reference-link" href="${reference.url}" target="_blank" rel="noopener noreferrer">${text('templates.reference')}</a>`
         ) : ''}</div>` +
         `</div>`
     );

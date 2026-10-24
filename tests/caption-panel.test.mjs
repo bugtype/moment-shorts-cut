@@ -1,3 +1,4 @@
+import { formatError } from '../dist/i18n.mjs';
 import test from 'node:test';
 import vm from 'node:vm';
 import { createAppFixture } from './fixtures/app.mjs';
@@ -10,7 +11,7 @@ function fixture({ blocked = false } = {}) {
   const nodes = new Map(), log = [];
   function query(selector) {
     if (!nodes.has(selector)) nodes.set(selector, {
-      value: '', dataset: {},
+      value: '', dataset: {}, attributes: {}, setAttribute(name, value) { this.attributes[name] = String(value); }, getAttribute(name) { return this.attributes[name] ?? null; }, removeAttribute(name) { delete this.attributes[name]; },
       setSelectionRange: (start, end) => log.push(['selection', selector, start, end]),
       focus: options => log.push(['focus', selector, options]),
       scrollIntoView: options => log.push(['scroll', selector, options]),
@@ -36,7 +37,7 @@ function fixture({ blocked = false } = {}) {
   const panel = createCaptionPanel({
     query, queryAll, getProject: () => project, getDuration: () => 6, sourceTime: () => 2,
     edit: (change, refresh) => { if (blocked) return; log.push(['edit', refresh]); change(); },
-    refresh: () => log.push('refresh'), toast: message => log.push(['toast', message]),
+    refresh: () => log.push('refresh'), toast: message => log.push(['toast', formatError(message)]),
   });
   const target = { querySelector: () => ({ open: true }), innerHTML: '' };
   panel.render(target, { transcribing: false, hasAudio: false, transcriptionStatus: '' }, {

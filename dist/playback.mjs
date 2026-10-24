@@ -1,3 +1,4 @@
+import {message, setAttr} from './i18n.mjs';
 import { icon } from './ui-format.mjs';
 
 const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
@@ -132,7 +133,7 @@ export function createPlayback(app, {
             app.lastDrawTime = -Infinity;
             syncAudio(true);
             app.query('#playButton').innerHTML = icon('pause');
-            app.query('#playButton').setAttribute('aria-label', '일시정지');
+            setAttr(app.query('#playButton'), 'aria-label', 'shell.pause');
             if (app.frameHandle)
                 cancelFrame(app.frameHandle);
             app.frameHandle = requestFrame(tick);
@@ -142,7 +143,7 @@ export function createPlayback(app, {
                 return;
             if (app.exporting)
                 app.stopExport(true);
-            app.toast('재생할 수 없습니다. 영상 형식과 오디오 장치를 확인하세요.');
+            app.toast(message('shell.playError'));
         }
     }
 
@@ -156,7 +157,7 @@ export function createPlayback(app, {
         app.video.pause();
         app.audio.pause();
         app.query('#playButton').innerHTML = icon('play');
-        app.query('#playButton').setAttribute('aria-label', '재생');
+        setAttr(app.query('#playButton'), 'aria-label', 'shell.play');
     }
 
     function tick(now) {
@@ -214,7 +215,7 @@ export function createPlayback(app, {
         return new Promise((resolve, reject) => {
             const timeout = setTimer(() => {
                 app.video.removeEventListener('seeked', done);
-                reject(new Error('영상 탐색 시간 초과'));
+                reject(Object.assign(new Error(), message('shell.seekTimeout')));
             }, 10000);
             function done() {
                 clearTimer(timeout);

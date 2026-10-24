@@ -1,3 +1,4 @@
+import {formatError} from '../dist/i18n.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs/promises';
@@ -17,7 +18,7 @@ function workflow(project){
  const f={project,downloads:[],messages:[],calls:0};f.api=createTextFileWorkflow({
  getProject:()=>f.project,execute:async(name,args)=>{f.calls++;f.project=readProjectDocument(args.document);return {ok:true};},
  query:()=>({value:''}),closeModal(){},focusImportedCaption(){},settingsUnavailable:()=>false,
- download:(blob,name)=>f.downloads.push({blob,name}),toast:text=>f.messages.push(text),
+ download:(blob,name)=>f.downloads.push({blob,name}),toast:text=>f.messages.push(formatError(text)),
  });return f;
 }
 test('settings-file limit checks actual UTF-8 bytes at exact boundary without constraining in-memory documents',()=>{

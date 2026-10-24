@@ -1,3 +1,5 @@
+import { esc } from '../dist/ui-format.mjs';
+import { initLocale, setLocale, t } from '../dist/i18n.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createDemoProject } from '../dist/core/project.mjs';
@@ -13,7 +15,7 @@ test('design, effects and template panel controls and hierarchy', () => {
   templateModule.applyTemplate(savedProject,templateModule.TEMPLATES.find(t=>t.id==='recipe'),true);
   const custom=templateModule.saveCustomTemplate('내 요리 구성',savedProject);
   // Panel controls are exercised with supplied DOM controls (not a browser layout test).
-  function control(type,dataset,value){return {type,dataset,value,checked:false,setCustomValidity(message){this.error=message;},reportValidity(){this.reported=true;}};}
+  function control(type,dataset,value){return {attributes: {}, setAttribute(name, value) { this.attributes[name] = String(value); }, getAttribute(name) { return this.attributes[name] ?? null; }, removeAttribute(name) { delete this.attributes[name]; },type,dataset,value,checked:false,setCustomValidity(message){this.error=message;},reportValidity(){this.reported=true;}};}
   function panelRoot(lists={},byId={}){return {innerHTML:'',querySelectorAll(selector){return lists[selector]||[];},querySelector(selector){return byId[selector]||null;}};}
   const inputs=[control('number',{design:'design.title.start'},'5'),control('number',{design:'design.title.end'},'3'),control('text',{design:'speakerLabels.1'},'인터뷰이'),control('text',{design:'globalKeywords'},'순간, C++'),control('range',{design:'captionY',unit:'%'},'75')];
   let panelProject=structuredClone(defaults),snapshots=0;
@@ -48,7 +50,7 @@ test('design, effects and template panel controls and hierarchy', () => {
    const links=Object.fromEntries(['#openTemplateGallery','#openCaptionEditor','#openScreenEditor'].map(id=>[id,{}]));
    const root=panelRoot({'[data-text-layer]':layerButtons,'[data-layout-preset]':presetButtons},links);
    mountDesignPanel(root,{state:panelProject,layer,total:12,select(value){panelActions.push(['layer',value]);},preset(value){panelActions.push(['preset',value]);},navigate(value){panelActions.push(['navigate',value]);}});
-   assert.match(root.innerHTML,/<h1 class="panel-heading">타이틀 · 디자인<\/h1>/);
+   assert.match(root.innerHTML,/<h1 class="panel-heading"><span[^>]*>타이틀 · 디자인<\/span><\/h1>/);
    assert.ok(root.innerHTML.indexOf('class="layer-tabs"')<root.innerHTML.indexOf('class="layer-controls"'));
    assert.ok(root.innerHTML.indexOf('class="layer-controls"')<root.innerHTML.indexOf('class="design-presets"'));
    assert.ok(!root.innerHTML.includes('SHORTS TYPOGRAPHY'));assert.ok(!root.innerHTML.includes('각각의 역할에 맞게 디자인하세요'));
@@ -67,7 +69,7 @@ test('design, effects and template panel controls and hierarchy', () => {
    const tabs=['cards','motion'].map(effectTab=>({dataset:{effectTab}})),selected=[];
    const root=panelRoot({'[data-effect-tab]':tabs},{'#effectControls':tab==='cards'?cardRoot:panelRoot({},{'#resetEffects':{}})});
    mountEffectsPanel(root,{state:panelProject,total:12,tab,selected:testCard.id,input:panelRanges.bind,changeTab(value){selected.push(value);}});
-   assert.match(root.innerHTML,/<h1 class="panel-heading">연출<\/h1><div class="layer-tabs" role="tablist" aria-label="연출 도구">/);
+   assert.match(root.innerHTML,/<h1 class="panel-heading"><span[^>]*>연출<\/span><\/h1><div class="layer-tabs" role="tablist" aria-label="연출 도구"[^>]*>/);
    assert.match(root.innerHTML,new RegExp(`data-effect-tab="${tab}" role="tab" aria-selected="true"`));
    assert.equal((root.innerHTML.match(/aria-selected="true"/g)||[]).length,1);assert.ok(!root.innerHTML.includes('STORY & MOTION'));
    tabs.forEach(button=>button.onclick());assert.deepEqual(selected,['cards','motion']);
@@ -76,14 +78,14 @@ test('design, effects and template panel controls and hierarchy', () => {
   
   
   // Gallery hierarchy, accessible filter groups and existing actions remain connected.
-  const search={},grid={innerHTML:''},count={},saveButton={};
+  const search={},grid={innerHTML:''},count={attributes: {}, setAttribute(name, value) { this.attributes[name] = String(value); }, getAttribute(name) { return this.attributes[name] ?? null; }, removeAttribute(name) { delete this.attributes[name]; },},saveButton={};
   const categories=['전체','리뷰','정보','라이프','대화','참여','즐겨찾기','내 템플릿'].map(category=>({dataset:{category},classList:{toggle(){}},setAttribute(name,value){this[name]=value;}}));
   const previewButton={dataset:{previewTemplate:'recipe'}},favoriteButton={dataset:{favorite:'recipe'}},removeButton={dataset:{removeTemplate:custom.id}};
   const galleryActions=[];
   const galleryRoot=panelRoot({'[data-category]':categories,'[data-preview-template]':[previewButton],'[data-favorite]':[favoriteButton],'[data-remove-template]':[removeButton]}, {'#templateSearch':search,'#templateGrid':grid,'#templateCount':count,'#saveMyTemplate':saveButton,'#importMyTemplate':{},'#templateFileInput':{}});
   const galleryState={query:'',category:'전체'},galleryApi={ui:galleryState,custom:[],favorites:['recipe'],active:'reference',save(){galleryActions.push('save');},preview(item){galleryActions.push(['preview',item.id]);},favorite(id){galleryActions.push(['favorite',id]);},remove(id){galleryActions.push(['remove',id]);}};
   mountTemplateGallery(galleryRoot,galleryApi);assert.equal(count.textContent,'10개의 구성');
-  assert.match(galleryRoot.innerHTML,/<div class="gallery-heading"><h1 class="panel-heading">템플릿<\/h1><button[^>]*id="importMyTemplate"/);
+  assert.match(galleryRoot.innerHTML,/<div class="gallery-heading"><h1 class="panel-heading"><span[^>]*>템플릿<\/span><\/h1><button[^>]*id="importMyTemplate"/);
   assert.ok(galleryRoot.innerHTML.indexOf('id="saveMyTemplate"')<galleryRoot.innerHTML.indexOf('id="templateSearch"'));
   assert.match(galleryRoot.innerHTML,/role="group" aria-label="템플릿 분류"/);
   assert.match(galleryRoot.innerHTML,/role="group" aria-label="개인 템플릿"/);
@@ -91,7 +93,7 @@ test('design, effects and template panel controls and hierarchy', () => {
   assert.equal((galleryRoot.innerHTML.match(/data-category=/g)||[]).length,8);
   assert.ok(!galleryRoot.innerHTML.includes('TEMPLATE STUDIO'));assert.ok(!galleryRoot.innerHTML.includes('gallery-disclosure'));
   assert.ok(!grid.innerHTML.includes('template-tag'));assert.ok(grid.innerHTML.includes('· 적용됨'));
-  assert.match(grid.innerHTML,/aria-label="한눈에 보는 레시피 미리보기"/);assert.match(grid.innerHTML,/aria-label="한눈에 보는 레시피 즐겨찾기" aria-pressed="true"/);
+  assert.match(grid.innerHTML,/aria-label="한눈에 보는 레시피 미리보기"/);assert.match(grid.innerHTML,/aria-label="한눈에 보는 레시피 즐겨찾기"[^>]* aria-pressed="true"/);
   saveButton.onclick();previewButton.onclick();favoriteButton.onclick();removeButton.onclick();
   assert.deepEqual(galleryActions,['save',['preview','recipe'],['favorite','recipe'],['remove',custom.id]]);
   categories[6].onclick();assert.equal(galleryState.category,'즐겨찾기');assert.equal(count.textContent,'1개의 구성');
@@ -106,4 +108,21 @@ test('design, effects and template panel controls and hierarchy', () => {
   search.oninput({target:{value:'no matching template'}});assert.ok(grid.innerHTML.includes('조건에 맞는 템플릿이 없습니다.'));assert.equal(count.textContent,'0개의 구성');
   console.log('PASS: template gallery hierarchy, accessible filters, preview/save/favorite/delete actions, empty/error states and HTML escaping.');
   
+});
+
+test('illustrative design artwork follows locale without editing authored project text', () => {
+  const state = createDemoProject(), before = JSON.stringify(state);
+  initLocale();
+  try {
+    for (const locale of ['ko', 'en', 'zh-CN']) {
+      setLocale(locale, { persist: false });
+      const root = { innerHTML: '', querySelectorAll: () => [], querySelector: () => null };
+      mountDesignPanel(root, { state, layer: 'caption', total: 12 });
+      for (const key of ['shell.styleExample', 'panels.exampleDay', 'panels.exampleMemory', 'panels.exampleStory', 'panels.exampleNow', 'panels.exampleDontMiss', 'panels.exampleRecord', 'panels.exampleSignature']) {
+        assert.ok(root.innerHTML.includes(esc(t(key))), key);
+        assert.ok(root.innerHTML.includes('data-i18n="' + key + '"'), key);
+      }
+      assert.equal(JSON.stringify(state), before);
+    }
+  } finally { initLocale(); }
 });

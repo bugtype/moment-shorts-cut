@@ -1,3 +1,4 @@
+import { message } from './i18n.mjs';
 import { mediaPanelMarkup, audioPanelMarkup, settingsPanelMarkup } from './panel-markup.mjs';
 
 const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
@@ -121,7 +122,7 @@ export function createWorkspacePanels(app) {
             $('#chooseVideo').onclick = () => $('#videoInput').click();
             $('#assetSelect').onclick = () => {
                 app.seekTo(0);
-                app.toast('프로젝트의 첫 장면으로 이동했습니다.');
+                app.toast(message('panels.firstScene'));
             };
             $('#loadDemo').onclick = () => app.confirmReset(true);
             const drop = $('#dropzone');
@@ -199,7 +200,7 @@ export function createWorkspacePanels(app) {
 
     function switchPanel(next, { openSheet = true } = {}) {
         if (app.audioRecording.current && next !== 'audio') {
-            app.toast('녹음을 먼저 완료해 주세요.');
+            app.toast(message('panels.finishRecording'));
             return;
         }
         app.panel = next;

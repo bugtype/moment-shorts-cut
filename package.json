@@ -11,7 +11,7 @@
     "test": "npm run check && node verify.mjs && node --test",
     "moment": "node cli/moment.mjs"
   },
-  "description": "Browser-local Korean shorts editor with reusable editing commands, CLI and MCP adapter",
+  "description": "Browser-local multilingual shorts editor with reusable editing commands, CLI and MCP adapter",
   "license": "MIT",
   "repository": {
     "type": "git",

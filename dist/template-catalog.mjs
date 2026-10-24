@@ -1,3 +1,4 @@
+import { t, translateFor } from './i18n.mjs';
 import { applyDesignPreset } from './typography.mjs';
 import { defaultEnhancements, newCard, projectStructure, migrateSceneLayers } from './effects.mjs';
 
@@ -92,4 +93,27 @@ export function saveCustomTemplate(name, project) {
   return { id:`custom-${newCard(total).id}`,custom:true,relativeTiming:true,name:name.trim().slice(0,40),category:'내 템플릿',accent:project.captionAccent,tag:'내가 저장한 구성',
     title:[...project.design.title.lines],description:'이 브라우저에 저장한 스타일과 장면 카드입니다.',flow:['저장한 스타일','시간에 맞춘 카드'],settings,
     cards:structuredClone(projectStructure(project)).map(card=>({...card,start:card.start/total,end:card.end/total})) };
+}
+
+/** Presentation metadata only; never pass this view to applyTemplate or persistence. */
+export function templateDisplay(template, locale) {
+  const lookup = key => locale ? translateFor(locale, key) : t(key);
+  if (template.custom) return {name:template.name,
+    category:template.category==='내 템플릿'?lookup('templates.category.custom'):template.category,
+    tag:template.tag,description:template.description,flow:[...template.flow]};
+  const prefix = 'templates.builtin.' + template.id + '.';
+  return {name:lookup(prefix+'name'),category:lookup(templateCategoryKey(template.category)),
+    tag:lookup(prefix+'tag'),description:lookup(prefix+'description'),
+    flow:template.flow.map((_, i)=>lookup(prefix+'flow'+i))};
+}
+const categoryKeys = {"전체":"templates.category.all","리뷰":"templates.category.review","정보":"templates.category.info","라이프":"templates.category.life","대화":"templates.category.conversation","참여":"templates.category.participation","즐겨찾기":"templates.category.favorites","내 템플릿":"templates.category.custom"};
+export function templateCategoryKey(category) { return categoryKeys[category]; }
+export function templateSearchText(template) {
+  const original = [template.name,template.tag,template.category,template.description].join(' ');
+  if (template.custom) return original;
+  return original + ' ' + ['ko','en','zh-CN'].map(locale => {
+    const view=templateDisplay(template, locale);
+    return [view.name,view.tag,view.category,view.description,
+      translateFor(locale,'templates.builtin.'+template.id+'.search')].join(' ');
+  }).join(' ');
 }

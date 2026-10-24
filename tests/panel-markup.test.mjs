@@ -26,15 +26,15 @@ function frozenProject() {
 test('caption markup preserves text whitespace, escaping, indices and accessible controls', () => {
   const state = frozenProject();
   const html = captionsPanelMarkup(state, { toolsOpen: true, transcribing: false, hasAudio: false, transcriptionStatus: '<status>' });
-  assert.ok(html.includes(`<textarea data-caption-text="0" aria-label="자막 1 내용">${esc(state.captions[0].text)}</textarea>`));
+  assert.equal(html.match(/<textarea data-caption-text="0" aria-label="자막 1 내용"[^>]*>([\s\S]*?)<\/textarea>/)[1], esc(state.captions[0].text));
   assert.match(html, /value="1.3" data-caption-start="0"/);
   assert.match(html, /data-caption-end="1" aria-label="자막 2 끝 초"/);
   assert.match(html, /value="0" selected>&lt;화자&gt;/);
   assert.match(html, /value="audio" disabled/);
   assert.match(html, /id="captionTools" open/);
   assert.match(html, /class="estimated-timing"/);
-  assert.match(html, /id="downloadCaptions">저장/);
-  assert.match(html, /value="txt">TXT 대본/);
+  assert.match(html, /id="downloadCaptions"><span[^>]*>저장<\/span>/);
+  assert.match(html, /value="txt"[^>]*>TXT 대본/);
   assert.match(html, /role="status" aria-live="polite" hidden>&lt;status&gt;/);
   const ids = [...html.matchAll(/\bid="([^"]+)"/g)].map(match => match[1]);
   assert.equal(new Set(ids).size, ids.length);
@@ -49,7 +49,7 @@ test('caption disclosure reflects empty, working and idle state without retainin
   assert.match(render(state.captions, true), /id="captionCreate" open/);
   assert.match(render(state.captions, true), /인식 중 · 취소/);
   assert.match(render(state.captions, false), /id="captionCreate" >/);
-  assert.match(render(state.captions, false), /value="audio" >/);
+  assert.match(render(state.captions, false), /value="audio" (?!disabled)[^>]*>/);
   assert.doesNotMatch(render([], false), /data-caption-text=/);
 });
 
@@ -88,7 +88,7 @@ test('media workspace leads with the current asset, groups import controls and k
   assert.match(html, /aria-label="프로젝트 영상"/);
   assert.match(html, /aria-label="영상 불러오기"/);
   assert.match(html, /id="chooseVideo" aria-describedby="videoFormats"/);
-  assert.match(html, /id="videoFormats">MP4, MOV, WebM · 최대 500 MB/);
+  assert.match(html, /id="videoFormats"><span[^>]*>MP4, MOV, WebM · 최대 500 MiB<\/span>/);
   assert.match(html, /브라우저에서 재생 가능한 코덱 지원/);
   assert.doesNotMatch(html, /panel-intro|workflow-step|workflow-note|asset-count/);
   const button = html.match(/<button class="asset-card[\s\S]*?<\/button>/)[0];
@@ -102,7 +102,7 @@ test('audio workspace groups connected controls before replacement actions witho
     assert.match(html, /aria-labelledby="audioPanelHeading"/);
     assert.match(html, /class="asset-actions"/);
     assert.match(html, /id="recordButton" aria-describedby="recordingNotice"/);
-    assert.match(html, /id="recordingNotice">녹음에는 마이크 권한이 필요합니다/);
+    assert.match(html, /id="recordingNotice"><span[^>]*>녹음에는 마이크 권한이 필요합니다/);
     assert.match(html, /원본 음성과 함께 내보내기에 포함됩니다/);
     assert.doesNotMatch(html, /panel-intro|workflow-note/);
     if (hasAudio) {
@@ -122,7 +122,7 @@ test('audio workspace groups connected controls before replacement actions witho
 test('settings layout groups frame, captions, trim and audio without promotional explanations', () => {
   const html = settingsPanelMarkup(frozenProject(), { start: 2, end: 7 });
   assert.doesNotMatch(html, /panel-intro/);
-  const groups = [...html.matchAll(/<section class="settings-group" aria-label="([^"]+)">([\s\S]*?)<\/section>/g)];
+  const groups = [...html.matchAll(/<section class="settings-group" aria-label="([^"]+)"[^>]*>([\s\S]*?)<\/section>/g)];
   assert.deepEqual(groups.map(group => group[1]), ['화면 비율과 구도', '자막 크기와 위치', '선택 클립 구간', '원본 오디오']);
   for (const id of ['mobileZoom', 'resetPosition']) assert.ok(groups[0][2].includes(`id="${id}"`));
   for (const id of ['captionSize', 'captionY']) assert.ok(groups[1][2].includes(`id="${id}"`));
@@ -137,19 +137,19 @@ test('settings layout groups frame, captions, trim and audio without promotional
 test('caption tools group accessible find/replace fields without another disclosure', () => {
   const html = captionsPanelMarkup(frozenProject(), {});
   const tools = html.slice(html.indexOf('id="captionTools"'));
-  assert.match(tools, /<section aria-label="자막 찾기 및 바꾸기">/);
+  assert.match(tools, /<section aria-label="자막 찾기 및 바꾸기"[^>]*>/);
   for (const id of ['captionFind', 'captionReplacement']) {
     assert.match(tools, new RegExp(`<label class="panel-label" for="${id}">`));
     assert.match(tools, new RegExp(`id="${id}" type="text" maxlength="2000"`));
   }
-  assert.match(tools, /id="replaceAllCaptions" aria-live="polite" disabled>모두 바꾸기/);
+  assert.match(tools, /id="replaceAllCaptions" aria-live="polite" disabled><span[^>]*>모두 바꾸기<\/span>/);
   assert.ok(tools.indexOf('replaceAllCaptions') < tools.indexOf('splitLongCaptions'));
 });
 
 test('caption search navigation exposes row counts separately from replacement occurrences', () => {
   const html=captionsPanelMarkup(frozenProject(),{});
   assert.match(html,/role="group" aria-label="검색된 자막 이동"/);
-  assert.match(html,/id="previousCaptionMatch" aria-label="이전 검색 자막" disabled/);
-  assert.match(html,/id="nextCaptionMatch" aria-label="다음 검색 자막" disabled/);
-  assert.match(html,/id="captionSearchStatus" role="status" aria-live="polite" aria-atomic="true">자막 0 \/ 0/);
+  assert.match(html,/id="previousCaptionMatch" aria-label="이전 검색 자막"[^>]* disabled/);
+  assert.match(html,/id="nextCaptionMatch" aria-label="다음 검색 자막"[^>]* disabled/);
+  assert.match(html,/id="captionSearchStatus" role="status" aria-live="polite" aria-atomic="true"><span[^>]*>자막 0 \/ 0<\/span>/);
 });

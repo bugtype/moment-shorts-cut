@@ -1,3 +1,4 @@
+import { message as msg } from './i18n.mjs';
 import {createDemoProject, validateProject} from './core/project.mjs';
 import {assertJson, validate, object, string, array, boolean, choice, fail} from './core/validation.mjs';
 import {newCard} from './effects.mjs';
@@ -14,7 +15,7 @@ export function validateTemplateLibrary(templates,favorites){
   validate(array(templateSchema,20),templates);validate(array(string(200)),favorites);
   const ids=new Set(TEMPLATES.map(template=>template.id));
   for(const template of templates){
-    if(!template.id.trim()||!template.name.trim()||ids.has(template.id))fail('템플릿 이름과 고유 ID를 확인하세요.');
+    if(!template.id.trim()||!template.name.trim()||ids.has(template.id))fail(msg('errors.templateIdentity'));
     ids.add(template.id);
     const project=createDemoProject();
     applyTemplate(project,template,true);validateProject(project);
@@ -42,7 +43,7 @@ function knownFields(value, example, path) {
       value.forEach((item, i) => knownFields(item, example[0], `${path}[${i}]`));
   } else if (value && typeof value === 'object') {
     for (const [key, child] of Object.entries(value)) {
-      if (!example || !Object.hasOwn(example, key)) fail('템플릿 파일에 지원하지 않는 필드가 있습니다.', `${path}.${key}`);
+      if (!example || !Object.hasOwn(example, key)) fail(msg('errors.templateField'), `${path}.${key}`);
       knownFields(child, example[key], `${path}.${key}`);
     }
   }
@@ -51,7 +52,7 @@ function knownFields(value, example, path) {
 function validatePortableTemplate(template) {
   validateTemplateLibrary([template], []);
   knownFields(template.settings, visualPreset(createDemoProject()), 'template.settings');
-  if (!/^#[\da-f]{6}([\da-f]{2})?$/i.test(template.accent)) fail('템플릿 색상을 확인하세요.', 'template.accent');
+  if (!/^#[\da-f]{6}([\da-f]{2})?$/i.test(template.accent)) fail(msg('errors.templateColor'), 'template.accent');
   const project = createDemoProject();
   applyTemplate(project, template, true);
   for (const [i, card] of (template.cards || []).entries()) {
@@ -69,7 +70,7 @@ export function createTemplateDocument(template) {
   validate(templateDocumentSchema, document, 'document');
   validatePortableTemplate(document.template);
   if (new TextEncoder().encode(JSON.stringify(document, null, 2)).byteLength > MAX_TEMPLATE_FILE_BYTES)
-    fail('템플릿 파일은 UTF-8 256 KiB까지 지원합니다.');
+    fail(msg('errors.templateBytes'));
   return document;
 }
 

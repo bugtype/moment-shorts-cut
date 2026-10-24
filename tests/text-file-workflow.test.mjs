@@ -1,3 +1,4 @@
+import {formatError} from '../dist/i18n.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
@@ -18,7 +19,7 @@ function fixture() {
     query: id => controls[id], closeModal: () => f.closed++,
     focusImportedCaption: () => f.focused++, settingsUnavailable: () => f.unavailable,
     download: (blob, name) => f.downloads.push({ blob, name }),
-    toast: message => f.messages.push(message),
+    toast: message => f.messages.push(formatError(message)),
   });
   f.controls = controls;
   return f;

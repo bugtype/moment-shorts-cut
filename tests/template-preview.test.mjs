@@ -1,13 +1,21 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createTemplatePreview } from '../dist/template-preview.mjs';
-import { TEMPLATES } from '../dist/template-catalog.mjs';
+import { TEMPLATES, saveCustomTemplate } from '../dist/template-catalog.mjs';
+import { createDemoProject } from '../dist/core/project.mjs';
+import { message } from '../dist/i18n.mjs';
 
 function fixture() {
   const controls = new Map(), frames = new Map(), draws = [], dialogs = [], applications = [];
   let frame = 0, time = 100, media = { source: { name: 'sample' }, ready: true };
   const query = selector => {
-    if (!controls.has(selector)) controls.set(selector, { width: 432, height: 768, getContext: () => ({}) });
+    if (!controls.has(selector)) {
+      const attributes=new Map();
+      controls.set(selector, { width:432, height:768, getContext:()=>({}),
+        setAttribute:(name,value)=>attributes.set(name,String(value)),
+        getAttribute:name=>attributes.get(name)??null,
+        removeAttribute:name=>attributes.delete(name) });
+    }
     return controls.get(selector);
   };
   const modal = { open: true, classList: { add() {} } };
@@ -67,12 +75,17 @@ test('preview play, pause, modal close and apply own only their animation loop',
 });
 
 test('preview markup escapes template text and retains explicit application consequences', () => {
-  const f = fixture(), template = { ...TEMPLATES[0], name: '<name>', description: '<description>&', flow: ['<step>'], source: 'missing' };
+  const f = fixture(), template = { ...saveCustomTemplate('<name>&',createDemoProject()), description: '<description>&', flow: ['<step>'], source: 'missing' };
   f.preview.open(template);
   const [title, body, footer] = f.dialogs[0];
-  assert.equal(title, '&lt;name&gt;');
+  assert.equal(title, '<name>&', 'Custom heading stays raw until modalOpen escapes it once');
   assert.match(body, /&lt;description&gt;&amp;/);assert.match(body, /&lt;step&gt;/);
   assert.doesNotMatch(body, /class="reference-link"/);
   assert.match(body, /대사 자막과 영상은 유지됩니다/);
   assert.match(footer, /id="applyTemplateStyle"/);assert.match(footer, /id="applyTemplateStructure"/);
+});
+
+test('built-in preview passes a localizable title descriptor, not HTML markup', () => {
+  const f=fixture(); f.preview.open(TEMPLATES[0]);
+  assert.deepEqual(f.dialogs[0][0],message('templates.builtin.reference.name'));
 });

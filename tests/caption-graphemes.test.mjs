@@ -1,3 +1,5 @@
+import {LocalizedError} from '../dist/core/validation.mjs';
+import {message as msg} from '../dist/i18n.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
@@ -42,9 +44,9 @@ test('split timing uses grapheme weights, retains whitespace boundaries and leav
 });
 
 test('missing native segmentation rejects splitting without changing input or preventing module load',()=>{
- const source=readFileSync(new URL('../dist/effects.mjs',import.meta.url),'utf8').replaceAll('export ','');
+ const source=readFileSync(new URL('../dist/effects.mjs',import.meta.url),'utf8').replace(/^import .*;$/gm,'').replaceAll('export ','');
  for(const Intl of [undefined,{}]){
-  const split=vm.runInNewContext(source+';splitCaptionText',{Intl});
+  const split=vm.runInNewContext(source+';splitCaptionText',{Intl,LocalizedError,msg});
   const caption={start:0,end:1,text:'unchanged'},before=structuredClone(caption);
   assert.throws(()=>split(caption),/문자 분할/);assert.deepEqual(caption,before);
  }

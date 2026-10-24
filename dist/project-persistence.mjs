@@ -1,3 +1,4 @@
+import { message as msg, formatError } from './i18n.mjs';
 import { createDemoProject, readProjectDocument } from './core/project.mjs';
 
 // Session-only guard: failed restores must never overwrite the stored project/media.
@@ -7,17 +8,20 @@ export function createProjectPersistence({ store, sources, getProject, replacePr
     setTimer = (callback, delay) => setTimeout(callback, delay),
     clearTimer = timer => clearTimeout(timer),
 } = {}) {
+    let restoreNotice = msg('errors.restoring');
     const persistence = {
-        restorePhase: 'restoring', restoreMessage: '프로젝트를 불러오는 중…',
+        restorePhase: 'restoring',
+        get restoreMessage() { return formatError(restoreNotice); },
+        set restoreMessage(value) { restoreNotice = value; },
         recoveryValid: false, recoveryBaseline: '', saveTimer: undefined, pendingSave: Promise.resolve(),
         recoveryBlocked, settingsUnavailable, scheduleSave, saveProject, persistMedia, restore,
     };
     function recoveryBlocked(show = true) {
         if (persistence.restorePhase === 'ready')
             return false;
-        saveStatus(persistence.restoreMessage, false);
+        saveStatus(restoreNotice, false);
         if (show)
-            toast(persistence.restoreMessage);
+            toast(restoreNotice);
         return true;
     }
     function settingsUnavailable() {
@@ -30,7 +34,7 @@ export function createProjectPersistence({ store, sources, getProject, replacePr
         clearTimer(persistence.saveTimer);
         if (recoveryBlocked(false))
             return;
-        saveStatus('저장 중…');
+        saveStatus(msg('errors.saving'));
         persistence.saveTimer = setTimer(() => saveProject(), 500);
     }
     async function saveProject(show = false) {
@@ -48,16 +52,16 @@ export function createProjectPersistence({ store, sources, getProject, replacePr
                     return;
             } while (saving !== persistence.pendingSave);
             writeSettings('moment-state-v1', JSON.stringify(getProject()));
-            saveStatus('이 브라우저에 저장됨');
+            saveStatus(msg('errors.saved'));
             if (show)
-                toast('프로젝트를 이 브라우저에 저장했습니다.');
+                toast(msg('errors.savedNotice'));
         }
         catch (e) {
             if (recoveryBlocked(show))
                 return;
-            saveStatus('저장 공간을 확인하세요', false);
+            saveStatus(msg('errors.checkStorage'), false);
             if (show)
-                toast('저장 공간이 부족하거나 브라우저 저장이 차단되었습니다.');
+                toast(msg('errors.storageBlocked'));
         }
     }
     function persistMedia() {
@@ -66,19 +70,19 @@ export function createProjectPersistence({ store, sources, getProject, replacePr
         persistence.pendingSave = store.setMedia(sources.videoFile, sources.audioFile);
         persistence.pendingSave.catch(() => {
             if (!recoveryBlocked(false))
-                saveStatus('미디어 저장 실패', false);
+                saveStatus(msg('errors.mediaSave'), false);
         });
     }
     async function restore() {
         persistence.restorePhase = 'restoring';
-        persistence.restoreMessage = '프로젝트를 불러오는 중…';
+        persistence.restoreMessage = msg('errors.restoring');
         persistence.recoveryValid = false;
         clearTimer(persistence.saveTimer);
-        let recovered = null, cause = '저장된 프로젝트를 불러오지 못함';
+        let recovered = null, cause = msg('errors.restoreFailed');
         try {
             const raw = readSettings('moment-state-v1');
             if (raw !== null) {
-                cause = '저장된 편집 설정을 읽을 수 없습니다';
+                cause = msg('errors.settingsRead');
                 const saved = JSON.parse(raw);
                 if (!saved || typeof saved !== 'object' || Array.isArray(saved) || !Array.isArray(saved.clips) || !saved.clips.length)
                     throw new Error('Invalid saved project');
@@ -90,15 +94,13 @@ export function createProjectPersistence({ store, sources, getProject, replacePr
                 await sources.restore(getProject(), key => store.get(key), message => { cause = message; });
             }
             persistence.restorePhase = 'ready';
-            saveStatus(raw === null ? '이 브라우저에 저장' : '저장된 프로젝트를 불러왔습니다');
+            saveStatus(raw === null ? msg('errors.saveInBrowser') : msg('errors.projectRestored'));
         }
         catch (e) {
             replaceProject(recovered || createDemoProject());
             persistence.restorePhase = 'failed';
             persistence.recoveryValid = !!recovered;
-            persistence.restoreMessage = cause + ' · 변경사항은 저장되지 않습니다. ' + (persistence.recoveryValid
-                ? '새로고침 전에 사용 가이드에서 편집 설정을 내보내세요. 새로고침은 복원을 다시 시도합니다.'
-                : '원래 설정을 내보낼 수 없습니다. 새로고침은 읽기를 다시 시도합니다.');
+            persistence.restoreMessage = msg(persistence.recoveryValid ? 'errors.restoreWithBackup' : 'errors.restoreWithoutBackup', {cause});
             persistence.recoveryBaseline = JSON.stringify(getProject());
             clearTimer(persistence.saveTimer);
             pause();

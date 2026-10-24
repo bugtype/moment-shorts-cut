@@ -1,3 +1,4 @@
+import {message as msg} from '../dist/i18n.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
@@ -45,7 +46,7 @@ test('invalid inputs, unavailable segmenter and floating underflow reject with n
  const p=project('A');p.captions[0].end=Number.MIN_VALUE;p.speed=4;assert.throws(()=>inspect(p),e=>e.code==='INVALID_ARGUMENT'&&e.path==='project.captions[0]');
  p.speed=1;assert.throws(()=>inspect(p),e=>e.code==='INVALID_ARGUMENT');
  const source=await fs.readFile(new URL('../dist/core/caption-inspection.mjs',import.meta.url),'utf8');
- const helper=vm.runInNewContext(source.replace(/^import .*;$/gm,'').replace('export function','function')+';inspectCaptions',{Intl:{},captionOccurrences,fail});assert.throws(()=>helper(project('A'),{maxGraphemesPerSecond:1}),/안전한 문자/);
+ const helper=vm.runInNewContext(source.replace(/^import .*;$/gm,'').replace('export function','function')+';inspectCaptions',{Intl:{},captionOccurrences,fail,msg});assert.throws(()=>helper(project('A'),{maxGraphemesPerSecond:1}),/안전한 문자/);
 });
 test('derived occurrence and raw UTF-8 safety budgets remain enforced before reporting',()=>{
  const p=project('A');p.captions=Array.from({length:10000},()=>({start:0,end:1,text:'A'}));assert.equal(inspect(p,{maxGraphemesPerSecond:.1,limit:1}).data.totalOccurrences,10000);

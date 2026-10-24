@@ -13,6 +13,18 @@
 | Composition | [Effects](#adjust-video-effects-without-changing-content) · [Existing cards](#edit-an-existing-timed-card-by-id) · [Scripted cards/stacking](#build-a-hook-tip-and-cta-with-individual-cards) · [Credit](../../../../docs/MCP.md#set-a-source-credit-independently) |
 | Grouped/template edits | [One commit](#apply-related-edits-together) · [Browser template sharing](#share-one-browser-custom-template) · [Apply a supplied template](#apply-a-supplied-template-document) |
 
+## Interface language and authored content
+
+The browser offers `ko`, `en` and `zh-CN`; its saved choice takes priority over a
+supported browser language, then Korean. If storage fails, the current-session
+choice can still change. This is not a project edit or an MCP setting.
+
+Do not translate a user's captions, project name, title, credit, speaker labels or
+custom templates just because the UI language changed. Built-in display labels
+are localized, while existing Korean examples remain authored content. Choose ASR
+language independently. API command names, IDs, field names, enums, error codes
+and paths stay unchanged. Use canonical IDs, not translated labels.
+
 ## Discover and inspect
 
 Run commands from the repository root with Node.js 20+. No package installation is required.
@@ -219,9 +231,9 @@ resolve authored indexes from the current project. Repeated derived occurrences
 are not independent editable cues. Existing derived-cue/raw-byte limits apply.
 See the [CLI workflow and precise metric](../../../../INTEGRATIONS.md#편집-후-자막-표시-속도-점검).
 
-For manual review in the browser, **읽기 속도 검사** starts with a blank required
+For manual review in the browser, **Check reading speed** starts with a blank required
 positive threshold and reports the worst 20 occurrences plus total/flagged/omitted
-counts. **자막** focuses the authored row without seeking; **구간 보기** pauses and
+counts. **Captions** focuses the authored row without seeking; **View range** pauses and
 seeks the selected occurrence before focusing that row. Project or threshold
 changes invalidate the report and require a new inspection. Busy/recovery guards still apply. Neither inspection nor navigation
 changes the project, saves it or creates history; CLI/MCP cannot drive this modal
@@ -432,8 +444,8 @@ Cancel, a deleted target, a blocked library recovery state or a write failure
 preserves the original library. A write failure leaves the dialog open to retry.
 This is browser-library management, not a new CLI/MCP rename tool.
 
-To replace a saved custom template’s composition, use **현재 구성으로 업데이트** on its browser gallery card
-and explicitly confirm **업데이트**. It captures the current project **at confirmation**,
+To replace a saved custom template’s composition, use **Update from current composition** on its browser gallery card
+and explicitly confirm **Update**. It captures the current project **at confirmation**,
 replacing saved styling/settings, title/credit/card content and relative timing while
 retaining ID, name, category, descriptive metadata and favorites. It works at the 20-entry capacity without
 creating a copy. The current project, media and other projects are not changed or

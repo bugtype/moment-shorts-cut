@@ -297,6 +297,15 @@ const entries = {
   "panels.cardCannotFit": ["카드 길이가 영상보다 깁니다. 먼저 표시 길이를 줄여 주세요.","The card is longer than the video. Shorten its duration before moving it.","卡片时长超过视频。请先缩短显示时长，再移动。"],
   "panels.cardMoveRange": ["카드가 0–{total} 출력 초 안에 들어오도록 시작값을 입력하세요.","Enter a start that keeps the whole card within 0–{total} output seconds.","请输入使整张卡片位于 0–{total} 输出秒范围内的开始位置。"],
   "panels.cardMoveStale": ["편집 내용이나 선택한 카드가 바뀌었습니다. 다시 열어 주세요.","The edit or selected card changed. Open this dialog again.","剪辑或所选卡片已更改。请重新打开此对话框。"],
+  "panels.captionOverlaps": ["자막 시간 겹침","Caption timing overlaps","字幕时间重叠"],
+  "panels.overlapNotice": ["겹치는 출력 자막마다 대표 충돌 하나를 표시합니다. 모든 쌍이나 실제 표시 여부를 뜻하지 않으며, 자막은 변경하지 않습니다.","One representative conflict per overlapping output occurrence, not every pair or a prediction of rendered visibility. Captions are not changed.","每个重叠的输出字幕出现项显示一个代表性冲突，并非所有配对，也不预测实际显示情况。字幕不会被修改。"],
+  "panels.overlapCounts": ["출력 자막 {total}개 · 시간 겹침 {flagged}개 · 생략 {omitted}개","Output occurrences: {total} · overlapping: {flagged} · omitted: {omitted}","输出出现项：{total} · 重叠：{flagged} · 省略：{omitted}"],
+  "panels.overlapOutputRange": ["겹치는 출력 초","Overlap (output seconds)","重叠区间（输出秒）"],
+  "panels.overlapCaptions": ["관련 자막","Related captions","相关字幕"],
+  "panels.overlapCaptionIndex": ["자막 {index}","Caption {index}","字幕 {index}"],
+  "panels.viewOverlap": ["{index}번째 출력 자막 겹침 보기","View overlap for output occurrence {index}","查看第 {index} 个输出出现项的重叠区间"],
+  "panels.noCaptionOverlaps": ["겹치는 자막 시간이 없습니다.","No caption timing overlaps.","没有字幕时间重叠。"],
+  "panels.overlapStale": ["편집 내용이나 미디어가 변경되었습니다. 다시 검사하세요.","The edit or media changed. Run the review again.","剪辑或媒体已更改。请重新检查。"],
 };
 
 export const messages = Object.fromEntries(['ko', 'en', 'zh-CN'].map((locale, index) => [

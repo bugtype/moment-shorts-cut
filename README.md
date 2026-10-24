@@ -275,6 +275,7 @@ Existing output files are protected; use `--overwrite` only when you intend to r
 | Locate a caption in the edit | Row action **View in video** | One occurrence seeks directly; repeated occurrences let you choose. Temporal navigation only, not an edit. |
 | Review matches first | Browser previous/next search controls | Wrap through authored rows, including trimmed-out captions; scroll/focus/select each row’s first match and show current/total rows. One row counts once; replace-all counts occurrences. No playback seek, project edit or save. |
 | Shift a constant subtitle delay | [`captions.timing.shift`](INTEGRATIONS.md#자막-시간을-앞뒤로-이동) | Choose source/timeline and signed seconds **before speed**. All cues in that basis move; any out-of-bounds result rejects the whole edit. Browser caption tools apply a real change as one undo step. |
+| Review overlapping times | **Caption timing overlaps** or [`captions.overlaps`](INTEGRATIONS.md#자막-시간-겹침-점검) | One representative conflict per overlapping output occurrence, not all pairs or a visibility prediction. Read total/flagged/omitted counts. |
 | Review dense caption timing | Browser **Check reading speed** or [`captions.inspect`](INTEGRATIONS.md#편집-후-자막-표시-속도-점검) | Read-only ranking against your chosen non-whitespace-graphemes/second threshold after cuts, repeats and speed. Not a language standard, speech-alignment or export-validity check. |
 | Split one caption at the caret | [`captions.split`](INTEGRATIONS.md#자막-하나를-커서-위치에서-분할) or the row split action | Keeps literal text and metadata; estimates timing by grapheme counts, not speech alignment. A caret boundary must not cut an emoji/combined character. Separate from bulk long-caption splitting. |
 | Merge adjacent captions | [`captions.merge`](INTEGRATIONS.md#인접한-자막-합치기) or row action **Merge with next caption** | Combines the next authored row, even across pages. Requires matching clock/speaker/keywords and non-overlapping chronological times; merged text also appears across any gap. One browser undo step. |
@@ -287,6 +288,12 @@ with 20 occurrences per page (up to 1,000 clips); displayed times are after spee
 A trimmed-out cue only shows a notice. Reopen after project/media changes. This
 navigates timing, not guaranteed rendered visibility: disabled captions or overlap
 priority may hide the text, and source-frame accuracy is not promised.
+
+**Caption timing overlaps** shows up to 20 issues in occurrence order. Related
+caption buttons focus the authored row without seeking; **View range** pauses and
+seeks the overlap, then focuses the first related row without autoplay. Touching
+endpoints do not count. Reopen after project/media changes. Review changes nothing;
+video navigation needs normal or confirmed session-media access. No automatic fix.
 
 In **Check reading speed**, enter your own positive threshold; none is preselected.
 The report shows up to 20 highest-rate occurrences plus total, flagged and omitted

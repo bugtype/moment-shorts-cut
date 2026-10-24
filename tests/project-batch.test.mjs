@@ -37,7 +37,7 @@ test('closed allowlist, envelope bounds and nested arguments prevent imports, re
  const p=createDemoProject(),schema=commandDefinition('project.batch').inputSchema;
  assert.equal(schema.properties.operations.items.properties.command.enum.length,24);
  assert.ok(schema.properties.operations.items.properties.command.enum.includes('timeline.move'));
- for(const command of ['project.import','project.get','templates.list','template.export','captions.list','captions.inspect','captions.export','render.plan','jobs.submit','jobs.cancel','project.batch','unknown'])
+ for(const command of ['project.import','project.get','templates.list','template.export','captions.list','captions.inspect','captions.overlaps','captions.export','render.plan','jobs.submit','jobs.cancel','project.batch','unknown'])
   assert.throws(()=>batch(p,[op(command,{})]),e=>e.code==='INVALID_ARGUMENT');
  for(const operations of [[],Array.from({length:21},()=>rename('x')),[{command:'project.update'}],[op('project.update',{patch:{unknown:true}})],[op('project.update',null)]])assert.throws(()=>batch(p,operations));
  assert.equal(batch(p,Array.from({length:20},()=>rename('x'))).data.operationCount,20);

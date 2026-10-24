@@ -171,6 +171,7 @@ JavaScript에서 직접 호출할 때도 JSON으로 왕복 가능한 값을 전�
 | `templates.list` | 없음 | 기본 템플릿 목록 |
 | `captions.export` | 선택 `format: "srt"`, `"vtt"`, `"txt"` | 편집 구간·배속을 반영한 `{format, text}`; 기본 SRT |
 | `captions.list` | 선택 `offset`, `limit` | 저장된 자막 페이지와 현재 배열 위치; 읽기 전용 |
+| `captions.overlaps` | 선택 `limit` | 출력 시간 겹침의 읽기 전용 보고서; 자막 자동 수정 없음 |
 | `captions.inspect` | `maxGraphemesPerSecond`, 선택 `limit` | 편집 후 표시 속도 초과 구간 요약; 프로젝트 변경 없음 |
 | `render.plan` | `quality`, `format` | 출력 설정·프로젝트·필요한 미디어 목록; **파일 생성 아님** |
 
@@ -227,7 +228,7 @@ JavaScript에서 직접 호출할 때도 JSON으로 왕복 가능한 값을 전�
 
 | 작업 | 예제 |
 |---|---|
-| 자막 | [표시 속도 점검](#편집-후-자막-표시-속도-점검) · [가져오기](#srtvtt-본문을-명령으로-가져오기) · [커서 분할](#자막-하나를-커서-위치에서-분할) · [합치기](#인접한-자막-합치기) · [추가·삭제](#자막-하나를-추가하거나-삭제) · [개별 수정](#자막-하나만-수정) · [문구 교정](#자막-문구-일괄-교정) · [시간 이동](#자막-시간을-앞뒤로-이동) · [스타일](#자막-스타일-수정) |
+| 자막 | [시간 겹침](#자막-시간-겹침-점검) · [표시 속도 점검](#편집-후-자막-표시-속도-점검) · [가져오기](#srtvtt-본문을-명령으로-가져오기) · [커서 분할](#자막-하나를-커서-위치에서-분할) · [합치기](#인접한-자막-합치기) · [추가·삭제](#자막-하나를-추가하거나-삭제) · [개별 수정](#자막-하나만-수정) · [문구 교정](#자막-문구-일괄-교정) · [시간 이동](#자막-시간을-앞뒤로-이동) · [스타일](#자막-스타일-수정) |
 | 타임라인 | [클립 분할](#클립-구간-분할) · [클립 복제](#클립-구간-복제) |
 | 구성 | [크레딧](#출처-크레딧-수정) · [영상 효과](#영상-효과-수정) · [카드 수정](#기존-시간별-카드-수정) · [카드 추가·삭제](#스크립트에-맞춰-카드-추가삭제) · [쌓임 순서](#카드-쌓임-순서-변경) |
 | 묶음·템플릿 | [한 번에 편집](#여러-편집을-한-번에-반영) · [템플릿 파일 관리](#개별-사용자-템플릿-파일) · [현재 구성 내보내기](#현재-구성을-템플릿으로-내보내기) · [파일 적용](#내보낸-템플릿을-climcp로-적용) |
@@ -461,6 +462,37 @@ JS
 선택 `--out caption-page.json`은 **페이지 결과**만 저장하며 프로젝트 설정 문서가
 아니므로 `project.import`에 사용할 수 없습니다. `--dry-run`은 읽기 결과를 preview에도
 추가하고 파일을 쓰지 않습니다. MCP에서는 같은 인수에 `projectId:"session"`을 넣습니다.
+
+### 자막 시간 겹침 점검
+
+`captions.overlaps`는 편집·반복·원본/타임라인 기준·배속을 반영한 출력 자막끼리의
+양수 시간 겹침을 검사합니다. 끝과 시작이 맞닿기만 하면 겹침이 아닙니다. 화면 표시
+우선순위나 실제 문구 가시성을 예측하지 않으며 자막을 자동으로 수정하지 않습니다.
+
+| 입력·결과 | 계약 |
+|---|---|
+| `limit` | 선택 정수 1–100, 기본 20; null·알 수 없는 필드·잘못된 값은 `INVALID_ARGUMENT` |
+| `metric` | `"output-time-overlap"` |
+| `totalOccurrences` | 편집 후 전체 파생 자막 수 |
+| `flaggedOccurrences`, `omittedOccurrences` | 하나 이상과 겹치는 파생 자막의 정확한 수 / 표시 한도로 생략한 수; 쌍의 개수 아님 |
+| `issues[]` | 각 겹친 자막당 대표 충돌 하나; 원본/출력 위치와 양쪽 구간·교집합, 문구 없음 |
+
+순위가 아닌 출력 발생 순서로 반환하며 모든 충돌 쌍을 나열하지 않습니다. 앞서 나온
+최대 끝점 자막을 대표로 사용하고 동률은 기존 순서를 유지합니다. 아직 표시하지 않은
+대표 자막에는 처음 만난 뒤쪽 충돌을 연결합니다. [정확한 필드 목록](docs/MCP.md#check-caption-time-overlaps)을
+확인하세요. 시간은 배속 후 출력 초, 위치는 현재 배열/파생 구간 기준이므로 편집 뒤
+다시 검사해야 합니다. 기존 파생 10,000개·원문 UTF-8 2 MiB 한도는 유지됩니다.
+읽기 전용으로 저장·실행 취소 기록을 만들지 않으며 `project.batch`에 넣을 수 없습니다.
+
+```sh
+node cli/moment.mjs init --out overlap-source.json
+node cli/moment.mjs exec captions.insert --project overlap-source.json --json '{"captionIndex":1,"caption":{"start":1,"end":2,"text":"Overlap example"}}' --out overlap-demo.json
+node cli/moment.mjs exec captions.overlaps --project overlap-demo.json --json '{"limit":20}'
+node cli/moment.mjs exec captions.list --project overlap-demo.json --json '{"offset":0,"limit":3}'
+```
+
+선택 `--out overlap-report.json`은 보고서만 저장하며 프로젝트 백업이 아닙니다.
+MCP 도구는 `moment_captions_overlaps`, 추가 인수는 `projectId:"session"`입니다.
 
 ### 편집 후 자막 표시 속도 점검
 

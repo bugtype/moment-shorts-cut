@@ -69,7 +69,7 @@ async function withClient(work) {
 
 const saved = await withClient(async ({request, call, data}) => {
   const {tools} = await request('tools/list', {});
-  assert.equal(tools.length, 33);
+  assert.equal(tools.length, 34);
   assert.ok(tools.some(tool => tool.name === 'moment_project_import'));
   await data('moment_project_import', {document: createProjectDocument(createDemoProject())});
   await data('moment_project_update', {patch: {name: 'MCP 예제', speed: 2}});
@@ -148,6 +148,11 @@ const saved = await withClient(async ({request, call, data}) => {
   const duplicate = await data('moment_timeline_duplicate', {clipIndex: 0});
   assert.equal(duplicate.outputDuration, 3);
   assert.deepEqual((await data('moment_project_get')).project.clips, [{start: 2, end: 4}, {start: 2, end: 4}, {start: 4, end: 6}]);
+  const beforeOverlapCheck = await data('moment_project_get');
+  const overlaps = await data('moment_captions_overlaps', {limit:20});
+  assert.equal(overlaps.metric, 'output-time-overlap');
+  assert.ok(overlaps.issues.length <= 20);
+  assert.deepEqual(await data('moment_project_get'), beforeOverlapCheck);
   const beforeMove = (await data('moment_project_get')).project;
   assert.equal((await data('moment_timeline_move', {clipIndex: 2, toIndex: 0})).updated, true);
   const afterMove = (await data('moment_project_get')).project;
@@ -198,4 +203,4 @@ await withClient(async ({data}) => {
   await data('moment_project_import', {document: saved});
   assert.deepEqual(await data('moment_project_get'), saved);
 });
-console.log(JSON.stringify({ok: true, tools: 33, recoveredFromInvalidInput: true, reimported: true, rendered: false}));
+console.log(JSON.stringify({ok: true, tools: 34, recoveredFromInvalidInput: true, reimported: true, rendered: false}));

@@ -1,3 +1,4 @@
+import { inspectCaptionOverlaps } from './caption-overlaps.mjs';
 import { message as msg } from '../i18n.mjs';
 import { inspectCaptions } from './caption-inspection.mjs';
 import { shiftCaptionTiming } from './caption-timing.mjs';
@@ -67,6 +68,7 @@ const definitions=[
   command('captions.timing.shift','선택한 시간 기준의 자막 전체를 배속 전 초 단위로 이동합니다. 범위를 벗어나면 변경하지 않습니다.',object({basis:choice('source','timeline'),delta:{type:'number'}},['basis','delta']),true),
   command('captions.style.update','자막의 공통 크기·위치·색상·표현만 수정합니다. 본문·시간과 SRT/VTT 내용은 유지합니다.',object({patch:captionStyleSchema},['patch']),true),
   command('captions.list','원본 순서의 자막을 제한된 페이지로 읽습니다. 시간 기준·문구·메타데이터는 변환하지 않습니다.',object({offset:{type:'integer',minimum:0,maximum:MAX_CAPTIONS},limit:{type:'integer',minimum:1,maximum:50}})),
+  command('captions.overlaps','컷과 배속을 반영한 출력 자막의 시간 겹침을 읽습니다. 각 해당 구간마다 대표 충돌 하나를 반환하며 편집하지 않습니다.',object({limit:{type:'integer',minimum:1,maximum:100}})),
   command('captions.inspect','편집·배속 후 자막의 공백 제외 결합 문자 수를 출력 초로 나눠 검사합니다. 호출자가 지정한 기준을 넘는 구간만 반환합니다.',object({maxGraphemesPerSecond:{type:'number',exclusiveMinimum:0},limit:{type:'integer',minimum:1,maximum:100}},['maxGraphemesPerSecond'])),
   command('captions.export','편집 구간과 배속을 반영한 SRT, WebVTT 또는 시간표시 없는 TXT 대본을 반환합니다.',object({format:choice('srt','vtt','txt')})),
   command('render.plan','렌더러가 사용할 프로젝트 스냅샷과 출력 설정을 반환합니다. 영상을 생성하지 않습니다.',object({quality:choice(720,1080),format:choice('mp4','webm')})),
@@ -123,6 +125,7 @@ export function prepareCommand(project,name,args={}){
     const totalCaptions=project.captions.length,next=offset+captions.length;
     return {data:{totalCaptions,offset,limit,nextOffset:next<totalCaptions?next:null,captions}};
   }
+  if(name==='captions.overlaps')return {data:inspectCaptionOverlaps(project,args)};
   if(name==='captions.inspect')return {data:inspectCaptions(project,args)};
   if(name==='captions.export')return {data:{format:args.format||'srt',text:projectSubtitles(project,args)}};
   if(name==='captions.import'){

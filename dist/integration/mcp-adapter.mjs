@@ -53,6 +53,16 @@ function dataSchema(command) {
       nextOffset:{type:['integer','null'],minimum:0,maximum:10000},
       captions:{type:'array',maxItems:50,items:record({captionIndex:{type:'integer',minimum:0,maximum:9999},caption:structuredClone(captionSchema)})},
     });
+    case 'captions.overlaps': return record({
+      metric: {const:'output-time-overlap'}, totalOccurrences: {type:'integer',minimum:0,maximum:10000},
+      flaggedOccurrences: {type:'integer',minimum:0,maximum:10000}, omittedOccurrences: {type:'integer',minimum:0,maximum:10000},
+      issues: {type:'array',maxItems:100,items:record({
+        occurrenceIndex:{type:'integer',minimum:0,maximum:9999},captionIndex:{type:'integer',minimum:0,maximum:9999},clipIndex:{type:'integer',minimum:0,maximum:999},
+        start:{type:'number',minimum:0},end:{type:'number',minimum:0},
+        otherOccurrenceIndex:{type:'integer',minimum:0,maximum:9999},otherCaptionIndex:{type:'integer',minimum:0,maximum:9999},otherClipIndex:{type:'integer',minimum:0,maximum:999},
+        otherStart:{type:'number',minimum:0},otherEnd:{type:'number',minimum:0},overlapStart:{type:'number',minimum:0},overlapEnd:{type:'number',minimum:0},
+      },['occurrenceIndex','captionIndex','start','end','otherOccurrenceIndex','otherCaptionIndex','otherStart','otherEnd','overlapStart','overlapEnd'])},
+    });
     case 'captions.inspect': return record({
       metric:{enum:['non-whitespace-graphemes-per-second']},maxGraphemesPerSecond:{type:'number',exclusiveMinimum:0},
       totalOccurrences:{type:'integer',minimum:0,maximum:10000},flaggedOccurrences:{type:'integer',minimum:0,maximum:10000},
@@ -112,6 +122,9 @@ function inputSchema(command) {
   if (command.name === 'captions.list') {
     p.offset.description = 'Zero-based authored array offset, default 0, integer 0–10,000. At or beyond the current count returns an empty page and nextOffset:null. This is ordinary tool pagination, not an MCP tools/list cursor. Pages are independent reads; indices may change after edits.';
     p.limit.description = 'Maximum returned authored cues, default 20, integer 1–50. Returns exact text and optional metadata without sorting, normalization, clipping, repetition or speed conversion. Missing basis means source; source and timeline times are both BEFORE speed. nextOffset is the next authored index or null. Read-only; does not change project/history.';
+  }
+  if (command.name === 'captions.overlaps') {
+    p.limit.description = 'Maximum affected output occurrences returned, integer 1–100; default 20. Counts are occurrences, not pairs. Each has one deterministic representative conflict, in output occurrence order. Times are output seconds after speed; touching endpoints do not overlap. No text, automatic fixes or renderer-visibility guarantee.';
   }
   if (command.name === 'captions.inspect') {
     p.maxGraphemesPerSecond.description = 'Required positive review threshold, not a universal language/Netflix standard. Count Intl grapheme clusters except whitespace-only clusters; punctuation and literal markup count. Rate uses each derived output occurrence after cuts/repeats/speed, not source duration. Does not assess speech alignment, rendered fit or export validity.';

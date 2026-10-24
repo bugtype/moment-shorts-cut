@@ -274,6 +274,22 @@ project/history/saved state or playback position. Search, replace-all and long-
 caption splitting still use the full authored list; exports retain full-project
 clip/speed behavior, not visible-page scope. The existing cue/byte limits remain.
 
+## Check overlapping caption times
+
+Call read-only `captions.overlaps` / `moment_captions_overlaps` with optional `limit`
+(1–100, default 20; MCP also needs `projectId:"session"`). It checks positive
+intersections of derived output occurrences after cuts, repetition and speed;
+touching boundaries do not count. It does not predict visibility or change ownership.
+
+Read total/flagged/omitted occurrence counts. Issues are occurrence-ordered and
+contain one representative conflict per flagged occurrence, **not all pairs**.
+All times are output seconds after speed; each side references the current authored
+caption and optional source clip. Use `captions.list` for text, never treat a derived
+occurrence as an independently editable cue, and re-run after edits. No automatic
+correction/history/save or batch admission; existing occurrence/text budgets apply.
+[Complete response fields and limits](../../../../docs/MCP.md#check-caption-time-overlaps)
+and [executable CLI workflow](../../../../INTEGRATIONS.md#자막-시간-겹침-점검).
+
 ## Inspect caption timing density
 
 After an edit, call `captions.inspect` / `moment_captions_inspect` with required

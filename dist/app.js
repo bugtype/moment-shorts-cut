@@ -1,3 +1,4 @@
+import { createCaptionOverlapDialog } from './caption-overlap-dialog.mjs';
 import { createSessionMedia } from './session-media.mjs';
 import { createSessionMediaDialog } from './session-media-dialog.mjs';
 import { createClipMove } from './clip-move.mjs';
@@ -191,9 +192,16 @@ const captionRowNavigation = createCaptionNavigation({
     blocked: () => panel !== 'captions' || !editorReady || exporting || loadingMedia || transcribing || !sessionMedia.mediaReady() || audioRecording.requesting || audioRecording.current,
     pause, seek: time => seekTo(time), toast: value => toast(value),
 });
+const captionOverlaps = createCaptionOverlapDialog({
+    getProject: () => state, getMedia: () => [sources.videoFile, sources.audioFile], query: $, modal,
+    openModal: (...args) => modalOpen(...args),
+    blocked: () => panel !== 'captions' || !editorReady || exporting || loadingMedia || transcribing || (persistence.restorePhase !== 'ready' && !(persistence.restorePhase === 'failed' && persistence.recoveryValid)) || audioRecording.requesting || audioRecording.current,
+    seekBlocked: () => !sessionMedia.mediaReady(), pause, seek: time => seekTo(time),
+    focusCaption: index => { switchPanel('captions'); focusCaption(index); }, toast: value => toast(value),
+});
 const captionPanel = createCaptionPanel({
     view: index => captionRowNavigation.open(index),
-    inspect: () => captionInspection.open(),
+    inspect: () => captionInspection.open(), overlaps: () => captionOverlaps.open(),
     execute: (command, args) => app.runEditorCommand(command, args),
     query: $, queryAll: $$,
     getProject: () => state,

@@ -49,7 +49,7 @@ its supported version, `2025-11-25`, even if the proposed version differs; a cli
 that cannot support that version should disconnect, not continue with another
 wire format. `ping` is supported. Initialize only once per process.
 
-All thirty-three tools require **`projectId: "session"`**. Each process owns one independent
+All thirty-four tools require **`projectId: "session"`**. Each process owns one independent
 in-memory project, initially the demo. This value is neither a path nor a credential.
 Other project IDs return a tool error. A second client process does not share state.
 
@@ -122,6 +122,7 @@ that validation.
 | `moment_templates_list` | none | Built-in template summaries: `id`, `name`, `category`, `description` |
 | `moment_captions_export` | optional `format: "srt"`, `"vtt"` or `"txt"` | `{format, text}` with the selected format |
 | `moment_captions_list` | optional `offset`, `limit` | Authored cue page with current array indexes |
+| `moment_captions_overlaps` | optional `limit` | Read-only output-time overlap report |
 | `moment_captions_inspect` | `maxGraphemesPerSecond`, optional `limit` | Read-only output-occurrence rate report |
 | `moment_render_plan` | optional `quality`, `format` | Plan, project snapshot, output settings, required media and `rendered:false` |
 
@@ -335,7 +336,7 @@ the example. Discover exact input fields in the [tool catalog](#tool-catalog).
 
 | Task | Recipes |
 |---|---|
-| Captions | [Inspect timing density](#inspect-caption-timing-density) · [Import](#import-subtitle-text-with-an-explicit-clock) · [Split](#split-one-caption-at-a-text-boundary) · [Merge](#merge-two-adjacent-authored-captions) · [Insert/remove](#insert-or-remove-one-authored-caption) · [Edit one cue](#edit-one-authored-caption) · [Correct text](#correct-caption-text-without-replacing-cues) · [Shift timing](#shift-caption-timing-without-replacing-text) · [Style](#adjust-global-caption-appearance) |
+| Captions | [Check overlaps](#check-caption-time-overlaps) · [Inspect timing density](#inspect-caption-timing-density) · [Import](#import-subtitle-text-with-an-explicit-clock) · [Split](#split-one-caption-at-a-text-boundary) · [Merge](#merge-two-adjacent-authored-captions) · [Insert/remove](#insert-or-remove-one-authored-caption) · [Edit one cue](#edit-one-authored-caption) · [Correct text](#correct-caption-text-without-replacing-cues) · [Shift timing](#shift-caption-timing-without-replacing-text) · [Style](#adjust-global-caption-appearance) |
 | Timeline | [Split a clip](#split-one-clip-occurrence) · [Repeat a clip](#repeat-one-clip-occurrence) · [Move a clip](#move-one-clip-to-a-final-position) |
 | Composition | [Credit](#set-a-source-credit-independently) · [Effects](#adjust-video-effects-independently) · [Edit a card](#edit-an-existing-timed-card) · [Add/remove cards](#create-scripted-cards-without-importing-a-whole-project) · [Stacking](#change-card-stacking) |
 | Grouped/template edits | [One commit](#apply-related-edits-in-one-commit) · [Export a composition](#export-the-current-composition-as-a-template) · [Apply a template file](#apply-an-exported-custom-template) |
@@ -626,6 +627,43 @@ backup documents. Each request reads live state: no snapshot, stable revision or
 cross-writer guarantee. Re-read after structural edits or uncertain mutations;
 do not keep an index across a split, merge or replacement without checking it.
 This read-only tool changes no history and is not allowed inside `project.batch`.
+
+### Check caption time overlaps
+
+Call read-only `moment_captions_overlaps` after editing:
+
+```json
+{"projectId":"session","limit":20}
+```
+
+`limit` is an optional integer 1–100, default 20. Unknown fields, null or invalid
+values return `INVALID_ARGUMENT`. Cuts, repeated clips, mixed source/timeline cues
+and speed use the existing caption-occurrence mapping. A positive time intersection
+counts; touching endpoints do not. This does not predict rendered visibility,
+change overlap priority or automatically edit captions.
+
+| Result field | Meaning |
+|---|---|
+| `metric` | `"output-time-overlap"` |
+| `totalOccurrences` | All derived output occurrences |
+| `flaggedOccurrences` | Exact count of occurrences intersecting at least one other occurrence—not number of pairs |
+| `omittedOccurrences` | Flagged occurrences absent from `issues` because of the limit |
+| `issues[].occurrenceIndex`, `captionIndex`, optional `clipIndex` | Current zero-based output-occurrence, authored cue and source clip indexes |
+| `start`, `end` | This occurrence’s output seconds after speed |
+| `otherOccurrenceIndex`, `otherCaptionIndex`, optional `otherClipIndex`, `otherStart`, `otherEnd` | One representative conflicting occurrence and its output interval |
+| `overlapStart`, `overlapEnd` | Positive intersection interval in output seconds |
+
+Issues are in occurrence order, not ranked by severity. Each flagged occurrence
+gets at most one representative conflict; this is **not an exhaustive pair list**.
+The scan uses a prior maximum-end witness (stable ties); an unmarked witness gets
+its first later conflict. Read omitted counts before treating the displayed subset
+as the whole report. No full caption text is returned. Retrieve `captions.list` to
+review the current authored cue, and re-inspect after edits instead of reusing
+stale indexes. Existing 10,000-derived-cue and 2 MiB raw-text budgets apply.
+Invalid/nonpositive derived intervals return `INVALID_ARGUMENT`; derived cue/byte
+overflow returns `CAPTION_OUTPUT_LIMIT`, not a partial diagnostic report.
+The tool is excluded from `project.batch` and does not save or create history.
+See the [runnable CLI overlap recipe](../INTEGRATIONS.md#자막-시간-겹침-점검).
 
 ### Inspect caption timing density
 

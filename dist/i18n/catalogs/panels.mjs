@@ -1,5 +1,11 @@
 // Flat semantic keys; keep each Korean, English and Simplified Chinese entry aligned.
 const entries = {
+  "panels.subtitleImportMode": ["가져오기 동작","Import action","导入操作"],
+  "panels.subtitleImportReplace": ["전체 교체","Replace all","全部替换"],
+  "panels.subtitleImportAppend": ["기존 자막 유지 후 추가","Keep existing and add","保留现有字幕并添加"],
+  "panels.subtitleAdd": ["자막 추가","Add captions","添加字幕"],
+  "panels.subtitleImportModeInvalid": ["올바른 가져오기 동작을 선택하세요.","Choose a valid import action.","请选择有效的导入操作。"],
+  "panels.subtitleAppendWarning": ["기존 작성 행 뒤에 추가하며 시간을 이동하거나 정렬·병합하지 않습니다. 겹치는 자막은 가려질 수 있고 같은 파일을 다시 추가하면 중복됩니다.","Adds after existing authored rows without shifting times, sorting or merging. Overlapping captions may be hidden; adding the same file again duplicates them.","添加到现有编写行之后，不移动时间、不排序或合并。重叠字幕可能被遮挡；再次添加同一文件会产生重复。"],
   "panels.captionExportScope": ["자막 저장 범위","Caption export scope","字幕导出范围"],
   "panels.captionExportAll": ["전체 자막","All captions","全部字幕"],
   "panels.captionExportRows": ["작성 행 범위…","Authored row range…","编写行范围…"],

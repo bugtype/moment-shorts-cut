@@ -416,7 +416,8 @@ This does not edit, seek, pause, save project settings or add undo history. Revi
 | Merge adjacent captions | [`captions.merge`](INTEGRATIONS.md#인접한-자막-합치기) or row action **Merge with next caption** | Combines the next authored row, even across pages. Requires matching clock/speaker/keywords and non-overlapping chronological times; merged text also appears across any gap. One browser undo step. |
 | Change appearance | [`captions.style.update`](INTEGRATIONS.md#자막-스타일-수정) | Size, position, colors, animation and the two speaker labels/colors: only supplied fields change, without resubmitting the project. Visual styles are absent from plain SRT/VTT. |
 | Clear keyword emphasis | **Text → Dialogue → Clear keyword emphasis…**, then confirm | Clears global and every cue’s keyword fields in one undo step, not caption text/timing/speakers or highlight-box styling. Cancel or already-empty keywords add no edit; if the project changes, reopen to confirm. |
-| Import subtitle text | [`captions.import`](INTEGRATIONS.md#srtvtt-본문을-명령으로-가져오기) | Replaces all captions. Supply contents, not a path, and source/timeline time **before speed**, not output time. API: 100,000 UTF-16 code units; browser files: 2 MiB. |
+| Add caption rows without replacing work | [`captions.append`](INTEGRATIONS.md#기존-자막을-유지하며-여러-행-추가) | Nonempty cue array; keeps existing rows/metadata, including out-of-output cues. Combined limit 10,000; no sorting, shifting or deduplication. Retrying an accepted append duplicates cues. |
+| Import subtitle text | [`captions.import`](INTEGRATIONS.md#srtvtt-본문을-명령으로-가져오기) | Default `replace` replaces all captions; `mode:"append"` keeps existing rows and adds parsed cues. Supply contents, not a path, and source/timeline time **before speed**, not output time. API: 100,000 UTF-16 code units; browser files: 2 MiB. |
 
 **View in video** on a caption row pauses and seeks its temporal occurrence without
 editing, saving, adding history or autoplaying. Repeated source clips open a chooser
@@ -470,15 +471,16 @@ caption** if empty. Playback pauses but keeps its position. Cancel makes no addi
 the dialog may already commit a row edit through the field’s normal blur/change behavior. Re-read positions after structural edits;
 valid failed-recovery edits still need a settings backup, not browser saving.
 
-**Import SRT/VTT in the browser:** back up settings first; confirmation replaces
-**all captions**, not just the visible page. Select the file and its actual clock:
+**Import SRT/VTT in the browser:** back up settings first. Choose **Replace all**
+(default) or **Keep existing and add**, then select the file and its actual clock:
 
 | Import clock | Use for |
 |---|---|
 | **Original media** (default) | Timestamps measured against the original source, before speed |
 | **Edited output** | Timestamps of the current edited result, after speed; each parsed time is converted to stored timeline time using the captured speed |
 
-Choose **Review file** to read and parse without editing captions, then check the counts before **Replace**.
+Choose **Review file** to read and parse without editing captions, then check the
+counts before explicitly replacing or adding. Add mode also shows the combined total against the 10,000-row limit.
 
 | Review count | Meaning |
 |---|---|
@@ -486,9 +488,23 @@ Choose **Review file** to read and parse without editing captions, then check th
 | Of these, end times clipped | Accepted cues whose end was shortened to the selected duration; included in Captions to import, not additional cues |
 | Recognized entries discarded | Pattern-matched candidates dropped because parsed text was empty or the clipped interval was nonpositive |
 
-Malformed/unrecognized entries are **not counted**: these are not total-file counts or full SRT/VTT validation. File/clock changes clear the review; project/media/dialog changes invalidate it. Replace uses the reviewed private file data, not a second read. A successful full replacement is one undoable edit and keeps the playhead position.
-Choose **Replace** only after checking the clock and review; no automatic detection or
-existing-cue migration occurs. Exported subtitles already expand repeated cuts;
+Malformed/unrecognized entries are **not counted**: these are not total-file counts
+or full SRT/VTT validation. File/clock/action changes clear the review; project,
+media or dialog changes invalidate it. Confirmation uses the reviewed private
+file data, not a second read. Either mode
+is one undoable edit and keeps the playhead position; addition focuses the first
+new row. Check the clock and review before confirming; no automatic detection or
+existing-cue migration occurs.
+
+**Keep existing and add** preserves existing rows, speakers, keywords and authored
+order—even valid captions outside the current edited timeline. It adds imported
+rows at the end of the list, not at the end of the video; absolute times stay as
+provided. It does not sort, offset, merge or deduplicate, and imported files do not
+restore speaker metadata. Reimporting in add mode duplicates cues; overlapping
+captions may be hidden. Replace all continues to discard all old captions, not
+merely the visible page.
+
+Exported subtitles already expand repeated cuts;
 output-clock import keeps those as timeline cues, rather than mapping them back to
 source occurrences. Later cuts/speed changes follow existing timeline-caption rules.
 **Set added-audio offset before importing output-clock subtitles:** the existing
@@ -497,7 +513,9 @@ cues, not just audio-generated captions. If moved accidentally, undo the whole
 offset edit; later cuts do not automatically realign the imported file.
 This is not a lossless round trip: exported millisecond rounding, stripped markup
 and missing speaker/style/keyword metadata are not recovered. Cancel or a rejected/
-stale import leaves captions unchanged. CLI/MCP `captions.import` still accepts
+stale import leaves captions unchanged. The legacy hidden picker and default programmatic imports remain
+source-clock replacement. Valid failed-recovery edits remain in memory with browser
+persistence blocked. CLI/MCP `captions.import` still accepts
 only source or **pre-speed** timeline clocks—not this browser output choice.
 
 For a delay affecting only part of the subtitle list, choose **Shift range…** in
@@ -619,7 +637,7 @@ edits still need a settings backup before reloading.
 
 Run `node examples/use-mcp-client.mjs` for an executable handshake → import → edit → SRT → restart/reimport example. It launches local Node processes and keeps its exported document in memory; it does not write your files or connect to a browser.
 
-**Optional smaller MCP tool list:** [`--tools`](docs/MCP.md#choose-a-smaller-tool-list-optional) selects direct commands for one process; default remains all 40. Include import/get for document handoff; if get is omitted, selected `render.plan` can return the document in `data.project` (not the whole plan). This is not a security or read-only boundary: selected batch/preview retains its full nested command set.
+**Optional smaller MCP tool list:** [`--tools`](docs/MCP.md#choose-a-smaller-tool-list-optional) selects direct commands for one process; default remains all 41. Include import/get for document handoff; if get is omitted, selected `render.plan` can return the document in `data.project` (not the whole plan). This is not a security or read-only boundary: selected batch/preview retains its full nested command set.
 
 **MCP changes disappear when its process exits.** Retrieve `moment_project_get` and save `structuredContent.data` through your client's authorized file workflow. The bundled server has one temporary `session` project, not your open browser project.
 

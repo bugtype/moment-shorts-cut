@@ -1,3 +1,4 @@
+import { prepareCaptionInsertion, validateIncomingCaptions } from './caption-insertion.mjs';
 import { splitLongCaptions } from './caption-split-long.mjs';
 import { commandDefinition, isBatchCommand } from './command-catalog.mjs';
 import { outputDimensions } from './aspect-ratio.mjs';
@@ -195,10 +196,10 @@ export function prepareCommand(project, name, args = {}) {
       fail((error.messageKey ? error : error.message) || msg('errors.subtitleText'), 'arguments.text');
     }
     captions = captions.map(caption => ({ ...caption, basis: args.basis }));
-    const prepared = prepareCommand(project, 'captions.replace', { captions });
+    const prepared = prepareCommand(project, args.mode === 'append' ? 'captions.append' : 'captions.replace', { captions });
     return {
-      ...prepared,
-      data: { ...prepared.data, importedCaptions: captions.length }
+      project: prepared.project,
+      data: { updated: prepared.data.updated, outputDuration: prepared.data.outputDuration, importedCaptions: captions.length }
     };
   }
   if (name === 'timeline.move') {
@@ -249,28 +250,8 @@ export function prepareCommand(project, name, args = {}) {
     validateProject(next);
     return { project: next, data };
   }
-  if (name === 'captions.insert') {
-    const index = args.captionIndex,
-      caption = args.caption;
-    if (!Number.isInteger(index) || index < 0 || index > project.captions.length)
-      fail(msg('errors.insertCaptionIndex'), 'arguments.captionIndex');
-    if (project.captions.length >= MAX_CAPTIONS) fail(msg('errors.captionLimit'), 'project.captions');
-    const total = caption.basis === 'timeline' ? timelineDuration(project) : project.duration;
-    if (caption.end <= caption.start || caption.end > total)
-      fail(msg('errors.insertCaptionClock'), 'arguments.caption');
-    const next = structuredClone(project);
-    next.captions.splice(index, 0, structuredClone(caption));
-    validateProject(next);
-    return {
-      project: next,
-      data: {
-        updated: true,
-        captionIndex: index,
-        totalCaptions: next.captions.length,
-        outputDuration: outputDuration(next)
-      }
-    };
-  }
+  if (name === 'captions.insert' || name === 'captions.append')
+    return prepareCaptionInsertion(project, args, name === 'captions.append');
   if (name === 'captions.remove') {
     const index = args.captionIndex;
     if (!Number.isInteger(index) || index < 0 || index >= project.captions.length)
@@ -488,10 +469,7 @@ export function prepareCommand(project, name, args = {}) {
   } else if (name === 'title.update') Object.assign(next.design.title, args.patch);
   else if (name === 'captions.style.update') Object.assign(next, structuredClone(args.patch));
   else if (name === 'captions.replace') {
-    const total = timelineDuration(next);
-    for (const [i, c] of args.captions.entries())
-      if (c.end <= c.start || c.end > (c.basis === 'timeline' ? total : next.duration))
-        fail(msg('errors.captionClock'), `arguments.captions[${i}]`);
+    validateIncomingCaptions(next, args.captions);
     next.captions = structuredClone(args.captions);
   }
   if (name === 'project.update' || name === 'timeline.replace') retimeOutputLayers(next, before, outputDuration(next));

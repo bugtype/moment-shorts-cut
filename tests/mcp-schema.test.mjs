@@ -56,6 +56,7 @@ const inputs = {
   'captions.insert': {captionIndex:0,caption:{start:0,end:1,text:'추가'}},
   'captions.remove': {captionIndex:0},
   'captions.update': {captionIndex:0,patch:{text:'개별 자막'}},
+  'captions.append': { captions: [{ start: 0, end: 1, text: 'Added' }] },
   'captions.replace': { captions: [{ start: 0, end: 1, text: '자막' }] },
   'captions.text.replace': {find:'자막',replacement:'교정'},
   'captions.timing.shift': {basis:'source',delta:.1},

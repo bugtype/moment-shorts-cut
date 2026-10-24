@@ -73,7 +73,7 @@ and saving user documents; neither is added implicitly. If get is omitted but
 to save—not the whole plan. Without either read tool there is no full-document
 handoff. Selection is per-process,
 not authentication/read-only isolation: selected `project.batch`/`project.preview`
-still accept their full 26-command nested schemas, even for omitted direct tools.
+still accept their full 27-command nested schemas, even for omitted direct tools.
 Use actual tools/list and preserve the full document before restarting. See the
 [optional startup configuration](../../../../docs/MCP.md#choose-a-smaller-tool-list-optional).
 

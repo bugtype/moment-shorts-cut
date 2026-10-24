@@ -1,6 +1,7 @@
 export const messages = {
     ko: {
         'importReview.review': '파일 검토',
+        'importReview.afterImport': '가져온 뒤 총 자막 (최대 {limit})',
         'importReview.expired': '검토 결과가 만료되었습니다. 파일을 다시 검토해 주세요.',
         'importReview.accepted': '가져올 자막',
         'importReview.clipped': '그중 끝 시간이 잘린 자막',
@@ -9,6 +10,7 @@ export const messages = {
     },
     en: {
         'importReview.review': 'Review file',
+        'importReview.afterImport': 'Total after import (limit {limit})',
         'importReview.expired': 'This review has expired. Review the file again.',
         'importReview.accepted': 'Captions to import',
         'importReview.clipped': 'Of these, end times clipped',
@@ -17,6 +19,7 @@ export const messages = {
     },
     'zh-CN': {
         'importReview.review': '检查文件',
+        'importReview.afterImport': '导入后总数（上限 {limit}）',
         'importReview.expired': '检查结果已失效。请重新检查文件。',
         'importReview.accepted': '将导入的字幕',
         'importReview.clipped': '其中结束时间被截短的字幕',

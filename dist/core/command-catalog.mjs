@@ -188,8 +188,8 @@ const definitions = [
   ),
   command(
     'captions.import',
-    'SRT/VTT 문자열로 자막 전체를 교체합니다. source 또는 배속 전 timeline 시간 기준을 명시하세요.',
-    object({text: string(100000), basis: choice('source', 'timeline')}, ['text', 'basis']),
+    'SRT/VTT 문자열로 자막을 가져옵니다. 기본 replace는 전체 교체, append는 기존 행 뒤에 추가합니다. source 또는 배속 전 timeline 기준을 명시하세요.',
+    object({text: string(100000), basis: choice('source', 'timeline'), mode: choice('replace', 'append')}, ['text', 'basis']),
     true
   ),
   command(
@@ -214,6 +214,12 @@ const definitions = [
     'captions.insert',
     '원본 순서의 지정한 위치에 자막 하나를 삽입합니다. 기존 자막의 상대 순서와 시간은 유지합니다.',
     object({captionIndex: {type: 'integer', minimum: 0, maximum: MAX_CAPTIONS}, caption: captionSchema}, ['captionIndex', 'caption']),
+    true
+  ),
+  command(
+    'captions.append',
+    '기존 자막을 유지하고 원본 배열 끝에 자막들을 추가합니다. 시간 정렬·이동은 하지 않으며 재시도하면 중복 추가됩니다.',
+    object({captions: array(captionSchema, MAX_CAPTIONS, 1)}, ['captions']),
     true
   ),
   command(
@@ -308,7 +314,7 @@ const batchCommands = [
   'project.update', 'effects.update', 'template.apply', 'template.apply.document',
   'timeline.move', 'timeline.duplicate', 'timeline.split', 'timeline.replace', 'credit.update', 'title.update',
   'overlays.move', 'overlays.add', 'overlays.remove', 'overlays.update',
-  'captions.import', 'captions.split', 'captions.split.long', 'captions.merge', 'captions.replace', 'captions.update', 'captions.insert', 'captions.remove',
+  'captions.import', 'captions.split', 'captions.split.long', 'captions.merge', 'captions.replace', 'captions.update', 'captions.insert', 'captions.append', 'captions.remove',
   'captions.text.replace', 'captions.timing.shift', 'captions.style.update', 'captions.speaker.assign',
 ];
 definitions.push(command(

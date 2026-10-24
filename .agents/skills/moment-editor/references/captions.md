@@ -11,6 +11,7 @@ Use the essential boundaries in [SKILL.md](../SKILL.md). If needed, consult shar
 
 | Task | Section |
 |---|---|
+| Add cues without replacing existing captions | [Open](#append-captions-without-replacing-existing-rows) |
 | Import SRT/VTT without constructing cue arrays | [Open](#import-srtvtt-without-constructing-cue-arrays) |
 | Read a caption page | [Open](#read-a-caption-page) |
 | Insert one cue or remove a range | [Open](#insert-one-cue-or-remove-a-range) |
@@ -25,10 +26,31 @@ Use the essential boundaries in [SKILL.md](../SKILL.md). If needed, consult shar
 | Assign a speaker across authored rows | [Open](#assign-a-speaker-across-authored-rows) |
 | Subtitle format boundaries | [Open](#subtitle-format-boundaries) |
 
+## Append captions without replacing existing rows
+
+Use `captions.append` / `moment_captions_append` with a nonempty `captions` array
+of 1–10,000 cue objects. The combined authored list must remain at most 10,000.
+Incoming times must fit their source or pre-speed timeline clock; omitted `basis`
+is source. Existing rows remain byte-for-byte equivalent in content, timing,
+metadata and order, including valid rows outside the current edited timeline.
+New rows are appended in supplied order—no sorting, shifting, deduplication,
+speaker inference or replacement. Existing speaker labels and project style remain.
+Overlapping cues can obscure each other; append is not an overlap-resolution tool.
+
+```json
+{"projectId":"session","captions":[{"start":1,"end":2,"text":"Additional line","basis":"source"}]}
+```
+
+Success returns only `{updated:true, outputDuration}`. Empty input and invalid or
+over-cap bundles reject atomically. This command supports batch and preview.
+**Append is not idempotent:** repeating a successful call duplicates cues. After
+an uncertain response, read the project before retrying; save the resulting
+project document separately.
+
 ## Import SRT/VTT without constructing cue arrays
 
 Use CLI `captions.import` or MCP `moment_captions_import` with required `text` and
-`basis`. `text` must contain the file contents, not a path. For MCP:
+`basis`, plus optional `mode:"replace"|"append"` (default `replace`). `text` must contain the file contents, not a path. For MCP:
 
 ```json
 {"projectId":"session","basis":"source","text":"1\n00:00:01,000 --> 00:00:02,000\nHello\n"}
@@ -37,30 +59,38 @@ Use CLI `captions.import` or MCP `moment_captions_import` with required `text` a
 Choose `source` for original media seconds or `timeline` for edited-timeline
 seconds; **both are before playback speed**. This command has no output-clock option or
 automatic reversal of trim/speed. Do not promise that importing exported subtitles
-restores the original project. The command replaces all captions atomically, so
-retain the prior project when reversibility matters.
+restores the original project. Default/`replace` replaces all captions atomically;
+`append` keeps existing rows and adds parsed cues under the append contract above.
+Retain the prior project when reversibility matters; retrying append can duplicate cues.
 
 The browser's dedicated file dialog separately offers **Original media** (default)
-or **Edited output**, then **Review file** before explicit **Replace**. Review
+or **Edited output**, and **Replace all** (default) or **Keep existing and add**.
+Choose **Review file** before the explicit replacement/addition. Review
 parses without editing and caches the reviewed data. Counts are accepted cues,
 clipped accepted cues (a subset) and discarded recognized candidates only; malformed/
-unrecognized content is not counted, so this is not full-file validation. File/clock
+unrecognized content is not counted, so this is not full-file validation. Add mode
+also shows the combined total against 10,000. File/clock/action
 changes clear review; stale project/media/modal context requires a fresh review.
-CLI/MCP and legacy programmatic import still replace immediately with the existing
-acknowledgment, not this browser report. Output mode parses against current
+CLI/MCP commits immediately using its chosen mode and existing acknowledgment,
+not this browser report. Legacy programmatic import still defaults to replacement.
+Output mode parses against current
 output duration and multiplies times by the captured speed into existing timeline
 cues (a parser-clipped final endpoint uses the exact captured timeline end).
 The existing parser may clip ends/skip invalid or out-of-range cues; successful
-replacement is one browser undo step and keeps the playhead position.
+replacement/addition is one browser undo step and keeps the playhead position.
+Addition focuses the first new authored row; a consumed review cannot commit twice.
 It does not infer a clock or map repeated output occurrences back to source
-cues. Back up settings first: the entire caption array is replaced. Millisecond
+cues. Back up settings first: Replace all discards the entire old caption array.
+Add preserves existing cue metadata; imported SRT/VTT does not restore that metadata.
+Millisecond
 quantization and missing speaker/style/keyword metadata prevent lossless recovery.
 Set added-audio offset before output-clock import: the existing browser control
 shifts **all timeline-basis cues**, including imported ones, not only audio-generated
 cues. Undo the entire offset edit if accidental. Later cuts do not automatically
 realign imported subtitles; speed/cuts keep existing timeline semantics.
 Legacy `importSrt(file)` and
-the hidden picker remain source-only; no new CLI/MCP basis or schema is introduced.
+the hidden picker remain source-only replacement. No new CLI/MCP clock is introduced.
+Valid failed-recovery edits remain in memory; browser persistence stays blocked.
 
 
 The [CLI args-file recipe](../../../../INTEGRATIONS.md#srt-파일을-명령-인수로-감싸기)

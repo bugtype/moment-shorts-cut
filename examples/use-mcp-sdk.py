@@ -116,11 +116,34 @@ async def main():
         await call(client, "moment_project_import", {"document": restored_document})
         assert await call(client, "moment_project_get") == handoff
 
+    # Dedicated append/import calls exercise their closed output schemas in the SDK.
+    async with session() as (client, _, tools):
+        assert len(tools.tools) == 41
+        document = await call(client, "moment_project_get")
+        document["project"]["clips"] = [{"start": 0, "end": 2}]
+        original = {"start": 5, "end": 6, "text": "Preserved outside output",
+                    "basis": "timeline", "speaker": "1", "keywords": "keep"}
+        document["project"]["captions"] = [original]
+        await call(client, "moment_project_import", {"document": document})
+        added = {"start": 0, "end": 1, "text": "Added", "basis": "timeline"}
+        ack = await call(client, "moment_captions_append", {"captions": [added]})
+        assert ack == {"updated": True, "outputDuration": 2}
+        before = await call(client, "moment_project_get")
+        await call(client, "moment_captions_append", {"captions": []}, error="INVALID_ARGUMENT")
+        assert await call(client, "moment_project_get") == before
+        imported = await call(client, "moment_captions_import", {
+            "text": "1\n00:00:00,000 --> 00:00:01,000\nImported",
+            "basis": "source", "mode": "append",
+        })
+        assert imported == {"updated": True, "outputDuration": 2, "importedCaptions": 1}
+        after = await call(client, "moment_project_get")
+        assert after["project"]["captions"][:2] == [original, added]
+
     print(json.dumps({
         "ok": True, "sdk": f"mcp {SDK_VERSION}", "protocol": protocol,
         "tools": tool_count, "recoveredError": failure["code"],
         "handoffVerified": True, "subtitleFormat": subtitles["format"],
-        "filesWritten": False,
+        "filesWritten": False, "appendVerified": True,
     }))
 
 

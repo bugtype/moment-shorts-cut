@@ -1,8 +1,9 @@
 import { text, mark, t, message, setValidity, setText } from './i18n.mjs';
 import { esc } from './ui-format.mjs';
+import { MAX_CAPTIONS } from './captions.mjs';
 import { CommandError } from './core/validation.mjs';
 
-// This dialog owns its file and clock choice; legacy hidden imports remain source-only.
+// This dialog owns file, clock and action choices; legacy imports still replace in source time.
 export function createCaptionImportDialog(app, blocked) {
     const $ = app.query;
     let generation = 0;
@@ -20,13 +21,16 @@ export function createCaptionImportDialog(app, blocked) {
             message('panels.importSrt'),
             `<label class="panel-label" for="subtitleImportFile">${text('panels.subtitleFile')}</label><input class="panel-input" id="subtitleImportFile" type="file" accept=".srt,.vtt,text/plain,text/vtt" required>` +
             `<label class="panel-label" for="subtitleImportClock">${text('panels.subtitleClock')}</label><select class="panel-select" id="subtitleImportClock"><option value="source" ${mark('panels.subtitleClockSource')}>${esc(t('panels.subtitleClockSource'))}</option><option value="output" ${mark('panels.subtitleClockOutput')}>${esc(t('panels.subtitleClockOutput'))}</option></select>` +
-            `<p class="notice">${text('panels.subtitleReplaceWarning')}</p><div id="subtitleImportReport" aria-live="polite"></div>`,
+            `<label class="panel-label" for="subtitleImportMode">${text('panels.subtitleImportMode')}</label><select class="panel-select" id="subtitleImportMode"><option value="replace" ${mark('panels.subtitleImportReplace')}>${esc(t('panels.subtitleImportReplace'))}</option><option value="append" ${mark('panels.subtitleImportAppend')}>${esc(t('panels.subtitleImportAppend'))}</option></select>` +
+            `<p class="notice" id="subtitleImportWarning">${text('panels.subtitleReplaceWarning')}</p><div id="subtitleImportReport" aria-live="polite"></div>`,
             `<div class="modal-foot"><button class="button" id="cancelSubtitleImport">${text('shell.cancel')}</button><button class="button primary" id="confirmSubtitleImport">${text('importReview.review')}</button></div>`
         );
 
         const fileInput = $('#subtitleImportFile');
         const clock = $('#subtitleImportClock');
+        const action = $('#subtitleImportMode');
         const confirm = $('#confirmSubtitleImport');
+        action.value = 'replace';
         clock.value = 'source';
         let attemptVersion = 0;
         let pending = false;
@@ -77,7 +81,7 @@ export function createCaptionImportDialog(app, blocked) {
             }
 
             const file = fileInput.files?.[0];
-            const mode = clock.value;
+            const mode = clock.value, importMode = action.value;
             if (!file) {
                 setValidity(fileInput, 'panels.subtitleChooseFile');
                 fileInput.reportValidity?.();
@@ -89,16 +93,21 @@ export function createCaptionImportDialog(app, blocked) {
                 return;
             }
 
+            if (!['replace', 'append'].includes(importMode)) {
+                app.toast(message('panels.subtitleImportModeInvalid')); return;
+            }
+
             const attemptOwner = prepared ? attemptVersion : ++attemptVersion;
             pending = true;
             confirm.disabled = true;
             const isCurrent = () => ownsDialog() && attemptOwner === attemptVersion &&
-                fileInput.files?.[0] === file && clock.value === mode;
+                fileInput.files?.[0] === file && clock.value === mode && action.value === importMode;
             try {
                 const result = prepared ? await prepared.commit() : await app.importSrt(file, {
                     prepareOnly: true,
                     owned: true,
                     clock: mode,
+                    mode: importMode,
                     isCurrent,
                     beforeCommit: () => {
                         if (!isCurrent() || !originalContextIsCurrent() || blocked()) {
@@ -123,13 +132,14 @@ export function createCaptionImportDialog(app, blocked) {
                         [['accepted', counts.acceptedCaptions], ['clipped', counts.clippedCaptions],
                          ['discarded', counts.discardedRecognizedEntries]].map(([key, count]) =>
                             `<div class="modal-field"><span>${text('importReview.' + key)}</span><strong>${esc(String(count))}</strong></div>`).join('') +
+                        `<div class="modal-field"><span>${text('importReview.afterImport', {limit:MAX_CAPTIONS})}</span><strong>${counts.acceptedCaptions + (importMode === 'append' ? project.captions.length : 0)}</strong></div>` +
                         `<p class="modal-copy">${text('importReview.limitations')}</p>`;
-                    setText(confirm, 'panels.subtitleReplace');
+                    setText(confirm, importMode === 'append' ? 'panels.subtitleAdd' : 'panels.subtitleReplace');
                     return result;
                 }
                 if (result.ok) {
                     close();
-                    app.focusCaption(0);
+                    app.focusCaption(importMode === 'append' ? project.captions.length : 0);
                     app.toast(result.message);
                 } else {
                     app.toast(result.error);
@@ -144,7 +154,7 @@ export function createCaptionImportDialog(app, blocked) {
             }
         };
 
-        for (const input of [fileInput, clock]) {
+        for (const input of [fileInput, clock, action]) {
             input.onchange = () => {
                 if (ownsDialog()) {
                     attemptVersion++;
@@ -152,6 +162,7 @@ export function createCaptionImportDialog(app, blocked) {
                     confirm.disabled = false;
                     setValidity(fileInput, '');
                     clearReview();
+                    setText($('#subtitleImportWarning'), action.value === 'append' ? 'panels.subtitleAppendWarning' : 'panels.subtitleReplaceWarning');
                 }
             };
             input.oncompositionstart = () => {

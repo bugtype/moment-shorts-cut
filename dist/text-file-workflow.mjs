@@ -102,7 +102,8 @@ export function createTextFileWorkflow({
         const current = () => (!request || request.isLatest()) && (!options.isCurrent || options.isCurrent());
         try {
             request = guardTextImport();
-            const project = getProject(), clock = options.clock || 'source';
+            const project = getProject(), clock = options.clock || 'source', mode = options.mode ?? 'replace';
+            if (!['replace','append'].includes(mode)) throw new LocalizedError(msg('panels.subtitleImportModeInvalid'));
             if (!['source','output'].includes(clock)) throw new LocalizedError(msg('panels.subtitleClockInvalid'));
             const duration = clock === 'output' ? outputDuration(project) : project.duration;
             const speed = project.speed, total = timelineDuration(project);
@@ -130,7 +131,7 @@ export function createTextFileWorkflow({
                 inFlight = true;
                 try {
                     beforeCommit();
-                    const result = await execute('captions.replace', { captions }, beforeCommit);
+                    const result = await execute(mode === 'append' ? 'captions.append' : 'captions.replace', { captions }, beforeCommit);
                     if (result.ok) consumed = true;
                     if (!current()) return {ok:false,stale:true};
                     if (!result.ok) {

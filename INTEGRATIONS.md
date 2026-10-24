@@ -389,7 +389,8 @@ JavaScript에서 직접 호출할 때도 JSON으로 왕복 가능한 값을 전�
 | `captions.merge` | `captionIndex` | 다음 저장 행과 병합; `{updated:true, outputDuration, mergedCaptionIndex}` |
 | `captions.split.long` | 선택 `limit`, `captionIndex`, `count` | 긴 자막 분할; `{updated, changedCaptions, addedCaptions, outputDuration}` |
 | `captions.split` | `captionIndex`, `textOffset` | 지정 자막을 둘로 분할; `{updated:true, outputDuration, createdCaptionIndex}` |
-| `captions.import` | `text`, `basis` | 전체 교체; `{updated:true, outputDuration, importedCaptions}` |
+| `captions.import` | `text`, `basis`, 선택 `mode` | 기본 전체 교체, `mode:"append"`는 추가; `{updated:true, outputDuration, importedCaptions}` |
+| `captions.append` | 비어 있지 않은 `captions` 배열 | 기존 행 유지·끝에 추가; `{updated:true, outputDuration}` |
 | `captions.text.replace` | `find`, `replacement`, 선택 `captionIndex`, `count` | 문구 모두 바꾸기; `{updated, matches, changedCaptions}` |
 | `captions.style.update` | `patch` | 공통 자막 스타일; `{updated:true, outputDuration}` |
 | `captions.speaker.assign` | `captionIndex`, `count`, `speaker` | 연속 작성 행의 화자 배정; `{updated, changedCaptions, outputDuration}` |
@@ -410,7 +411,7 @@ JavaScript에서 직접 호출할 때도 JSON으로 왕복 가능한 값을 전�
 ### 편집 묶음의 반영 전 요약
 
 `project.preview`는 `project.batch`와 같은 `operations` 1–20개를 복사본에 순서대로
-검증하고 **반영하지 않은 요약**을 반환합니다. 현재 허용 편집 명령 26개와 개별 입력
+검증하고 **반영하지 않은 요약**을 반환합니다. 현재 허용 편집 명령 27개와 개별 입력
 스키마를 그대로 사용하며 읽기 명령·제공자 작업·중첩 묶음은 넣을 수 없습니다.
 
 | 결과 | 의미 |
@@ -478,11 +479,33 @@ UI 버튼이나 MCP 실행 취소 도구는 추가하지 않습니다.
 커밋 중 오류나 응답 유실로 결과가 불명확하면 `project.get`으로 현재 문서를
 확인한 뒤 복구하세요. 복제·분할 등이 포함된 묶음을 무조건 재시도하지 마세요.
 
+### 기존 자막을 유지하며 여러 행 추가
+
+`captions.append` / MCP `moment_captions_append`는 일반 자막 객체 **1–10,000개**의
+`captions` 배열을 받습니다. 기존 행과 합친 전체도 10,000개 이하여야 합니다.
+
+```sh
+node cli/moment.mjs exec captions.append --project project.json --json '{"captions":[{"start":1,"end":2,"text":"추가 문구","basis":"source"}]}' --out added.json
+```
+
+새 자막만 각 `basis`의 원본 또는 배속 전 타임라인 길이 안인지 검사하고 전체
+프로젝트를 검증합니다. `basis` 생략은 원본 기준입니다. 현재 편집 길이 밖에 남은
+유효한 자막도 포함해 기존 문구·시간·화자·키워드·순서를 그대로 유지합니다.
+새 행은 받은 순서대로 끝에 붙이며 정렬·시간 이동·병합·중복 제거·화자 추정·ID 생성은
+하지 않습니다. 기존 화자 이름과 프로젝트 스타일도 유지합니다. 겹치는 자막은 화면에서
+가려질 수 있으므로 필요하면 겹침 점검으로 확인하세요.
+
+성공 응답은 `{updated:true, outputDuration}`뿐입니다. 빈 배열·잘못된 자막·합계 초과는
+전체를 거절합니다. batch/preview에서 사용 가능하며 뒤 명령이 실패하면 배치 전체가
+취소됩니다. **재시도에 안전한 명령이 아닙니다:** 성공 호출을 반복하면 중복 자막이
+추가됩니다. 응답이 불확실하면 프로젝트를 다시 읽고 확인한 뒤 재시도하세요.
+
 ### SRT/VTT 본문을 명령으로 가져오기
 
-`captions.import`는 파일 경로가 아닌 SRT/VTT **본문 문자열**과 시간 기준을
-받습니다. 기존 브라우저의 일반 자막 파서로 자막을 파싱하고 결과를 검증한 뒤 자막 배열을
-한 번에 교체합니다. 기존 자막을 유지하려면 먼저 프로젝트를 보관하세요.
+`captions.import`는 선택적 `mode:"replace"|"append"`를 받으며 기본은 전체 교체입니다.
+`append`는 위 추가 규칙으로 기존 행을 유지합니다. 파일 경로가 아닌 SRT/VTT **본문 문자열**과 시간 기준을
+받습니다. 기존 브라우저의 일반 자막 파서로 파싱하고 결과를 검증한 뒤 선택한 모드로
+한 번에 반영합니다. 교체를 되돌릴 수 있도록 먼저 프로젝트를 보관하세요.
 
 | 필수 입력 | 의미 |
 |---|---|
@@ -494,11 +517,17 @@ UI 버튼이나 MCP 실행 취소 도구는 추가하지 않습니다.
 동일 프로젝트에 다시 넣는다고 원래 자막 상태가 복원되지 않습니다. 시간 기준을
 직접 확인하며, 자동 역배속 변환이나 원본 구간 역매핑을 기대하지 마세요.
 브라우저의 전용 파일 가져오기 창은 별도로 원본 미디어/편집된 출력을 명시적으로
-선택합니다. 먼저 **파일 검토**에서 파싱 결과의 수용/끝 잘림/제외된 인식 항목을 확인한 뒤
-**교체**해야 하며 검토 자체는 편집하지 않습니다. 끝 잘림은 수용 자막의 부분집합이고
+선택하고 **전체 교체**(기본값) 또는 **기존 자막 유지 후 추가**를 고릅니다. 먼저 **파일 검토**에서 파싱 결과의 수용/끝 잘림/제외된 인식 항목을 확인한 뒤
+**교체** 또는 추가를 확정해야 하며 검토 자체는 편집하지 않습니다. 추가 모드는 가져온 뒤의
+전체 개수를 10,000개 상한과 함께 표시합니다. 끝 잘림은 수용 자막의 부분집합이고
 제외 개수는 패턴에 맞은 후보만 포함하므로 전체 파일 검증/누락 개수가 아닙니다.
-파일·기준·프로젝트·미디어가 바뀌면 다시 검토하세요. 이 검토 단계는 브라우저 전용이며
-CLI/MCP `captions.import`와 기존 프로그램 가져오기는 즉시 교체·기존 응답을 유지합니다.
+파일·기준·작업 방식·프로젝트·미디어가 바뀌면 다시 검토하세요. 이 검토 단계는 브라우저 전용이며
+CLI/MCP `captions.import`는 선택한 모드로 즉시 반영하고 기존 응답
+`{updated:true, outputDuration, importedCaptions}`를 유지합니다. 추가 전용 결과 필드는
+없습니다. 추가 성공 후 다시 호출하면 중복이 생깁니다. 기본 옵션의 프로그램 가져오기와 기존 숨긴 파일 선택기는
+원본 기준 전체 교체를 유지합니다. 브라우저 추가는 검토한 배열을 재읽기·재파싱 없이
+한 번에 반영하며 한 번 실행 취소하고 첫 추가 행에 초점을 옮깁니다. 유효한 복구 실패
+상태에서도 브라우저 저장은 막혀 있으므로 설정을 별도 백업하세요.
 출력 모드는 현재 출력 길이로 파싱하고 잡아 둔 배속을 곱해 기존
 `timeline` 자막으로 저장하지만, 이 동작을 명령의 `basis` 옵션으로 전달할 수는 없습니다.
 반복 클립의 펼쳐진 구간·밀리초 반올림·누락 메타데이터 때문에 프로젝트 복원은 아닙니다.
@@ -986,7 +1015,7 @@ node cli/moment.mjs exec project.batch --project cue-source.json --json '{"opera
 ```
 
 두 명령은 `project.batch`의 순차 현재 배열에 적용됩니다. 위 배치는 첫 자막을 삭제한
-**다음** 상태의 0번 위치에 삽입합니다. 배치 허용 편집 명령은 26개지만 한 요청의 작업
+**다음** 상태의 0번 위치에 삽입합니다. 배치 허용 편집 명령은 27개지만 한 요청의 작업
 수는 여전히 최대 20개이며, 하나라도 실패하면 전체가 반영되지 않습니다.
 CLI 변경에는 `--out` 또는 `--dry-run`이 필요합니다. 출력 파일은 조회 페이지가 아니라
 전체 프로젝트 문서이며 기존 파일은 기본 보호됩니다. MCP는 성공 확인 후 `project.get`으로
@@ -1679,7 +1708,7 @@ const adapter = createMcpToolAdapter({
 
 서버 서비스의 저장 콜백은 원자적인 저장과 프로젝트 버전 비교를 맡아야 합니다. 서비스 내부 큐는 한 서비스 인스턴스의 명령만 순서대로 실행하므로, 여러 서버 인스턴스 간 충돌을 막는 데이터베이스 트랜잭션을 대신하지 않습니다.
 
-로컬 stdio 서버는 기본 `node cli/mcp.mjs`로 40개 도구를 제공합니다. 선택적으로
+로컬 stdio 서버는 기본 `node cli/mcp.mjs`로 41개 도구를 제공합니다. 선택적으로
 `--tools project.import,project.summary,captions.list,captions.update,captions.export,project.get`을
 붙이면 해당 직접 호출만 제공하며 프로세스 동안 고정됩니다. `moment_` 이름이 아닌
 공통 명령 이름을 쉼표로 구분하세요. 빈 값·중복·알 수 없는 이름·잘못된 옵션은 stdin
@@ -1689,7 +1718,7 @@ const adapter = createMcpToolAdapter({
 계획 전체가 아닌 이 필드를 사용하세요. 두 명령이 모두 없으면 전체 문서 왕복이 불가합니다.
 
 **보안·읽기 전용 제한이 아닙니다.** `project.batch` 또는 `project.preview`를 선택하면
-개별 도구에서 제외한 명령도 기존 26개 중첩 허용 목록/스키마에 남습니다. batch는
+개별 도구에서 제외한 명령도 기존 27개 중첩 허용 목록/스키마에 남습니다. batch는
 수정도 실행합니다. 토큰·비용·속도 보장은 아니며, [클라이언트 인수 배열과 제약](docs/MCP.md#choose-a-smaller-tool-list-optional)을 확인하세요.
 
  현재 사이트는 정적 배포이고 `/mcp`가 없습니다. 별도의 원격 HTTP MCP 서버를 켜려면 서버 런타임과 프로젝트 저장소를 추가하고, Sites의 MCP 기능 선언 및 인증된 엔드포인트를 구현해야 합니다. 이 단계에서 미디어 저장소도 연결해야 브라우저가 닫힌 뒤 작업할 수 있습니다.

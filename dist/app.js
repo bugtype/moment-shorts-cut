@@ -401,7 +401,7 @@ function commitCommandProject(next, { command } = {}) {
     if (command === 'project.import' && (next.kind !== state.kind || (next.kind === 'video' && (next.fileName !== state.fileName || Math.abs(next.duration - state.duration) > .05)) || next.audioName !== state.audioName))
         throw new CommandError('MEDIA_RELINK_REQUIRED', message('shell.mediaRelink'));
     // Non-timeline commands clone clips without changing the trim draft's target.
-    const preserveTrim = ['project.update', 'effects.update', 'overlays.update', 'overlays.move', 'overlays.add', 'overlays.remove', 'title.update', 'credit.update', 'captions.replace', 'captions.update', 'captions.insert', 'captions.remove', 'captions.merge', 'captions.split', 'captions.import', 'captions.timing.shift', 'captions.text.replace', 'captions.style.update', 'captions.speaker.assign'].includes(command) && inspectorView.hasTrimTarget(state.clips[selected]);
+    const preserveTrim = ['project.update', 'effects.update', 'overlays.update', 'overlays.move', 'overlays.add', 'overlays.remove', 'title.update', 'credit.update', 'captions.replace', 'captions.append', 'captions.update', 'captions.insert', 'captions.remove', 'captions.merge', 'captions.split', 'captions.import', 'captions.timing.shift', 'captions.text.replace', 'captions.style.update', 'captions.speaker.assign'].includes(command) && inspectorView.hasTrimTarget(state.clips[selected]);
     pause();
     snapshot();
     state = next;

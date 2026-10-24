@@ -79,7 +79,7 @@ not verify a desktop client application, browser playback or encoded video.
 
 ## Choose a smaller tool list (optional)
 
-With no startup flag, all **40 tools** remain available. To expose only the direct
+With no startup flag, all **41 tools** remain available. To expose only the direct
 commands needed for a task, add `--tools` and one comma-separated list of **core
 command names**, not `moment_` tool names. For example, keep import, targeted caption
 editing and full-document saving together:
@@ -106,7 +106,7 @@ no spaces, case folding, `--tools=...`, wildcards or aliases are accepted.
 |---|---|
 | Omit `project.import` | Starts with the demo and cannot directly import the user's full document |
 | Omit `project.get` | If `render.plan` is selected, save its `structuredContent.data.project` instead—not the whole plan. Without either tool, no full-document handoff is available; summary/pages are not backups |
-| Select `project.batch` or `project.preview` | Their **full 26-command nested allowlist and schemas remain**, including individually omitted editing commands |
+| Select `project.batch` or `project.preview` | Their **full 27-command nested allowlist and schemas remain**, including individually omitted editing commands |
 
 **This is discovery/direct-call selection, not authentication, a read-only boundary
 or a sandbox.** Selecting batch can still execute its nested mutations; preview
@@ -123,7 +123,7 @@ its supported version, `2025-11-25`, even if the proposed version differs; a cli
 that cannot support that version should disconnect, not continue with another
 wire format. `ping` is supported. Initialize only once per process.
 
-All available tools require **`projectId: "session"`** (40 by default). Each process owns one independent
+All available tools require **`projectId: "session"`** (41 by default). Each process owns one independent
 in-memory project, initially the demo. This value is neither a path nor a credential.
 Other project IDs return a tool error. A second client process does not share state.
 
@@ -363,19 +363,22 @@ Exceeding an output budget returns `CAPTION_OUTPUT_LIMIT`.
 | Tool | Editing input | Successful `structuredContent.data` |
 |---|---|---|
 | `moment_captions_replace` | `captions` | Update acknowledgment and output duration |
+| `moment_captions_append` | nonempty `captions` | `{updated:true, outputDuration}` |
 | `moment_captions_insert` | `captionIndex`, `caption` | `{updated:true, captionIndex, totalCaptions, outputDuration}` |
 | `moment_captions_remove` | `captionIndex`, optional `count` (default 1) | Same acknowledgment; index is the first removed position |
 | `moment_captions_update` | `captionIndex`, `patch` | `{updated:true, outputDuration, captionIndex}` |
 | `moment_captions_merge` | `captionIndex` | `{updated:true, outputDuration, mergedCaptionIndex}` |
 | `moment_captions_split_long` | optional `limit`, `captionIndex`, `count` | `{updated, changedCaptions, addedCaptions, outputDuration}` |
 | `moment_captions_split` | `captionIndex`, `textOffset` | `{updated:true, outputDuration, createdCaptionIndex}` |
-| `moment_captions_import` | `text`, `basis` | `{updated:true, outputDuration, importedCaptions}` |
+| `moment_captions_import` | `text`, `basis`; optional `mode` | `{updated:true, outputDuration, importedCaptions}` |
 | `moment_captions_text_replace` | `find`, `replacement`; optional `captionIndex`, `count` | `{updated:boolean, matches:number, changedCaptions:number}` |
 | `moment_captions_style_update` | `patch` | `{updated:true, outputDuration}` |
 | `moment_captions_speaker_assign` | `captionIndex`, `count`, `speaker` | `{updated:boolean, changedCaptions:number, outputDuration}` |
 | `moment_captions_timing_shift` | `basis`, `delta`; optional `captionIndex`, `count` | `{updated:boolean, shiftedCaptions:number, outputDuration}` |
 
-`moment_timeline_replace`, `moment_captions_replace` and `moment_captions_import` replace the **entire array**. Preserve unrequested clips/captions
+`moment_timeline_replace`, `moment_captions_replace` and default/`mode:"replace"`
+`moment_captions_import` replace the **entire array**. Use `moment_captions_append`
+or import `mode:"append"` only when adding rows is intended. Preserve unrequested clips/captions
 rather than sending only the changed entry. `withContent:true` applies example title, credit
 and card content; use `false` when retaining authored content. `templates_list`
 returns built-ins, not custom templates stored in a browser. `title_update` edits
@@ -521,7 +524,7 @@ the example. Discover exact input fields in the [tool catalog](#tool-catalog).
 ### Preview an edit summary without committing
 
 Call `moment_project_preview` with the same closed `operations` schema as
-`moment_project_batch`: 1–20 sequential operations from the 26 allowed editing
+`moment_project_batch`: 1–20 sequential operations from the 27 allowed editing
 commands. Put `projectId:"session"` only on the outer call. For example:
 
 ```json
@@ -857,10 +860,34 @@ a second successful call inserts another occurrence. Browser duplication selects
 the first inserted clip, seeks its start and is one undo step; MCP does not control the
 browser selection/playhead or provide undo.
 
+### Append caption rows without replacing existing work
+
+`moment_captions_append` accepts a nonempty `captions` array of 1–10,000 ordinary
+cue objects. Existing plus incoming rows must fit the 10,000-caption limit.
+
+```json
+{"projectId":"session","captions":[{"start":1,"end":2,"text":"Additional line","basis":"source"}]}
+```
+
+Only incoming cues are checked against source duration or pre-speed timeline
+duration, as selected by `basis` (omitted means source). The resulting project is
+validated atomically. Existing valid rows remain unchanged, including rows beyond
+the current timeline after cuts, speaker/keyword metadata and authored order.
+Incoming rows are appended in supplied order; no sorting, time offset, retiming,
+merging, deduplication, speaker inference or new IDs are added. Overlapping cues
+can obscure one another in playback; append does not resolve overlaps.
+
+Success is exactly `{updated:true, outputDuration}`. An empty array, invalid cue
+or combined-limit overflow fails without changing the project. Append supports
+`project.batch` and `project.preview`; a failed batch rolls back all its edits.
+**Not idempotent:** repeating an accepted append adds duplicates. Read the project
+before retrying an uncertain result, and export the project document to retain it.
+
 ### Import subtitle text with an explicit clock
 
-`moment_captions_import` parses supplied SRT/VTT text and replaces the complete
-caption array in one validated mutation. Save the existing project first if you
+`moment_captions_import` parses supplied SRT/VTT text. Optional
+`mode:"replace"|"append"` defaults to `replace`, which replaces the complete
+caption array in one validated mutation. `append` follows the append contract above. Save the existing project first if you
 need a reversible copy. A minimal call’s arguments are:
 
 ```json
@@ -873,15 +900,22 @@ need a reversible copy. A minimal call’s arguments are:
 | `basis:"source"` | Original media seconds **before speed**; bounded by source duration |
 | `basis:"timeline"` | Edited timeline seconds **before speed**; bounded by the sum of clip durations |
 
+Optional `mode` is `replace` (default) or `append`. For example, add `"mode":"append"`
+to the call above to keep existing captions and add the parsed cues.
+
 This MCP command has **no output-clock import** or automatic inverse speed/trim mapping. An
 exported edited SRT/VTT is not a reversible project backup; choose the intended
 clock explicitly rather than importing final-output times as source times.
 
-The browser dialog separately uses **Review file → Replace**. Review does not edit:
+The browser dialog separately offers **Replace all** (default) or **Keep existing
+and add**, then **Review file** and explicit confirmation. Review does not edit:
 accepted cues, clipped accepted cues and discarded **recognized** candidates are
-shown, not a full-file validity or skipped-entry total. Changed file/clock/context
-requires a fresh review. This does not add a review phase or report fields to
-`moment_captions_import`; its existing immediate replacement/acknowledgment remains.
+shown, not a full-file validity or skipped-entry total. Add mode also shows the combined total against 10,000. Changed file/clock/action/context requires a fresh review. This does not add a review phase or report fields to
+`moment_captions_import`; its immediate chosen-mode commit and closed acknowledgment
+remain. Browser addition commits the reviewed parsed array without rereading or
+reparsing, takes one undo step and focuses the first added row. Legacy hidden
+imports remain source-clock replacement. Failed-valid recovery still cannot save
+to browser storage.
 
 Browser handoff caution: set the added-audio offset **before** importing output-clock
 subtitles. Its existing offset control shifts **all** `basis:"timeline"` cues,
@@ -895,7 +929,8 @@ character references once; speaker/style/keyword metadata are not imported.
 Empty input or no valid cues returns an error without replacing current captions.
 This permissive parser may skip malformed cues; it is not a full SRT/WebVTT
 conformance validator. Success includes `importedCaptions`, the applied cue count,
-alongside `updated:true` and `outputDuration`.
+alongside `updated:true` and `outputDuration`, with no append-specific result fields.
+Import append is also non-idempotent; a repeated successful call adds duplicates.
 
 | Limit | Scope |
 |---|---|
@@ -1158,7 +1193,7 @@ read again instead of blindly retrying; the next removal could delete a differen
 
 Both are supported in `project.batch`, using each preceding step's current array.
 For example, remove index 0, then insert at index 0 to replace the first entry.
-All steps validate before one commit; 26 editing command names are allowed, but
+All steps validate before one commit; 27 editing command names are allowed, but
 there are still at most 20 operations per batch. See the [executable CLI sequence
 and batch recipe](../INTEGRATIONS.md#자막-하나-추가연속-범위-삭제).
 Mutation acknowledgments are not saved documents: retrieve `moment_project_get`

@@ -153,8 +153,12 @@ function inputSchema(command) {
     fields.captionAnimation.description = 'Shared caption entry animation; visual only, not a subtitle-file timing change.';
   }
   if (command.name === 'captions.import') {
-    p.text.description = 'SRT or plain WebVTT text, not a path. Replaces all captions using the browser parser: clips cue ends to the chosen duration, skips invalid/empty/out-of-range cues, strips tags and decodes supported entities once. Not full subtitle-standard validation. Runtime limit is 100,000 UTF-16 code units plus the parser’s 2 MiB UTF-8 ceiling; each cue is at most 2,000 units and at most 10,000 cues are accepted.';
+    p.text.description = 'SRT or plain WebVTT text, not a path. Parses captions using the browser parser: clips cue ends to the chosen duration, skips invalid/empty/out-of-range cues, strips tags and decodes supported entities once. Not full subtitle-standard validation. Runtime limit is 100,000 UTF-16 code units plus the parser’s 2 MiB UTF-8 ceiling; each cue is at most 2,000 units and at most 10,000 cues are accepted.';
+    p.mode.description = 'Optional replace (default) replaces all captions; append adds parsed cues after all existing authored rows without sorting, shifting or merging. Combined maximum 10,000 cues; retained rows including out-of-output cues remain unchanged. Append is not idempotent: an uncertain retry can duplicate cues.';
     p.basis.description = 'Required clock: source means original media seconds; timeline means edited timeline seconds BEFORE speed. No automatic time conversion. captions.export uses output seconds AFTER speed, so importing it as timeline is not a speed-adjusted round trip.';
+  }
+  if (command.name === 'captions.append') {
+    p.captions.description = 'Required nonempty array of 1..10000 authored cues. Appends in supplied order; combined total must fit 10,000. Incoming times use source (default) or pre-speed timeline and must fit that clock. Existing rows, including out-of-output cues and speaker/keyword metadata, stay intact. No sorting, merging, offset, normalization or speech alignment. Non-idempotent: retry duplicates cues; reread captions.list after uncertain results.';
   }
   if (command.name === 'captions.insert') {
     p.captionIndex.description = 'Required zero-based insertion position in the current authored array, including its length to append. Maximum total 10,000 cues. Existing rows keep order and timing; this does not sort by start time. Non-idempotent: reread captions.list before retrying an uncertain insert.';

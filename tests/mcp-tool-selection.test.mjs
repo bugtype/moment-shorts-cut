@@ -100,7 +100,7 @@ test('real stdio subset supports import edit recovery and complete document hand
   assert.equal(response(6).error.code, -32602);
   assert.equal(response(7).result.structuredContent.data.project.speed, 2);
   const fresh = createMcpToolAdapter({resolveService: () => null});
-  assert.equal(fresh.listTools().tools.length, 40);
+  assert.equal(fresh.listTools().tools.length, 41);
 });
 
 test('invalid startup selection exits without waiting for stdin or emitting protocol output', async () => {

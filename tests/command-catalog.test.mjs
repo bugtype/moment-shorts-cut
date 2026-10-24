@@ -11,7 +11,7 @@ test('existing command facade reexports the catalog without changing its public 
   assert.equal(commands.commandDefinition, catalog.commandDefinition);
   assert.equal(commands.commandDefinitions, catalog.commandDefinitions);
   const definitions = commands.commandDefinitions();
-  assert.equal(definitions.length, 40);
+  assert.equal(definitions.length, 41);
   assert.equal(definitions[0].name, 'project.get');
   assert.deepEqual(definitions.slice(-2).map(item => item.name), ['project.batch', 'project.preview']);
   assert.deepEqual(definitions.map(item => Object.keys(item)), definitions.map(() => ['name', 'description', 'inputSchema', 'mutates']));
@@ -25,7 +25,7 @@ test('returned catalog schemas are detached and cannot extend the runtime batch 
   assert.deepEqual(catalog.commandDefinitions(), original);
   const batch = catalog.commandDefinition('project.batch');
   const names = batch.inputSchema.properties.operations.items.properties.command.enum;
-  assert.equal(names.length, 26);
+  assert.equal(names.length, 27);
   for (const name of names) assert.equal(catalog.isBatchCommand(name), true);
   names.push('project.import');
   for (const name of ['project.import', 'project.get', 'project.summary', 'project.preview', 'project.batch', 'jobs.submit', 'unknown']) {

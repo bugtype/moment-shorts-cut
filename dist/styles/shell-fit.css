@@ -32,3 +32,6 @@
 /* File backups remain reachable when compact headers hide browser Save/Help. */
 #projectFilesButton { width:38px; height:38px; flex-shrink:0 }
 .project-file-actions { flex-wrap:wrap }
+
+/* Exact arbitrary rates remain available in the tooltip without widening playback. */
+#speed { width:76px; max-width:76px; min-width:0; text-overflow:ellipsis }

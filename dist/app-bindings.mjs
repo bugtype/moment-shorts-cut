@@ -80,7 +80,7 @@ export function bindUi(app) {
         setAttr($('#muteButton'), 'aria-label', app.muted ? 'shell.unmute' : 'shell.mute');
         app.renderInspector();
     };
-    $('#speed').onchange = event => app.runEditorCommand('project.update', { patch: { speed: +event.target.value } });
+    $('#speed').onchange = event => app.changeSpeed(event.target.value);
     app.inputHistory.bind($('#zoom'), () => app.state.zoom, value => {
         app.state.zoom = value;
         app.draw();

@@ -1,3 +1,4 @@
+import { createSpeedDialog } from './speed-dialog.mjs';
 import {createShellPresentation} from './shell-presentation.mjs';
 import {text, message, formatError, initLocale, getLocale, setLocale, onLocaleChange} from './i18n.mjs';
 import { createSeekDialog } from './seek-dialog.mjs';
@@ -145,6 +146,12 @@ const seekDialog = createSeekDialog({
     blocked: () => !editorReady || exporting || loadingMedia || transcribing || persistence.restorePhase !== 'ready' || audioRecording.requesting || audioRecording.current,
     pause, seek: time => seekTo(time), toast: message => toast(message),
 });
+const speedDialog = createSpeedDialog({
+    getProject: () => state, getMedia: () => [sources.videoFile, sources.audioFile], query: $, modal,
+    openModal: (...args) => modalOpen(...args),
+    blocked: () => !editorReady || exporting || loadingMedia || transcribing || (persistence.restorePhase !== 'ready' && !(persistence.restorePhase === 'failed' && persistence.recoveryValid)) || audioRecording.requesting || audioRecording.current,
+    execute: runEditorCommand, toast: message => toast(message),
+});
 const captionInspection = createCaptionInspectionDialog({
     getProject: () => state, query: $, modal,
     openModal: (...args) => modalOpen(...args),
@@ -266,7 +273,7 @@ const app = {
     settingsUnavailable: () => settingsUnavailable(),
     runEditorCommand: (name, args) => runEditorCommand(name, args),
     showProjectFiles: () => shellPresentation.showProjectFiles(),
-    openSeek: () => seekDialog.open(), showHelp: () => showHelp(), toast: message => toast(message),
+    changeSpeed: value => speedDialog.change(value), openSeek: () => seekDialog.open(), showHelp: () => showHelp(), toast: message => toast(message),
     modalOpen: (title, body, footer) => modalOpen(title, body, footer),
     confirmReset: () => confirmReset(), download: (blob, name) => download(blob, name),
     bindTrimDrafts: options => editingActions.bindTrimDrafts(options),

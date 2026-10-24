@@ -91,6 +91,15 @@ invalid range: correct it before applying; the 0.1-second minimum still applies.
 Outside the selected occurrence, the draft is left unchanged and a message asks
 you to move inside it. This is not a source-frame-accuracy guarantee.
 
+**Set an exact speed:** keep using the preview speed presets, or choose **Custom…**,
+enter a finite multiplier from **0.25 to 4**, then **Apply**. The current value is
+prefilled without rounding; non-preset values remain visible in the speed control.
+This changes the whole project's preview/output speed, not one clip. Existing
+speed-edit rules retime titles, credits and timed cards; stored clip/caption times
+and audio-offset data keep their existing clocks. Canceling or applying the same
+value does not edit, save, pause or add history. Reopen the dialog if the project
+or media changed. Pitch, codec behavior and frame accuracy are not guaranteed.
+
 **Go to an output time:** click the preview time display (**Go to output time**),
 enter seconds such as `2.5`, `01:02.5` or `00:01:02.5`, then choose **Go**.
 The value uses output time **after speed**, from zero through the output end.

@@ -165,3 +165,20 @@ ffmpeg -v error -i output.mp4 -map 0:a:0 -f null -
 - While transcription or another media operation blocks importing, choose a video or audio file. After the blocking operation ends, choose **the same file** again: importing should run rather than silently treating the selection as unchanged.
 - Cancel either picker: the existing project and connected media should stay unchanged.
 - This native-picker check is manual; automated tests cover clearing the input before validation and preserving the captured file, not browser picker or codec behavior.
+
+## 사용자 지정 배속 · 수동 확인 대기
+
+**실제 브라우저의 숫자 입력·초점·미디어 재생은 아직 검증하지 않았습니다.**
+아래는 수동 확인 절차이며 자동 테스트 통과를 브라우저·코덱 검증으로 대신하지 않습니다.
+
+| 수동 점검 | 기대 동작 |
+|---|---|
+| 사용자 지정 배속 열기·비프리셋 값 가져오기 | 현재 값 반올림 없이 표시, 기존 프리셋 유지, 선택 목록에 현재 값 표시 |
+| 0.25·4·1.333 같은 값 적용 | 전체 미리보기·출력 배속 변경, 기존 출력 레이어 시간 조정·실행 취소 규칙 유지 |
+| 빈 값·범위 밖 값 | 번역된 오류, 현재 배속·프로젝트 보존 |
+| 취소·현재와 같은 값 적용 | 편집·저장·일시 정지·실행 취소 기록 없음 |
+| 열린 동안 프로젝트·미디어 변경 / 작업 중 | 오래된 대화상자 적용 거부, 다시 열거나 작업 종료 후 시도 |
+| 한·영·중·Tab·IME·모바일 숫자 키보드 | 번역·입력·초점 확인; 조합 중 Enter가 뜻하지 않은 적용을 하지 않음 |
+
+저장된 원본/타임라인 자막 시간과 오디오 오프셋은 기존 시간 기준을 유지합니다.
+전체 영상의 속도 설정이며 클립별 속도·음높이 유지·고정 프레임 정확도 보장이 아닙니다.

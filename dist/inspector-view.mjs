@@ -1,3 +1,4 @@
+import { syncSpeedControl } from './speed-dialog.mjs';
 import { decimalTime } from './ui-format.mjs';
 import { setText, setAttr } from './i18n.mjs';
 import { MAX_CLIPS } from './core/project.mjs';
@@ -37,7 +38,7 @@ export function createInspectorView($, $$) {
         $('#zoomValue').textContent = `${Math.round(state.zoom * 100)}%`;
         $('#volume').value = state.volume;
         $('#volumeValue').textContent = `${Math.round(state.volume * 100)}%`;
-        $('#speed').value = state.speed;
+        syncSpeedControl($('#speed'), $('#currentSpeedOption'), state.speed);
         setText($('#clipIndex'), 'panels.clipIndex', {index:selected + 1});
         $('#undoButton').disabled = !canUndo;
         $('#redoButton').disabled = !canRedo;

@@ -42,6 +42,7 @@ export function mountEffectsPanel(root, api) {
       <label class="panel-label">${text('panels.animation')}<select class="panel-select" data-card="animation">${[['none','panels.none'],['fade','panels.fade'],['slide','panels.slide'],['pop','panels.pop']].map(([v,l])=>`<option value="${v}" ${card.animation===v?'selected':''} ${mark(l)}>${esc(t(l))}</option>`).join('')}</select></label>
       <div class="design-colors">${[['color','panels.text'],['accent','panels.accent'],['background','panels.background']].map(([key,label])=>`<label class="design-color">${text(label)}<input type="color" data-card="${key}" value="${card[key]}"></label>`).join('')}</div>
       ${[['x','panels.horizontal',.1,.9,.01],['y','panels.vertical',.08,.8,.01],['width','panels.cardWidth',.4,.82,.01],['size','panels.textSize',20,48,1],['stroke','panels.blackStroke',0,6,.5],['backgroundOpacity','panels.backgroundOpacity',0,1,.05]].map(([key,label,min,max,step])=>`<label class="design-range"><span>${text(label)}<output data-card-output="${key}">${card[key]}</output></span><input type="range" data-card="${key}" value="${card[key]}" min="${min}" max="${max}" step="${step}"></label>`).join('')}
+      <button class="button" id="openCardPosition">${text('panels.position')}</button>
       <div class="panel-actions scene-appearance-actions" role="group" ${attrs('aria-label', 'panels.cardStyle')}><button class="button" id="copySceneAppearance">${text('panels.copyStyle')}</button><button class="button" id="pasteSceneAppearance" ${api.hasCopiedAppearance?'':'disabled'}>${text('panels.pasteStyle')}</button></div><div class="panel-actions"><button class="button" id="duplicateSceneCard">${text('panels.duplicateCard')}</button><button class="button" id="previewSceneCard">${text('panels.previewCard')}</button></div></div>`:`<p class="empty-text">${text('panels.cardEmpty')}</p>`}`;
     target.querySelector('#addSceneCard').onclick=api.add;
     target.querySelector('#toggleSceneLayers').onclick=api.toggleAll;
@@ -50,6 +51,11 @@ export function mountEffectsPanel(root, api) {
       let composing=false;
       target.oncompositionstart=()=>{composing=true;};
       target.oncompositionend=()=>{composing=false;};
+      const position=target.querySelector('#openCardPosition');
+      position.onclick=event=>{
+        if(composing||event?.isComposing||event?.keyCode===229||renderOwners.get(root)!==owner||root.querySelector('#effectControls')!==target||api.current?.()===false)return;
+        api.position?.(card.id);
+      };
       const moveTime=target.querySelector('#moveSceneTime');
       moveTime.onclick=event=>{
         if(composing || event?.isComposing || event?.keyCode===229 || renderOwners.get(root)!==owner || root.querySelector('#effectControls')!==target || api.current?.()===false)return;

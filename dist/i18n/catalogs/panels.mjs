@@ -1,5 +1,11 @@
 // Flat semantic keys; keep each Korean, English and Simplified Chinese entry aligned.
 const entries = {
+  "panels.positionApply": ["적용","Apply","应用"],
+  "panels.position": ["위치…","Position…","位置…"],
+  "panels.positionX": ["가로 위치 (%)","Horizontal position (%)","水平位置 (%)"],
+  "panels.positionY": ["세로 위치 (%)","Vertical position (%)","垂直位置 (%)"],
+  "panels.positionInvalid": ["{min}~{max}% 사이의 숫자를 입력해 주세요.","Enter a number from {min} to {max}%.","请输入 {min} 至 {max}% 之间的数字。"],
+  "panels.positionStale": ["편집 대상이 변경되었습니다. 위치 창을 다시 여세요.","The editing target changed. Reopen Position.","编辑对象已更改。请重新打开位置窗口。"],
   "panels.removeCaptionRange": ["자막 범위 삭제…","Remove caption range…","删除字幕范围…"],
   "panels.firstCaption": ["첫 자막 (포함)","First caption (inclusive)","首条字幕（包含）"],
   "panels.lastCaption": ["마지막 자막 (포함)","Last caption (inclusive)","末条字幕（包含）"],

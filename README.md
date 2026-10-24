@@ -384,8 +384,20 @@ valid failed-recovery edits still need a settings backup, not browser saving.
 | Split one clip | [`timeline.split`](INTEGRATIONS.md#클립-구간-분할) | Original source time, not output time; identify the intended occurrence and check boundaries. No full-timeline replacement. |
 | Adjust video effects | [`effects.update`](INTEGRATIONS.md#영상-효과-수정) | Brightness, contrast, motion, boundary overlays and progress styling without replacing content or timing. Boundary overlays are not crossfades. |
 | Set a source credit | [`credit.update`](INTEGRATIONS.md#출처-크레딧-수정) | Text, appearance and output-time visibility without changing title/captions/cards. Maximum 100 UTF-16 code units; not included in subtitle files. |
+| Set text coordinates | Title, credit, shared caption or selected card → **Position…** | Enter horizontal/vertical percentages and Apply together; unchanged axes retain their stored values. |
 | Move a card without resizing | Selected card → **Move in time…** | Enter a new start in output seconds **after speed**; both endpoints update together as one undoable edit. |
 | Script timed cards | [`overlays.add`, `overlays.update`, `overlays.remove`](INTEGRATIONS.md#스크립트에-맞춰-카드-추가삭제) | Individual IDs and output time **after speed**, without replacing the project. Additions append; `overlays.move` changes card stacking. UI offers **Bring to front / Send to back** (front/back) within the card stack. |
+
+**Position…** edits the layer's normalized anchor, not its rendered bounding box.
+Changed title coordinates accept X **5–95%**, Y **6–93%**; credit, shared captions
+and cards accept **0–100%** on each axis. Fractional input is allowed. Applying
+changed axes is one undoable edit without changing content, timing or styling;
+an untouched axis retains its exact stored value, even an imported title coordinate
+outside the current edit bounds. Cancel or unchanged values add no edit. Panel
+entries remain available on compact layouts. Reopen after project/layer/media
+changes; valid failed-recovery edits remain in memory and need a settings backup.
+Renderers use different anchors and may fit/clamp text, so these percentages do
+not guarantee visible centering, pixel alignment or safe-area containment.
 
 For example, to move a card from 0–3 to 7–10 seconds, choose **Move in time…**,
 enter `7`, review the calculated end and choose **Move**. Its duration, ID, stacking

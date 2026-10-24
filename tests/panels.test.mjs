@@ -16,7 +16,7 @@ test('design, effects and template panel controls and hierarchy', () => {
   const custom=templateModule.saveCustomTemplate('내 요리 구성',savedProject);
   // Panel controls are exercised with supplied DOM controls (not a browser layout test).
   function control(type,dataset,value){return {attributes: {}, setAttribute(name, value) { this.attributes[name] = String(value); }, getAttribute(name) { return this.attributes[name] ?? null; }, removeAttribute(name) { delete this.attributes[name]; },type,dataset,value,checked:false,setCustomValidity(message){this.error=message;},reportValidity(){this.reported=true;}};}
-  function panelRoot(lists={},byId={}){return {innerHTML:'',querySelectorAll(selector){return lists[selector]||[];},querySelector(selector){return byId[selector]||null;}};}
+  function panelRoot(lists={},byId={}){byId={'#openPosition':{},...byId};return {innerHTML:'',querySelectorAll(selector){return lists[selector]||[];},querySelector(selector){return byId[selector]||null;}};}
   const inputs=[control('number',{design:'design.title.start'},'5'),control('number',{design:'design.title.end'},'3'),control('text',{design:'speakerLabels.1'},'인터뷰이'),control('text',{design:'globalKeywords'},'순간, C++'),control('range',{design:'captionY',unit:'%'},'75')];
   let panelProject=structuredClone(defaults),snapshots=0;
   const panelRanges=createInputHistory(()=>snapshots++);
@@ -29,7 +29,7 @@ test('design, effects and template panel controls and hierarchy', () => {
   inputs[4].oninput();assert.equal(panelProject.captionY,.75);const rangeSnapshots=snapshots;inputs[4].oninput();assert.equal(snapshots,rangeSnapshots);
   const testCard=effectsModule.newCard(12,2);panelProject.overlays=[testCard];
   const cardInputs=[control('number',{card:'start'},'8'),control('number',{card:'end'},'9'),control('text',{card:'text'},'수정한 카드'),control('range',{card:'size'},'42')];
-  const buttons=Object.fromEntries(['#addSceneCard','#toggleSceneLayers','#removeSceneCard','#duplicateSceneCard','#previewSceneCard','#sceneToFront','#sceneToBack','#copySceneAppearance','#pasteSceneAppearance','#moveSceneTime'].map(id=>[id,{}]));
+  const buttons=Object.fromEntries(['#addSceneCard','#toggleSceneLayers','#removeSceneCard','#duplicateSceneCard','#previewSceneCard','#sceneToFront','#sceneToBack','#copySceneAppearance','#pasteSceneAppearance','#moveSceneTime','#openCardPosition'].map(id=>[id,{}]));
   let moveTimeTarget=null;
   const cardRoot=panelRoot({'[data-card]':cardInputs},buttons);
   mountEffectsPanel(panelRoot({}, {'#effectControls':cardRoot}),{state:panelProject,total:12,tab:'cards',selected:testCard.id,snapshot(){snapshots++;},input:panelRanges.bind,update(fn){fn(panelProject);},add(){},remove(){},duplicate(){},play(){},moveTime(id){moveTimeTarget=id;}});
@@ -49,7 +49,7 @@ test('design, effects and template panel controls and hierarchy', () => {
   for(const layer of ['title','caption','credit','frame']){
    const layerButtons=['title','caption','credit','frame'].map(textLayer=>({dataset:{textLayer}}));
    const presetButtons=['reference','punch','clean'].map(layoutPreset=>({dataset:{layoutPreset}}));
-   const links=Object.fromEntries(['#openTemplateGallery','#openCaptionEditor','#openScreenEditor'].map(id=>[id,{}]));
+   const links=Object.fromEntries(['#openTemplateGallery','#openCaptionEditor','#openScreenEditor','#openPosition'].map(id=>[id,{}]));
    const root=panelRoot({'[data-text-layer]':layerButtons,'[data-layout-preset]':presetButtons},links);
    mountDesignPanel(root,{state:panelProject,layer,total:12,select(value){panelActions.push(['layer',value]);},preset(value){panelActions.push(['preset',value]);},navigate(value){panelActions.push(['navigate',value]);}});
    assert.match(root.innerHTML,/<h1 class="panel-heading"><span[^>]*>타이틀 · 디자인<\/span><\/h1>/);
@@ -118,7 +118,7 @@ test('illustrative design artwork follows locale without editing authored projec
   try {
     for (const locale of ['ko', 'en', 'zh-CN']) {
       setLocale(locale, { persist: false });
-      const root = { innerHTML: '', querySelectorAll: () => [], querySelector: () => null };
+      const root = { innerHTML: '', querySelectorAll: () => [], querySelector: () => ({}) };
       mountDesignPanel(root, { state, layer: 'caption', total: 12 });
       for (const key of ['shell.styleExample', 'panels.exampleDay', 'panels.exampleMemory', 'panels.exampleStory', 'panels.exampleNow', 'panels.exampleDontMiss', 'panels.exampleRecord', 'panels.exampleSignature']) {
         assert.ok(root.innerHTML.includes(esc(t(key))), key);

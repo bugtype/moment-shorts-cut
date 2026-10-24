@@ -1,3 +1,4 @@
+import {createPositionDialog} from './position-dialog.mjs';
 import { createCardTimingDialog } from './card-timing-dialog.mjs';
 import { setText, setAttr, message } from './i18n.mjs';
 import { mountDesignPanel } from './design-panel.mjs';
@@ -10,6 +11,7 @@ export function createDesignWorkspace(app) {
     const { query: $ } = app;
     const appearanceKeys = ['color', 'accent', 'background', 'size', 'stroke', 'backgroundOpacity', 'presentation', 'animation'];
     let copiedAppearance = null;
+    const position = createPositionDialog(app);
     const cardTiming = createCardTimingDialog(app);
 
     function selectedSceneLayer() {
@@ -58,9 +60,11 @@ export function createDesignWorkspace(app) {
     }
 
     function renderDesignPanel(target) {
+        const project = app.state, layer = app.textLayer;
         mountDesignPanel(target, {
             state: app.state,
             layer: app.textLayer,
+            position: () => { if (app.panel === 'text' && app.state === project && app.textLayer === layer) position.open(layer); },
             time: app.current / app.state.speed,
             total: app.duration() / app.state.speed,
             snapshot: app.snapshot,
@@ -100,6 +104,7 @@ export function createDesignWorkspace(app) {
             tab: app.effectTab,
             selected: app.selectedCard,
             current: () => app.state === project,
+            position: id => { if (app.panel === 'effects' && app.effectTab === 'cards' && app.state === project && (app.selectedCard || app.state.overlays[0]?.id) === id) position.open('card', id); },
             moveTime: id => { if (app.state === project && (app.selectedCard || app.state.overlays[0]?.id) === id) cardTiming.open(id); },
             hasCopiedAppearance: copiedAppearance !== null,
             copyAppearance(id) {

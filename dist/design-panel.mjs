@@ -3,7 +3,10 @@ import { t, text, mark, attrs, setValidity } from './i18n.mjs';
 import { activeSceneLayers } from './effects.mjs';
 const escape = value => String(value).replace(/[&<>"']/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
 
+const renderOwners = new WeakMap();
+
 export function mountDesignPanel(root, api) {
+  const owner = {}; renderOwners.set(root, owner);
   const { state, layer, total } = api;
   const d = state.design;
   const timed=activeSceneLayers(state,api.time||0).find(card=>(card.role||'headline')==='headline');
@@ -23,6 +26,7 @@ export function mountDesignPanel(root, api) {
     ${check('panels.boldItalic', 'design.title.italic', d.title.italic)}
     ${range('panels.horizontal', 'design.title.x', Math.round(d.title.x * 100), 10, 90, 1, '%')}
     ${range('panels.vertical', 'design.title.y', Math.round(d.title.y * 100), 6, 90, 1, '%')}
+    <button class="button" id="openPosition">${text('panels.position')}</button>
     ${timing('title')}`;
   if (layer === 'caption') controls = `
     <p class="layer-explanation">${text('panels.captionExplanation')}</p>
@@ -33,6 +37,7 @@ export function mountDesignPanel(root, api) {
     ${check('panels.boldItalic', 'captionItalic', state.captionItalic)}
     ${range('panels.horizontal', 'captionX', Math.round(state.captionX * 100), 10, 90, 1, '%')}
     ${range('panels.vertical', 'captionY', Math.round(state.captionY * 100), 10, 90, 1, '%')}
+    <button class="button" id="openPosition">${text('panels.position')}</button>
     <label class="panel-label" for="captionAnimation">${text('panels.animation')}</label><select class="panel-select" id="captionAnimation" data-design="captionAnimation"><option value="none" ${state.captionAnimation === 'none' ? 'selected' : ''} ${mark('panels.none')}>${escape(t('panels.none'))}</option><option value="pop" ${state.captionAnimation === 'pop' ? 'selected' : ''} ${mark('panels.shortPop')}>${escape(t('panels.shortPop'))}</option><option value="fade" ${state.captionAnimation === 'fade' ? 'selected' : ''} ${mark('panels.fade')}>${escape(t('panels.fade'))}</option><option value="slide" ${state.captionAnimation === 'slide' ? 'selected' : ''} ${mark('panels.slide')}>${escape(t('panels.slide'))}</option></select>
     <div class="design-divider"></div><label class="panel-label" for="globalKeywords">${text('panels.globalKeywords')}</label><input class="panel-input" id="globalKeywords" data-design="globalKeywords" maxlength="150" value="${escape(state.globalKeywords)}" ${attrs('placeholder', 'panels.globalKeywordsPlaceholder')}><p class="tiny-note">${text('panels.globalKeywordsNotice')}</p>${state.speakerLabels.map((name,i)=>`<label class="panel-label" for="speakerLabel${i}">${text('panels.speakerName', {index: i + 1})}</label><input class="panel-input" id="speakerLabel${i}" data-design="speakerLabels.${i}" maxlength="24" value="${escape(name)}">${color('panels.speakerColor', `speakerColors.${i}`, state.speakerColors[i], {index: i + 1})}`).join('')}<p class="tiny-note">${text('panels.speakerNotice')}</p>
     <button class="button full subtle" id="openCaptionEditor">${text('panels.editCaptionText')}</button>`;
@@ -44,6 +49,7 @@ export function mountDesignPanel(root, api) {
     ${check('panels.italic', 'design.credit.italic', d.credit.italic)}
     ${range('panels.horizontal', 'design.credit.x', Math.round(d.credit.x * 100), 10, 90, 1, '%')}
     ${range('panels.vertical', 'design.credit.y', Math.round(d.credit.y * 100), 10, 93, 1, '%')}
+    <button class="button" id="openPosition">${text('panels.position')}</button>
     ${timing('credit')}`;
   if (layer === 'frame') controls = `
     <label class="panel-label" for="frameLayout">${text('panels.videoLayout')}</label><select class="panel-select" id="frameLayout" data-design="design.layout"><option value="framed" ${d.layout === 'framed' ? 'selected' : ''} ${mark('panels.layoutFramed')}>${escape(t('panels.layoutFramed'))}</option><option value="full" ${d.layout === 'full' ? 'selected' : ''} ${mark('panels.layoutFull')}>${escape(t('panels.layoutFull'))}</option></select>
@@ -57,6 +63,14 @@ export function mountDesignPanel(root, api) {
     <div class="layer-controls">${controls}</div>
     <p class="tiny-note design-footnote">${text('panels.sizeNotice')}</p>
     <div class="design-presets"><div class="section-label">${text('panels.quickLayout')} <button class="text-button" id="openTemplateGallery">${text('panels.allTemplates')}</button></div><div class="layout-presets"><button data-layout-preset="reference" ${attrs('title', 'panels.referenceTitle')}><span class="preset-art reference"><b>${text('panels.exampleDay')}</b><b>${text('panels.exampleMemory')}</b><i></i><em>${text('panels.exampleStory')}</em><small>${text('panels.exampleSignature')}</small></span><strong>${text('panels.reviewPreset')}</strong></button><button data-layout-preset="punch" ${attrs('title', 'panels.punchTitle')}><span class="preset-art punch"><b>${text('panels.exampleNow')}</b><b>${text('panels.exampleDontMiss')}</b><i></i><em>${text('panels.exampleStory')}</em></span><strong>${text('panels.impactPreset')}</strong></button><button data-layout-preset="clean" ${attrs('title', 'panels.cleanTitle')}><span class="preset-art clean"><b>${text('panels.exampleRecord')}</b><i></i><em>${text('panels.exampleStory')}</em></span><strong>${text('panels.vlogPreset')}</strong></button></div></div>`;
+  if (['title','credit','caption'].includes(layer)) {
+    const button = root.querySelector('#openPosition'); let composing = false;
+    root.oncompositionstart = () => { composing = true; };
+    root.oncompositionend = () => { composing = false; };
+    button.onclick = event => {
+      if (!composing && !event?.isComposing && event?.keyCode !== 229 && renderOwners.get(root) === owner && root.querySelector('#openPosition') === button) api.position?.();
+    };
+  }
   root.querySelectorAll('[data-layout-preset]').forEach(button => button.onclick = () => api.preset(button.dataset.layoutPreset));
   root.querySelectorAll('[data-text-layer]').forEach(button => button.onclick = () => api.select(button.dataset.textLayer));
   root.querySelectorAll('[data-caption-preset]').forEach(button => button.onclick = () => api.captionStyle(button.dataset.captionPreset));

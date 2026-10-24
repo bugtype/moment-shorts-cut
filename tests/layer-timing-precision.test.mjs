@@ -22,7 +22,8 @@ function fixture(kind,start=1.234567,end=11.987654){
         }
     }
     Object.defineProperty(controls,'innerHTML',{set:parse,get:()=>html});
-    const root={querySelector:selector=>selector==='#effectControls'?controls:null,querySelectorAll:selector=>selector==='[data-design]'?inputs:[]};
+    const position={};
+    const root={querySelector:selector=>selector==='#effectControls'?controls:selector==='#openPosition'?position:null,querySelectorAll:selector=>selector==='[data-design]'?inputs:[]};
     Object.defineProperty(root,'innerHTML',{set:value=>{if(kind==='card')html=value;else parse(value);},get:()=>html});
     const render=()=>{
         const api={state:project,total:12,snapshot(){history.push(structuredClone(project));},input(){},update(change){change(project);},layer:kind,tab:'cards',selected:project.overlays[0].id};

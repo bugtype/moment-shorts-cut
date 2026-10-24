@@ -131,7 +131,7 @@ export function audioPanelMarkup({ audioName, audioOffset, audioVolume, speed },
     );
 }
 
-export function settingsPanelMarkup({ ratio, fit, zoom, captionSize, captionY, volume }, clip) {
+export function settingsPanelMarkup({ ratio, fit, zoom, captionSize, captionY, volume }, clip, loopPreview = false) {
     return (
         `<h1 class="panel-heading">${text('panels.settings')}</h1>` +
         `<div class="settings-mirror">` +
@@ -170,7 +170,7 @@ export function settingsPanelMarkup({ ratio, fit, zoom, captionSize, captionY, v
         `<section class="settings-group" ${attrs('aria-label', 'panels.sourceAudio')}>` +
         `<label class="panel-label" for="panelVolume">${text('panels.sourceVolume')}</label>` +
         `<input id="panelVolume" type="range" min="0" max="1" step=".01" value="${volume}" style="width:100%">` +
-        `</section></div>`
+        `</section><section class="settings-group"><label class="design-check"><input id="loopPreview" type="checkbox" ${loopPreview ? 'checked' : ''}>${text('panels.loopPreview')}</label></section></div>`
     );
 }
 

@@ -285,6 +285,7 @@ const app = {
     downloadProjectSettings: () => downloadProjectSettings(),
     exportDialog: () => exportDialog(), startExport: (type, quality) => startExport(type, quality),
     stopExport: cancelled => stopExport(cancelled),
+    get loopPreview() { return playback.loopPreview; }, setLoopPreview: value => playback.setLoopPreview(value),
     play: () => play(), pause: () => pause(), seekTo: t => seekTo(t),
     draw: () => draw(), requestDraw: () => requestDraw(),
     ensureAudio: () => ensureAudio(), seekVideo: time => seekVideo(time),

@@ -85,7 +85,7 @@ selected occurrence. Use the target icon beside start/end (**Use playhead for
 start / Use playhead for end**). It pauses and fills only that field with the
 source time, keeping its precision and the opposite draft unchanged. It does not
 seek, edit, save or add history until you explicitly **Apply selected range**
-(or **Apply range** in Settings). Repeated source clips use the selected occurrence;
+(or **Apply range** in the **Frame** panel). Repeated source clips use the selected occurrence;
 speed does not change the captured source value. Endpoint captures may leave an
 invalid range: correct it before applying; the 0.1-second minimum still applies.
 Outside the selected occurrence, the draft is left unchanged and a message asks
@@ -106,6 +106,18 @@ The value uses output time **after speed**, from zero through the output end.
 Confirming pauses and seeks; cancel leaves playback unchanged. It does not edit,
 save or add undo history. Reopen if the project or media source changed; busy/recovery guards apply.
 This is time navigation, not frame/sample-accurate seeking.
+
+In the **Frame** panel, enable **Loop full preview**, then start playback. This session-only
+choice defaults off and resets on reload; it never changes project JSON, saves or undo history.
+
+| Playback | Loop behavior |
+|---|---|
+| Full preview | Restarts from the beginning; enabling it while paused does not start playback |
+| Timed-card preview | Still stops at that card’s end |
+| Export | Always one pass, regardless of the preview setting |
+
+Turning it off lets the current pass finish, but cancels a pending restart. Manual
+pause/seek, hiding the tab or changing media takes priority. Seamless playback is not guaranteed.
 
 ## Features
 

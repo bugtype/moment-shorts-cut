@@ -177,7 +177,7 @@ export function createWorkspacePanels(app) {
             app.renderDesignPanel(target);
         }
         else {
-            target.innerHTML = settingsPanelMarkup(app.state, app.state.clips[app.selected]);
+            target.innerHTML = settingsPanelMarkup(app.state, app.state.clips[app.selected], app.loopPreview);
             for (const [id, key] of [['mobileZoom', 'zoom'], ['captionSize', 'captionSize'], ['captionY', 'captionY'], ['panelVolume', 'volume']]) {
                 const control = $('#' + id);
                 app.inputHistory.bind(control, () => app.state[key], value => {
@@ -192,6 +192,17 @@ export function createWorkspacePanels(app) {
                 app.state.panX = 0;
                 app.state.panY = 0;
             }, true);
+            const loop = $('#loopPreview');
+            loop.checked = app.loopPreview;
+            loop.onchange = () => {
+                if (app.panel !== 'settings' || $('#loopPreview') !== loop) return;
+                if (!app.editorReady || app.exporting || app.loadingMedia || app.transcribing ||
+                    app.persistence.restorePhase !== 'ready' || app.audioRecording.requesting || app.audioRecording.current) {
+                    loop.checked = app.loopPreview;
+                    return;
+                }
+                app.setLoopPreview(loop.checked);
+            };
             const trimClip = app.state.clips[app.selected], trimIndex = app.selected;
             app.bindTrimDrafts({ start: '#panelTrimStart', end: '#panelTrimEnd',
                 startButton: '#panelTrimStartPlayhead', endButton: '#panelTrimEndPlayhead',

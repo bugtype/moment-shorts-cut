@@ -15,6 +15,16 @@ export function createPlayback(app, {
 } = {}) {
     let audioCtx, videoNode, audioNode, videoGain, audioGain, destination;
     let audioGraphReady = false;
+    let loopPreview = false, pendingRestart = null;
+    const canLoop = owner => loopPreview && app.editorReady && !app.exporting && !app.loadingMedia &&
+        !app.transcribing && !app.document.hidden && !app.modal.open && app.persistence.restorePhase === 'ready' &&
+        !app.audioRecording.requesting && !app.audioRecording.current && (!owner ||
+            (app.state === owner.project && app.sources.videoFile === owner.video && app.sources.audioFile === owner.audio &&
+             app.state.speed === owner.speed && JSON.stringify(app.state.clips) === owner.clips));
+    function setLoopPreview(value) {
+        loopPreview = !!value;
+        if (!loopPreview && pendingRestart) pause();
+    }
 
     function paint(target, width, height) {
         const state = app.state, current = app.current;
@@ -94,7 +104,8 @@ export function createPlayback(app, {
             app.audio.pause();
     }
 
-    function seekTo(t) {
+    function seekTo(t, automatic = false) {
+        if (pendingRestart && !automatic) pause();
         app.current = clamp(t, 0, app.duration());
         const pos = app.locate(app.current);
         if (app.persistence.restorePhase === 'ready' && app.state.kind === 'video' && Number.isFinite(app.video.duration))
@@ -103,31 +114,32 @@ export function createPlayback(app, {
         app.updateTime();
         app.updateLayerGuide();
         app.draw();
-        if (app.panel === 'text')
+        if (app.panel === 'text' && !automatic)
             app.renderPanel();
     }
 
-    async function play() {
+    async function play(automatic = null) {
         if (app.recoveryBlocked() || app.playing)
             return;
+        if (!automatic) pendingRestart = null; // A manual Play now owns its own async request.
         const request = ++app.playRequest;
-        if (app.current >= app.duration() - .03)
-            seekTo(0);
+        const owns = () => request === app.playRequest && (!automatic || (pendingRestart === automatic && canLoop(automatic)));
+        const stale = () => { if (automatic && request === app.playRequest) pause(); };
         try {
+            if (!owns()) { stale(); return; }
+            if (app.current >= app.duration() - .03) seekTo(0, !!automatic);
             await app.ensureAudio();
-            if (request !== app.playRequest || app.recoveryBlocked())
-                return;
+            if (!owns() || app.recoveryBlocked()) { stale(); return; }
             if (app.state.kind === 'video') {
                 const pos = app.locate(app.current);
-                if (Math.abs(app.video.currentTime - pos.source) > .08)
+                if (Math.abs(app.video.currentTime - pos.source) > .08 || (automatic && app.video.seeking))
                     await app.seekVideo(pos.source);
-                if (request !== app.playRequest)
-                    return;
+                if (!owns()) { stale(); return; }
                 app.video.playbackRate = app.state.speed;
                 await app.video.play();
             }
-            if (request !== app.playRequest)
-                return;
+            if (!owns()) { stale(); return; }
+            pendingRestart = null;
             app.playing = true;
             app.lastTick = clock();
             app.lastDrawTime = -Infinity;
@@ -139,8 +151,8 @@ export function createPlayback(app, {
             app.frameHandle = requestFrame(tick);
         }
         catch {
-            if (request !== app.playRequest)
-                return;
+            if (!owns()) { stale(); return; }
+            if (automatic) pause();
             if (app.exporting)
                 app.stopExport(true);
             app.toast(message('shell.playError'));
@@ -148,6 +160,7 @@ export function createPlayback(app, {
     }
 
     function pause() {
+        pendingRestart = null;
         ++app.playRequest;
         app.playing = false;
         app.cardPlaybackEnd = null;
@@ -202,10 +215,16 @@ export function createPlayback(app, {
             return;
         }
         if (app.current >= app.duration() - .001) {
+            const repeat = canLoop();
             pause();
             app.updateTime();
-            if (app.exporting)
-                app.stopExport(false);
+            if (app.exporting) app.stopExport(false);
+            else if (repeat) {
+                pendingRestart = { project: app.state, video: app.sources.videoFile, audio: app.sources.audioFile,
+                    speed: app.state.speed, clips: JSON.stringify(app.state.clips) };
+                // play catches seek/audio failures; every continuation rechecks this owner.
+                void play(pendingRestart);
+            }
         }
         else
             app.frameHandle = requestFrame(tick);
@@ -251,5 +270,6 @@ export function createPlayback(app, {
         paint, draw, requestDraw, ensureAudio, applyVolumes, syncAudio, seekTo,
         play, pause, tick, seekVideo, resizePreview,
         get destination() { return destination; },
+        get loopPreview() { return loopPreview; }, setLoopPreview,
     };
 }

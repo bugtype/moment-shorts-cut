@@ -275,6 +275,7 @@ const entries = {
   "panels.trimStartPlayhead": ["현재 위치를 시작값으로 입력","Use playhead for start","将播放头位置填入开始时间"],
   "panels.trimEndPlayhead": ["현재 위치를 끝값으로 입력","Use playhead for end","将播放头位置填入结束时间"],
   "panels.trimPlayheadOutside": ["선택한 클립 안으로 재생 위치를 옮겨 주세요.","Move the playhead into the selected clip.","请将播放头移入所选片段。"],
+  "panels.loopPreview": ["전체 미리보기 반복","Loop full preview","循环播放完整预览"],
 };
 
 export const messages = Object.fromEntries(['ko', 'en', 'zh-CN'].map((locale, index) => [

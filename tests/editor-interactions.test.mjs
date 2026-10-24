@@ -169,3 +169,52 @@ test('horizontal tab navigation never falls through to seeking, including nested
   }
   assert.deepEqual(seeks, [-1, 1, -1, 1]);
 });
+
+test('composition and editable ancestors own all shortcut keys without cancellation', () => {
+  let handler;
+  const calls = [];
+  bindEditorKeyboard({ addEventListener: (_, callback) => { handler = callback; } }, {
+    blocked: () => false,
+    togglePlayback: () => calls.push('play'),
+    undo: () => calls.push('undo'),
+    seekBy: () => calls.push('seek'),
+    stepOutput: () => calls.push('step'),
+    navigateCut: () => calls.push('cut'),
+  });
+  const guards = [
+    { isComposing: true }, { keyCode: 229 },
+    { target: { tagName: 'SPAN', isContentEditable: true } },
+    { target: { tagName: 'SPAN', closest: selector => selector.startsWith('input,') ? {} : null } },
+  ];
+  for (const extra of guards) for (const key of [' ', 'z', 'ArrowLeft', 'ArrowRight', ',', '.', '[', ']']) {
+    handler({ key, code: key === ' ' ? 'Space' : key, ctrlKey: key === 'z',
+      target: { tagName: 'BODY' }, preventDefault: () => calls.push('prevent'), ...extra });
+  }
+  assert.deepEqual(calls, []);
+});
+
+test('plain transport ignores modifiers while Ctrl/Meta Undo and Shift redo retain their mapping', () => {
+  let handler;
+  const calls = [];
+  bindEditorKeyboard({ addEventListener: (_, callback) => { handler = callback; } }, {
+    blocked: () => false,
+    togglePlayback: () => calls.push('play'),
+    undo: redo => calls.push(['undo', !!redo]),
+    seekBy: delta => calls.push(['seek', delta]),
+  });
+  const press = (key, extra = {}) => handler({ key, code: key === ' ' ? 'Space' : key,
+    target: { tagName: 'BODY' }, preventDefault: () => calls.push('prevent'), ...extra });
+  for (const modifier of ['ctrlKey', 'metaKey', 'altKey', 'shiftKey']) {
+    for (const key of [' ', 'ArrowLeft', 'ArrowRight']) press(key, { [modifier]: true });
+  }
+  assert.deepEqual(calls, []);
+  for (const modifier of ['ctrlKey', 'metaKey']) {
+    press('z', { [modifier]: true });
+    press('Z', { [modifier]: true, shiftKey: true });
+  }
+  assert.deepEqual(calls, ['prevent', ['undo', false], 'prevent', ['undo', true],
+    'prevent', ['undo', false], 'prevent', ['undo', true]]);
+  calls.length = 0;
+  press(' '); press('ArrowLeft'); press('ArrowRight');
+  assert.deepEqual(calls, ['prevent', 'play', ['seek', -1], ['seek', 1]]);
+});

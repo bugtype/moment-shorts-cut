@@ -73,33 +73,29 @@ export function bindPreviewDrag(canvas, { getProject, blocked, pause, selection,
 
 export function bindEditorKeyboard(document, { blocked, togglePlayback, undo, seekBy, stepOutput, navigateCut, stepBlocked = () => false }) {
     document.addEventListener('keydown', e => {
-        if (e.defaultPrevented) return;
+        const target = e.target;
+        // Native editing and composition own their keys before any editor shortcut.
+        if (e.defaultPrevented || e.isComposing || e.keyCode === 229 ||
+            /INPUT|TEXTAREA|SELECT|SUMMARY/.test(target?.tagName) || target?.isContentEditable ||
+            target?.closest?.('input, textarea, select, summary, [contenteditable]:not([contenteditable="false"])')) return;
+        const modified = e.ctrlKey || e.metaKey || e.altKey || e.shiftKey;
         if (e.key === '[' || e.key === ']') {
-            const target = e.target;
-            if (e.defaultPrevented || e.ctrlKey || e.metaKey || e.altKey || e.shiftKey ||
-                e.isComposing || e.keyCode === 229 || blocked() || stepBlocked() ||
-                /INPUT|TEXTAREA|SELECT|SUMMARY/.test(target?.tagName) || target?.isContentEditable ||
-                target?.closest?.('input, textarea, select, summary, [contenteditable]:not([contenteditable="false"])')) return;
+            if (modified || blocked() || stepBlocked()) return;
             if (navigateCut?.(e.key === '[' ? -1 : 1)) e.preventDefault();
             return;
         }
         if (e.key === ',' || e.key === '.') {
-            const target = e.target;
-            if (e.defaultPrevented || e.ctrlKey || e.metaKey || e.altKey || e.shiftKey ||
-                e.isComposing || e.keyCode === 229 || blocked() || stepBlocked() ||
-                /INPUT|TEXTAREA|SELECT|SUMMARY/.test(target?.tagName) || target?.isContentEditable ||
-                target?.closest?.('input, textarea, select, summary, [contenteditable]:not([contenteditable="false"])'))
-                return;
+            if (modified || blocked() || stepBlocked()) return;
             if (stepOutput) {
                 e.preventDefault();
                 stepOutput(e.key === ',' ? -1 : 1);
             }
             return;
         }
-        if (/INPUT|TEXTAREA|SELECT|SUMMARY/.test(e.target.tagName) || blocked())
+        if (blocked())
             return;
         if (e.code === 'Space') {
-            if (e.target.tagName === 'BUTTON')
+            if (modified || target?.tagName === 'BUTTON')
                 return;
             e.preventDefault();
             togglePlayback();
@@ -111,10 +107,10 @@ export function bindEditorKeyboard(document, { blocked, togglePlayback, undo, se
         // Tabs own horizontal navigation, including events their IME/modifier guards ignore.
         if ((e.key === 'ArrowLeft' || e.key === 'ArrowRight') &&
             (e.target?.getAttribute?.('role') === 'tab' || e.target?.closest?.('[role="tab"]'))) return;
-        if (e.key === 'ArrowLeft') {
+        if (e.key === 'ArrowLeft' && !modified) {
             seekBy(-1);
         }
-        if (e.key === 'ArrowRight') {
+        if (e.key === 'ArrowRight' && !modified) {
             seekBy(1);
         }
     });

@@ -20,6 +20,41 @@ export function findCaption(captions, sourceTime, timelineTime) {
     return time >= caption.start && time < caption.end;
   });
 }
+// Narrow overlap checks without caching mutable project data. Candidate order is
+// restored before append so equal-time ties and output-limit failures stay stable.
+function sourceCaptionLookup(sourceCaptions, clipCount) {
+  if (clipCount < 2 || sourceCaptions.some(([, cap]) =>
+    !Number.isFinite(cap.start) || !Number.isFinite(cap.end)))
+    return () => sourceCaptions;
+  const sorted = [...sourceCaptions].sort((a, b) => a[1].start - b[1].start || a[0] - b[0]);
+  const authoredOrder = sorted.every(([index], position) => index === sourceCaptions[position][0]);
+  let maximumEnd = -Infinity;
+  const ends = sorted.map(([, cap]) => maximumEnd = Math.max(maximumEnd, cap.end));
+  function firstMatch(predicate) {
+    let low = 0, high = sorted.length;
+    while (low < high) {
+      const middle = Math.floor((low + high) / 2);
+      if (predicate(middle)) high = middle;
+      else low = middle + 1;
+    }
+    return low;
+  }
+  return clip => {
+    // Raw helper callers historically use Math.min/max coercion. Keep that path
+    // for non-finite/non-number bounds instead of changing their behavior.
+    if (!Number.isFinite(clip.start) || !Number.isFinite(clip.end)) return sourceCaptions;
+    const first = firstMatch(index => ends[index] > clip.start);
+    const last = firstMatch(index => sorted[index][1].start >= clip.end);
+    // Broad windows are cheaper to scan than allocate and reorder, especially
+    // when a long overlapping cue keeps every prefix maximum high.
+    const count = Math.max(0, last - first);
+    if (!authoredOrder && count * Math.log2(Math.max(2, count)) >= sourceCaptions.length)
+      return sourceCaptions;
+    const candidates = sorted.slice(first, last);
+    return authoredOrder ? candidates : candidates.sort((a, b) => a[0] - b[0]);
+  };
+}
+
 export function captionOccurrences(captions, clips, speed = 1) {
   const out = []; let offset = 0, bytes = 0;
   const textBytes = new Map();
@@ -34,8 +69,9 @@ export function captionOccurrences(captions, clips, speed = 1) {
     out.push({start:start/speed,end:end/speed,text:cap.text,captionIndex,...(clipIndex === undefined ? {} : {clipIndex})});
   }
   const sourceCaptions = [...captions.entries()].filter(([, cap]) => cap.basis !== 'timeline');
+  const candidates = sourceCaptionLookup(sourceCaptions, clips.length);
   for (const [clipIndex, clip] of clips.entries()) {
-    for (const [captionIndex, cap] of sourceCaptions) {
+    for (const [captionIndex, cap] of candidates(clip)) {
       const start = Math.max(clip.start, cap.start), end = Math.min(clip.end, cap.end);
       if (end > start) append(cap,captionIndex,offset+start-clip.start,offset+end-clip.start,clipIndex);
     }

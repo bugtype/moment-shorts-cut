@@ -6,7 +6,7 @@ import { splitCaptionText } from './effects.mjs';
 import { CAPTION_PAGE_SIZE, captionsPanelMarkup } from './panel-markup.mjs';
 
 export function createCaptionPanel({
-    query: $, queryAll: $$, getProject, getDuration, sourceTime, edit, refresh, toast, execute, inspect, view, overlaps, removeRange, shiftRange, importFile, blocked = () => false,
+    query: $, queryAll: $$, getProject, getDuration, sourceTime, edit, refresh, toast, execute, inspect, view, overlaps, removeRange, shiftRange, speakerRange, importFile, blocked = () => false,
 }) {
     const timingFields = { basis: 'source', delta: '0' };
     let exportFormat = 'srt';
@@ -118,6 +118,9 @@ export function createCaptionPanel({
         $('#shiftCaptionRange').onclick = event => {
             if (!composing && !event?.isComposing && event?.keyCode !== 229) shiftRange?.(page * CAPTION_PAGE_SIZE);
         };
+        $('#assignSpeakerRange').onclick = event => {
+            if (!composing && !event?.isComposing && event?.keyCode !== 229) speakerRange?.(page * CAPTION_PAGE_SIZE);
+        };
         $('#captionDesignShortcut').onclick = actions.design;
         $('#inspectCaptionOverlaps').onclick = event => { if (!composing && !event?.isComposing && event?.keyCode !== 229) overlaps(); };
         $('#inspectCaptions').onclick = () => { if (!composing) inspect(); };
@@ -200,7 +203,7 @@ export function createCaptionPanel({
             ...['captionFind', 'captionReplacement', 'previousCaptionPage', 'nextCaptionPage',
                 'captionPageNumber', 'goCaptionPage', 'previousCaptionMatch', 'nextCaptionMatch', 'replaceCaptionMatch', 'replaceAllCaptions', 'splitLongCaptions',
                 'addCaption', 'removeCaptionRange', 'importSrt', 'captionExportFormat', 'downloadCaptions', 'generateCaptions',
-                'inspectCaptionOverlaps', 'inspectCaptions', 'captionDesignShortcut', 'captionShiftBasis', 'captionShiftDelta', 'shiftCaptionTiming', 'shiftCaptionRange'].map(id => $('#' + id)),
+                'inspectCaptionOverlaps', 'inspectCaptions', 'captionDesignShortcut', 'captionShiftBasis', 'captionShiftDelta', 'shiftCaptionTiming', 'shiftCaptionRange', 'assignSpeakerRange'].map(id => $('#' + id)),
         ];
         for (const control of controls) for (const event of ['onclick', 'onchange', 'oninput', 'onkeydown']) {
             const handler = control?.[event];

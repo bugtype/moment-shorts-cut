@@ -85,7 +85,7 @@ its supported version, `2025-11-25`, even if the proposed version differs; a cli
 that cannot support that version should disconnect, not continue with another
 wire format. `ping` is supported. Initialize only once per process.
 
-All thirty-seven tools require **`projectId: "session"`**. Each process owns one independent
+All thirty-eight tools require **`projectId: "session"`**. Each process owns one independent
 in-memory project, initially the demo. This value is neither a path nor a credential.
 Other project IDs return a tool error. A second client process does not share state.
 
@@ -241,6 +241,7 @@ The service emits no BOM.
 | `moment_captions_import` | `text`, `basis` | `{updated:true, outputDuration, importedCaptions}` |
 | `moment_captions_text_replace` | `find`, `replacement` | `{updated:boolean, matches:number, changedCaptions:number}` |
 | `moment_captions_style_update` | `patch` | `{updated:true, outputDuration}` |
+| `moment_captions_speaker_assign` | `captionIndex`, `count`, `speaker` | `{updated:boolean, changedCaptions:number, outputDuration}` |
 | `moment_captions_timing_shift` | `basis`, `delta`; optional `captionIndex`, `count` | `{updated:boolean, shiftedCaptions:number, outputDuration}` |
 
 `moment_timeline_replace`, `moment_captions_replace` and `moment_captions_import` replace the **entire array**. Preserve unrequested clips/captions
@@ -381,7 +382,7 @@ the example. Discover exact input fields in the [tool catalog](#tool-catalog).
 
 | Task | Recipes |
 |---|---|
-| Captions | [Check overlaps](#check-caption-time-overlaps) · [Inspect timing density](#inspect-caption-timing-density) · [Import](#import-subtitle-text-with-an-explicit-clock) · [Split](#split-one-caption-at-a-text-boundary) · [Merge](#merge-two-adjacent-authored-captions) · [Insert/remove](#insert-one-caption-or-remove-a-range) · [Edit one cue](#edit-one-authored-caption) · [Correct text](#correct-caption-text-without-replacing-cues) · [Shift timing](#shift-caption-timing-without-replacing-text) · [Style](#adjust-global-caption-appearance) |
+| Captions | [Check overlaps](#check-caption-time-overlaps) · [Inspect timing density](#inspect-caption-timing-density) · [Import](#import-subtitle-text-with-an-explicit-clock) · [Split](#split-one-caption-at-a-text-boundary) · [Merge](#merge-two-adjacent-authored-captions) · [Insert/remove](#insert-one-caption-or-remove-a-range) · [Edit one cue](#edit-one-authored-caption) · [Correct text](#correct-caption-text-without-replacing-cues) · [Shift timing](#shift-caption-timing-without-replacing-text) · [Assign speakers](#assign-a-speaker-to-an-authored-range) · [Style](#adjust-global-caption-appearance) |
 | Timeline | [Read clip clocks](#read-timeline-positions-in-pages) · [Split a clip](#split-one-clip-occurrence) · [Repeat a clip](#repeat-one-clip-occurrence) · [Move a clip](#move-one-clip-to-a-final-position) |
 | Composition | [Credit](#set-a-source-credit-independently) · [Effects](#adjust-video-effects-independently) · [Edit a card](#edit-an-existing-timed-card) · [Add/remove cards](#create-scripted-cards-without-importing-a-whole-project) · [Stacking](#change-card-stacking) |
 | Grouped/template edits | [Preview summary](#preview-an-edit-summary-without-committing) · [One commit](#apply-related-edits-in-one-commit) · [Inspect a built-in](#inspect-a-built-in-template-before-applying) · [Export a composition](#export-the-current-composition-as-a-template) · [Apply a template file](#apply-an-exported-custom-template) |
@@ -389,7 +390,7 @@ the example. Discover exact input fields in the [tool catalog](#tool-catalog).
 ### Preview an edit summary without committing
 
 Call `moment_project_preview` with the same closed `operations` schema as
-`moment_project_batch`: 1–20 sequential operations from the 24 allowed editing
+`moment_project_batch`: 1–20 sequential operations from the 25 allowed editing
 commands. Put `projectId:"session"` only on the outer call. For example:
 
 ```json
@@ -955,7 +956,7 @@ read again instead of blindly retrying; the next removal could delete a differen
 
 Both are supported in `project.batch`, using each preceding step's current array.
 For example, remove index 0, then insert at index 0 to replace the first entry.
-All steps validate before one commit; 24 editing command names are allowed, but
+All steps validate before one commit; 25 editing command names are allowed, but
 there are still at most 20 operations per batch. See the [executable CLI sequence
 and batch recipe](../INTEGRATIONS.md#자막-하나-추가연속-범위-삭제).
 Mutation acknowledgments are not saved documents: retrieve `moment_project_get`
@@ -1065,6 +1066,36 @@ undo step; its **Shift range…** dialog uses inclusive 1-based authored row bou
 not the API’s zero-based index/count. MCP has no undo tool. The [complete CLI example](../INTEGRATIONS.md#자막-시간을-앞뒤로-이동)
 uses an imported cue with room to move; the default demo spans the full duration
 and cannot necessarily be shifted without hitting a boundary.
+
+### Assign a speaker to an authored range
+
+Use `moment_captions_speaker_assign` after reading the current `moment_captions_list`
+page. This changes only speaker assignment, not text, timing, keywords, basis or order.
+Valid existing cues outside the current edited duration are preserved, not clamped.
+
+```json
+{"projectId":"session","captionIndex":1,"count":2,"speaker":"1"}
+```
+
+| Field / behavior | Contract |
+|---|---|
+| `captionIndex` | Required existing zero-based authored row, integer 0–9,999 |
+| `count` | Required integer 1–10,000; the entire contiguous range must exist, with no overflow clipping |
+| `speaker` | Required `"0"`, `"1"` or unassigned `""`; no new slots or automatic diarization |
+| Selection | Authored rows, not search matches/output occurrences; both source- and timeline-basis cues are included |
+| No-op | An unchanged assignment does not commit. Missing `speaker` and `""` both mean unassigned; a missing field stays missing when already unassigned |
+| Result | `{updated, changedCaptions, outputDuration}`; count only actually changed cues |
+
+Clearing an assigned speaker writes `speaker:""`. Existing global labels/colors are
+configured separately with `moment_captions_style_update`; subtitle exports still
+contain no speaker names or visual styling. Save the updated document with
+`moment_project_get`; MCP has no undo tool.
+
+This command is allowed in `moment_project_batch` and `moment_project_preview`.
+Preview does not reserve rows or state. Re-read positional rows after structural
+edits or an uncertain response before retrying: the same index can now identify a
+different cue. Invalid arguments/range reject atomically with `INVALID_ARGUMENT`.
+[Executable list → preview → assign CLI recipe](../INTEGRATIONS.md#자막-범위의-화자-배정)
 
 ### Adjust global caption appearance
 

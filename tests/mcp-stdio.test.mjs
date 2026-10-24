@@ -32,7 +32,7 @@ test('stdio negotiates its supported version, waits for initialization and lists
   assert.equal(replies[1].result.protocolVersion, '2025-11-25');
   assert.deepEqual(replies[1].result.capabilities, {tools: {}});
   assert.equal(replies[2].error.code, -32600);
-  assert.equal(replies[3].result.tools.length,37);
+  assert.equal(replies[3].result.tools.length,38);
   assert.ok(replies[3].result.tools.some(tool => tool.name === 'moment_project_import'));
   assert.ok(replies[3].result.tools.every(tool => tool.inputSchema.required.includes('projectId')));
   assert.equal(replies[3].result.resultType, undefined);
@@ -144,4 +144,24 @@ test('stdio updates speaker presentation without changing cue assignments or tex
  const replies=run([init,ready,call(2,'project_get'),call(3,'captions_style_update',{patch}),call(4,'project_get')]);
  const before=replies.find(r=>r.id===2).result.structuredContent.data.project,after=replies.find(r=>r.id===4).result.structuredContent.data.project;
  assert.deepEqual(after.speakerLabels,patch.speakerLabels);assert.deepEqual(after.speakerColors,patch.speakerColors);assert.deepEqual(after.captions,before.captions);
+});
+
+test('stdio assigns speaker ranges, preserves None no-op and recovers from invalid ranges', () => {
+  const replies = run([
+    init, ready,
+    call(2, 'captions_speaker_assign', { captionIndex: 0, count: 2, speaker: '0' }),
+    call(3, 'captions_speaker_assign', { captionIndex: 0, count: 2, speaker: '0' }),
+    call(4, 'captions_speaker_assign', { captionIndex: 1, count: 3, speaker: '1' }),
+    call(5, 'captions_speaker_assign', { captionIndex: 1, count: 2, speaker: '' }),
+    call(6, 'captions_list'),
+  ]);
+  const response = id => replies.find(item => item.id === id).result.structuredContent;
+  assert.deepEqual(response(2).data, { updated: true, changedCaptions: 2, outputDuration: 12 });
+  assert.equal(response(3).data.updated, false);
+  assert.equal(response(4).error.code, 'INVALID_ARGUMENT');
+  assert.equal(response(5).data.changedCaptions, 1);
+  const captions = response(6).data.captions.map(item => item.caption);
+  assert.equal(captions[0].speaker, '0');
+  assert.equal(captions[1].speaker, '');
+  assert.equal(Object.hasOwn(captions[2], 'speaker'), false);
 });

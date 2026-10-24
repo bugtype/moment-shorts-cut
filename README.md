@@ -440,6 +440,12 @@ conversion occurs. A real change is one undo step, with the playhead position
 unchanged. Cancel, zero or no matching changes add no edit; ordinary field blur
 before opening may already commit a draft. Existing whole-list shift remains available.
 
+**Assign one speaker to several cues:** choose **Assign speaker to range…** in caption tools.
+
+- Enter inclusive **1-based authored row** bounds; defaults are the current page’s first row and its current speaker, not search/output-occurrence selection.
+- Choose one of the two existing speakers or None. Mixed time bases are included; wording, times and order stay intact.
+- A real change is one undo step; cancel or unchanged assignment adds no edit. Shared Dialogue names/colors still apply—this is not automatic speaker identification. [CLI/MCP contract](INTEGRATIONS.md#자막-범위의-화자-배정)
+
 **Clips and composition**
 
 | Task | Use | Keep in mind |

@@ -69,7 +69,7 @@ async function withClient(work) {
 
 const saved = await withClient(async ({request, call, data}) => {
   const {tools} = await request('tools/list', {});
-  assert.equal(tools.length, 37);
+  assert.equal(tools.length, 38);
   assert.ok(tools.some(tool => tool.name === 'moment_project_import'));
   await data('moment_project_import', {document: createProjectDocument(createDemoProject())});
   await data('moment_project_update', {patch: {name: 'MCP 예제', speed: 2}});
@@ -104,6 +104,9 @@ const saved = await withClient(async ({request, call, data}) => {
   assert.equal(invalidFormat.isError, true);
   assert.equal(invalidFormat.structuredContent.error.code, 'INVALID_ARGUMENT');
   assert.deepEqual(await data('moment_captions_export'), srt);
+  const assigned = await data('moment_captions_speaker_assign', {captionIndex: 0, count: 1, speaker: '0'});
+  assert.equal(assigned.changedCaptions, 1);
+  assert.equal((await data('moment_captions_speaker_assign', {captionIndex: 0, count: 1, speaker: '0'})).updated, false);
   const shifted = await data('moment_captions_timing_shift', {basis: 'source', delta: .1});
   assert.equal(shifted.updated, true);
   await data('moment_captions_timing_shift', {basis: 'source', delta: -.1});
@@ -216,4 +219,4 @@ await withClient(async ({data}) => {
   await data('moment_project_import', {document: saved});
   assert.deepEqual(await data('moment_project_get'), saved);
 });
-console.log(JSON.stringify({ok: true, tools: 37, recoveredFromInvalidInput: true, reimported: true, rendered: false}));
+console.log(JSON.stringify({ok: true, tools: 38, recoveredFromInvalidInput: true, reimported: true, rendered: false}));

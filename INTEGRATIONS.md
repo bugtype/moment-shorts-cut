@@ -298,6 +298,7 @@ JavaScript에서 직접 호출할 때도 JSON으로 왕복 가능한 값을 전�
 | `captions.import` | `text`, `basis` | 전체 교체; `{updated:true, outputDuration, importedCaptions}` |
 | `captions.text.replace` | `find`, `replacement` | 문구 모두 바꾸기; `{updated, matches, changedCaptions}` |
 | `captions.style.update` | `patch` | 공통 자막 스타일; `{updated:true, outputDuration}` |
+| `captions.speaker.assign` | `captionIndex`, `count`, `speaker` | 연속 작성 행의 화자 배정; `{updated, changedCaptions, outputDuration}` |
 | `captions.timing.shift` | `basis`, `delta`, 선택 `captionIndex`, `count` | 시간 일괄 이동; `{updated, shiftedCaptions, outputDuration}` |
 
 ## 작업별 편집 예제
@@ -307,7 +308,7 @@ JavaScript에서 직접 호출할 때도 JSON으로 왕복 가능한 값을 전�
 
 | 작업 | 예제 |
 |---|---|
-| 자막 | [시간 겹침](#자막-시간-겹침-점검) · [표시 속도 점검](#편집-후-자막-표시-속도-점검) · [가져오기](#srtvtt-본문을-명령으로-가져오기) · [커서 분할](#자막-하나를-커서-위치에서-분할) · [합치기](#인접한-자막-합치기) · [추가·삭제](#자막-하나-추가연속-범위-삭제) · [개별 수정](#자막-하나만-수정) · [문구 교정](#자막-문구-일괄-교정) · [시간 이동](#자막-시간을-앞뒤로-이동) · [스타일](#자막-스타일-수정) |
+| 자막 | [시간 겹침](#자막-시간-겹침-점검) · [표시 속도 점검](#편집-후-자막-표시-속도-점검) · [가져오기](#srtvtt-본문을-명령으로-가져오기) · [커서 분할](#자막-하나를-커서-위치에서-분할) · [합치기](#인접한-자막-합치기) · [추가·삭제](#자막-하나-추가연속-범위-삭제) · [개별 수정](#자막-하나만-수정) · [문구 교정](#자막-문구-일괄-교정) · [시간 이동](#자막-시간을-앞뒤로-이동) · [범위 화자 배정](#자막-범위의-화자-배정) · [스타일](#자막-스타일-수정) |
 | 타임라인 | [클립 분할](#클립-구간-분할) · [클립 복제](#클립-구간-복제) |
 | 구성 | [크레딧](#출처-크레딧-수정) · [영상 효과](#영상-효과-수정) · [카드 수정](#기존-시간별-카드-수정) · [카드 추가·삭제](#스크립트에-맞춰-카드-추가삭제) · [쌓임 순서](#카드-쌓임-순서-변경) |
 | 묶음·템플릿 | [반영 전 요약](#편집-묶음의-반영-전-요약) · [한 번에 편집](#여러-편집을-한-번에-반영) · [기본 템플릿 점검](#기본-템플릿-적용-전-점검) · [템플릿 파일 관리](#개별-사용자-템플릿-파일) · [현재 구성 내보내기](#현재-구성을-템플릿으로-내보내기) · [파일 적용](#내보낸-템플릿을-climcp로-적용) |
@@ -315,7 +316,7 @@ JavaScript에서 직접 호출할 때도 JSON으로 왕복 가능한 값을 전�
 ### 편집 묶음의 반영 전 요약
 
 `project.preview`는 `project.batch`와 같은 `operations` 1–20개를 복사본에 순서대로
-검증하고 **반영하지 않은 요약**을 반환합니다. 현재 허용 편집 명령 24개와 개별 입력
+검증하고 **반영하지 않은 요약**을 반환합니다. 현재 허용 편집 명령 25개와 개별 입력
 스키마를 그대로 사용하며 읽기 명령·제공자 작업·중첩 묶음은 넣을 수 없습니다.
 
 | 결과 | 의미 |
@@ -815,7 +816,7 @@ node cli/moment.mjs exec project.batch --project cue-source.json --json '{"opera
 ```
 
 두 명령은 `project.batch`의 순차 현재 배열에 적용됩니다. 위 배치는 첫 자막을 삭제한
-**다음** 상태의 0번 위치에 삽입합니다. 배치 허용 편집 명령은 24개지만 한 요청의 작업
+**다음** 상태의 0번 위치에 삽입합니다. 배치 허용 편집 명령은 25개지만 한 요청의 작업
 수는 여전히 최대 20개이며, 하나라도 실패하면 전체가 반영되지 않습니다.
 CLI 변경에는 `--out` 또는 `--dry-run`이 필요합니다. 출력 파일은 조회 페이지가 아니라
 전체 프로젝트 문서이며 기존 파일은 기본 보호됩니다. MCP는 성공 확인 후 `project.get`으로
@@ -924,6 +925,38 @@ node cli/moment.mjs exec captions.timing.shift --project range-ready.json --json
 기준·부호 있는 초를 정하고 적용하며 실제 변경은
 한 단계 실행 취소됩니다. 자동 음성 동기화·속도 보정이 아닌 일정 시간 이동이고
 MCP에는 실행 취소 도구가 없으므로 이전 프로젝트를 보관하세요.
+
+### 자막 범위의 화자 배정
+
+`captions.speaker.assign`은 선택한 연속 **작성 행**의 `speaker`만 수정합니다.
+검색 일치·화면 페이지·반복 클립의 출력 출현을 선택하는 명령이 아닙니다.
+
+| 입력·결과 | 계약 |
+|---|---|
+| `captionIndex` | 필수, 0부터 시작하는 현재 행 위치, 정수 0–9,999 |
+| `count` | 필수, 정수 1–10,000; 시작부터 해당 개수 전체가 존재해야 하며 초과분을 잘라내지 않음 |
+| `speaker` | 필수, `"0"` / `"1"` 또는 미배정 `""`; 두 기존 화자 슬롯만 사용 |
+| 적용 범위 | 선택 행의 source/timeline 기준과 무관하게 배정; 시간·문구·키워드·순서 유지; 현재 편집 시간 밖의 유효한 기존 자막도 유지 |
+| 변경 없음 | 이미 같은 배정이면 쓰기 없음; 누락된 `speaker`와 `""`는 모두 미배정으로 취급하며 누락 필드를 새로 만들지 않음 |
+| 결과 | `{updated, changedCaptions, outputDuration}`; 실제 달라진 행만 집계 |
+
+화자 이름·색은 `captions.style.update`의 `speakerLabels`/`speakerColors`로 별도
+설정합니다. 자동 화자 인식이나 새 화자 슬롯이 아니며, SRT/VTT/TXT에 화자 이름을
+추가하지 않습니다. 배정된 화자를 미배정으로 바꾸면 해당 필드는 `""`가 됩니다.
+
+```sh
+node cli/moment.mjs init --out speaker-range-source.json
+node cli/moment.mjs exec captions.replace --project speaker-range-source.json --json '{"captions":[{"start":0,"end":1,"text":"Intro"},{"start":1,"end":2,"text":"Answer","basis":"source"},{"start":2,"end":3,"text":"Follow-up","basis":"timeline"}]}' --out speaker-range-ready.json
+node cli/moment.mjs exec captions.list --project speaker-range-ready.json --json '{"offset":0,"limit":3}'
+node cli/moment.mjs exec project.preview --project speaker-range-ready.json --json '{"operations":[{"command":"captions.speaker.assign","arguments":{"captionIndex":1,"count":2,"speaker":"1"}}]}'
+node cli/moment.mjs exec captions.speaker.assign --project speaker-range-ready.json --json '{"captionIndex":1,"count":2,"speaker":"1"}' --out speaker-range-edited.json
+```
+
+범위를 먼저 확인하고 이전 설정 파일을 보관하세요. `project.preview`는 상태를 예약하지
+않으며 실제 실행은 현재 상태를 다시 검증합니다. 구조 편집 후 또는 응답이 불확실하면
+`captions.list`로 행 위치를 다시 확인하세요. 같은 값 재적용은 같은 현재 행에서만
+변경 없음이며, 위치가 바뀐 뒤 맹목적으로 재시도하면 다른 자막을 지정할 수 있습니다.
+한 배치 안에서도 앞 단계 이후의 현재 행 위치를 사용하며 실패 시 전체를 반영하지 않습니다.
 
 ### 자막 스타일 수정
 

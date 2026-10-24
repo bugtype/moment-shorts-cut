@@ -72,6 +72,7 @@ export function captionsPanelMarkup({ captions, speakerLabels }, { toolsOpen, tr
         `<select id="captionShiftBasis" ${attrs('aria-label', 'panels.shiftBasis')}><option value="source" ${mark('panels.sourceTime')}>${esc(t('panels.sourceTime'))}</option><option value="timeline" ${mark('panels.timelineTime')}>${esc(t('panels.timelineTime'))}</option></select>` +
         `<input id="captionShiftDelta" type="number" step="any" value="0" ${attrs('aria-label', 'panels.shiftSeconds')}>` +
         `<button class="button" id="shiftCaptionTiming">${text('panels.shift')}</button></div>` +
+        `<button class="button" id="assignSpeakerRange" ${captions.length ? '' : 'disabled'}>${text('panels.assignSpeakerRange')}</button>` +
         `<button class="button" id="shiftCaptionRange" ${captions.length ? '' : 'disabled'}>${text('panels.shiftCaptionRange')}</button>` +
         `<div class="caption-split-tool">` +
         `<select id="captionChunkSize" ${attrs('aria-label', 'panels.chunkLength')}>` +

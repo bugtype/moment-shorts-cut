@@ -119,7 +119,7 @@ do not silently discard captions to force a backup under the limit.
 ## Inspect a proposed edit summary
 
 Use read-only `project.preview` / `moment_project_preview` before a related edit
-bundle. Pass the same `operations` as `project.batch` (1–20, current 24-command
+bundle. Pass the same `operations` as `project.batch` (1–20, current 25-command
 allowlist); MCP adds outer `projectId:"session"`. It returns operationCount,
 wouldCommit, sorted changedFields and before/after counts (clips/captions/cards)
 plus outputDuration. `wouldCommit` is commit intent: change-and-revert operations
@@ -583,6 +583,26 @@ Do not imply lossless rendering or that applying complement twice restores edits
 - Project updates reset zoom/pan when the aspect ratio changes. Timeline or speed changes retime output layers through the shared command logic; do not separately rescale those fields again.
 
 Live schemas are authoritative. Examples do not extend the supported fields: there is no arbitrary patch path or server-side file-save tool.
+
+## Assign a speaker across authored rows
+
+Read `captions.list` before `captions.speaker.assign` / `moment_captions_speaker_assign`:
+all three arguments are required, e.g. `{"captionIndex":1,"count":2,"speaker":"1"}`.
+The existing zero-based index plus count selects contiguous authored rows, including
+both time bases—not search matches, page-only rows or repeated output occurrences.
+Count is 1–10,000 and the whole range must exist; invalid input is not clamped.
+
+Only `speaker` changes. Choose existing slots `"0"`/`"1"` or unassigned `""`; no
+automatic identification or additional slots. Missing/empty already-unassigned
+values are a no-op without creating a missing field; clearing an assigned cue writes
+`""`. The result `{updated,changedCaptions,outputDuration}` counts actual changes.
+Text, times, basis, keywords and order remain intact, and subtitle exports do not
+gain speaker names. Set presentation separately with `captions.style.update`.
+
+The operation supports batch and read-only preview, but neither reserves row
+identity. Re-read after structural edits or uncertain outcomes; save a prior
+project document for recovery because MCP has no undo tool.
+[Executable recipe and bounds](../../../../INTEGRATIONS.md#자막-범위의-화자-배정)
 
 ## Share one browser custom template
 

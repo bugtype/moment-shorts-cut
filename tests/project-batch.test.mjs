@@ -35,7 +35,7 @@ test('every failed position returns indexed known error and commits none of the 
 });
 test('closed allowlist, envelope bounds and nested arguments prevent imports, reads, jobs and recursion',()=>{
  const p=createDemoProject(),schema=commandDefinition('project.batch').inputSchema;
- assert.equal(schema.properties.operations.items.properties.command.enum.length,24);
+ assert.equal(schema.properties.operations.items.properties.command.enum.length,25);
  assert.ok(schema.properties.operations.items.properties.command.enum.includes('timeline.move'));
  for(const command of ['project.import','project.get','templates.list','template.export','captions.list','captions.inspect','captions.overlaps','captions.export','render.plan','jobs.submit','jobs.cancel','project.batch','unknown'])
   assert.throws(()=>batch(p,[op(command,{})]),e=>e.code==='INVALID_ARGUMENT');

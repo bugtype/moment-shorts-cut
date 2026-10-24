@@ -1,3 +1,4 @@
+import { assignCaptionSpeaker } from './caption-speakers.mjs';
 import { inspectCaptionOverlaps } from './caption-overlaps.mjs';
 import { message as msg } from '../i18n.mjs';
 import { inspectCaptions } from './caption-inspection.mjs';
@@ -69,6 +70,7 @@ const definitions=[
   command('captions.replace','자막을 교체합니다. source는 원본, timeline은 배속 전 편집 시간입니다.',object({captions:array(captionSchema,MAX_CAPTIONS)},['captions']),true),
   command('captions.text.replace','자막 본문에서 대소문자를 구분해 같은 문자열을 모두 바꿉니다. 시간과 메타데이터는 유지합니다.',object({find:{...string(2000),minLength:1},replacement:string(2000)},['find','replacement']),true),
   command('captions.timing.shift','지정한 원본 배열 범위에서 선택한 시간 기준의 자막을 배속 전 초 단위로 이동합니다. 범위 생략 시 전체에 적용하며 시간 범위를 벗어나면 변경하지 않습니다.',object({basis:choice('source','timeline'),delta:{type:'number'},captionIndex:{type:'integer',minimum:0,maximum:9999},count:{type:'integer',minimum:1,maximum:10000}},['basis','delta']),true),
+  command('captions.speaker.assign','원본 순서의 자막 범위에 기존 화자 슬롯을 지정합니다. 본문·시간·소유권은 바꾸지 않습니다.',object({captionIndex:{type:'integer',minimum:0,maximum:9999},count:{type:'integer',minimum:1,maximum:10000},speaker:choice('','0','1')},['captionIndex','count','speaker']),true),
   command('captions.style.update','자막의 공통 크기·위치·색상·표현만 수정합니다. 본문·시간과 SRT/VTT 내용은 유지합니다.',object({patch:captionStyleSchema},['patch']),true),
   command('captions.list','원본 순서의 자막을 제한된 페이지로 읽습니다. 시간 기준·문구·메타데이터는 변환하지 않습니다.',object({offset:{type:'integer',minimum:0,maximum:MAX_CAPTIONS},limit:{type:'integer',minimum:1,maximum:50}})),
   command('captions.overlaps','컷과 배속을 반영한 출력 자막의 시간 겹침을 읽습니다. 각 해당 구간마다 대표 충돌 하나를 반환하며 편집하지 않습니다.',object({limit:{type:'integer',minimum:1,maximum:100}})),
@@ -83,7 +85,7 @@ const batchCommands = [
   'timeline.move','timeline.duplicate','timeline.split','timeline.replace','credit.update','title.update',
   'overlays.move','overlays.add','overlays.remove','overlays.update',
   'captions.import','captions.split','captions.merge','captions.replace','captions.update','captions.insert','captions.remove',
-  'captions.text.replace','captions.timing.shift','captions.style.update',
+  'captions.text.replace','captions.timing.shift','captions.style.update','captions.speaker.assign',
 ];
 definitions.push(command('project.batch','최대 20개 편집을 순서대로 검증하고 한 번에 적용합니다. 하나라도 실패하면 적용하지 않습니다.',
   object({operations:array(object({command:choice(...batchCommands),arguments:{type:'object'}},['command','arguments']),20,1)},['operations']),true));
@@ -271,6 +273,13 @@ export function prepareCommand(project,name,args={}){
     const next=structuredClone(project);next.captions.splice(index,2,merged);
     validateProject(next);
     return {project:next,data:{updated:true,outputDuration:outputDuration(next),mergedCaptionIndex:index}};
+  }
+  if(name==='captions.speaker.assign'){
+    const result=assignCaptionSpeaker(project.captions,args);
+    const data={updated:result.changedCaptions>0,changedCaptions:result.changedCaptions,outputDuration:outputDuration(project)};
+    if(!data.updated)return {data};
+    const next=structuredClone(project);next.captions=structuredClone(result.captions);
+    validateProject(next);return {project:next,data};
   }
   if(name==='captions.timing.shift'){
     const result=shiftCaptionTiming(project.captions,args,args.basis==='source'?project.duration:timelineDuration(project));

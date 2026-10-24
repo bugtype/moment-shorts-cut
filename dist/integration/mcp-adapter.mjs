@@ -50,6 +50,7 @@ function dataSchema(command) {
     case 'captions.update': return record({updated:{const:true},captionIndex:{type:'integer',minimum:0,maximum:9999},outputDuration:{type:'number',minimum:0}});
     case 'captions.split': return record({updated:{const:true},createdCaptionIndex:{type:'integer',minimum:1,maximum:9999},outputDuration:{type:'number',minimum:0}});
     case 'captions.merge': return record({updated:{const:true},mergedCaptionIndex:{type:'integer',minimum:0,maximum:9998},outputDuration:{type:'number',minimum:0}});
+    case 'captions.speaker.assign': return record({updated:{type:'boolean'},changedCaptions:{type:'integer',minimum:0,maximum:10000},outputDuration:{type:'number',minimum:0}});
     case 'captions.timing.shift': return record({updated:{type:'boolean'},shiftedCaptions:{type:'integer',minimum:0,maximum:10000},outputDuration:{type:'number',minimum:0}});
     case 'captions.text.replace': return record({
       updated: {type: 'boolean'}, matches: {type: 'integer', minimum: 0},
@@ -303,6 +304,11 @@ function inputSchema(command) {
   }
   if (command.name === 'captions.merge') {
     p.captionIndex.description = 'Zero-based authored caption array index, not a rendered occurrence. Merge with its next entry in the same pre-speed clock; matching speaker/keywords and non-overlapping chronological times required. Texts join literally with one ASCII space (maximum 2000 UTF-16 units). The merged interval covers any gap; source captions still repeat across clips. Estimated timing warnings survive. This action is not idempotent: inspect project.get before retrying.';
+  }
+  if (command.name === 'captions.speaker.assign') {
+    p.captionIndex.description = 'Required zero-based existing authored caption position, not an output occurrence or stable ID. Reread captions.list after structural edits before assigning or retrying.';
+    p.count.description = 'Required integer 1..10000. The entire consecutive authored range must exist; overflow rejects without partial changes. No basis filter or time conversion.';
+    p.speaker.description = 'Existing slot 0 or 1, or empty string for None. Only cue speaker assignment changes, not labels, colors, text, timing, basis, keywords or estimated timing flags. Missing speaker already means None and remains absent on a no-op. Repeating on unchanged indices is a no-op; indices are not reserved against concurrent edits.';
   }
   if (command.name === 'captions.timing.shift') {
     p.basis.description = 'Required scope and clock: source includes cues with omitted basis; timeline includes edited-timeline cues. Both are BEFORE speed. Other-basis cues are unchanged.';

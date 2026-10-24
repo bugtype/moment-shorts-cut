@@ -159,6 +159,7 @@ export function bindUi(app) {
         });
         app.seekTo(0);
     };
+    $('#removeClipRangeButton').onclick = event => { if (!event?.isComposing) app.openClipRange($('#removeClipRangeButton')); };
     $('#moveClipButton').onclick = event => { if (!event?.isComposing) app.openClipMove($('#moveClipButton')); };
     for (const [id, delta] of [['moveLeft', -1], ['moveRight', 1]])
         $('#' + id).onclick = event => {

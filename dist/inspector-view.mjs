@@ -43,6 +43,7 @@ export function createInspectorView($, $$) {
         $('#undoButton').disabled = !canUndo;
         $('#redoButton').disabled = !canRedo;
         $('#duplicateClipButton').disabled = state.clips.length >= MAX_CLIPS;
+        $('#removeClipRangeButton').disabled = state.clips.length <= 1;
         $('#deleteButton').disabled = state.clips.length <= 1;
         $('#moveLeft').disabled = selected <= 0;
         $('#moveRight').disabled = selected >= state.clips.length - 1;

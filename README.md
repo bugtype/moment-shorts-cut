@@ -340,6 +340,7 @@ retain the whole project’s clip/speed rules, not just the visible page. Existi
 | Inspect clip positions and clocks | [`timeline.list`](INTEGRATIONS.md#타임라인-구간과-시간-나눠-조회) | Up to 50 indexed clips per page with source, pre-speed timeline and after-speed output times. Re-read positional indexes after edits. |
 | Move a clip directly | **Move clip…** in the clip inspector or **Frame**, or [`timeline.move`](INTEGRATIONS.md#클립을-지정한-위치로-이동) | UI positions are 1-based; API indices are 0-based final destinations. Same position/cancel are no-ops. |
 | Apply related edits together | [`project.batch`](INTEGRATIONS.md#여러-편집을-한-번에-반영) | Validate 1–20 supported edits in sequence, then commit once; a rejected step leaves the project unchanged. Not a JSON-RPC batch or a cross-host storage transaction. |
+| Remove consecutive clips | Clip inspector or **Frame** → **Remove clip range…** | Enter inclusive first/last positions (1-based); at least one clip must remain. One undoable edit. |
 | Repeat a clip | [`timeline.duplicate`](INTEGRATIONS.md#클립-구간-복제) | Inserts the same source interval immediately after the selected occurrence, not a media-file copy. Source captions repeat; timed output layers rescale. |
 | Split one clip | [`timeline.split`](INTEGRATIONS.md#클립-구간-분할) | Original source time, not output time; identify the intended occurrence and check boundaries. No full-timeline replacement. |
 | Adjust video effects | [`effects.update`](INTEGRATIONS.md#영상-효과-수정) | Brightness, contrast, motion, boundary overlays and progress styling without replacing content or timing. Boundary overlays are not crossfades. |
@@ -370,6 +371,15 @@ order, while timeline captions retain their absolute times.
 If recovery failed but valid settings were readable, moves remain in-memory edits;
 browser saving stays blocked, so download a settings backup before reloading.
 
+
+Use **Remove clip range…** for one contiguous range, not a saved multi-selection.
+Confirming selects the first surviving clip after that range, or the last survivor
+if there is no successor, and seeks its start. Source captions remain authored;
+timeline-caption times and audio offset stay absolute. Title, credit and timed-card
+output times rescale proportionally with the shortened timeline. This structural
+edit resets trim drafts; cancel preserves them. Reopen after project/media/selection
+changes. Valid failed-recovery edits still require a settings backup before reload,
+not browser saving.
 
 ### Choose an integration
 

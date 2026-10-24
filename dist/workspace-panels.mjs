@@ -229,6 +229,13 @@ export function createWorkspacePanels(app) {
                     $('#panelMoveClip') === moveClipButton && app.selected === trimIndex && app.state.clips[trimIndex] === trimClip)
                     app.openClipMove(moveClipButton);
             };
+            const removeRangeButton = $('#panelRemoveClipRange');
+            removeRangeButton.disabled = app.state.clips.length <= 1;
+            removeRangeButton.onclick = event => {
+                if (!event?.isComposing && event?.keyCode !== 229 && app.panel === 'settings' &&
+                    $('#panelRemoveClipRange') === removeRangeButton && app.selected === trimIndex && app.state.clips[trimIndex] === trimClip)
+                    app.openClipRange(removeRangeButton);
+            };
             $('#panelTrimApply').onclick = () => app.trim($('#panelTrimStart').valueAsNumber, $('#panelTrimEnd').valueAsNumber);
         }
         app.icons(target);

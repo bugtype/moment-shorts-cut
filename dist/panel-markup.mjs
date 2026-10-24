@@ -168,6 +168,7 @@ export function settingsPanelMarkup({ ratio, fit, zoom, captionSize, captionY, v
         `<div class="trim-draft-field"><div class="trim-field-heading"><label for="panelTrimEnd">${text('panels.endSeconds')}</label><button type="button" class="icon-button trim-playhead" id="panelTrimEndPlayhead" ${attrs('aria-label', 'panels.trimEndPlayhead')} ${attrs('title', 'panels.trimEndPlayhead')} data-icon="playhead"></button></div><input id="panelTrimEnd" type="number" min="0" step="any" value="${clip.end}"></div>` +
         `</div>` +
         `<button class="button full subtle" id="panelMoveClip">${text('panels.moveClip')}</button>` +
+        `<button class="button full subtle" id="panelRemoveClipRange">${text('panels.removeClipRange')}</button>` +
         `<button class="button full" id="panelTrimApply">${text('panels.applyRange')}</button>` +
         `</section>` +
         `<section class="settings-group" ${attrs('aria-label', 'panels.sourceAudio')}>` +

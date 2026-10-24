@@ -2,6 +2,7 @@ import { createTemplateScene } from './template-scene.mjs';
 import { createCaptionWorkspace } from './caption-workspace.mjs';
 import { createSessionMedia } from './session-media.mjs';
 import { createSessionMediaDialog } from './session-media-dialog.mjs';
+import { createClipRange } from './clip-range.mjs';
 import { createClipMove } from './clip-move.mjs';
 import { createPreviewExport } from './preview-export.mjs';
 import { createSpeedDialog } from './speed-dialog.mjs';
@@ -283,6 +284,7 @@ const app = {
     changeSpeed: value => speedDialog.change(value), openSeek: () => seekDialog.open(), showHelp: () => showHelp(), toast: message => toast(message),
     modalOpen: (title, body, footer) => modalOpen(title, body, footer),
     confirmReset: () => confirmReset(), download: (blob, name) => download(blob, name),
+    openClipRange: trigger => clipRange.open(trigger),
     openClipMove: trigger => clipMove.open(trigger), moveClip: index => clipMove.move(index),
     bindTrimDrafts: options => editingActions.bindTrimDrafts(options),
     trim: (start, end) => trim(start, end), split: () => split(), duplicate: () => editingActions.duplicate(), undo: redo => undo(redo),
@@ -336,6 +338,7 @@ const exportFlow = createExportFlow(app, {
 });
 const editingActions = createEditingActions(app);
 const clipMove = createClipMove(app);
+const clipRange = createClipRange(app);
 const captionFlow = createCaptionFlow(app);
 
 sample.onload = () => {

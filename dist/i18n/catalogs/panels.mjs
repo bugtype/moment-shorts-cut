@@ -1,5 +1,10 @@
 // Flat semantic keys; keep each Korean, English and Simplified Chinese entry aligned.
 const entries = {
+  "panels.removeClipRange": ["클립 범위 삭제…","Remove clip range…","删除片段范围…"],
+  "panels.firstClip": ["첫 클립 (포함)","First clip (inclusive)","首个片段（包含）"],
+  "panels.lastClip": ["마지막 클립 (포함)","Last clip (inclusive)","末个片段（包含）"],
+  "panels.removeClipRangeConfirm": ["범위 삭제","Remove range","删除范围"],
+  "panels.clipRangeInvalid": ["1~{total} 사이의 순서대로 된 클립 번호를 입력하고, 하나 이상의 클립을 남겨 주세요.","Enter an ordered range from 1 to {total}, leaving at least one clip.","请输入 1 至 {total} 内的顺序范围，并至少保留一个片段。"],
   "panels.captionsCount": ["자막 {count}개","Captions: {count}","字幕：{count}"],
   "panels.addCaption": ["+ 직접 추가","+ Add manually","+ 手动添加"],
   "panels.captionExportFormat": ["자막 저장 형식","Caption export format","字幕导出格式"],

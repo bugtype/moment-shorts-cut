@@ -162,9 +162,9 @@ export function settingsPanelMarkup({ ratio, fit, zoom, captionSize, captionY, v
         `<section class="settings-group" ${attrs('aria-label', 'panels.selectedClipRange')}>` +
         `<div class="section-label">${text('panels.trimClip')}</div>` +
         `<div class="time-fields">` +
-        `<label>${text('panels.startSeconds')}<input id="panelTrimStart" type="number" min="0" step=".1" value="${clip.start}">` +
+        `<label>${text('panels.startSeconds')}<input id="panelTrimStart" type="number" min="0" step="any" value="${clip.start}">` +
         `</label>` +
-        `<label>${text('panels.endSeconds')}<input id="panelTrimEnd" type="number" min="0" step=".1" value="${clip.end}">` +
+        `<label>${text('panels.endSeconds')}<input id="panelTrimEnd" type="number" min="0" step="any" value="${clip.end}">` +
         `</label>` +
         `</div>` +
         `<button class="button full" id="panelTrimApply">${text('panels.applyRange')}</button>` +

@@ -45,3 +45,14 @@ export function fmt(t) {
     t = Math.max(0, Number(t) || 0);
     return `${Math.floor(t / 60).toString().padStart(2, '0')}:${Math.floor(t % 60).toString().padStart(2, '0')}`;
 }
+
+// Preserve non-negative finite time values without exponent notation or rounding past the end.
+export function decimalTime(value) {
+    const [coefficient, exponent] = String(value).split('e');
+    if (exponent === undefined) return coefficient;
+    const [whole, fraction = ''] = coefficient.split('.');
+    const digits = whole + fraction, point = whole.length + Number(exponent);
+    if (point <= 0) return '0.' + '0'.repeat(-point) + digits;
+    if (point >= digits.length) return digits + '0'.repeat(point - digits.length);
+    return digits.slice(0, point) + '.' + digits.slice(point);
+}

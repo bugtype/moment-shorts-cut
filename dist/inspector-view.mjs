@@ -1,3 +1,4 @@
+import { decimalTime } from './ui-format.mjs';
 import { setText, setAttr } from './i18n.mjs';
 import { MAX_CLIPS } from './core/project.mjs';
 export function createInspectorView($, $$) {
@@ -16,8 +17,8 @@ export function createInspectorView($, $$) {
         const c = state.clips[selected] || state.clips[0];
         if (inspectorTrimContext?.clip !== c || inspectorTrimContext.index !== selected
             || inspectorTrimContext.start !== c.start || inspectorTrimContext.end !== c.end) {
-            $('#trimStart').value = c.start.toFixed(1);
-            $('#trimEnd').value = c.end.toFixed(1);
+            $('#trimStart').value = Number.isInteger(c.start) ? c.start.toFixed(1) : decimalTime(c.start);
+            $('#trimEnd').value = Number.isInteger(c.end) ? c.end.toFixed(1) : decimalTime(c.end);
             inspectorTrimContext = { clip: c, index: selected, start: c.start, end: c.end };
         }
         $('#projectName').value = state.name;

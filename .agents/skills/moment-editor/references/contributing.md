@@ -59,6 +59,12 @@ enums, schemas, error codes and paths remain canonical. Keep all three README
 versions aligned, including warnings. Test key/placeholder parity and project,
 draft-input and focus preservation; automated checks are not browser-layout QA.
 
+Editable time fields must round-trip the model's numeric value. Do not populate
+them with a rounded `toFixed` summary: applying an untouched form can then alter
+cut boundaries. Use the shared `decimalTime` formatter for non-negative time values when a
+non-exponent representation is needed, and allow arbitrary fractions in trim inputs. Read-only summaries may
+remain rounded. Preserving a number is not a claim of frame/sample-accurate media seeking.
+
 ## Validate the affected surface
 
 ```sh

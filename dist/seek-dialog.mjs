@@ -1,3 +1,5 @@
+import { decimalTime } from './ui-format.mjs';
+export { decimalTime } from './ui-format.mjs';
 import {text, message} from './i18n.mjs';
 // User-entered output time, not a source-frame or audio-sample address.
 export function parseOutputTime(value) {
@@ -10,17 +12,6 @@ export function parseOutputTime(value) {
     const seconds = parts.reduce((total, part) => total * 60 + part, 0);
     if (!Number.isFinite(seconds)) throw Object.assign(new Error(), message("shell.seekFinite"));
     return seconds;
-}
-
-// Preserve the current numeric value without exponent notation or rounding past the end.
-export function decimalTime(value) {
-    const [coefficient, exponent] = String(value).split('e');
-    if (exponent === undefined) return coefficient;
-    const [whole, fraction = ''] = coefficient.split('.');
-    const digits = whole + fraction, point = whole.length + Number(exponent);
-    if (point <= 0) return '0.' + '0'.repeat(-point) + digits;
-    if (point >= digits.length) return digits + '0'.repeat(point - digits.length);
-    return digits.slice(0, point) + '.' + digits.slice(point);
 }
 
 export function createSeekDialog({getProject, getCurrent, getDuration, getMedia, query: $, modal, openModal, blocked, pause, seek, toast}) {

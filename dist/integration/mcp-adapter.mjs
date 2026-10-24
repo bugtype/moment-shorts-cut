@@ -306,7 +306,9 @@ function inputSchema(command) {
   }
   if (command.name === 'captions.timing.shift') {
     p.basis.description = 'Required scope and clock: source includes cues with omitted basis; timeline includes edited-timeline cues. Both are BEFORE speed. Other-basis cues are unchanged.';
-    p.delta.description = 'Finite signed seconds: positive moves later, negative earlier. All matching cues must stay within their clock duration; no clipping, deletion, media shift or basis conversion. Zero/no matches is a no-op. Text, metadata and order are preserved.';
+    p.delta.description = 'Finite signed seconds: positive moves later, negative earlier. All matching cues inside the authored-index range must stay within their clock duration; no clipping, deletion, media shift or basis conversion. Zero/no matches is a no-op. Text, metadata and order are preserved.';
+    p.captionIndex.description = 'Optional zero-based authored row index, not a rendered occurrence. Omitted means start at row 0; omitted count means through the end. Explicit indices must address an existing row, even for delta 0. Reread after insert/remove/reorder edits.';
+    p.count.description = 'Optional number of authored rows, BEFORE filtering by basis. Omitted means all remaining rows; count alone selects the first count rows. Overflow rejects, never truncates. Both range fields omitted preserves all-row behavior, including an empty-list no-op.';
   }
   if (command.name === 'captions.text.replace') {
     p.find.description = 'Nonempty literal, case-sensitive text. No regex or Unicode normalization; matches do not overlap.';

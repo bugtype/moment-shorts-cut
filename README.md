@@ -345,7 +345,7 @@ Generated arguments can be piped as one JSON object with [`--args-file -`](INTEG
 | Locate a caption in the edit | Row action **View in video** | One occurrence seeks directly; repeated occurrences let you choose. Temporal navigation only, not an edit. |
 | Review individual matches | Browser previous/next search controls | Wrap through every literal occurrence, including multiple matches in one row and trimmed-out captions; reveal its page and select the exact substring. Current/total counts are occurrences, not rows. Navigation does not seek, edit or save. |
 | Replace one match | **Replace match** after selecting a search result | Replaces only that substring in one undo step, preserving cue timing/metadata. Highlights the replacement; Next continues after it. Same replacement is a no-op; blank/overlong cue results are rejected. Finish pending row edits and reselect stale matches instead of overwriting them. |
-| Shift a constant subtitle delay | [`captions.timing.shift`](INTEGRATIONS.md#자막-시간을-앞뒤로-이동) | Choose source/timeline and signed seconds **before speed**. All cues in that basis move; any out-of-bounds result rejects the whole edit. Browser caption tools apply a real change as one undo step. |
+| Shift a constant subtitle delay | [`captions.timing.shift`](INTEGRATIONS.md#자막-시간을-앞뒤로-이동) | Choose source/timeline and signed seconds **before speed**. Optional authored-row range, then basis filtering; omitted range moves all matching cues. Any out-of-bounds result rejects the whole edit. Browser caption tools apply a real change as one undo step. |
 | Review overlapping times | **Caption timing overlaps** or [`captions.overlaps`](INTEGRATIONS.md#자막-시간-겹침-점검) | One representative conflict per overlapping output occurrence, not all pairs or a visibility prediction. Read total/flagged/omitted counts. |
 | Review dense caption timing | Browser **Check reading speed** or [`captions.inspect`](INTEGRATIONS.md#편집-후-자막-표시-속도-점검) | Read-only ranking against your chosen non-whitespace-graphemes/second threshold after cuts, repeats and speed. Not a language standard, speech-alignment or export-validity check. |
 | Split one caption at the caret | [`captions.split`](INTEGRATIONS.md#자막-하나를-커서-위치에서-분할) or the row split action | Keeps literal text and metadata; estimates timing by grapheme counts, not speech alignment. A caret boundary must not cut an emoji/combined character. Separate from bulk long-caption splitting. |
@@ -415,6 +415,15 @@ This is not a lossless round trip: exported millisecond rounding, stripped marku
 and missing speaker/style/keyword metadata are not recovered. Cancel or a rejected/
 stale import leaves captions unchanged. CLI/MCP `captions.import` still accepts
 only source or **pre-speed** timeline clocks—not this browser output choice.
+
+For a delay affecting only part of the subtitle list, choose **Shift range…** in
+caption tools. Enter inclusive **1-based authored row** bounds, choose source or
+pre-speed timeline time, and enter signed seconds. Both bounds initially use the
+current page's first row; source/0 seconds are defaults, not an inferred selection.
+Only matching-basis cues within that range move, across page boundaries; no clock
+conversion occurs. A real change is one undo step, with the playhead position
+unchanged. Cancel, zero or no matching changes add no edit; ordinary field blur
+before opening may already commit a draft. Existing whole-list shift remains available.
 
 **Clips and composition**
 

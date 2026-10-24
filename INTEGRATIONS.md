@@ -261,7 +261,7 @@ JavaScript에서 직접 호출할 때도 JSON으로 왕복 가능한 값을 전�
 | `captions.import` | `text`, `basis` | 전체 교체; `{updated:true, outputDuration, importedCaptions}` |
 | `captions.text.replace` | `find`, `replacement` | 문구 모두 바꾸기; `{updated, matches, changedCaptions}` |
 | `captions.style.update` | `patch` | 공통 자막 스타일; `{updated:true, outputDuration}` |
-| `captions.timing.shift` | `basis`, `delta` | 시간 일괄 이동; `{updated, shiftedCaptions, outputDuration}` |
+| `captions.timing.shift` | `basis`, `delta`, 선택 `captionIndex`, `count` | 시간 일괄 이동; `{updated, shiftedCaptions, outputDuration}` |
 
 ## 작업별 편집 예제
 
@@ -838,14 +838,28 @@ node cli/moment.mjs exec captions.text.replace --project edited.json --json '{"f
 
 ### 자막 시간을 앞뒤로 이동
 
-`captions.timing.shift`는 선택한 시간 기준의 **모든 자막** 시작·끝에 같은 값을
-더합니다. 현재 페이지나 검색 결과만 바꾸는 기능이 아닙니다.
+`captions.timing.shift`는 작성 배열 범위를 고른 뒤 선택한 시간 기준의 자막 시작·끝에
+같은 값을 더합니다. 범위를 생략하면 기존처럼 전체 배열에서 해당 기준을 처리하며,
+현재 페이지나 검색 결과로 자동 제한하지 않습니다.
 
 | 필수 입력 | 의미 |
 |---|---|
 | `basis:"source"` | 원본 영상 시계; `basis`가 생략된 기존 자막도 포함 |
 | `basis:"timeline"` | 편집 타임라인 시계; 클립 길이 합계 기준 |
 | `delta` | 유한한 부호 있는 초; 양수는 늦게, 음수는 일찍. 두 기준 모두 **배속 적용 전** |
+
+| 선택 범위 | 대상 작성 행 (0부터 시작) |
+|---|---|
+| 둘 다 생략 | 전체 배열 |
+| `captionIndex`만 | 해당 위치부터 마지막까지 |
+| `count`만 | 처음부터 N개 |
+| 둘 다 | 해당 위치부터 정확히 N개 |
+
+명시한 `captionIndex`는 현재 존재하는 0..9,999 정수이고 `count`는 1..10,000 정수입니다.
+범위 초과·빈 배열의 명시 범위는 줄여서 적용하지 않고 거절하며 `delta:0`이어도 먼저
+검증합니다. 범위를 고른 **뒤** `basis`로 필터링하며 시간 기준을 변환하지 않습니다.
+`count`는 기준이 일치하는 개수가 아닌 작성 행 수이므로 실제 이동 수는 더 작을 수 있습니다.
+선택하지 않은 행은 바꾸지 않습니다.
 
 이동 결과 하나라도 기준 길이 밖이거나 양수 길이 구간이 아니면 전체를 거절합니다.
 기존 자막 끝점의 86,400초 상한도 적용합니다.
@@ -858,13 +872,19 @@ node cli/moment.mjs init --out shift-source.json
 node cli/moment.mjs exec captions.import --project shift-source.json --json '{"basis":"source","text":"1\n00:00:01,000 --> 00:00:02,000\nHello\n"}' --out shift-ready.json
 node cli/moment.mjs exec captions.timing.shift --project shift-ready.json --json '{"basis":"source","delta":0.25}' --dry-run
 node cli/moment.mjs exec captions.timing.shift --project shift-ready.json --json '{"basis":"source","delta":0.25}' --out shifted.json
+node cli/moment.mjs exec captions.replace --project shift-source.json --json '{"captions":[{"start":1,"end":2,"text":"First"},{"start":3,"end":4,"text":"Second"},{"start":5,"end":6,"text":"Third"}]}' --out range-ready.json
+node cli/moment.mjs exec captions.timing.shift --project range-ready.json --json '{"basis":"source","delta":0.25,"captionIndex":1}' --out tail-shifted.json
+node cli/moment.mjs exec captions.timing.shift --project range-ready.json --json '{"basis":"source","delta":0.5,"captionIndex":1,"count":1}' --out range-shifted.json
 ```
 
 성공 결과는 `{updated, shiftedCaptions, outputDuration}`이며 `shiftedCaptions`는
 실제 시간이 바뀐 자막 수입니다. 0초 이동이나
 해당 기준의 자막이 없으면 `updated:false`, `shiftedCaptions:0`이며 편집을
 반영하지 않습니다. CLI에서 명시한 출력 파일 쓰기와는 별개입니다.
-브라우저 자막 도구에서는 기준·부호 있는 초를 정하고 적용하며 실제 변경은
+브라우저의 기존 전체 이동 또는 **자막 범위 시간 이동…**을 사용합니다. 범위 창은
+양끝 포함 1부터 시작하는 작성 행 번호를 받고 해당 범위에서 기준을 필터링합니다.
+현재 페이지 첫 행·원본 기준·0초로 시작하며 API의 0부터 시작하는 위치와 구별하세요.
+기준·부호 있는 초를 정하고 적용하며 실제 변경은
 한 단계 실행 취소됩니다. 자동 음성 동기화·속도 보정이 아닌 일정 시간 이동이고
 MCP에는 실행 취소 도구가 없으므로 이전 프로젝트를 보관하세요.
 

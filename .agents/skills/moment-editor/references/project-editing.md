@@ -435,7 +435,13 @@ advance; both `source` and `timeline` use **pre-speed** time. Missing cue basis
 counts as source. See the [complete CLI example](../../../../INTEGRATIONS.md#자막-시간을-앞뒤로-이동)
 for a cue that can safely move within the source duration.
 
-All cues with the chosen basis move, including off-page/search-hidden cues.
+Optional `captionIndex`/`count` first select authored rows, then filter by basis.
+Omit both for all; index alone means that row through the end; count alone means
+first N; both mean exactly N from the index. Explicit index must exist (integer
+0..9,999), count is 1..10,000. Overflow/explicit empty-array ranges reject even for
+zero delta. No clamping or clock conversion; unselected rows are unchanged.
+Re-read indexes after structural edits. Matching cues in range move even if off-page
+or hidden by search.
 If any resulting interval is invalid or outside that clock’s duration, the whole
 edit fails: no cropping, deletion or partial application. Tiny floating-point
 roundoff at an endpoint is corrected. The existing 86,400-second caption endpoint

@@ -76,6 +76,8 @@ const entries = [
   ["errors.replacedTooLong","바꾼 자막이 2,000자를 넘습니다. 더 짧게 바꿔 주세요.","The replacement makes a caption exceed 2,000 characters. Use shorter text.","替换后的字幕超过 2,000 个字符。请使用更短的文本。"],
   ["errors.replacedEmpty","바꾼 자막이 비게 됩니다. 자막을 지우려면 삭제 기능을 사용하세요.","The replacement would empty a caption. Use Delete to remove it.","替换后字幕将为空。如需移除字幕，请使用删除功能。"],
   ["errors.captionBasis","자막 시간 기준을 선택하세요.","Choose a caption time basis.","请选择字幕时间基准。"],
+  ["errors.shiftCaptionIndex","이동할 자막의 시작 인덱스가 유효하지 않습니다.","The starting caption index for this shift is invalid.","要移动的字幕起始索引无效。"],
+  ["errors.shiftCaptionCount","이동할 자막 개수는 1~10,000 사이 정수이며 현재 자막 범위 안이어야 합니다.","The shift count must be an integer from 1 to 10,000 within the current caption array.","移动的字幕数量必须为 1 至 10,000 的整数，且不能超出当前字幕数组。"],
   ["errors.shiftNumber","이동할 초를 숫자로 입력하세요.","Enter the time shift in seconds as a number.","请以数值输入要移动的秒数。"],
   ["errors.captionDuration","자막 시간 범위를 확인하세요.","Check the caption time range.","请检查字幕时间范围。"],
   ["errors.shiftRange","이동 후 자막이 시간 범위를 벗어납니다. 이동할 초를 조정하세요.","The shifted caption would be outside its time range. Adjust the shift.","移动后的字幕将超出时间范围。请调整移动秒数。"],

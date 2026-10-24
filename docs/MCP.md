@@ -241,7 +241,7 @@ The service emits no BOM.
 | `moment_captions_import` | `text`, `basis` | `{updated:true, outputDuration, importedCaptions}` |
 | `moment_captions_text_replace` | `find`, `replacement` | `{updated:boolean, matches:number, changedCaptions:number}` |
 | `moment_captions_style_update` | `patch` | `{updated:true, outputDuration}` |
-| `moment_captions_timing_shift` | `basis`, `delta` | `{updated:boolean, shiftedCaptions:number, outputDuration}` |
+| `moment_captions_timing_shift` | `basis`, `delta`; optional `captionIndex`, `count` | `{updated:boolean, shiftedCaptions:number, outputDuration}` |
 
 `moment_timeline_replace`, `moment_captions_replace` and `moment_captions_import` replace the **entire array**. Preserve unrequested clips/captions
 rather than sending only the changed entry. `withContent:true` applies example title, credit
@@ -1034,7 +1034,21 @@ Call `moment_captions_timing_shift` after checking the current cue bounds:
 | `basis:"timeline"` | Edited-timeline clock, bounded by the sum of clip durations |
 | `delta` | Finite signed seconds **before speed**; positive delays, negative advances |
 
-Every cue in that basis is shifted, not only visible rows or search matches.
+Optional range fields select authored array rows **before** the basis filter:
+
+| Range input | Selected rows, zero-based |
+|---|---|
+| Neither field | Entire array (existing behavior) |
+| `captionIndex` only | That row through the end |
+| `count` only | First N rows |
+| Both | Exactly N rows from captionIndex |
+
+An explicit index must exist (integer 0..9,999); count is integer 1..10,000.
+Count measures authored rows, not matching-basis cues, so shiftedCaptions may be smaller.
+Overflow and explicit ranges on an empty array are rejected, not clamped—even
+with zero delta. Unselected rows are untouched; no clock conversion occurs.
+Within the selected range, every matching-basis cue moves, not only visible rows
+or search matches. Re-read positional indexes after structural edits.
 The whole edit fails if any resulting interval is out of bounds or nonpositive;
 the existing 86,400-second caption endpoint cap also applies. Cues are not cropped
 or dropped to fit; tiny floating-point roundoff at an endpoint is corrected.
@@ -1047,7 +1061,8 @@ The result is `{updated, shiftedCaptions, outputDuration}`; `shiftedCaptions` co
 cues whose times actually changed. A zero delta or no
 matching cues returns `updated:false, shiftedCaptions:0` without a commit. Read
 `moment_project_get` to save the project. Browser UI applies a real change as one
-undo step; MCP has no undo tool. The [complete CLI example](../INTEGRATIONS.md#자막-시간을-앞뒤로-이동)
+undo step; its **Shift range…** dialog uses inclusive 1-based authored row bounds,
+not the API’s zero-based index/count. MCP has no undo tool. The [complete CLI example](../INTEGRATIONS.md#자막-시간을-앞뒤로-이동)
 uses an imported cue with room to move; the default demo spans the full duration
 and cannot necessarily be shifted without hitting a boundary.
 

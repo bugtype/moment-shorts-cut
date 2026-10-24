@@ -1,3 +1,4 @@
+import { message as msg } from './i18n.mjs';
 import { retimeOutputLayers } from './effects.mjs';
 
 // Owns guarded video/audio imports and recording hand-off. Project replacement and
@@ -11,21 +12,21 @@ export function createMediaLoader(app, {
         if (app.recoveryBlocked())
             return;
         if (app.loadingMedia || app.exporting || app.transcribing || app.audioRecording.requesting || app.audioRecording.current) {
-            app.toast('진행 중인 작업을 먼저 완료해 주세요.');
+            app.toast(msg('errors.busy'));
             return;
         }
         if (!file.type.startsWith('video/') && !/\.(mp4|mov|webm|m4v)$/i.test(file.name)) {
-            app.toast('동영상 파일을 선택해 주세요.');
+            app.toast(msg('errors.chooseVideo'));
             return;
         }
         if (file.size > 500 * 1024 * 1024) {
-            app.toast('500 MB 이하의 동영상을 선택해 주세요.');
+            app.toast(msg('errors.videoBytes'));
             return;
         }
         app.loadingMedia = true;
         app.pause();
         const old = app.sources.videoFile, previousOutput = app.duration() / app.state.speed;
-        app.toast('영상을 불러오는 중입니다…');
+        app.toast(msg('errors.loadingVideo'));
         try {
             await app.sources.setVideoFile(file);
             if (app.recoveryBlocked())
@@ -57,7 +58,7 @@ export function createMediaLoader(app, {
             app.changed();
             app.renderPanel();
             app.resizePreview();
-            app.toast('영상을 불러왔습니다. 9:16 세로 화면이 적용되었습니다.');
+            app.toast(msg('errors.videoLoaded'));
         }
         catch (e) {
             app.sources.videoFile = old;
@@ -70,7 +71,7 @@ export function createMediaLoader(app, {
                 app.sources.sourceURL = '';
                 app.video.removeAttribute('src');
             }
-            app.toast(e.message);
+            app.toast(e.messageKey ? e : e.message);
         }
         finally {
             app.loadingMedia = false;
@@ -84,7 +85,7 @@ export function createMediaLoader(app, {
         if (app.loadingMedia || app.exporting || app.transcribing || app.audioRecording.requesting || (app.audioRecording.current && app.audioRecording.current !== recording))
             return;
         if (file.size > 100 * 1024 * 1024) {
-            app.toast('100 MB 이하의 오디오를 선택해 주세요.');
+            app.toast(msg('errors.audioBytes'));
             return;
         }
         app.loadingMedia = true;
@@ -92,7 +93,7 @@ export function createMediaLoader(app, {
         try {
             nextURL = createObjectURL(file);
             probe = createAudio();
-            const loaded = app.sources.waitForMedia(probe, 'loadedmetadata', '지원하지 않는 오디오 형식입니다.');
+            const loaded = app.sources.waitForMedia(probe, 'loadedmetadata', msg('errors.audioFormat'));
             probe.src = nextURL;
             await loaded;
             if (app.recoveryBlocked() || (recording && app.audioRecording.current !== recording)) {
@@ -110,12 +111,12 @@ export function createMediaLoader(app, {
             app.persistMedia();
             app.changed();
             app.renderPanel();
-            app.toast('오디오를 연결했습니다. 재생해서 소리를 확인하세요.');
+            app.toast(msg('errors.audioLoaded'));
         }
         catch (e) {
             if (nextURL)
                 revokeObjectURL(nextURL);
-            app.toast(e.message);
+            app.toast(e.messageKey ? e : e.message);
         }
         finally {
             app.loadingMedia = false;

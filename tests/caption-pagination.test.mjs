@@ -36,7 +36,8 @@ test('only 50 globally indexed rows mount, pagination/focus are presentation-onl
  const f=fixture(10000),before=structuredClone(f.project());
  assert.equal(rows(f).length,50);assert.equal(f.query('[data-caption-text="50"]'),null);
  // 50 split/merge action groups bring this estimated-cue fixture to 79,824 bytes, still bounded independently of 10,000 cues.
- assert.ok(Buffer.byteLength(f.target.innerHTML)<82000);
+ // Explicit locale text/attribute markers add bounded metadata to the same 50 rows.
+ assert.ok(Buffer.byteLength(f.target.innerHTML)<180000);
  f.panel.focus(49);assert.equal(rows(f)[0],0);
  f.panel.focus(50);assert.equal(rows(f)[0],50);assert.equal(f.query('[data-caption-text="49"]'),null);
  assert.match(f.target.innerHTML,/51–100 \/ 10000/);

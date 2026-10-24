@@ -1,3 +1,4 @@
+import { setText, setAttr } from './i18n.mjs';
 import { MAX_CLIPS } from './core/project.mjs';
 export function createInspectorView($, $$) {
     let inspectorTrimContext = null;
@@ -21,7 +22,7 @@ export function createInspectorView($, $$) {
         }
         $('#projectName').value = state.name;
         $('#ratioLabel').textContent = state.ratio;
-        $('#ratioShortcut').setAttribute('aria-label', `화면 비율 변경, 현재 ${state.ratio}`);
+        setAttr($('#ratioShortcut'), 'aria-label', 'panels.ratioCurrent', {ratio:state.ratio});
         $('#previewSize').textContent = state.ratio === '9:16' ? '1080 × 1920' : state.ratio === '1:1' ? '1080 × 1080' : '1920 × 1080';
         for (const key of ['ratio', 'fit']) {
             $$(`[data-${key}]`).forEach(button => {
@@ -36,7 +37,7 @@ export function createInspectorView($, $$) {
         $('#volume').value = state.volume;
         $('#volumeValue').textContent = `${Math.round(state.volume * 100)}%`;
         $('#speed').value = state.speed;
-        $('#clipIndex').textContent = `클립 ${selected + 1}`;
+        setText($('#clipIndex'), 'panels.clipIndex', {index:selected + 1});
         $('#undoButton').disabled = !canUndo;
         $('#redoButton').disabled = !canRedo;
         $('#duplicateClipButton').disabled = state.clips.length >= MAX_CLIPS;

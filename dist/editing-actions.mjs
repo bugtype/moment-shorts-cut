@@ -1,3 +1,4 @@
+import {text, message} from './i18n.mjs';
 import { hasMinimumDuration } from './core/validation.mjs';
 const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
 
@@ -7,7 +8,7 @@ export function createEditingActions(app) {
     function trim(start, end) {
         const state = app.state;
         if (start < 0 || end > state.duration || !hasMinimumDuration(start, end)) {
-            app.toast('시작·끝을 확인하세요. 클립은 0.1초 이상이어야 합니다.');
+            app.toast(message("shell.trimError"));
             return;
         }
         const clips = structuredClone(state.clips);
@@ -27,7 +28,7 @@ export function createEditingActions(app) {
         app.renderTimeline();
         app.renderInspector();
         app.openInspector('clip');
-        app.toast('재생 위치에서 클립을 분할했습니다.');
+        app.toast(message("shell.splitDone"));
     }
 
     function duplicate() {
@@ -40,7 +41,7 @@ export function createEditingActions(app) {
         app.openInspector('clip');
         app.seekTo(start);
         if (app.panel === 'settings') app.renderPanel();
-        app.toast('선택한 클립을 바로 뒤에 복제했습니다.');
+        app.toast(message("shell.duplicateDone"));
     }
 
     function undo(redo = false) {
@@ -66,7 +67,7 @@ export function createEditingActions(app) {
         if (app.recoveryBlocked())
             return true;
         if (app.loadingMedia || app.exporting || app.transcribing || app.audioRecording.requesting || app.audioRecording.current) {
-            app.toast('진행 중인 작업을 먼저 완료해 주세요.');
+            app.toast(message("shell.busy"));
             return true;
         }
         return false;
@@ -75,7 +76,7 @@ export function createEditingActions(app) {
     function confirmReset() {
         if (resetBlocked())
             return;
-        app.modalOpen('새로운 순간을 시작할까요?', '<p class="modal-copy">이 브라우저에 저장된 현재 프로젝트가 샘플 프로젝트로 교체됩니다. 필요한 영상은 먼저 내보내 주세요.</p>', '<div class="modal-foot"><button class="button" id="cancelReset">취소</button><button class="button primary" id="confirmReset">새 작업 시작</button></div>');
+        app.modalOpen(message("shell.resetTitle"), `<p class="modal-copy">${text("shell.resetNotice")}</p>`, `<div class="modal-foot"><button class="button" id="cancelReset">${text("shell.cancel")}</button><button class="button primary" id="confirmReset">${text("shell.resetConfirm")}</button></div>`);
         app.query('#cancelReset').onclick = () => app.modal.close();
         app.query('#confirmReset').onclick = () => {
             if (resetBlocked())

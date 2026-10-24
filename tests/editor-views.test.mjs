@@ -11,7 +11,7 @@ function controls() {
     if (!elements.has(key)) elements.set(key, {
       value: '', style: { setProperty(name, value) { this[name] = value; } },
       classList: { toggle() {} }, clientWidth: 600, attributes: {},
-      setAttribute(name, value) { this.attributes[name] = String(value); },
+      setAttribute(name, value) { this.attributes[name] = String(value); if (name === 'title') this.title = String(value); },
     });
     return elements.get(key);
   };

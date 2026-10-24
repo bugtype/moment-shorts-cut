@@ -1,3 +1,5 @@
+import { LocalizedError } from './core/validation.mjs';
+import { message as msg } from './i18n.mjs';
 // One client owns a reusable worker. The caller serializes jobs and validates results.
 export function createTranscriptionClient(createWorker) {
     let recognitionWorker = null, pendingTranscriptionReject = null;
@@ -22,17 +24,17 @@ export function createTranscriptionClient(createWorker) {
                 worker.terminate();
                 finish(error);
             };
-            const onError = () => retire(new Error('음성 인식 모듈에 연결하지 못했습니다. 인터넷 연결을 확인하거나 SRT를 불러오세요.'));
+            const onError = () => retire(new LocalizedError(msg('errors.workerConnection')));
             pendingTranscriptionReject = error => finish(error);
             worker.onmessage = e => {
                 if (!pending || recognitionWorker !== worker)
                     return;
                 if (e.data.type === 'progress')
-                    status(e.data.message);
+                    status(e.data.messageKey ? msg(e.data.messageKey,e.data.messageParams) : e.data.message);
                 if (e.data.type === 'result')
                     finish(null, e.data.result);
                 if (e.data.type === 'error')
-                    finish(new Error(e.data.message));
+                    finish(e.data.messageKey ? new LocalizedError(e.data) : new Error(e.data.message));
             };
             // Keep observing idle failures; a new job replaces this handler before reuse.
             worker.onerror = onError;
@@ -48,7 +50,7 @@ export function createTranscriptionClient(createWorker) {
     function cancel() {
         recognitionWorker?.terminate();
         recognitionWorker = null;
-        pendingTranscriptionReject?.(new Error('자동 자막 생성을 취소했습니다.'));
+        pendingTranscriptionReject?.(new LocalizedError(msg('errors.transcriptionCancelled')));
     }
     return { transcribe, cancel };
 }

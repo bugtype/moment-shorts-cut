@@ -1,3 +1,4 @@
+import { message as msg } from './i18n.mjs';
 // Owns microphone/recorder resources; the app serializes starts and validates their context.
 export function createAudioRecording({ prepare, onProgress, onReady, onError, onIdle }, {
     acquireStream = () => navigator.mediaDevices.getUserMedia({ audio: true }),
@@ -63,7 +64,7 @@ export function createAudioRecording({ prepare, onProgress, onReady, onError, on
                 if (!finished && current === recorder && event.data.size)
                     chunks.push(event.data);
             };
-            recorder.onerror = () => fail('녹음 중 오류가 발생했습니다. 마이크와 브라우저 설정을 확인하세요.');
+            recorder.onerror = () => fail(msg('errors.recordingFailed'));
             recorder.onstop = async () => {
                 if (finished || current !== recorder)
                     return;
@@ -71,7 +72,7 @@ export function createAudioRecording({ prepare, onProgress, onReady, onError, on
                 release();
                 try {
                     if (!chunks.length) {
-                        onError('녹음된 소리가 없습니다. 다시 녹음해 주세요.');
+                        onError(msg('errors.recordingEmpty'));
                         return;
                     }
                     const mime = recorder.mimeType;
@@ -79,7 +80,7 @@ export function createAudioRecording({ prepare, onProgress, onReady, onError, on
                     await onReady(file, recorder);
                 }
                 catch {
-                    onError('녹음된 오디오를 연결하지 못했습니다. 다시 시도해 주세요.');
+                    onError(msg('errors.recordingConnect'));
                 }
                 finally {
                     if (current === recorder) {
@@ -107,7 +108,7 @@ export function createAudioRecording({ prepare, onProgress, onReady, onError, on
             }, 1000);
         }
         catch {
-            fail('마이크를 사용할 수 없습니다. 브라우저에서 마이크 권한을 허용해 주세요.');
+            fail(msg('errors.microphone'));
         }
         finally {
             requesting = false;

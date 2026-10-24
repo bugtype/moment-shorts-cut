@@ -35,6 +35,27 @@ Inspect current imports before moving code; these are entry points, not an instr
 - Input schemas, actual runtime validation and returned result fields must agree. Update executable examples and tests when changing a public boundary.
 - No background service, external upload, network endpoint or real media provider is implied by a refactor. An accepted render job is not a finished encoded artifact.
 
+## Localize presentation, not authored content
+
+Use `dist/i18n.mjs` and the responsibility-specific `dist/i18n/catalogs/` messages.
+Keep semantic keys and interpolation parameters in parity for `ko`, `en` and
+`zh-CN`. Use `t` for plain strings, `text` for escaped text leaves, `mark` for
+whole-leaf/option markers, `attrs` for localized attributes, and `setText`/`setAttr`
+for dynamic marked values. Known structured errors use `formatError`; retain
+unknown original errors rather than inventing translations.
+
+Translate visible text, accessibility labels, titles, status announcements and
+errors together. Locale changes update marked leaves/attributes in place; they
+must not reconstruct panels, overwrite input values, move focus, change project
+data or add history. Preserve precise limits, units and interpolation placeholders.
+
+Built-in template display metadata can be localized by stable ID. Its example
+titles/cards remain authored content; custom names/descriptions and user text are
+not translation keys. UI selection does not set ASR language. API commands, IDs,
+enums, schemas, error codes and paths remain canonical. Keep all three README
+versions aligned, including warnings. Test key/placeholder parity and project,
+draft-input and focus preservation; automated checks are not browser-layout QA.
+
 ## Validate the affected surface
 
 ```sh

@@ -1,3 +1,4 @@
+import {text, attrs, setText, setAttr, formatError} from './i18n.mjs';
 import { captionOccurrences } from './captions.mjs';
 import { esc, fmt } from './ui-format.mjs';
 
@@ -18,7 +19,7 @@ export function renderCaptionTrack(track, occurrences, duration, speed) {
     button.dataset.captionKey = key;
     button.dataset.captionIndex = String(caption.captionIndex);
     button.dataset.captionTime = String(caption.start);
-    button.setAttribute('aria-label', `자막 ${caption.captionIndex + 1}, ${(caption.start / speed).toFixed(1)}초: ${caption.text}`);
+    setAttr(button, 'aria-label', 'shell.captionA11y', {index: caption.captionIndex + 1, seconds: (caption.start / speed).toFixed(1), caption: caption.text});
     button.textContent = caption.text;
     button.style.left = `${caption.start / duration * 100}%`;
     button.style.width = `${(caption.end - caption.start) / duration * 100}%`;
@@ -35,7 +36,8 @@ export function renderCaptionTrackError(track, message) {
   const error = track.ownerDocument.createElement('span');
   error.className = 'caption-track-error';
   error.setAttribute('role', 'status');
-  error.textContent = message;
+  if (message?.messageKey) setText(error, message.messageKey, message.messageParams);
+  else error.textContent = formatError(message);
   track.insertBefore(error, null);
   if (focused) {
     track.setAttribute('tabindex', '-1');
@@ -60,8 +62,8 @@ export function createTimelineView($, clock = () => performance.now()) {
         if (label) label.textContent = `${zoom}×`;
         const button = $('#timelineZoom');
         if (button) {
-            button.setAttribute('aria-label', `타임라인 확대, 현재 ${zoom}배`);
-            button.title = `타임라인 확대 (${ZOOM_LEVELS.join('× → ')}×)`;
+            setAttr(button, 'aria-label', 'shell.zoomTimelineA11y', {zoom});
+            setAttr(button, 'title', 'shell.zoomTimeline', {levels: ZOOM_LEVELS.join('× → ') + '×'});
         }
         return zoom;
     }
@@ -87,10 +89,10 @@ export function createTimelineView($, clock = () => performance.now()) {
     function setCollapsed(next) {
         collapsed = !!next;
         $('#timeline').classList.toggle('collapsed', collapsed);
-        const toggle = $('#timelineToggle'), label = collapsed ? '타임라인 펼치기' : '타임라인 접기';
+        const toggle = $('#timelineToggle'), label = collapsed ? 'shell.expandTimeline' : 'shell.collapseTimeline';
         toggle.setAttribute('aria-expanded', String(!collapsed));
-        toggle.setAttribute('aria-label', label);
-        toggle.title = label;
+        setAttr(toggle, 'aria-label', label);
+        setAttr(toggle, 'title', label);
     }
     function renderCaptions(state, len) {
         try {
@@ -99,19 +101,19 @@ export function createTimelineView($, clock = () => performance.now()) {
         catch (error) {
             if (error.code !== 'CAPTION_OUTPUT_LIMIT')
                 throw error;
-            renderCaptionTrackError($('#captionTrack'), error.message);
+            renderCaptionTrackError($('#captionTrack'), error);
         }
     }
 
     function renderLayers(state, len) {
         const total = len / state.speed, d = state.design;
-        let html = [['title', d.title, '타이틀'], ['credit', d.credit, '크레딧']]
+        let html = [['title', d.title, 'shell.title'], ['credit', d.credit, 'shell.credit']]
             .filter(([, layer]) => layer.enabled).map(([key, layer, label]) => {
                 const start = clamp(layer.start, 0, total);
                 const end = clamp(layer.end ?? total, start, total);
                 return `<button class="title-track-block ${key}" data-track-layer="${key}" ` +
                     `style="left:${start / total * 100}%;width:${(end - start) / total * 100}%">` +
-                    `${label} · ${esc(key === 'title' ? layer.lines.filter(Boolean).join(' / ') : layer.text)}</button>`;
+                    `${text(label)} · ${esc(key === 'title' ? layer.lines.filter(Boolean).join(' / ') : layer.text)}</button>`;
             }).join('');
         html += (state.overlays || []).filter(card => card.start < total).map(card => {
             const left = clamp(card.start / total * 100, 0, 100);
@@ -119,7 +121,7 @@ export function createTimelineView($, clock = () => performance.now()) {
             return `<button class="title-track-block scene" data-track-card="${esc(card.id)}" ` +
                 `style="left:${left}%;width:${width}%">${esc(card.label)} · ${esc(card.text)}</button>`;
         }).join('');
-        updateTimelineMarkup($('#titleTrack'), html || '<span class="empty-layer-track">+ 타이틀 · 장면 카드를 추가하세요</span>');
+        updateTimelineMarkup($('#titleTrack'), html || `<span class="empty-layer-track">${text('shell.addLayers')}</span>`);
     }
 
     function render(state, len, { selected, thumbnail, hasAudio }) {
@@ -129,8 +131,8 @@ export function createTimelineView($, clock = () => performance.now()) {
         const clips = state.clips.map((clip, index) =>
             `<button class="clip ${index === selected ? 'active' : ''}" data-clip="${index}" ` +
             `style="flex:${clip.end - clip.start};${background}" ` +
-            `title="클립 ${index + 1}: ${fmt(clip.start)}–${fmt(clip.end)}">` +
-            `<span>${index === 0 ? esc(state.fileName) : '클립 ' + (index + 1)}</span></button>`
+            `${attrs("title", "shell.clipRange", {index: index + 1, start: fmt(clip.start), end: fmt(clip.end)})}>` +
+            `<span>${index === 0 ? esc(state.fileName) : text('shell.clip', {index: index + 1})}</span></button>`
         ).join('');
         updateTimelineMarkup($('#videoTrack'), clips);
         renderCaptions(state, len);
@@ -172,7 +174,7 @@ export function createTimelineView($, clock = () => performance.now()) {
             `<span style="left:${total > 0 ? Number((at / total * 100).toFixed(4)) : 0}%">${rulerLabel(at)}</span>`
         ).join('');
         $('#audioTrack').classList.toggle('has-audio', hasAudio);
-        $('#audioTrack').textContent = hasAudio ? `♫ ${state.audioName} · ${(state.audioOffset / state.speed).toFixed(1)}초부터` : '+ 오디오를 추가해 보세요';
+        setText($('#audioTrack'), hasAudio ? 'shell.audioFrom' : 'shell.addAudio', {name: state.audioName, seconds: (state.audioOffset / state.speed).toFixed(1)});
     }
 
     function updateTime(state, current, duration, exporting, force = true) {
@@ -183,7 +185,7 @@ export function createTimelineView($, clock = () => performance.now()) {
         const len = duration(), label = `${fmt(current / state.speed)} <span>/ ${fmt(len / state.speed)}</span>`;
         if (label !== lastTimeLabel) {
             $('#timeDisplay').innerHTML = label;
-            $('#timeDisplay').setAttribute('aria-label', `출력 시간으로 이동, ${fmt(current / state.speed)} / ${fmt(len / state.speed)}`);
+            setAttr($('#timeDisplay'), 'aria-label', 'shell.seekA11y', {current: fmt(current / state.speed), total: fmt(len / state.speed)});
             lastTimeLabel = label;
         }
         $('#seek').value = current;

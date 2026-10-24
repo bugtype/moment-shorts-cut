@@ -1,3 +1,4 @@
+import { setText, setAttr, message } from './i18n.mjs';
 import { mountDesignPanel } from './design-panel.mjs';
 import { mountEffectsPanel } from './effects-panel.mjs';
 import { activeSceneLayers, defaultEnhancements, newCard, sceneBounds } from './effects.mjs';
@@ -32,16 +33,16 @@ export function createDesignWorkspace(app) {
             guide.style.top = `${box.y / app.canvas.height * 100}%`;
             guide.style.width = `${box.width / app.canvas.width * 100}%`;
             guide.style.height = `${box.height / app.canvas.height * 100}%`;
-            guide.dataset.label = '구간별 타이틀';
+            setAttr(guide, 'data-label', 'panels.timedTitle');
         }
         else if (!guide.hidden) {
             guide.style.width = '84%';
             guide.style.left = `${layer.x * 100}%`;
             guide.style.top = `${layer.y * 100}%`;
-            guide.dataset.label = { title: '타이틀', caption: '대사', credit: '크레딧' }[textLayer];
+            setAttr(guide, 'data-label', {title:'panels.title',caption:'panels.dialogue',credit:'panels.credit'}[textLayer]);
             guide.style.height = textLayer === 'title' ? '16%' : textLayer === 'credit' ? '7%' : '12%';
         }
-        $('#moveHint').textContent = scene || isText ? '선택한 글자를 드래그해 이동' : '영상을 드래그해 구도 조절';
+        setText($('#moveHint'), scene || isText ? 'panels.dragText' : 'panels.dragVideo');
     }
 
     function previewDesign(change) {
@@ -77,7 +78,7 @@ export function createDesignWorkspace(app) {
             preset(preset) {
                 if (!app.runEditorCommand('template.apply', { templateId: preset }))
                     return;
-                app.toast('타이틀·대사·여백 구성을 적용했습니다. 문구는 그대로 유지합니다.');
+                app.toast(message('panels.layoutApplied'));
             },
             captionStyle(style) {
                 app.edit(() => {
@@ -104,7 +105,7 @@ export function createDesignWorkspace(app) {
                 if (!card) return false;
                 copiedAppearance = structuredClone(Object.fromEntries(appearanceKeys.filter(key => Object.hasOwn(card, key)).map(key => [key, card[key]])));
                 app.renderPanel();
-                app.toast('문구 스타일을 복사했습니다.');
+                app.toast(message('panels.styleCopied'));
                 return true;
             },
             pasteAppearance(id) {
@@ -112,7 +113,7 @@ export function createDesignWorkspace(app) {
                 const card = app.state.overlays.find(item => item.id === id);
                 if (!card || !copiedAppearance) return false;
                 if (Object.entries(copiedAppearance).every(([key, value]) => card[key] === value)) {
-                    app.toast('이미 같은 문구 스타일입니다.');
+                    app.toast(message('panels.sameStyle'));
                     return false;
                 }
                 return app.runEditorCommand('overlays.update', { id, patch: structuredClone(copiedAppearance) });
@@ -157,7 +158,7 @@ export function createDesignWorkspace(app) {
             },
             duplicate(id) {
                 if (app.state.overlays.length >= 12) {
-                    app.toast('카드는 12개까지 추가할 수 있습니다.');
+                    app.toast(message('panels.cardLimit'));
                     return;
                 }
                 app.edit(() => {

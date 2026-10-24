@@ -1,3 +1,5 @@
+import { LocalizedError } from './core/validation.mjs';
+import { message as msg } from './i18n.mjs';
 import { CommandError } from './core/validation.mjs';
 
 export const MAX_CAPTIONS = 10000;
@@ -22,13 +24,13 @@ export function captionOccurrences(captions, clips, speed = 1) {
   const out = []; let offset = 0, bytes = 0;
   const textBytes = new Map();
   function append(cap, captionIndex, start, end, clipIndex) {
-    if (out.length >= MAX_CAPTIONS) captionOutputLimit('편집 후 자막은 10,000개까지 표시·자막 파일 저장할 수 있습니다. 반복 클립이나 자막을 줄여 주세요.');
+    if (out.length >= MAX_CAPTIONS) captionOutputLimit(msg('errors.derivedCount'));
     if (!textBytes.has(captionIndex)) {
-      if (cap.text.length > MAX_SUBTITLE_BYTES) captionOutputLimit('편집 후 자막 원문은 UTF-8 2 MiB까지 지원합니다. 반복 클립이나 자막을 줄여 주세요.');
+      if (cap.text.length > MAX_SUBTITLE_BYTES) captionOutputLimit(msg('errors.derivedBytes'));
       textBytes.set(captionIndex, encoder.encode(cap.text).byteLength);
     }
     bytes += textBytes.get(captionIndex);
-    if (bytes > MAX_SUBTITLE_BYTES) captionOutputLimit('편집 후 자막 원문은 UTF-8 2 MiB까지 지원합니다. 반복 클립이나 자막을 줄여 주세요.');
+    if (bytes > MAX_SUBTITLE_BYTES) captionOutputLimit(msg('errors.derivedBytes'));
     out.push({start:start/speed,end:end/speed,text:cap.text,captionIndex,...(clipIndex === undefined ? {} : {clipIndex})});
   }
   const sourceCaptions = [...captions.entries()].filter(([, cap]) => cap.basis !== 'timeline');
@@ -56,8 +58,8 @@ export function mapAudioCaptions(captions, offset, total) {
 // File size is checked before reading in the UI; keep the parser bounded for callers too.
 const subtitleReferences = {amp:'&',lt:'<',gt:'>',lrm:'\u200e',rlm:'\u200f',nbsp:'\u00a0'};
 export function parseSubtitles(text, duration) {
-  if (typeof text !== 'string' || text.length > MAX_SUBTITLE_BYTES || encoder.encode(text).byteLength > MAX_SUBTITLE_BYTES) throw new Error('자막 파일은 2 MB 이하만 지원합니다.');
-  if (!Number.isFinite(duration) || duration <= 0) throw new Error('영상 길이를 확인하세요.');
+  if (typeof text !== 'string' || text.length > MAX_SUBTITLE_BYTES || encoder.encode(text).byteLength > MAX_SUBTITLE_BYTES) throw new LocalizedError(msg('errors.subtitleFileLimit'));
+  if (!Number.isFinite(duration) || duration <= 0) throw new LocalizedError(msg('errors.videoDuration'));
   const normalized = text.replace(/^\uFEFF/, '').replace(/\r\n?/g, '\n');
   // An empty first payload line ends the cue; never absorb the next cue's timing.
   const pattern = /^(?:(\d{1,2}):)?([0-5]\d):([0-5]\d)[,.](\d{3})[ \t]*-->[ \t]*(?:(\d{1,2}):)?([0-5]\d):([0-5]\d)[,.](\d{3})[^\n]*\n(?![ \t]*(?:\n|$))([\s\S]*?)(?=\n[ \t]*\n|(?![\s\S]))/gm;
@@ -69,10 +71,10 @@ export function parseSubtitles(text, duration) {
     const text = match[9].replace(/<[^>]*>/g, '').trim()
       .replace(/&(amp|lt|gt|lrm|rlm|nbsp);/g, (_, name) => subtitleReferences[name]);
     if (!text || end <= start) continue;
-    if (text.length > 2000) throw new Error('자막 한 구간은 2,000자 이하만 지원합니다.');
-    if (captions.length >= MAX_CAPTIONS) throw new Error('자막은 10,000개 이하만 지원합니다.');
+    if (text.length > 2000) throw new LocalizedError(msg('errors.cueLength'));
+    if (captions.length >= MAX_CAPTIONS) throw new LocalizedError(msg('errors.captionLimit'));
     captions.push({start, end, text});
   }
-  if (!captions.length) throw new Error('유효한 SRT 또는 VTT 자막을 찾지 못했습니다.');
+  if (!captions.length) throw new LocalizedError(msg('errors.noSubtitles'));
   return captions;
 }

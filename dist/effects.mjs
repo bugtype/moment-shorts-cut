@@ -1,3 +1,5 @@
+import { LocalizedError } from './core/validation.mjs';
+import { message as msg } from './i18n.mjs';
 const clamp = (n, a, b) => Math.min(b, Math.max(a, n));
 export function defaultEnhancements() {
   return {
@@ -39,21 +41,21 @@ function trimGraphemes(parts) {
 }
 // Text offsets use textarea UTF-16 positions; time estimates use whole graphemes.
 export function splitCaptionAtOffset(caption, textOffset) {
-  if (!captionSegmenter) throw new Error('이 환경은 안전한 문자 분할을 지원하지 않습니다. 최신 브라우저에서 다시 시도하세요.');
+  if (!captionSegmenter) throw new LocalizedError(msg('errors.safeSplit'));
   if (!Number.isInteger(textOffset) || textOffset <= 0 || textOffset >= caption.text.length)
-    throw new Error('자막 안에서 나눌 커서 위치를 선택하세요.');
+    throw new LocalizedError(msg('errors.splitCaret'));
   const segments = Array.from(captionSegmenter.segment(caption.text));
   const index = segments.findIndex(segment => segment.index === textOffset);
-  if (index < 1) throw new Error('하나의 문자를 나누지 않는 커서 위치를 선택하세요.');
+  if (index < 1) throw new LocalizedError(msg('errors.splitBoundary'));
   const left = caption.text.slice(0, textOffset), right = caption.text.slice(textOffset);
-  if (!left.trim() || !right.trim()) throw new Error('나눈 양쪽 자막에 문자가 있어야 합니다.');
+  if (!left.trim() || !right.trim()) throw new LocalizedError(msg('errors.splitEmpty'));
   const split = caption.start + (caption.end - caption.start) * index / segments.length;
-  if (!(split > caption.start && split < caption.end)) throw new Error('이 자막은 시간을 더 작게 나눌 수 없습니다.');
+  if (!(split > caption.start && split < caption.end)) throw new LocalizedError(msg('errors.splitPrecision'));
   return [{ ...caption, text: left, end: split, timing: 'estimated' },
     { ...caption, text: right, start: split, timing: 'estimated' }];
 }
 export function splitCaptionText(caption, limit = 18) {
-  if(!captionSegmenter)throw new Error('이 환경은 안전한 문자 분할을 지원하지 않습니다. 최신 브라우저에서 다시 시도하세요.');
+  if(!captionSegmenter)throw new LocalizedError(msg('errors.safeSplit'));
   limit = Math.max(1, Math.floor(Number(limit) || 18));
   const text = trimGraphemes(Array.from(captionSegmenter.segment(caption.text),item=>item.segment));
   if (!text.length || text.length <= limit) return [caption];

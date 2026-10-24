@@ -1,3 +1,4 @@
+import {t, text, mark, message} from './i18n.mjs';
 import { esc, fmt } from './ui-format.mjs';
 
 // Owns the export dialog and lifecycle. Recording, encoding and resource release
@@ -25,16 +26,16 @@ export function createExportFlow(app, {
         if (app.recoveryBlocked() || app.exporting)
             return;
         if (app.audioRecording.requesting || app.loadingMedia || app.audioRecording.current || app.transcribing) {
-            toast('파일 로드, 녹음 또는 자막 인식을 먼저 완료해 주세요.');
+            toast(message("shell.exportBusy"));
             return;
         }
         app.pause();
         const types = supportedTypes();
         if (!types.length || !app.canvas.captureStream) {
-            toast('이 브라우저는 영상 내보내기를 지원하지 않습니다. 최신 Chrome 또는 Edge에서 열어주세요.');
+            toast(message("shell.exportUnsupported"));
             return;
         }
-        app.modalOpen('쇼츠를 완성할 시간', `<p class="modal-copy">타이틀, 자막, 구간별 문구, 움직임과 오디오를 하나의 영상으로 저장합니다.</p><div class="modal-field"><label for="exportFormat">파일 형식</label><select id="exportFormat">${types.map((t, i) => `<option value="${i}">${t.label}</option>`).join('')}</select></div><div class="modal-field"><label for="exportQuality">해상도</label><select id="exportQuality"><option value="720">720p · 빠른 저장</option><option value="1080" selected>1080p · 고화질</option></select></div><div class="modal-field"><span>영상 길이</span><strong>${fmt(app.duration() / app.state.speed)}</strong></div><div class="notice">영상 길이만큼 실시간으로 저장합니다. 이 탭을 켜두세요. 지원 형식은 브라우저에 따라 다릅니다.</div>`, '<div class="modal-foot"><button class="button" id="cancelExportDialog">취소</button><button class="button primary" id="startExport">영상 내보내기</button></div>');
+        app.modalOpen(message("shell.exportTitle"), `<p class="modal-copy">${text("shell.exportDescription")}</p><div class="modal-field"><label for="exportFormat">${text("shell.fileFormat")}</label><select id="exportFormat">${types.map((t, i) => `<option value="${i}">${t.label}</option>`).join('')}</select></div><div class="modal-field"><label for="exportQuality">${text("shell.resolution")}</label><select id="exportQuality"><option value="720" ${mark("shell.quality720")}>${t("shell.quality720")}</option><option value="1080" selected ${mark("shell.quality1080")}>${t("shell.quality1080")}</option></select></div><div class="modal-field"><span>${text("shell.videoLength")}</span><strong>${fmt(app.duration() / app.state.speed)}</strong></div><div class="notice">${text("shell.exportNotice")}</div>`, `<div class="modal-foot"><button class="button" id="cancelExportDialog">${text("shell.cancel")}</button><button class="button primary" id="startExport">${text("shell.exportVideo")}</button></div>`);
         $('#cancelExportDialog').onclick = () => modal.close();
         $('#startExport').onclick = () => startExport(types[+$('#exportFormat').value], +$('#exportQuality').value);
     }
@@ -54,7 +55,7 @@ export function createExportFlow(app, {
                 if (request === videoExport.request)
                     stopExport(true);
             };
-            modal.innerHTML = '<div class="modal-head"><h2>내보내기 준비 중…</h2></div><button class="button full" id="cancelRunningExport">내보내기 취소</button>';
+            modal.innerHTML = `<div class="modal-head"><h2>${text("shell.exportPreparing")}</h2></div><button class="button full" id="cancelRunningExport">${text("shell.exportCancel")}</button>`;
             $('#cancelRunningExport').onclick = cancel;
             await app.ensureAudio();
             if (request !== videoExport.request)
@@ -76,21 +77,21 @@ export function createExportFlow(app, {
             const recorder = videoExport.capture(request, type, quality, app.playback.destination.stream, {
                 onError: () => {
                     stopExport(true);
-                    toast('영상 저장 중 오류가 발생했습니다. 더 낮은 해상도로 다시 시도하세요.');
+                    toast(message("shell.exportError"));
                 },
                 onStop: blob => {
                     app.pause();
                     cleanupExport(request);
                     if (!blob.size) {
-                        toast('출력 파일이 비어 있습니다. 다시 시도해 주세요.');
+                        toast(message("shell.exportEmpty"));
                         return;
                     }
                     app.download(blob, `${app.state.name || 'moment-shorts'}.${type.ext}`);
-                    modal.innerHTML = `<div class="modal-head"><h2>당신의 쇼츠가 완성됐어요.</h2></div><p class="modal-copy">${esc(app.state.name)}<br>${quality}p · ${type.ext.toUpperCase()} · ${fmt(app.duration() / app.state.speed)}</p><div class="notice">다운로드한 파일을 재생해 영상과 자막을 확인한 뒤 YouTube에 업로드하세요.</div><div class="modal-foot"><button class="button primary" id="exportDone">편집으로 돌아가기</button></div>`;
+                    modal.innerHTML = `<div class="modal-head"><h2>${text("shell.exportDone")}</h2></div><p class="modal-copy">${esc(app.state.name)}<br>${quality}p · ${type.ext.toUpperCase()} · ${fmt(app.duration() / app.state.speed)}</p><div class="notice">${text("shell.exportReview")}</div><div class="modal-foot"><button class="button primary" id="exportDone">${text("shell.backToEditor")}</button></div>`;
                     $('#exportDone').onclick = () => modal.close();
                 },
             });
-            modal.innerHTML = '<div class="modal-head"><h2>순간을 담는 중…</h2><strong id="exportPercent">0%</strong></div><p class="modal-copy">이 탭을 열어두면 완성된 영상이 다운로드됩니다.</p><div class="progress"><i id="exportProgress"></i></div><button class="button full" id="cancelRunningExport">내보내기 취소</button>';
+            modal.innerHTML = `<div class="modal-head"><h2>${text("shell.exportRunning")}</h2><strong id="exportPercent">0%</strong></div><p class="modal-copy">${text("shell.exportKeepOpen")}</p><div class="progress"><i id="exportProgress"></i></div><button class="button full" id="cancelRunningExport">${text("shell.exportCancel")}</button>`;
             $('#cancelRunningExport').onclick = cancel;
             app.muted = false;
             app.renderInspector();
@@ -101,7 +102,7 @@ export function createExportFlow(app, {
             if (request !== videoExport.request)
                 return;
             stopExport(true);
-            toast('내보내기를 시작하지 못했습니다. 브라우저와 영상 형식을 확인하세요.');
+            toast(message("shell.exportStartFailed"));
         }
     }
 
@@ -121,7 +122,7 @@ export function createExportFlow(app, {
             catch {
             }
             modal.close();
-            toast('내보내기를 취소했습니다.');
+            toast(message("shell.exportCancelled"));
         }
         else if (recorder) {
             // An inactive recorder may still owe its final dataavailable and stop events.
@@ -132,7 +133,7 @@ export function createExportFlow(app, {
             catch {
                 cleanupExport(request);
                 modal.close();
-                toast('영상 저장을 마무리하지 못했습니다. 다시 시도해 주세요.');
+                toast(message("shell.exportFinishFailed"));
             }
         }
         else

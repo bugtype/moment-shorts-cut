@@ -1,3 +1,4 @@
+import { message as msg } from '../i18n.mjs';
 import { API_VERSION, commandDefinitions, prepareCommand } from '../core/commands.mjs';
 import { createProjectDocument } from '../core/project.mjs';
 import { assertJson, validate, object, string, choice, fail, CommandError } from '../core/validation.mjs';
@@ -9,9 +10,11 @@ const jobCommands=[
   {name:'jobs.get',description:'연결된 작업 제공자의 작업 상태를 읽습니다.',inputSchema:object({jobId:jobIdSchema},['jobId']),mutates:false},
   {name:'jobs.cancel',description:'연결된 작업 제공자에 작업 취소를 요청합니다.',inputSchema:object({jobId:jobIdSchema},['jobId']),mutates:true},
 ];
-export function errorResult(command,error){
+export function errorResult(command,error,formatErrorMessage){
   const known=error instanceof CommandError;
-  return {ok:false,apiVersion:API_VERSION,command,error:{code:known?error.code:'INTERNAL_ERROR',message:known?error.message:'작업을 완료하지 못했습니다.',...(known&&error.path?{path:error.path}:{})}};
+  let detail=known?error.message:msg('errors.internal').message;
+  if(formatErrorMessage){try{detail=String(formatErrorMessage(known?error:msg('errors.internal')));}catch{ /* Keep the original safe diagnostic if presentation fails. */ }}
+  return {ok:false,apiVersion:API_VERSION,command,error:{code:known?error.code:'INTERNAL_ERROR',message:detail,...(known&&error.path?{path:error.path}:{})}};
 }
 /**
  * Storage, UI and media runtimes are injected. No DOM, fetch, file I/O or credentials.
@@ -23,32 +26,32 @@ export function errorResult(command,error){
  * A job provider must implement submit/get/cancel and return JSON job records.
  * Submission is not completion: providers own asset access, progress and artifacts.
  */
-export function createEditorService({getProject,commitProject,jobs}={}){
+export function createEditorService({getProject,commitProject,jobs,formatErrorMessage}={}){
   if(typeof getProject!=='function'||typeof commitProject!=='function')throw new TypeError('Project storage callbacks are required.');
   if(jobs&&!['submit','get','cancel'].every(k=>typeof jobs[k]==='function'))throw new TypeError('A job provider must implement submit, get and cancel.');
   let queue=Promise.resolve();
   const describe=()=>[...commandDefinitions(),...(jobs?structuredClone(jobCommands):[])];
   async function run(name,args,beforeCommit){
     try{
-      if(typeof name!=='string')throw new CommandError('INVALID_ARGUMENT','명령 이름이 필요합니다.');
+      if(typeof name!=='string')throw new CommandError('INVALID_ARGUMENT',msg('errors.commandName'));
       let data;
       const jobCommand=jobCommands.find(c=>c.name===name);
       if(jobCommand){
         assertJson(args);validate(jobCommand.inputSchema,args);
-        if(!jobs)throw new CommandError('NOT_CONFIGURED','미디어 작업 제공자가 아직 연결되지 않았습니다.');
+        if(!jobs)throw new CommandError('NOT_CONFIGURED',msg('errors.providerMissing'));
         if(name==='jobs.submit'){
-          if(args.operation==='media.import'&&!args.assetId?.trim())throw new CommandError('INVALID_ARGUMENT','등록된 assetId가 필요합니다.');
+          if(args.operation==='media.import'&&!args.assetId?.trim())throw new CommandError('INVALID_ARGUMENT',msg('errors.assetId'));
           data=await jobs.submit({request:structuredClone(args),document:createProjectDocument(await getProject())});
         }else{
-          if(!args.jobId.trim())throw new CommandError('INVALID_ARGUMENT','jobId가 필요합니다.');
+          if(!args.jobId.trim())throw new CommandError('INVALID_ARGUMENT',msg('errors.jobId'));
           data=await jobs[name==='jobs.get'?'get':'cancel'](args.jobId);
         }
         try{
           assertJson(data);validate(jobResultSchema,data);
-          if(!data.id.trim())fail('작업 ID가 비어 있습니다.');
-          if(name!=='jobs.submit'&&data.id!==args.jobId)fail('요청한 작업 ID와 반환된 작업 ID가 다릅니다.');
+          if(!data.id.trim())fail(msg('errors.jobIdEmpty'));
+          if(name!=='jobs.submit'&&data.id!==args.jobId)fail(msg('errors.jobIdMismatch'));
         }catch{
-          throw new CommandError('INVALID_PROVIDER_RESULT','작업 제공자가 유효한 작업 상태를 반환하지 않았습니다.');
+          throw new CommandError('INVALID_PROVIDER_RESULT',msg('errors.providerResult'));
         }
       }else{
         // Keep synchronous snapshots and local commits in one uninterrupted job.
@@ -60,14 +63,14 @@ export function createEditorService({getProject,commitProject,jobs}={}){
           const checked=beforeCommit?.();
           if(typeof checked?.then==='function'){
             Promise.resolve(checked).catch(()=>{});
-            throw new CommandError('INVALID_ARGUMENT','커밋 전 검사는 동기 함수여야 합니다.');
+            throw new CommandError('INVALID_ARGUMENT',msg('errors.syncGuard'));
           }
           await commitProject(prepared.project,{command:name,previous:before});
         }
         data=prepared.data;
       }
       return {ok:true,apiVersion:API_VERSION,command:name,data:structuredClone(data)};
-    }catch(error){return errorResult(typeof name==='string'?name:'',error);}
+    }catch(error){return errorResult(typeof name==='string'?name:'',error,formatErrorMessage);}
   }
   return Object.freeze({
     apiVersion:API_VERSION,
@@ -75,7 +78,7 @@ export function createEditorService({getProject,commitProject,jobs}={}){
     capabilities:()=>({apiVersion:API_VERSION,commands:describe().map(c=>c.name),mediaJobs:!!jobs}),
     execute(name,args={},beforeCommit){
       // Capture caller arguments now; edits made after submission cannot change it.
-      let input;try{if(beforeCommit!==undefined&&typeof beforeCommit!=='function')throw new CommandError('INVALID_ARGUMENT','커밋 전 검사 함수가 필요합니다.');assertJson(args);input=structuredClone(args);}catch(error){return Promise.resolve(errorResult(name,error));}
+      let input;try{if(beforeCommit!==undefined&&typeof beforeCommit!=='function')throw new CommandError('INVALID_ARGUMENT',msg('errors.guardFunction'));assertJson(args);input=structuredClone(args);}catch(error){return Promise.resolve(errorResult(name,error,formatErrorMessage));}
       const result=queue.then(()=>run(name,input,beforeCommit));queue=result.then(()=>undefined,()=>undefined);return result;
     },
   });

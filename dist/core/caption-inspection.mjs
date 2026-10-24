@@ -1,14 +1,15 @@
+import { message as msg } from '../i18n.mjs';
 import {captionOccurrences} from '../captions.mjs';
 import {fail} from './validation.mjs';
 
 // A review metric, not a language-specific delivery standard or speech alignment.
 export function inspectCaptions(project, {maxGraphemesPerSecond, limit = 20}) {
   if (!Number.isFinite(maxGraphemesPerSecond) || maxGraphemesPerSecond <= 0)
-    fail('검사 기준은 0보다 큰 유한한 숫자로 입력하세요.', 'arguments.maxGraphemesPerSecond');
+    fail(msg('errors.inspectionThreshold'), 'arguments.maxGraphemesPerSecond');
   if (!Number.isInteger(limit) || limit < 1 || limit > 100)
-    fail('결과 개수는 1~100 사이 정수로 입력하세요.', 'arguments.limit');
+    fail(msg('errors.inspectionLimit'), 'arguments.limit');
   if (typeof globalThis.Intl?.Segmenter !== 'function')
-    fail('이 환경은 안전한 문자 수 검사를 지원하지 않습니다. 최신 실행 환경에서 다시 시도하세요.');
+    fail(msg('errors.graphemesUnavailable'));
   const segmenter = new Intl.Segmenter(undefined, {granularity: 'grapheme'});
   const occurrences = captionOccurrences(project.captions, project.clips, project.speed);
   const counts = new Map(), issues = [];
@@ -22,7 +23,7 @@ export function inspectCaptions(project, {maxGraphemesPerSecond, limit = 20}) {
     const graphemeCount = counts.get(captionIndex), duration = end - start;
     const graphemesPerSecond = graphemeCount / duration;
     if (!(duration > 0) || !Number.isFinite(duration) || !Number.isFinite(graphemesPerSecond))
-      fail(`출력 자막 ${occurrenceIndex + 1}의 표시 시간이 너무 작아 읽기 속도를 계산할 수 없습니다.`, `project.captions[${captionIndex}]`);
+      fail(msg('errors.inspectionPrecision',{index:occurrenceIndex+1}), `project.captions[${captionIndex}]`);
     if (graphemesPerSecond > maxGraphemesPerSecond) issues.push({
       occurrenceIndex, captionIndex, ...(clipIndex === undefined ? {} : {clipIndex}),
       start, end, graphemeCount, graphemesPerSecond,

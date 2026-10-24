@@ -1,3 +1,4 @@
+import * as i18n from '../../dist/i18n.mjs';
 import { createSeekDialog } from '../../dist/seek-dialog.mjs';
 import { createCaptionInspectionDialog } from '../../dist/caption-inspection-dialog.mjs';
 import { shiftCaptionTiming } from '../../dist/core/caption-timing.mjs';
@@ -60,6 +61,7 @@ export async function createAppFixture() {
   });
   function element(key=''){
    if(elements.has(key))return elements.get(key);
+   const attributes = new Map();
    const e = {
      value: '', innerHTML: '', textContent: '', hidden: false,
      style: { setProperty(name, value) { this[name] = value; }, removeProperty(name) { delete this[name]; } },
@@ -67,7 +69,11 @@ export async function createAppFixture() {
      clientWidth: 700, clientHeight: 500, width: 540, height: 960,
      currentTime: 0, duration: 12, readyState: 4, videoWidth: 1920, videoHeight: 1080,
      classList: { add() {}, remove() {}, toggle() {} },
-     setAttribute() {}, setPointerCapture() {}, removeAttribute() {},
+     setAttribute(name,value) { attributes.set(name,String(value)); if(name.startsWith('data-')) this.dataset[name.slice(5).replace(/-([a-z])/g,(_,letter)=>letter.toUpperCase())]=String(value); if(name==='title') this.title=String(value); },
+     getAttribute(name) { return attributes.get(name) ?? null; },
+     removeAttribute(name) { attributes.delete(name); if(name.startsWith('data-')) delete this.dataset[name.slice(5).replace(/-([a-z])/g,(_,letter)=>letter.toUpperCase())]; },
+     setCustomValidity(value) { this.validationMessage=value; },
+     setPointerCapture() {},
      addEventListener() {}, removeEventListener() {}, insertAdjacentHTML() {},
      getContext() { return context2d; },
      querySelector(selector) { return selector === '.icon' ? null : element(key + ' ' + selector); },
@@ -94,7 +100,8 @@ export async function createAppFixture() {
   }
   const documentEvents=new Map();
   const doc = {
-    querySelector: element, querySelectorAll: () => [],
+    querySelector: element, querySelectorAll: selector => selector.includes('[data-i18n') ? [...elements.values()].filter(node => [...['data-i18n','data-i18n-validity',...['aria-label','title','placeholder','alt','aria-valuetext','content','data-label'].map(name=>'data-i18n-'+name)]].some(name=>node.getAttribute?.(name))) : [],
+    documentElement: {lang: 'ko'},
     addEventListener(name, handler) { documentEvents.set(name, handler); },
     body: element('body'), fonts: { ready: Promise.resolve() },
     createElement: () => element('canvas-' + (++canvasCount)),
@@ -109,7 +116,7 @@ export async function createAppFixture() {
     cancelAnimationFrame(id) { pendingFrames.delete(id); },
     setTimeout() {}, clearTimeout() {}, setInterval() {}, clearInterval() {},
     console, URL, Blob, TextDecoder, performance, Number, Math, Promise, structuredClone,
-    ...projectModule, createSeekDialog, createCaptionInspectionDialog, replaceCaptionText, prepareCommand, CommandError, hasMinimumDuration, createEditorService, ...captionModule,
+    ...i18n, msg: i18n.message, ...projectModule, createSeekDialog, createCaptionInspectionDialog, replaceCaptionText, prepareCommand, CommandError, hasMinimumDuration, createEditorService, ...captionModule,
     renderCaptionTrack, renderCaptionTrackError, updateTimelineMarkup, createTimelineView, createInspectorView, createInputHistory,
     ...effectsModule, ...templateModule, readTemplateLibrary, validateTemplateLibrary,
     mountTemplateGallery, mountEffectsPanel, ...typographyModule, createCompositionRenderer,

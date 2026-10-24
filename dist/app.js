@@ -1,3 +1,4 @@
+import {text, attrs, message, formatError, setText, initLocale, getLocale, setLocale, onLocaleChange} from './i18n.mjs';
 import { createSeekDialog } from './seek-dialog.mjs';
 import { createCaptionInspectionDialog } from './caption-inspection-dialog.mjs';
 import { createTextFileWorkflow } from './text-file-workflow.mjs';
@@ -92,10 +93,10 @@ const audioRecording = createAudioRecording({
         const button = $('#recordButton');
         if (seconds === 0) {
             button.classList.add('recording');
-            button.innerHTML = icon('mic') + ' 녹음 완료 · 00:00';
+            button.innerHTML = icon('mic') + text('shell.recordDone', {time: '00:00'});
         }
         else if (button)
-            button.innerHTML = icon('mic') + ` 녹음 완료 · ${fmt(seconds)}`;
+            button.innerHTML = icon('mic') + text('shell.recordDone', {time: fmt(seconds)});
     },
 });
 const persistence = createProjectPersistence({
@@ -121,7 +122,7 @@ const templatePreview = createTemplatePreview({
         selectedCard = state.overlays[0]?.id;
         renderPanel();
         seekTo(0);
-        toast(withContent ? '예시 타이틀과 구간별 문구를 적용했습니다. 문구를 내 영상에 맞게 수정하세요.' : '스타일을 적용했습니다. 기존 문구와 자막은 유지했습니다.');
+        toast(message(withContent ? 'shell.templateContent' : 'shell.templateStyle'));
     },
 });
 const templateWorkspace = createTemplateWorkspace({
@@ -196,12 +197,13 @@ function locate(t) {
 const editorService = createEditorService({
     getProject() {
         if (!editorReady)
-            throw new CommandError('BUSY', '편집기를 불러오는 중입니다.');
+            throw new CommandError('BUSY', message('shell.editorLoading'));
         if (persistence.restorePhase === 'failed' && !persistence.recoveryValid)
             throw new CommandError('RECOVERY_REQUIRED', persistence.restoreMessage);
         return structuredClone(state);
     },
     commitProject: commitCommandProject,
+    formatErrorMessage: formatError,
 });
 const { importProjectSettings, downloadProjectSettings, importSrt, downloadSrt, downloadSubtitles } = createTextFileWorkflow({
     getProject: () => state,
@@ -248,6 +250,7 @@ const app = {
     sources, persistence, videoExport, transcription, captionGeneration, audioRecording,
     inspectorView, timelineView, inputHistory,
     initial, icons, clamp, visualSettings,
+    setUiLocale: value => setLocale(value),
     duration: () => duration(), locate: t => locate(t),
     updateTime: force => updateTime(force),
     updateLayerGuide: () => updateLayerGuide(),
@@ -357,9 +360,9 @@ function edit(change, refresh = false) {
 
 function commitCommandProject(next, { command } = {}) {
     if (!editorReady || exporting || loadingMedia || transcribing || audioRecording.requesting || audioRecording.current)
-        throw new CommandError('BUSY', '진행 중인 로드·녹음·인식·내보내기를 먼저 완료하세요.');
+        throw new CommandError('BUSY', message('shell.operationBusy'));
     if (command === 'project.import' && (next.kind !== state.kind || (next.kind === 'video' && (next.fileName !== state.fileName || Math.abs(next.duration - state.duration) > .05)) || next.audioName !== state.audioName))
-        throw new CommandError('MEDIA_RELINK_REQUIRED', '설정에 사용된 원본 영상과 오디오를 먼저 같은 이름으로 연결하세요.');
+        throw new CommandError('MEDIA_RELINK_REQUIRED', message('shell.mediaRelink'));
     // Non-timeline commands clone clips without changing the trim draft's target.
     const preserveTrim = ['project.update', 'effects.update', 'overlays.update', 'overlays.move', 'overlays.add', 'overlays.remove', 'title.update', 'credit.update', 'captions.replace', 'captions.update', 'captions.merge', 'captions.split', 'captions.import', 'captions.timing.shift', 'captions.text.replace', 'captions.style.update'].includes(command) && inspectorView.hasTrimTarget(state.clips[selected]);
     pause();
@@ -383,28 +386,36 @@ function runEditorCommand(name, args) {
         return true;
     }
     catch (error) {
-        toast(error.message || '변경을 적용하지 못했습니다.');
+        toast(error?.messageKey ? error : error.message || message('shell.changeFailed'));
         return false;
     }
 }
 
 function showHelp() {
-    modalOpen('짧게 담고, 오래 기억되게.', `<ol class="guide-steps"><li>영상을 올리고 화면 비율과 구도를 맞추세요.</li><li>템플릿, 타이틀, 대사 자막을 편집하세요.</li><li>필요한 음성을 연결하고 완성된 영상을 내보내세요.</li></ol><p class="modal-copy"><span class="keyboard-key">Space</span> 재생 / 정지 &nbsp; <span class="keyboard-key">Ctrl Z</span> 실행 취소 &nbsp; <span class="keyboard-key">, / .</span> 출력 시간 1/30초 이동</p><div class="notice">편집 설정 파일에는 제목·자막·클립 구간이 담깁니다. 영상·오디오 파일은 포함하지 않습니다. 다른 브라우저에서 불러올 때는 같은 원본 파일을 먼저 연결하세요.</div>`, '<div class="modal-foot"><button class="button" id="importProjectSettingsButton">편집 설정 불러오기</button><button class="button primary" id="downloadProjectSettingsButton">편집 설정 저장</button></div>');
+    modalOpen(message('shell.helpTitle'), `<ol class="guide-steps"><li>${text('shell.help1')}</li><li>${text('shell.help2')}</li><li>${text('shell.help3')}</li></ol><p class="modal-copy"><span class="keyboard-key">Space</span> ${text('shell.playPause')} &nbsp; <span class="keyboard-key">Ctrl Z</span> ${text('shell.undo')} &nbsp; <span class="keyboard-key">, / .</span> ${text('shell.stepOutput')}</p><div class="notice">${text('shell.settingsNotice')}</div>`, `<div class="modal-foot"><button class="button" id="importProjectSettingsButton">${text('shell.importSettings')}</button><button class="button" id="downloadProjectSettingsButton">${text('shell.saveSettings')}</button></div>`);
     $('#importProjectSettingsButton').onclick = () => $('#projectInput').click();
     $('#downloadProjectSettingsButton').onclick = downloadProjectSettings;
 }
 function toast(message) {
-    $('#toast').textContent = message;
+    const node = $('#toast');
+    if (message?.messageKey) setText(node, message.messageKey, message.messageParams);
+    else {
+        node.removeAttribute('data-i18n');
+        node.removeAttribute('data-i18n-params');
+        node.textContent = formatError(message);
+    }
     $('#toast').classList.add('visible');
     clearTimeout(toast.timer);
     toast.timer = setTimeout(() => $('#toast').classList.remove('visible'), 5000);
 }
 function saveStatus(text, ok = true) {
-    const key = text + ok;
+    const key = JSON.stringify(text) + ok;
     if (lastSaveStatus === key)
         return;
     lastSaveStatus = key;
-    $('#saveStatus').innerHTML = `<i style="background:${ok ? '#93a88d' : '#dd9c70'}"></i> ${esc(text)}`;
+    $('#saveStatus').innerHTML = `<i style="background:${ok ? '#93a88d' : '#dd9c70'}"></i> <span id="saveStatusText">${esc(formatError(text))}</span>`;
+    if (text?.messageKey) setText($('#saveStatusText'), text.messageKey, text.messageParams);
+    else $('#saveStatusText').textContent = formatError(text);
 }
 function setRatio(value) {
     runEditorCommand('project.update', { patch: { ratio: value } });
@@ -466,7 +477,7 @@ function modalOpen(title, body, footer = '') {
     modal.onclose?.();
     modal.onclose = null;
     modal.className = '';
-    modal.innerHTML = `<div class="modal-head"><h2>${title}</h2><button class="icon-button" id="closeModal" aria-label="닫기">${icon('close')}</button></div>${body}${footer}`;
+    modal.innerHTML = `<div class="modal-head"><h2>${title?.messageKey ? text(title.messageKey, title.messageParams) : esc(title)}</h2><button class="icon-button" id="closeModal" ${attrs("aria-label", "shell.close")}>${icon('close')}</button></div>${body}${footer}`;
     $('#closeModal').onclick = () => modal.close();
     modal.showModal();
 }
@@ -494,6 +505,11 @@ function saveProject(show = false) { return persistence.saveProject(show); }
 function persistMedia() { persistence.persistMedia(); }
 
 async function init() {
+    let preferenceStorage;
+    try { preferenceStorage = localStorage; } catch { /* Language works without storage. */ }
+    initLocale({storage: preferenceStorage, languages: globalThis.navigator?.languages || [], document});
+    $('#uiLocale').value = getLocale();
+    onLocaleChange(value => { $('#uiLocale').value = value; });
     bind();
     editorReady = false;
     await persistence.restore();

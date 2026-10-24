@@ -1,3 +1,4 @@
+import { message as msg } from '../i18n.mjs';
 import { inspectCaptions } from './caption-inspection.mjs';
 import { shiftCaptionTiming } from './caption-timing.mjs';
 import { readTemplateDocument } from '../template-library.mjs';
@@ -78,7 +79,7 @@ definitions.push(command('project.batch','최대 20개 편집을 순서대로 �
   object({operations:array(object({command:choice(...batchCommands),arguments:{type:'object'}},['command','arguments']),20,1)},['operations']),true));
 
 export function commandDefinitions(){return structuredClone(definitions);}
-export function commandDefinition(name){const value=definitions.find(c=>c.name===name);if(!value)throw new CommandError('UNKNOWN_COMMAND','지원하지 않는 명령입니다.');return structuredClone(value);}
+export function commandDefinition(name){const value=definitions.find(c=>c.name===name);if(!value)throw new CommandError('UNKNOWN_COMMAND',msg('errors.unknownCommand'));return structuredClone(value);}
 export function prepareCommand(project,name,args={}){
   const definition=commandDefinition(name);assertJson(args);validate(definition.inputSchema,args);
   if(name==='templates.list')return {data:TEMPLATES.map(({id,name,category,description})=>({id,name,category,description}))};
@@ -87,14 +88,14 @@ export function prepareCommand(project,name,args={}){
     let next=project,updated=false;
     for(const [index,operation] of args.operations.entries()){
       const path=`arguments.operations[${index}]`;
-      if(!batchCommands.includes(operation.command))fail('묶음에서 지원하지 않는 편집 명령입니다.',`${path}.command`);
+      if(!batchCommands.includes(operation.command))fail(msg('errors.batchCommand'),`${path}.command`);
       try{
         const prepared=prepareCommand(next,operation.command,operation.arguments);
         if(prepared.project){next=prepared.project;updated=true;}
       }catch(error){
         if(error instanceof CommandError){
           const nested=error.path || 'arguments';
-          throw new CommandError(error.code,error.message,`${path}.${nested}`);
+          throw new CommandError(error.code,error.messageKey ? error : error.message,`${path}.${nested}`);
         }
         throw error;
       }
@@ -108,25 +109,25 @@ export function prepareCommand(project,name,args={}){
     let captions;
     try{
       captions=parseSubtitles(args.text,args.basis==='source'?project.duration:timelineDuration(project));
-    }catch(error){fail(error.message||'자막 문자열을 확인하세요.','arguments.text');}
+    }catch(error){fail((error.messageKey ? error : error.message)||msg('errors.subtitleText'),'arguments.text');}
     captions=captions.map(caption=>({...caption,basis:args.basis}));
     const prepared=prepareCommand(project,'captions.replace',{captions});
     return {...prepared,data:{...prepared.data,importedCaptions:captions.length}};
   }
   if(name==='timeline.duplicate'){
     if(!Number.isInteger(args.clipIndex)||args.clipIndex<0||args.clipIndex>=project.clips.length)
-      fail('복제할 클립의 인덱스를 확인하세요.','arguments.clipIndex');
-    if(project.clips.length>=MAX_CLIPS)fail('클립은 1,000개 이하만 지원합니다.','project.clips');
+      fail(msg('errors.duplicateClipIndex'),'arguments.clipIndex');
+    if(project.clips.length>=MAX_CLIPS)fail(msg('errors.clipLimit'),'project.clips');
     const clips=structuredClone(project.clips);
     clips.splice(args.clipIndex+1,0,{...clips[args.clipIndex]});
     return prepareCommand(project,'timeline.replace',{clips});
   }
   if(name==='overlays.move'){
-    if(!args.id.length)fail('이동할 장면 카드 ID를 입력하세요.','arguments.id');
+    if(!args.id.length)fail(msg('errors.moveCardId'),'arguments.id');
     const from=project.overlays.findIndex(card=>card.id===args.id);
-    if(from<0)throw new CommandError('NOT_FOUND','장면 카드를 찾을 수 없습니다.');
+    if(from<0)throw new CommandError('NOT_FOUND',msg('errors.cardMissing'));
     if(!Number.isInteger(args.toIndex)||args.toIndex<0||args.toIndex>=project.overlays.length)
-      fail('장면 카드의 이동 위치를 확인하세요.','arguments.toIndex');
+      fail(msg('errors.cardOrder'),'arguments.toIndex');
     const data={updated:from!==args.toIndex,id:args.id,toIndex:args.toIndex,outputDuration:outputDuration(project)};
     if(!data.updated)return {data};
     const next=structuredClone(project),[card]=next.overlays.splice(from,1);
@@ -135,13 +136,13 @@ export function prepareCommand(project,name,args={}){
   if(name==='captions.update'){
     const index=args.captionIndex;
     if(!Number.isInteger(index)||index<0||index>=project.captions.length)
-      fail('수정할 자막의 위치를 확인하세요.','arguments.captionIndex');
+      fail(msg('errors.updateCaptionIndex'),'arguments.captionIndex');
     const next=structuredClone(project),caption=next.captions[index];
     Object.assign(caption,args.patch);
     if(Object.hasOwn(args.patch,'start')||Object.hasOwn(args.patch,'end')){
       const total=caption.basis==='timeline'?timelineDuration(next):next.duration;
       if(caption.start<0||caption.end<=caption.start||caption.end>total)
-        fail('자막 구간이 기존 시간 기준의 범위를 벗어났습니다.','arguments.patch');
+        fail(msg('errors.existingCaptionClock'),'arguments.patch');
     }
     validateProject(next);
     return {project:next,data:{updated:true,outputDuration:outputDuration(next),captionIndex:index}};
@@ -149,25 +150,25 @@ export function prepareCommand(project,name,args={}){
   if(name==='captions.split'){
     const index=args.captionIndex;
     if(!Number.isInteger(index)||index<0||index>=project.captions.length)
-      fail('나눌 자막의 위치를 확인하세요.','arguments.captionIndex');
-    if(project.captions.length>=MAX_CAPTIONS)fail('자막은 10,000개 이하만 지원합니다.','project.captions');
+      fail(msg('errors.splitCaptionIndex'),'arguments.captionIndex');
+    if(project.captions.length>=MAX_CAPTIONS)fail(msg('errors.captionLimit'),'project.captions');
     let parts;
     try{parts=splitCaptionAtOffset(project.captions[index],args.textOffset);}
-    catch(error){fail(error.message,'arguments.textOffset');}
+    catch(error){fail(error.messageKey ? error : error.message,'arguments.textOffset');}
     const next=structuredClone(project);next.captions.splice(index,1,...parts);validateProject(next);
     return {project:next,data:{updated:true,outputDuration:outputDuration(next),createdCaptionIndex:index+1}};
   }
   if(name==='captions.merge'){
     const index=args.captionIndex;
     if(!Number.isInteger(index)||index<0||index>=project.captions.length-1)
-      fail('다음 자막이 있는 위치를 선택하세요.','arguments.captionIndex');
+      fail(msg('errors.nextCaption'),'arguments.captionIndex');
     const first=project.captions[index],second=project.captions[index+1];
     if((first.basis||'source')!==(second.basis||'source') ||
       (first.speaker||'')!==(second.speaker||'') || (first.keywords||'')!==(second.keywords||''))
-      fail('시간 기준·화자·강조 단어가 같은 자막만 합칠 수 있습니다.','arguments.captionIndex');
-    if(second.start<first.end)fail('시간이 겹치거나 역순인 자막은 합칠 수 없습니다.','arguments.captionIndex');
+      fail(msg('errors.mergeMetadata'),'arguments.captionIndex');
+    if(second.start<first.end)fail(msg('errors.mergeOrder'),'arguments.captionIndex');
     const text=first.text+' '+second.text;
-    if(text.length>2000)fail('합친 자막은 2,000자 이하만 지원합니다.','arguments.captionIndex');
+    if(text.length>2000)fail(msg('errors.mergeLength'),'arguments.captionIndex');
     const merged={...first,text,end:second.end};
     if(first.timing==='estimated'||second.timing==='estimated')merged.timing='estimated';
     const next=structuredClone(project);next.captions.splice(index,2,merged);
@@ -195,48 +196,48 @@ export function prepareCommand(project,name,args={}){
   if(name==='project.import')return {project:readProjectDocument(args.document),data:{imported:true}};
   const next=structuredClone(project),before=outputDuration(next);
   if(name==='project.update'){
-    if(Object.hasOwn(args.patch,'name')&&!args.patch.name.trim())fail('프로젝트 이름을 입력하세요.','arguments.patch.name');
+    if(Object.hasOwn(args.patch,'name')&&!args.patch.name.trim())fail(msg('errors.projectName'),'arguments.patch.name');
     Object.assign(next,args.patch);
     if(Object.hasOwn(args.patch,'ratio')&&args.patch.ratio!==project.ratio){next.zoom=1;next.panX=0;next.panY=0;}
   }else if(name==='template.apply'){
-    const template=TEMPLATES.find(t=>t.id===args.templateId);if(!template)throw new CommandError('NOT_FOUND','기본 템플릿을 찾을 수 없습니다.');
+    const template=TEMPLATES.find(t=>t.id===args.templateId);if(!template)throw new CommandError('NOT_FOUND',msg('errors.templateMissing'));
     applyTemplate(next,template,args.withContent===true);
   }else if(name==='template.apply.document'){
     applyTemplate(next,readTemplateDocument(args.document),args.withContent===true);
   }else if(name==='timeline.replace')next.clips=structuredClone(args.clips);
   else if(name==='timeline.split'){
     if(!Number.isInteger(args.clipIndex)||args.clipIndex<0||args.clipIndex>=next.clips.length)
-      fail('나눌 클립의 인덱스를 확인하세요.','arguments.clipIndex');
+      fail(msg('errors.splitClipIndex'),'arguments.clipIndex');
     if(next.clips.length>=MAX_CLIPS)
-      fail('클립은 1,000개 이하만 지원합니다. 클립을 삭제한 뒤 다시 분할하세요.','project.clips');
+      fail(msg('errors.splitClipLimit'),'project.clips');
     const clip=next.clips[args.clipIndex];
     if(!hasMinimumDuration(clip.start,args.sourceTime)||!hasMinimumDuration(args.sourceTime,clip.end))
-      fail('클립의 시작과 끝에서 0.1초 이상 떨어진 위치를 선택하세요.','arguments.sourceTime');
+      fail(msg('errors.splitClipRange'),'arguments.sourceTime');
     next.clips.splice(args.clipIndex,1,{start:clip.start,end:args.sourceTime},{start:args.sourceTime,end:clip.end});
   }
   else if(name==='effects.update')Object.assign(next.effects,args.patch);
   else if(name==='overlays.add'){
-    if(!args.id.trim())fail('새 장면 카드 ID를 입력하세요.','arguments.id');
-    if(next.overlays.some(card=>card.id===args.id))fail('이미 사용 중인 장면 카드 ID입니다.','arguments.id');
-    if(next.overlays.length>=12)fail('구간별 문구는 12개까지 가능합니다.','project.overlays');
+    if(!args.id.trim())fail(msg('errors.newCardId'),'arguments.id');
+    if(next.overlays.some(card=>card.id===args.id))fail(msg('errors.duplicateCardId'),'arguments.id');
+    if(next.overlays.length>=12)fail(msg('errors.cardLimit'),'project.overlays');
     if(args.patch.end<=args.patch.start||args.patch.end>before)
-      fail('장면 카드의 표시 시간은 출력 영상의 0초부터 끝 사이에서 시작보다 끝이 늦어야 합니다.','arguments.patch');
+      fail(msg('errors.cardTime'),'arguments.patch');
     next.overlays.push({...newCard(before),...args.patch,id:args.id});
   }
   else if(name==='overlays.remove'){
-    if(!args.id.length)fail('삭제할 장면 카드 ID를 입력하세요.','arguments.id');
+    if(!args.id.length)fail(msg('errors.removeCardId'),'arguments.id');
     const index=next.overlays.findIndex(card=>card.id===args.id);
-    if(index<0)throw new CommandError('NOT_FOUND','장면 카드를 찾을 수 없습니다.');
+    if(index<0)throw new CommandError('NOT_FOUND',msg('errors.cardMissing'));
     next.overlays.splice(index,1);
   }
   else if(name==='overlays.update'){
-    if(!args.id.length)fail('수정할 장면 카드 ID를 입력하세요.','arguments.id');
+    if(!args.id.length)fail(msg('errors.updateCardId'),'arguments.id');
     const card=next.overlays.find(item=>item.id===args.id);
-    if(!card)throw new CommandError('NOT_FOUND','장면 카드를 찾을 수 없습니다.');
+    if(!card)throw new CommandError('NOT_FOUND',msg('errors.cardMissing'));
     Object.assign(card,args.patch);
     if(Object.hasOwn(args.patch,'start')||Object.hasOwn(args.patch,'end')){
       if(card.start<0||card.end<=card.start||card.end>outputDuration(next))
-        fail('장면 카드의 표시 시간은 출력 영상의 0초부터 끝 사이에서 시작보다 끝이 늦어야 합니다.','arguments.patch');
+        fail(msg('errors.cardTime'),'arguments.patch');
     }
   }
   else if(name==='credit.update'){
@@ -244,14 +245,14 @@ export function prepareCommand(project,name,args={}){
     if(Object.hasOwn(args.patch,'start')||Object.hasOwn(args.patch,'end')){
       const {start,end}=next.design.credit,total=outputDuration(next);
       if(start>=total||(end!==null&&(end<=start||end>total)))
-        fail('크레딧의 표시 시간은 출력 영상 길이 안에서 시작보다 끝이 늦어야 합니다.','arguments.patch');
+        fail(msg('errors.creditTime'),'arguments.patch');
     }
   }
   else if(name==='title.update')Object.assign(next.design.title,args.patch);
   else if(name==='captions.style.update')Object.assign(next,args.patch);
   else if(name==='captions.replace'){
     const total=timelineDuration(next);
-    for(const [i,c] of args.captions.entries())if(c.end<=c.start||c.end>(c.basis==='timeline'?total:next.duration))fail('자막 구간이 시간 기준의 범위를 벗어났습니다.',`arguments.captions[${i}]`);
+    for(const [i,c] of args.captions.entries())if(c.end<=c.start||c.end>(c.basis==='timeline'?total:next.duration))fail(msg('errors.captionClock'),`arguments.captions[${i}]`);
     next.captions=structuredClone(args.captions);
   }
   if(name==='project.update'||name==='timeline.replace')retimeOutputLayers(next,before,outputDuration(next));

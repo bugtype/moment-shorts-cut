@@ -563,7 +563,7 @@ limits still apply: very short intervals can collapse on SRT/VTT millisecond
 rounding, and literal blank lines or byte/derived-cue limits can still reject export.
 After a lost response, re-read before retrying because the original row may already
 be split. Save via a separate project read. The browser uses a collapsed textarea
-caret and **나누기** action, focuses the new row and offers one undo step; bulk long-caption splitting
+caret and **Split** action, focuses the new row and offers one undo step; bulk long-caption splitting
 remains separate. See the [runnable CLI example](../INTEGRATIONS.md#자막-하나를-커서-위치에서-분할).
 
 ### Merge two adjacent authored captions
@@ -595,7 +595,7 @@ that every export format succeeds.
 The acknowledgment is `{updated:true, outputDuration, mergedCaptionIndex}`.
 Read the document to save it. After a lost response, inspect the array before
 retrying: merging again at the same index can consume another row. Browser
-**다음 자막과 합치기** works across page boundaries and is one undo step;
+**Merge with next caption** works across page boundaries and is one undo step;
 standalone MCP has no undo tool. See the [complete CLI example](../INTEGRATIONS.md#인접한-자막-합치기).
 
 ### Edit one authored caption
@@ -896,10 +896,25 @@ before removing the CTA:
 Timing, text and all other card properties remain unchanged; the other cards
 keep their relative order. Overlapping `free` cards draw in array order; only
 the last active `headline` is shown. This does not move cards above/below captions
-or other base layers. Browser **맨 앞으로 / 맨 뒤로** uses the same card stack and
+or other base layers. Browser **Bring to front / Send to back** uses the same card stack and
 keeps the selected card. Real UI moves have one undo step; MCP has no undo tool.
 If the response is lost, inspect the current ID/order before retrying; retrieve
 `moment_project_get` afterward to save the document.
+
+## Interface language is not project language
+
+The browser offers Korean (`ko`), English (`en`) and Simplified Chinese (`zh-CN`).
+Its saved language choice takes priority over a supported browser language, then
+falls back to Korean. This is browser presentation state, not an MCP session option.
+A failed preference write still allows switching for the current session.
+
+Switching UI language does not translate captions, titles, credits, speaker names,
+project names, custom templates or imported content. Built-in gallery metadata is
+localized separately from its authored Korean example text. Applying example
+content is still an explicit editing command. The ASR language remains a separate
+choice. CLI/MCP tool names, arguments, enums, error codes and paths are unchanged;
+do not treat a localized label as a template ID or parse translated error prose.
+No new tool or project-schema field is required for UI language.
 
 ## Repository skill and verification
 

@@ -1,3 +1,4 @@
+import {t, message, setAttr} from './i18n.mjs';
 import { bindPreviewDrag, bindEditorKeyboard } from './editor-interactions.mjs';
 import { icon } from './ui-format.mjs';
 
@@ -8,6 +9,7 @@ const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
 export function bindUi(app) {
     const { query: $, queryAll: $$ } = app;
     app.icons();
+    $('#uiLocale').onchange = event => app.setUiLocale(event.target.value);
     $$('[data-panel]').forEach(button => button.onclick = () => {
         if (button.dataset.panel === app.panel)
             app.togglePanelSheet();
@@ -36,7 +38,7 @@ export function bindUi(app) {
     $('#audioInput').onchange = event => event.target.files[0] && app.loadAudio(event.target.files[0]);
     $('#srtInput').onchange = event => event.target.files[0] && app.importSrt(event.target.files[0]);
     $('#projectInput').onchange = event => event.target.files[0] && app.importProjectSettings(event.target.files[0]);
-    $('#projectName').onchange = event => app.edit(() => app.state.name = event.target.value.trim() || '제목 없는 쇼츠');
+    $('#projectName').onchange = event => app.edit(() => app.state.name = event.target.value.trim() || t('shell.untitled'));
     $('#saveButton').onclick = () => app.saveProject(true);
     $('#playButton').onclick = () => app.playing ? app.pause() : app.play();
     $('#timeDisplay').onclick = () => app.openSeek();
@@ -51,7 +53,7 @@ export function bindUi(app) {
     $('#muteButton').onclick = () => {
         app.muted = !app.muted;
         $('#muteButton').innerHTML = icon(app.muted ? 'mute' : 'volume');
-        $('#muteButton').setAttribute('aria-label', app.muted ? '미리보기 음소거 해제' : '미리보기 음소거');
+        setAttr($('#muteButton'), 'aria-label', app.muted ? 'shell.unmute' : 'shell.mute');
         app.renderInspector();
     };
     $('#speed').onchange = event => app.runEditorCommand('project.update', { patch: { speed: +event.target.value } });
@@ -237,7 +239,7 @@ export function bindUi(app) {
         if (app.document.hidden) {
             if (app.exporting) {
                 app.stopExport(true);
-                app.toast('탭이 숨겨져 내보내기를 중단했습니다. 이 탭을 연 상태로 다시 시도하세요.');
+                app.toast(message('shell.hiddenExport'));
             }
             else
                 app.pause();

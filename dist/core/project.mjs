@@ -1,3 +1,4 @@
+import { message as msg } from '../i18n.mjs';
 import { defaultEnhancements } from '../effects.mjs';
 import { defaultDesign, migrateProject, DESIGN_VERSION } from '../typography.mjs';
 import { editedCaptions, MAX_CAPTIONS, MAX_SUBTITLE_BYTES, captionOutputLimit } from '../captions.mjs';
@@ -9,7 +10,7 @@ export function createDemoProject(){return {...defaultEnhancements(),name:'나�
 export const MAX_PROJECT_FILE_BYTES=10*1024*1024;
 export function assertProjectFileSize(byteLength){
   if(byteLength>MAX_PROJECT_FILE_BYTES)
-    throw new CommandError('FILE_TOO_LARGE','편집 설정 파일은 UTF-8 10 MiB까지 지원합니다. 설정·자막을 줄이거나 별도 통합 저장 방식을 사용하세요.');
+    throw new CommandError('FILE_TOO_LARGE',msg('errors.projectFileLimit'));
 }
 
 export const MAX_CLIPS=1000;
@@ -21,22 +22,22 @@ export const clipSchema=object({start:number(0,86400),end:number(0,86400)},['sta
 export const captionSchema=object({start:number(0,86400),end:number(0,86400),text:string(2000),basis:choice('source','timeline'),speaker:choice('','0','1'),keywords:string(500),timing:choice('estimated')},['start','end','text']);
 
 function compatible(value,example,path){
-  if(example===null){if(value!==null&&!Number.isFinite(value))fail('종료 시간은 숫자 또는 null이어야 합니다.',path);return;}
+  if(example===null){if(value!==null&&!Number.isFinite(value))fail(msg('errors.endType'),path);return;}
   if(Array.isArray(example)){
-    if(!Array.isArray(value)||value.length>10000)fail('배열을 확인하세요.',path);
+    if(!Array.isArray(value)||value.length>10000)fail(msg('errors.array'),path);
     if(example.length)value.forEach((item,i)=>compatible(item,example[0],`${path}[${i}]`));
   }else if(typeof example==='object'){
-    if(!value||typeof value!=='object'||Array.isArray(value))fail('객체가 필요합니다.',path);
+    if(!value||typeof value!=='object'||Array.isArray(value))fail(msg('errors.object'),path);
     for(const key of Object.keys(example))compatible(value[key],example[key],`${path}.${key}`);
-  }else if(typeof value!==typeof example||(typeof example==='number'&&!Number.isFinite(value)))fail('프로젝트 필드 형식이 올바르지 않습니다.',path);
+  }else if(typeof value!==typeof example||(typeof example==='number'&&!Number.isFinite(value)))fail(msg('errors.projectFieldType'),path);
 }
 export function validateProject(project){
   assertJson(project);
-  if(project.schemaVersion!==DESIGN_VERSION)throw new CommandError('UNSUPPORTED_VERSION','지원하지 않는 프로젝트 버전입니다.');
+  if(project.schemaVersion!==DESIGN_VERSION)throw new CommandError('UNSUPPORTED_VERSION',msg('errors.projectVersion'));
   compatible(project,createDemoProject(),'project');
   const p=project;
   validate(object({duration:number(.001,86400),speed:number(.25,4),ratio:choice('9:16','1:1','16:9'),fit:choice('cover','contain'),kind:choice('demo','video'),clips:array(clipSchema,MAX_CLIPS,1)},['duration','speed','ratio','fit','kind','clips']),{duration:p.duration,speed:p.speed,ratio:p.ratio,fit:p.fit,kind:p.kind,clips:p.clips},'project');
-  for(const [i,c] of p.clips.entries())if(c.end<=c.start||c.end>p.duration)fail('클립 구간이 원본 영상 범위를 벗어났습니다.',`project.clips[${i}]`);
+  for(const [i,c] of p.clips.entries())if(c.end<=c.start||c.end>p.duration)fail(msg('errors.clipRange'),`project.clips[${i}]`);
   const bounded={zoom:[1,3],panX:[-1,1],panY:[-1,1],volume:[0,1],audioVolume:[0,1],audioOffset:[0,86400],captionSize:[10,120],captionX:[0,1],captionY:[0,1],captionStroke:[0,20]};
   for(const [key,[min,max]] of Object.entries(bounded))validate(number(min,max),p[key],`project.${key}`);
   validate(choice('framed','full'),p.design.layout,'project.design.layout');
@@ -49,36 +50,36 @@ export function validateProject(project){
   validate(number(.15,.4),p.design.top,'project.design.top');validate(number(.4,.91),p.design.bottom,'project.design.bottom');
   validate(number(0,20),p.design.title.stroke,'project.design.title.stroke');
   validate(array(captionSchema,MAX_CAPTIONS),p.captions,'project.captions');
-  for(const [i,c] of p.captions.entries())if(c.end<=c.start)fail('자막 끝은 시작보다 늦어야 합니다.',`project.captions[${i}]`);
+  for(const [i,c] of p.captions.entries())if(c.end<=c.start)fail(msg('errors.captionEnd'),`project.captions[${i}]`);
   for(const [key,l] of Object.entries({title:p.design.title,credit:p.design.credit})){
     for(const axis of ['x','y'])validate(number(0,1),l[axis],`project.design.${key}.${axis}`);
     validate(number(10,120),l.size,`project.design.${key}.size`);
-    if(l.start<0||(l.end!==null&&l.end<=l.start))fail('글자 표시 시간을 확인하세요.',`project.design.${key}`);
+    if(l.start<0||(l.end!==null&&l.end<=l.start))fail(msg('errors.textTime'),`project.design.${key}`);
   }
   validate(array(string(200),2,2),p.design.title.lines,'project.design.title.lines');
   validate(array(string(20),2,2),p.design.title.colors,'project.design.title.colors');
   validate(array(string(80),2,2),p.speakerLabels,'project.speakerLabels');
   validate(array(string(20),2,2),p.speakerColors,'project.speakerColors');
-  if(p.overlays.length>12)fail('구간별 문구는 12개까지 가능합니다.','project.overlays');
+  if(p.overlays.length>12)fail(msg('errors.cardLimit'),'project.overlays');
   const ids=new Set();
   for(const [i,c] of p.overlays.entries()){
     const path=`project.overlays[${i}]`;
     for(const k of ['id','text','detail','label','color','accent','background'])validate(string(2000),c[k],`${path}.${k}`);
-    if(!c.id||ids.has(c.id))fail('문구 ID는 비어 있거나 중복될 수 없습니다.',path);ids.add(c.id);
+    if(!c.id||ids.has(c.id))fail(msg('errors.cardUniqueId'),path);ids.add(c.id);
     for(const k of ['x','y','width','backgroundOpacity'])validate(number(0,1),c[k],`${path}.${k}`);
     validate(number(10,120),c.size,`${path}.size`);validate(number(0,20),c.stroke,`${path}.stroke`);
     validate(choice('plain','panel'),c.presentation,`${path}.presentation`);validate(choice('headline','free'),c.role,`${path}.role`);
     validate(choice('none','fade','slide','pop'),c.animation,`${path}.animation`);validate(choice('card','countdown'),c.kind,`${path}.kind`);
-    if(typeof c.enabled!=='boolean'||!Number.isFinite(c.start)||!Number.isFinite(c.end)||c.start<0||c.end<=c.start)fail('문구 표시 값과 시간을 확인하세요.',path);
+    if(typeof c.enabled!=='boolean'||!Number.isFinite(c.start)||!Number.isFinite(c.end)||c.start<0||c.end<=c.start)fail(msg('errors.cardValues'),path);
   }
-  for(const color of [p.captionColor,p.captionAccent,p.design.background,...p.design.title.colors,p.design.credit.color,p.effects.progressColor,...p.speakerColors,...p.overlays.flatMap(c=>[c.color,c.accent,c.background])])if(!/^#[\da-f]{6}([\da-f]{2})?$/i.test(color))fail('색상은 #RRGGBB 또는 #RRGGBBAA 형식이어야 합니다.','project.colors');
+  for(const color of [p.captionColor,p.captionAccent,p.design.background,...p.design.title.colors,p.design.credit.color,p.effects.progressColor,...p.speakerColors,...p.overlays.flatMap(c=>[c.color,c.accent,c.background])])if(!/^#[\da-f]{6}([\da-f]{2})?$/i.test(color))fail(msg('errors.color'),'project.colors');
   return p;
 }
 export function createProjectDocument(project){validateProject(project);return {format:FORMAT,formatVersion:FORMAT_VERSION,project:structuredClone(project)};}
 export function readProjectDocument(document){
   assertJson(document);
-  if(document?.format!==FORMAT||document.formatVersion!==FORMAT_VERSION)throw new CommandError('UNSUPPORTED_VERSION','지원하는 moment-project 파일이 아닙니다.');
-  if(!document.project||!Number.isInteger(document.project.schemaVersion)||document.project.schemaVersion<1||document.project.schemaVersion>DESIGN_VERSION)throw new CommandError('UNSUPPORTED_VERSION','지원하지 않는 프로젝트 버전입니다.');
+  if(document?.format!==FORMAT||document.formatVersion!==FORMAT_VERSION)throw new CommandError('UNSUPPORTED_VERSION',msg('errors.projectFileType'));
+  if(!document.project||!Number.isInteger(document.project.schemaVersion)||document.project.schemaVersion<1||document.project.schemaVersion>DESIGN_VERSION)throw new CommandError('UNSUPPORTED_VERSION',msg('errors.projectVersion'));
   // Only legacy versions need defaults. Repairing a malformed current document
   // would silently replace the user's authored settings during import.
   const project=structuredClone(document.project);
@@ -86,29 +87,29 @@ export function readProjectDocument(document){
 }
 export function srtTimestamp(t){const ms=Math.round(t*1000);return `${String(Math.floor(ms/3600000)).padStart(2,'0')}:${String(Math.floor(ms/60000)%60).padStart(2,'0')}:${String(Math.floor(ms/1000)%60).padStart(2,'0')},${String(ms%1000).padStart(3,'0')}`;}
 export function projectSubtitles(p,{format='srt',bom=false}={}){
-  if(!['srt','vtt','txt'].includes(format))fail('자막 출력 형식은 srt, vtt 또는 txt여야 합니다.');
+  if(!['srt','vtt','txt'].includes(format))fail(msg('errors.subtitleFormat'));
   const label=format.toUpperCase(),header=format==='vtt'?'WEBVTT\n\n':'';
   const chunks=[],encoder=new TextEncoder();let bytes=(bom?3:0)+encoder.encode(header).byteLength;
   const timestamp=t=>format==='vtt'?srtTimestamp(t).replace(',','.'):srtTimestamp(t);
   for(const [i,c] of editedCaptions(p.captions,p.clips,p.speed).entries()){
     if(format==='txt'){
       const text=c.text.replace(/\r\n?/g,'\n');
-      if(text.includes('\0'))fail(`TXT 출력 ${i+1}번째 자막에 NUL 문자가 있습니다. 제거한 뒤 다시 저장하세요.`);
+      if(text.includes('\0'))fail(msg('errors.txtNul',{index:i+1}));
       const chunk=text+'\n';
       bytes+=encoder.encode(chunk).byteLength+(i?1:0);
-      if(bytes>MAX_SUBTITLE_BYTES)captionOutputLimit('TXT 파일은 UTF-8 2 MiB까지 저장할 수 있습니다. 반복 클립이나 자막을 줄여 주세요.');
+      if(bytes>MAX_SUBTITLE_BYTES)captionOutputLimit(msg('errors.txtLimit'));
       chunks.push(chunk);
       continue;
     }
     const start=timestamp(c.start),end=timestamp(c.end);
-    if(start===end)fail(`${label} 출력 ${i+1}번째 자막의 시작과 끝이 밀리초 단위에서 같습니다. 자막 구간이나 배속을 조정한 뒤 다시 저장하세요.`);
+    if(start===end)fail(msg('errors.subtitlePrecision',{format:label,index:i+1}));
     const lines=c.text.replace(/\r\n?/g,'\n');
-    if(/^[ \t]*$/m.test(lines))fail(`${label} 출력 ${i+1}번째 자막에 빈 줄이 있습니다. 빈 줄을 제거한 뒤 다시 저장하세요.`);
-    if(format==='vtt'&&lines.includes('\0'))fail(`VTT 출력 ${i+1}번째 자막에 NUL 문자가 있습니다. 제거한 뒤 다시 저장하세요.`);
+    if(/^[ \t]*$/m.test(lines))fail(msg('errors.subtitleBlank',{format:label,index:i+1}));
+    if(format==='vtt'&&lines.includes('\0'))fail(msg('errors.vttNul',{index:i+1}));
     const text=lines.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\u00a0/g,'&nbsp;');
     const chunk=`${i+1}\n${start} --> ${end}\n${text}\n`;
     bytes+=encoder.encode(chunk).byteLength+(i?1:0);
-    if(bytes>MAX_SUBTITLE_BYTES)captionOutputLimit(`${label} 파일은 UTF-8 2 MiB까지 저장할 수 있습니다. 반복 클립이나 자막을 줄여 주세요.`);
+    if(bytes>MAX_SUBTITLE_BYTES)captionOutputLimit(msg('errors.subtitleBytes',{format:label}));
     chunks.push(chunk);
   }
   return chunks.length||header?(bom?'\ufeff':'')+header+chunks.join('\n'):'';

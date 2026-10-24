@@ -1,3 +1,5 @@
+import { LocalizedError } from './core/validation.mjs';
+import { message as msg } from './i18n.mjs';
 export function createMediaSources({ video, audio }, {
     createURL = file => URL.createObjectURL(file),
     revokeURL = url => URL.revokeObjectURL(url),
@@ -21,11 +23,11 @@ export function createMediaSources({ video, audio }, {
                 resolve();
             }, failed = () => {
                 cleanup();
-                reject(new Error(message));
+                reject(new LocalizedError(message));
             };
             const timer = setTimer(() => {
                 cleanup();
-                reject(new Error('파일을 읽는 데 시간이 초과되었습니다. 더 작은 파일로 다시 시도하세요.'));
+                reject(new LocalizedError(msg('errors.fileTimeout')));
             }, 20000);
             element.addEventListener(event, loaded, { once: true });
             element.addEventListener('error', failed, { once: true });
@@ -35,11 +37,11 @@ export function createMediaSources({ video, audio }, {
         if (sources.sourceURL)
             revokeURL(sources.sourceURL);
         sources.sourceURL = createURL(file);
-        const loaded = waitForMedia(video, 'loadeddata', '브라우저에서 지원하지 않는 영상입니다. H.264 MP4 또는 WebM을 사용해 주세요.');
+        const loaded = waitForMedia(video, 'loadeddata', msg('errors.videoFormat'));
         video.src = sources.sourceURL;
         await loaded;
         if (!Number.isFinite(video.duration) || video.duration <= 0)
-            throw new Error('영상 길이를 읽을 수 없습니다.');
+            throw new LocalizedError(msg('errors.videoDurationRead'));
         const thumb = createCanvas();
         thumb.width = 320;
         thumb.height = 180;
@@ -48,21 +50,21 @@ export function createMediaSources({ video, audio }, {
     }
 
     async function restore(project, readMedia, stage) {
-        stage('저장된 미디어를 읽을 수 없습니다');
+        stage(msg('errors.storedMedia'));
         [sources.videoFile, sources.audioFile] = await Promise.all([readMedia('video'), readMedia('audio')]);
         if (project.kind === 'video') {
-            stage('저장된 영상 파일을 찾을 수 없습니다');
+            stage(msg('errors.storedVideoMissing'));
             if (!sources.videoFile)
                 throw new Error('Missing video');
-            stage('저장된 영상을 열 수 없습니다');
+            stage(msg('errors.storedVideoOpen'));
             await sources.setVideoFile(sources.videoFile);
         }
         if (project.audioName && !sources.audioFile) {
-            stage('저장된 오디오 파일을 찾을 수 없습니다');
+            stage(msg('errors.storedAudioMissing'));
             throw new Error('Missing audio');
         }
         if (sources.audioFile) {
-            const message = '저장된 오디오를 열 수 없습니다';
+            const message = msg('errors.storedAudioOpen');
             stage(message);
             sources.audioURL = createURL(sources.audioFile);
             const loaded = sources.waitForMedia(audio, 'loadeddata', message);

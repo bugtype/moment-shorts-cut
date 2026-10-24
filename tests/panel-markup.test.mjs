@@ -27,7 +27,7 @@ test('caption markup preserves text whitespace, escaping, indices and accessible
   const state = frozenProject();
   const html = captionsPanelMarkup(state, { toolsOpen: true, transcribing: false, hasAudio: false, transcriptionStatus: '<status>' });
   assert.equal(html.match(/<textarea data-caption-text="0" aria-label="자막 1 내용"[^>]*>([\s\S]*?)<\/textarea>/)[1], esc(state.captions[0].text));
-  assert.match(html, /value="1.3" data-caption-start="0"/);
+  assert.match(html, /value="1.25" data-caption-start="0"/);
   assert.match(html, /data-caption-end="1" aria-label="자막 2 끝 초"/);
   assert.match(html, /value="0" selected>&lt;화자&gt;/);
   assert.match(html, /value="audio" disabled/);

@@ -1,6 +1,6 @@
 import { SUPPORTED_ASPECT_RATIOS } from './core/aspect-ratio.mjs';
 import { t, text, mark, attrs } from './i18n.mjs';
-import { icon, esc, fmt } from './ui-format.mjs';
+import { icon, esc, fmt, decimalTime } from './ui-format.mjs';
 
 // Pure markup: the app retains current state, event bindings and edit history.
 export const CAPTION_PAGE_SIZE = 50;
@@ -195,9 +195,9 @@ function captionRowMarkup(c, i, speakerLabels, last) {
     return `<div class="caption-row">` +
         `<small class="caption-clock">${c.basis === 'timeline' ? text('panels.captionTimeline') : text('panels.captionSource')}</small>` +
         `<div class="caption-row-head">` +
-        `<input type="number" min="0" step="0.1" value="${c.start.toFixed(1)}" data-caption-start="${i}" ${attrs('aria-label', 'panels.cueStart', {index: i + 1})}>` +
+        `<input type="number" min="0" step="any" value="${decimalTime(c.start)}" data-caption-start="${i}" ${attrs('aria-label', 'panels.cueStart', {index: i + 1})}>` +
         `<span class="muted">–</span>` +
-        `<input type="number" min="0" step="0.1" value="${c.end.toFixed(1)}" data-caption-end="${i}" ${attrs('aria-label', 'panels.cueEnd', {index: i + 1})}>` +
+        `<input type="number" min="0" step="any" value="${decimalTime(c.end)}" data-caption-end="${i}" ${attrs('aria-label', 'panels.cueEnd', {index: i + 1})}>` +
         `</div>` +
         `<textarea data-caption-text="${i}" ${attrs('aria-label', 'panels.cueText', {index: i + 1})}>${esc(c.text)}</textarea>` +
         `<div class="caption-row-actions" role="group" ${attrs('aria-label', 'panels.cueEdit', {index: i + 1})}>` +

@@ -429,6 +429,12 @@ counts. **Captions** focuses the authored row without seeking; **View range** pa
 seeks that specific output occurrence, then focuses its row. Re-run if the project or threshold
 changed since inspection. Inspection/navigation does not edit, save or add undo history.
 
+Caption-row start/end inputs retain stored fractional seconds instead of rounding
+to tenths; editing one endpoint preserves the other. The cue's source or pre-speed
+timeline clock and existing validation are unchanged. An explicit change event
+still uses the existing edit/history path, even for the same value; this is not a
+frame/sample-accuracy or no-op-history guarantee.
+
 The caption editor shows **50 rows per page**, with previous/next controls and a
 visible range. With more than 50 cues, enter a **1-based page number** and press
 **Go** or Enter to focus its first cue. Use 1 through the displayed last page

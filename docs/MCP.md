@@ -266,7 +266,10 @@ There is no rebasing to zero or cropping to a requested time interval.
 The response stays `{format,text}`. Review TXT uses the selected cues' actual
 assigned speaker labels. Whole-project validation remains; derived occurrence,
 raw-text, final-file and format limits apply to the selected output. The command
-remains read-only and excluded from batches; browser Save still exports all cues.
+remains read-only and excluded from batches. Browser Save defaults to all cues;
+**Authored row range… → Save** opens explicit inclusive 1-based row fields.
+The same exporter preserves full-output clocks/repeats; range filenames add
+`.rows-FIRST-LAST`. This is not a page selection or rebased time window.
 This is neither a backup nor a privacy-redaction guarantee: inspect chosen text
 and used speaker labels before sharing. Re-read positional indexes after edits.
 [Runnable CLI range export](../INTEGRATIONS.md#선택한-원본-자막-행만-출력).

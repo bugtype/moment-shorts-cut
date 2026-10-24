@@ -203,6 +203,7 @@ export async function createAppFixture({sessionMediaDependencies = {}} = {}) {
     const moduleSource=fs.readFileSync(new URL('../../dist/'+file,import.meta.url),'utf8');
     context[name]=vm.runInContext('(()=>{'+moduleSource.replace(/^import .*;$/gm,'').replace('export function','function')+';return '+name+';})()',context);
   };
+  loadFactory('caption-export-dialog.mjs','createCaptionExportDialog');
   loadFactory('caption-workspace.mjs','createCaptionWorkspace');
   loadFactory('playback.mjs','createPlayback');
   loadFactory('export-flow.mjs','createExportFlow');

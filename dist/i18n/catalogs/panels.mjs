@@ -1,5 +1,12 @@
 // Flat semantic keys; keep each Korean, English and Simplified Chinese entry aligned.
 const entries = {
+  "panels.captionExportScope": ["자막 저장 범위","Caption export scope","字幕导出范围"],
+  "panels.captionExportAll": ["전체 자막","All captions","全部字幕"],
+  "panels.captionExportRows": ["작성 행 범위…","Authored row range…","编写行范围…"],
+  "panels.captionExportRangeTitle": ["자막 행 범위 저장","Save caption row range","保存字幕行范围"],
+  "panels.captionExportFirst": ["첫 작성 행","First authored row","首个编写行"],
+  "panels.captionExportLast": ["마지막 작성 행","Last authored row","最后编写行"],
+  "panels.captionExportRangeNote": ["전체 출력의 시간을 유지합니다. 반복 클립은 반복해서 포함되며 잘린 자막은 빠질 수 있습니다.","Keeps full-output timestamps. Repeated clips repeat captions; trimmed-out captions may be omitted.","保留完整输出时间戳。重复片段会重复字幕；被剪掉的字幕可能省略。"],
   "panels.splitRangeOpen": ["범위의 긴 자막 나누기…","Split long captions in range…","拆分指定范围的长字幕…"],
   "panels.splitRangeAction": ["범위…","Range…","范围…"],
   "panels.positionApply": ["적용","Apply","应用"],

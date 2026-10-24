@@ -296,7 +296,7 @@ const app = {
     openClipMove: trigger => clipMove.open(trigger), moveClip: index => clipMove.move(index),
     bindTrimDrafts: options => editingActions.bindTrimDrafts(options),
     trim: (start, end) => trim(start, end), split: () => split(), duplicate: () => editingActions.duplicate(), undo: redo => undo(redo),
-    generateCaptions: () => generateCaptions(), downloadSubtitles: format => downloadSubtitles(format),
+    generateCaptions: () => generateCaptions(), downloadSubtitles: (format, range) => downloadSubtitles(format, range),
     importSrt: (file, options) => importSrt(file, options),
     importProjectSettings: (file, closeOwnedDialog) => importProjectSettings(file, closeOwnedDialog),
     captureSettingsImportClose: () => shellPresentation.captureImportClose(),

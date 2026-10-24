@@ -73,19 +73,23 @@ export function createTextFileWorkflow({
             toast(error.messageKey ? error : msg('shell.graphicsTextSave'));
         }
     }
-    function downloadSubtitles(format = 'srt') {
+    function downloadSubtitles(format = 'srt', range = {}) {
         if (settingsUnavailable())
             return;
         try {
             const project = getProject();
             const review = format === 'review-txt';
-            const text = projectSubtitles(project, { format: review ? 'txt' : format, bom: format === 'srt', ...(review ? {review: true} : {}) });
+            const text = projectSubtitles(project, { ...range, format: review ? 'txt' : format, bom: format === 'srt', ...(review ? {review: true} : {}) });
             if (!text || (format === 'vtt' && text === 'WEBVTT\n\n')) {
                 toast(msg('errors.noCaptionsSave'));
                 return;
             }
             const type = format === 'vtt' ? 'text/vtt;charset=utf-8' : 'text/plain;charset=utf-8';
-            download(new Blob([text], { type }), `${project.name}.${review ? 'review.txt' : format}`);
+            const scoped = Object.hasOwn(range, 'captionIndex') || Object.hasOwn(range, 'count');
+            const first = range.captionIndex ?? 0, count = range.count ?? project.captions.length - first;
+            const suffix = scoped ? `.rows-${first + 1}-${first + count}` : '';
+            download(new Blob([text], { type }), `${project.name}${suffix}.${review ? 'review.txt' : format}`);
+            return true; // Download initiated; browser completion is not observable here.
         }
         catch (error) {
             toast((error.messageKey ? error : error.message) || msg('errors.captionSave'));

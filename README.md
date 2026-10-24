@@ -390,6 +390,12 @@ Generated arguments can be piped as one JSON object with [`--args-file -`](INTEG
 
 **Captions**
 
+**Save a caption excerpt:** keep **All captions** for the existing one-click save, or choose **Authored row range…** beside the format and click **Save**. Enter inclusive **1-based authored rows**, then explicitly save. Both fields initially show the visible page’s first row—not a selected page.
+
+SRT, VTT, TXT and Review TXT use the same full-output clocks, repeats and trimmed-out omission rules; timestamps do not restart at zero. Range files add `.rows-FIRST-LAST`; empty output or errors keep the dialog open.
+
+This does not edit, seek, pause, save project settings or add undo history. Review text and speaker labels before sharing.
+
 | Task | Use | Keep in mind |
 |---|---|---|
 | Read nearby authored captions | [`captions.list`](INTEGRATIONS.md#저장된-자막을-나눠-조회) | Read up to 50 exact cues per page, then target a current index with `captions.update`. Pre-speed times; live pages are not snapshots or project backups. |
@@ -404,7 +410,7 @@ Generated arguments can be piped as one JSON object with [`--args-file -`](INTEG
 | Shift a constant subtitle delay | [`captions.timing.shift`](INTEGRATIONS.md#자막-시간을-앞뒤로-이동) | Choose source/timeline and signed seconds **before speed**. Optional authored-row range, then basis filtering; omitted range moves all matching cues. Any out-of-bounds result rejects the whole edit. Browser caption tools apply a real change as one undo step. |
 | Review overlapping times | **Caption timing overlaps** or [`captions.overlaps`](INTEGRATIONS.md#자막-시간-겹침-점검) | One representative conflict per overlapping output occurrence, not all pairs or a visibility prediction. Read total/flagged/omitted counts. |
 | Review dense caption timing | Browser **Check reading speed** or [`captions.inspect`](INTEGRATIONS.md#편집-후-자막-표시-속도-점검) | Read-only ranking against your chosen non-whitespace-graphemes/second threshold after cuts, repeats and speed. Not a language standard, speech-alignment or export-validity check. |
-| Export only selected authored captions | [`captions.export`](INTEGRATIONS.md#선택한-원본-자막-행만-출력) with `captionIndex`/`count` | CLI/MCP only; all clips/speed and full-output timestamps remain, including repetitions. Not a time-window crop or redaction guarantee; browser Save remains whole-list. |
+| Export only selected authored captions | [`captions.export`](INTEGRATIONS.md#선택한-원본-자막-행만-출력) with `captionIndex`/`count` | Browser **Authored row range… → Save**, or CLI/MCP; all clips/speed and full-output timestamps remain, including repetitions. Not a time-window crop or redaction guarantee. |
 | Split long captions in bulk or a range | [`captions.split.long`](INTEGRATIONS.md#긴-자막을-전체-또는-범위로-분할) | 12/18/24-grapheme targets, estimated timing and trimmed split-boundary whitespace. API or browser **Range…** can target authored rows; the original split button still covers all cues. |
 | Split one caption at the caret | [`captions.split`](INTEGRATIONS.md#자막-하나를-커서-위치에서-분할) or the row split action | Keeps literal text and metadata; estimates timing by grapheme counts, not speech alignment. A caret boundary must not cut an emoji/combined character. Separate from bulk long-caption splitting. |
 | Merge adjacent captions | [`captions.merge`](INTEGRATIONS.md#인접한-자막-합치기) or row action **Merge with next caption** | Combines the next authored row, even across pages. Requires matching clock/speaker/keywords and non-overlapping chronological times; merged text also appears across any gap. One browser undo step. |

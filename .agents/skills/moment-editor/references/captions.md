@@ -362,7 +362,12 @@ repeat, and timestamps retain full-output coordinates. This is not a time window
 occurrence selector or zero-based excerpt. Format/review behavior and `{format,text}`
 remain; selected review TXT retains the proper assigned names. Whole-project
 validation stays; derived export budgets apply to selected output. Browser Save
-still uses all cues. No edit/batch admission; reread indexes after structural edits.
+uses all cues by default; select **Authored row range…** beside the format and Save
+to open inclusive 1-based first/last row fields, initially the visible first row
+(not a page selection). Explicit Save produces `.rows-FIRST-LAST` files through
+the same exporter; empty/error output keeps the dialog open. All four formats,
+BOM rules and full-output clocks remain. No edits, playback changes or project
+persistence; context changes require reopening. No edit/batch admission; reread indexes after structural edits.
 Not a project backup or guaranteed redaction: inspect selected text and speaker
 labels before sharing. [Executable recipe](../../../../INTEGRATIONS.md#선택한-원본-자막-행만-출력).
 

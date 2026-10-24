@@ -188,10 +188,18 @@ body.restore-failed #saveStatus i {
   display:none;
 }
 
-.caption-workspace #captionExportFormat {
+.caption-export-controls {
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:8px;
+  margin-bottom:12px;
+}
+.caption-export-controls #downloadCaptions {
+  grid-column:1 / -1;
+}
+.caption-workspace #captionExportFormat, .caption-workspace #captionExportScope {
   margin:0;
-  width:auto;
-  flex:1;
+  width:100%;
   min-width:0;
 }
 

@@ -6,10 +6,10 @@ import { splitCaptionText } from './effects.mjs';
 import { CAPTION_PAGE_SIZE, captionsPanelMarkup } from './panel-markup.mjs';
 
 export function createCaptionPanel({
-    query: $, queryAll: $$, getProject, getDuration, sourceTime, edit, refresh, toast, execute, inspect, view, overlaps, removeRange, shiftRange, splitRange, speakerRange, replaceRange, importFile, blocked = () => false,
+    query: $, queryAll: $$, getProject, getDuration, sourceTime, edit, refresh, toast, execute, inspect, view, overlaps, removeRange, shiftRange, splitRange, speakerRange, replaceRange, exportRange, importFile, blocked = () => false,
 }) {
     const timingFields = { basis: 'source', delta: '0' };
-    let exportFormat = 'srt';
+    let exportFormat = 'srt', exportScope = 'all';
     let page = 0, composing = false, renderGeneration = 0;
     const lastPage = () => Math.max(0, Math.ceil(getProject().captions.length / CAPTION_PAGE_SIZE) - 1);
     const search = createCaptionSearch({query:$,getProject,focusCaption,edit,execute,toast,
@@ -154,7 +154,16 @@ export function createCaptionPanel({
             const value = $('#captionExportFormat').value;
             if (['srt', 'vtt', 'txt', 'review-txt'].includes(value)) exportFormat = value;
         };
-        $('#downloadCaptions').onclick = () => actions.download(exportFormat);
+        $('#captionExportScope').value = exportScope;
+        $('#captionExportScope').onchange = () => {
+            const value = $('#captionExportScope').value;
+            if (['all', 'range'].includes(value)) exportScope = value;
+        };
+        $('#downloadCaptions').onclick = event => {
+            if (exportScope === 'all') return actions.download(exportFormat);
+            if (!composing && !event?.isComposing && event?.keyCode !== 229)
+                exportRange?.(exportFormat, page * CAPTION_PAGE_SIZE);
+        };
         $$('[data-view-caption]').forEach(button => button.onclick = event => {
             if (!composing && !event?.isComposing && event?.keyCode !== 229 &&
                 $(`[data-view-caption="${button.dataset.viewCaption}"]`) === button)
@@ -209,7 +218,7 @@ export function createCaptionPanel({
             ...$$('[data-view-caption]'), ...$$('[data-split-caption]'), ...$$('[data-merge-caption]'), ...$$('[data-caption-keywords]'), ...$$('[data-caption-speaker]'), ...$$('[data-delete-caption]'),
             ...['captionFind', 'captionReplacement', 'previousCaptionPage', 'nextCaptionPage',
                 'captionPageNumber', 'goCaptionPage', 'previousCaptionMatch', 'nextCaptionMatch', 'replaceCaptionMatch', 'replaceAllCaptions', 'replaceCaptionRange', 'splitLongCaptions', 'splitCaptionRange',
-                'addCaption', 'removeCaptionRange', 'importSrt', 'captionExportFormat', 'downloadCaptions', 'generateCaptions',
+                'addCaption', 'removeCaptionRange', 'importSrt', 'captionExportFormat', 'captionExportScope', 'downloadCaptions', 'generateCaptions',
                 'inspectCaptionOverlaps', 'inspectCaptions', 'captionDesignShortcut', 'captionShiftBasis', 'captionShiftDelta', 'shiftCaptionTiming', 'shiftCaptionRange', 'assignSpeakerRange'].map(id => $('#' + id)),
         ];
         for (const control of controls) for (const event of ['onclick', 'onchange', 'oninput', 'onkeydown']) {

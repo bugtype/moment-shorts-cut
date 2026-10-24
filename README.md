@@ -67,10 +67,12 @@ Settings files must fit **10 MiB (10,485,760 UTF-8 bytes)** for both save and re
 | Next task | Read only what you need |
 |---|---|
 | Navigate the preview | [Fine steps, cut boundaries and exact output time](#navigate-the-preview) |
-| Reframe without dragging | [Exact source offsets and zoom](#reframe-the-source-video) |
+| Reframe without dragging | [Exact offsets, zoom and thirds grid](#reframe-the-source-video) |
 | Edit timing | [Capture trim values and set an exact speed](#edit-timing-from-the-preview) |
-| Save an image | [Click-time preview PNG and bitmap dimensions](#save-a-preview-image) |
-| Back up added audio | [Original audio file, not an edited mix](#back-up-added-audio) |
+| Save an image | [Preview bitmap or output-size PNG](#save-a-preview-image) |
+| Back up connected media | [Original video and added audio files](#back-up-connected-media) |
+| Balance audio | [Project mix volumes versus preview mute](#audio-mix) |
+| Duplicate a clip block | [Copy consecutive clips once, not looping playback](#duplicate-clip-range) |
 | Repeat playback | [Session-only loop, card preview and export boundaries](#repeat-the-full-preview) |
 
 ## Features
@@ -511,6 +513,8 @@ before opening may already commit a draft. Existing whole-list shift remains ava
 | Move a card without resizing | Selected card → **Move in time…** | Enter a new start in output seconds **after speed**; both endpoints update together as one undoable edit. |
 | Script timed cards | [`overlays.add`, `overlays.update`, `overlays.remove`](INTEGRATIONS.md#스크립트에-맞춰-카드-추가삭제) | Individual IDs and output time **after speed**, without replacing the project. Additions append; `overlays.move` changes card stacking. In the selected card’s stacking controls, **Bring forward / Send backward** moves one stored-card position (including disabled/off-time cards); **Bring to front / Send to back** jumps to an edge. One undo step, no timing/content change; only card order, not its layer relationship to captions. |
 
+<a id="duplicate-clip-range"></a>
+
 **Duplicate clip range…** starts with the selected clip as both bounds. It inserts
 one ordered copy immediately after the original block, selects the first copy and
 seeks its start, with one Undo. The whole range must exist and the result must stay
@@ -611,6 +615,8 @@ At 1,000 clips, delete a clip before splitting another.
 **These are validation limits, not memory or codec guarantees.** Browser storage is not a backup: media and settings are written separately and can fall out of sync after a failed save. Keep the original media and export project JSON regularly.
 
 **Automatic captions:** the original video must be **180 seconds or shorter**, even after trimming. Selected audio is processed for at most 180 seconds. Recognition, manual speaker labels and estimated split timing need review.
+
+<a id="audio-mix"></a>
 
 **Balance the mix in Audio:** both existing project gains are available together when their sources apply.
 

@@ -354,6 +354,7 @@ JavaScript에서 직접 호출할 때도 JSON으로 왕복 가능한 값을 전�
 | `captions.remove` | `captionIndex`, 선택 `count`(기본 1) | 지정 위치부터 연속 삭제; 같은 결과 형식, 삭제 전 시작 위치 반환 |
 | `captions.update` | `captionIndex`, `patch` | 자막 하나 부분 수정; `{updated:true, outputDuration, captionIndex}` |
 | `captions.merge` | `captionIndex` | 다음 저장 행과 병합; `{updated:true, outputDuration, mergedCaptionIndex}` |
+| `captions.split.long` | 선택 `limit`, `captionIndex`, `count` | 긴 자막 분할; `{updated, changedCaptions, addedCaptions, outputDuration}` |
 | `captions.split` | `captionIndex`, `textOffset` | 지정 자막을 둘로 분할; `{updated:true, outputDuration, createdCaptionIndex}` |
 | `captions.import` | `text`, `basis` | 전체 교체; `{updated:true, outputDuration, importedCaptions}` |
 | `captions.text.replace` | `find`, `replacement`, 선택 `captionIndex`, `count` | 문구 모두 바꾸기; `{updated, matches, changedCaptions}` |
@@ -376,7 +377,7 @@ JavaScript에서 직접 호출할 때도 JSON으로 왕복 가능한 값을 전�
 ### 편집 묶음의 반영 전 요약
 
 `project.preview`는 `project.batch`와 같은 `operations` 1–20개를 복사본에 순서대로
-검증하고 **반영하지 않은 요약**을 반환합니다. 현재 허용 편집 명령 25개와 개별 입력
+검증하고 **반영하지 않은 요약**을 반환합니다. 현재 허용 편집 명령 26개와 개별 입력
 스키마를 그대로 사용하며 읽기 명령·제공자 작업·중첩 묶음은 넣을 수 없습니다.
 
 | 결과 | 의미 |
@@ -809,6 +810,40 @@ node cli/moment.mjs exec captions.inspect --project inspect-source.json --json '
 재생 위치를 제어하지 않습니다.
 
 
+### 긴 자막을 전체 또는 범위로 분할
+
+`captions.split.long`은 기존 브라우저 긴 자막 분할을 CLI/MCP에서 수행합니다.
+브라우저의 기존 버튼은 계속 전체 목록에 적용하며, 이 명령이 UI 범위 선택을
+추가하지는 않습니다. 커서 기준 `captions.split`과 별도입니다.
+
+| 입력/결과 | 의미 |
+|---|---|
+| `limit` | 선택 12/18/24 중 하나, 기본 18; UTF-16 길이가 아닌 문자소 목표 |
+| `captionIndex`, `count` | 둘 다 생략하면 전체; 위치만 주면 끝까지, 개수만 주면 처음 N행; 둘 다 주면 정확한 연속 원본 행 |
+| 범위 검증 | 위치는 기존 0–9,999 정수, 개수는 1–10,000 정수; 초과·빈 명시 범위 거절, 자르거나 검색/표시 구간으로 해석하지 않음 |
+| `changedCaptions`, `addedCaptions` | 실제 바뀐 기존 자막 수와 추가된 행 수; 서로 다른 개수 |
+| `updated`, `outputDuration` | 변경 여부와 기존 배속 후 출력 길이; 변화 없으면 커밋하지 않음 |
+
+```sh
+node cli/moment.mjs init --out split-long-source.json
+node cli/moment.mjs exec captions.update --project split-long-source.json --json '{"captionIndex":0,"patch":{"text":"One long caption to divide into shorter readable pieces"}}' --out split-long-text.json
+node cli/moment.mjs exec captions.split.long --project split-long-text.json --json '{"limit":12,"captionIndex":0,"count":1}' --out split-long-result.json
+node cli/moment.mjs exec captions.list --project split-long-result.json --json '{"offset":0,"limit":20}'
+```
+
+같은 입력에 MCP `projectId:"session"`을 더해 `moment_captions_split_long`을
+호출합니다. 짧거나 변하지 않은 자막은 그대로 보존합니다. 실제 분할되는 긴 문구는
+ASCII 공백을 우선 경계로 삼거나 문자소 경계에서 나누며, 경계 공백을 제거합니다.
+문자소 가중치로 시간을 추정하고 `timing:"estimated"`를 표시하며 원래 양 끝 시간·
+시간 기준·화자/키워드 등 메타데이터를 유지합니다. 줄바꿈만 추가하는 기능이나 음성
+정렬이 아니므로 음성과 비교해 확인하세요. 안전한 분할에는 `Intl.Segmenter`가 필요합니다.
+
+전체 결과가 10,000행을 넘거나 계산된 구간이 유효하지 않으면 부분 편집 없이
+`INVALID_ARGUMENT`로 거절합니다. 기존 유효한 현재 타임라인 밖 자막을 잘라내지 않으며 `captions.replace`의
+전체 교체 시간 제한을 새로 적용하지 않습니다. 기존 UTF-16·출력 바이트·파생 횟수·
+밀리초 반올림 한도는 별도로 유지됩니다. 응답이 불확실하면 현재 행을 다시 읽고
+재시도하세요. 분할 후 위치가 바뀌므로 같은 인덱스를 무조건 재실행하지 마세요.
+
 ### 자막 하나를 커서 위치에서 분할
 
 `captions.split`은 저장된 자막 하나를 지정한 문구 위치에서 둘로 나눕니다.
@@ -918,7 +953,7 @@ node cli/moment.mjs exec project.batch --project cue-source.json --json '{"opera
 ```
 
 두 명령은 `project.batch`의 순차 현재 배열에 적용됩니다. 위 배치는 첫 자막을 삭제한
-**다음** 상태의 0번 위치에 삽입합니다. 배치 허용 편집 명령은 25개지만 한 요청의 작업
+**다음** 상태의 0번 위치에 삽입합니다. 배치 허용 편집 명령은 26개지만 한 요청의 작업
 수는 여전히 최대 20개이며, 하나라도 실패하면 전체가 반영되지 않습니다.
 CLI 변경에는 `--out` 또는 `--dry-run`이 필요합니다. 출력 파일은 조회 페이지가 아니라
 전체 프로젝트 문서이며 기존 파일은 기본 보호됩니다. MCP는 성공 확인 후 `project.get`으로

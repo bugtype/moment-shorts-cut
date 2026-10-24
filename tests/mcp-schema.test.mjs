@@ -39,6 +39,7 @@ const inputs = {
   'template.apply.document': {document:createTemplateDocument(saveCustomTemplate('스키마',createDemoProject()))},
   'template.inspect': {templateId:'hook-result',withContent:true},
   'template.apply': { templateId: 'reference', withContent: false },
+  'captions.split.long': {},
   'captions.split': {captionIndex:0,textOffset:1},
   'captions.merge': {captionIndex:0},
   'timeline.move': {clipIndex:0,toIndex:0},

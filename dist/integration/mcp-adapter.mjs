@@ -64,6 +64,7 @@ function dataSchema(command) {
     case 'captions.insert':
     case 'captions.remove': return record({updated:{const:true},captionIndex:{type:'integer',minimum:0,maximum:9999},totalCaptions:{type:'integer',minimum:0,maximum:10000},outputDuration:{type:'number',minimum:0}});
     case 'captions.update': return record({updated:{const:true},captionIndex:{type:'integer',minimum:0,maximum:9999},outputDuration:{type:'number',minimum:0}});
+    case 'captions.split.long': return record({updated:{type:'boolean'},changedCaptions:{type:'integer',minimum:0,maximum:10000},addedCaptions:{type:'integer',minimum:0,maximum:9999},outputDuration:{type:'number',minimum:0}});
     case 'captions.split': return record({updated:{const:true},createdCaptionIndex:{type:'integer',minimum:1,maximum:9999},outputDuration:{type:'number',minimum:0}});
     case 'captions.merge': return record({updated:{const:true},mergedCaptionIndex:{type:'integer',minimum:0,maximum:9998},outputDuration:{type:'number',minimum:0}});
     case 'captions.speaker.assign': return record({updated:{type:'boolean'},changedCaptions:{type:'integer',minimum:0,maximum:10000},outputDuration:{type:'number',minimum:0}});
@@ -315,6 +316,11 @@ function inputSchema(command) {
     p.patch.properties.start.description = 'Start seconds in this cue’s EXISTING source or pre-speed timeline clock, never output seconds. Explicit timing edits require 0<=start<end<=that clock duration and the existing 86,400-second schema ceiling.';
     p.patch.properties.end.description = 'Exclusive end in the same existing pre-speed clock; use with start when changing both endpoints atomically.';
     p.patch.properties.keywords.description = 'Cue highlight keywords, maximum 500 UTF-16 units; other cues and global keywords are unchanged.';
+  }
+  if (command.name === 'captions.split.long') {
+    p.limit.description = 'Grapheme chunk length: 12, 18 or 24; default 18. Same word-break preference and boundary-whitespace trimming as the browser whole-list splitter; not visual line wrapping or audio alignment. New parts receive estimated timing proportional to grapheme counts.';
+    p.captionIndex.description = 'Optional zero-based starting authored cue index. Omitted means zero; an explicit index must exist. Processes the original range, not indices shifted by earlier splits. Basis and metadata are preserved.';
+    p.count.description = 'Optional number of original cues. Omitted means the remaining tail; count alone selects a prefix. Must fit entirely. Both omitted selects all, including an empty-array no-op. More than 10,000 resulting cues or unrepresentable positive intervals rejects atomically.';
   }
   if (command.name === 'captions.split') {
     p.captionIndex.description = 'Zero-based authored caption index, not a rendered occurrence. One cue becomes two; maximum 10000 cues. Both preserve metadata and receive timing:estimated. Inspect project.get before retrying this non-idempotent edit.';

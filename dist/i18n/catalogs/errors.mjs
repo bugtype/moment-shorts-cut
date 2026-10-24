@@ -29,6 +29,7 @@ const entries = [
   ["errors.unknownCommand","지원하지 않는 명령입니다.","This command is not supported.","此命令不受支持。"],
   ["errors.batchCommand","묶음에서 지원하지 않는 편집 명령입니다.","This editing command is not supported in a batch.","批量操作不支持此编辑命令。"],
   ["errors.subtitleText","자막 문자열을 확인하세요.","Check the subtitle text.","请检查字幕文本。"],
+  ["errors.longSplitLimit","긴 자막 나누기 길이는 12, 18, 24 중 하나여야 합니다.","Long-caption split length must be 12, 18 or 24.","长字幕拆分长度必须为 12、18 或 24。"],
   ["errors.duplicateClipIndex","복제할 클립의 인덱스를 확인하세요.","Check the clip index to duplicate.","请检查要复制的片段索引。"],
   ["errors.duplicateClipCount","복제할 연속 클립 수는 1~1,000이며 기존 클립 범위 안이어야 합니다.","The number of consecutive clips to copy must be 1–1,000 and fit the existing clip range.","要复制的连续片段数必须为 1–1,000，且不能超出现有片段范围。"],
   ["errors.clipLimit","클립은 1,000개 이하만 지원합니다.","Up to 1,000 clips are supported.","最多支持 1,000 个片段。"],

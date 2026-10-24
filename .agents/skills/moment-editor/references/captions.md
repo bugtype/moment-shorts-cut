@@ -222,6 +222,24 @@ changes the project, saves it or creates history; CLI/MCP cannot drive this moda
 or the browser playhead.
 
 
+## Split long captions in bulk or a range
+
+Use `captions.split.long` / `moment_captions_split_long` with optional `limit`
+(`12|18|24`, default18) and `captionIndex`/`count`. Neither range field means all;
+index-only means tail, count-only prefix, both exact authored rows. Explicit ranges
+must exist even for no-op results. No basis filter or visible-occurrence selection.
+
+Unlike caret splitting, long splitting trims boundary whitespace and prefers ASCII
+spaces before grapheme boundaries. Short/unchanged cues remain exact. Metadata and
+outer times/clock remain, with grapheme-weighted `timing:"estimated"` on split cues;
+review against audio. Requires `Intl.Segmenter`; no normalization or word alignment.
+Atomic result cap10,000 and computed-time validity apply, not new current-timeline
+clamping. Existing export limits still matter. Inspect `{updated,changedCaptions,
+addedCaptions,outputDuration}`; counters distinguish changed originals from net
+new rows. No change means no commit. Re-read shifted indexes after uncertain results,
+then save via project.get. Browser bulk splitting still covers all authored rows.
+See [bounds and runnable recipe](../../../../INTEGRATIONS.md#긴-자막을-전체-또는-범위로-분할).
+
 ## Split one caption at the caret boundary
 
 Use `captions.split` / `moment_captions_split` with `{captionIndex, textOffset}`

@@ -85,7 +85,7 @@ its supported version, `2025-11-25`, even if the proposed version differs; a cli
 that cannot support that version should disconnect, not continue with another
 wire format. `ping` is supported. Initialize only once per process.
 
-All thirty-nine tools require **`projectId: "session"`**. Each process owns one independent
+All forty tools require **`projectId: "session"`**. Each process owns one independent
 in-memory project, initially the demo. This value is neither a path nor a credential.
 Other project IDs return a tool error. A second client process does not share state.
 
@@ -291,6 +291,7 @@ Exceeding an output budget returns `CAPTION_OUTPUT_LIMIT`.
 | `moment_captions_remove` | `captionIndex`, optional `count` (default 1) | Same acknowledgment; index is the first removed position |
 | `moment_captions_update` | `captionIndex`, `patch` | `{updated:true, outputDuration, captionIndex}` |
 | `moment_captions_merge` | `captionIndex` | `{updated:true, outputDuration, mergedCaptionIndex}` |
+| `moment_captions_split_long` | optional `limit`, `captionIndex`, `count` | `{updated, changedCaptions, addedCaptions, outputDuration}` |
 | `moment_captions_split` | `captionIndex`, `textOffset` | `{updated:true, outputDuration, createdCaptionIndex}` |
 | `moment_captions_import` | `text`, `basis` | `{updated:true, outputDuration, importedCaptions}` |
 | `moment_captions_text_replace` | `find`, `replacement`; optional `captionIndex`, `count` | `{updated:boolean, matches:number, changedCaptions:number}` |
@@ -436,7 +437,7 @@ the example. Discover exact input fields in the [tool catalog](#tool-catalog).
 
 | Task | Recipes |
 |---|---|
-| Captions | [Check overlaps](#check-caption-time-overlaps) · [Inspect timing density](#inspect-caption-timing-density) · [Import](#import-subtitle-text-with-an-explicit-clock) · [Split](#split-one-caption-at-a-text-boundary) · [Merge](#merge-two-adjacent-authored-captions) · [Insert/remove](#insert-one-caption-or-remove-a-range) · [Edit one cue](#edit-one-authored-caption) · [Correct text](#correct-caption-text-without-replacing-cues) · [Shift timing](#shift-caption-timing-without-replacing-text) · [Assign speakers](#assign-a-speaker-to-an-authored-range) · [Style](#adjust-global-caption-appearance) |
+| Captions | [Check overlaps](#check-caption-time-overlaps) · [Inspect timing density](#inspect-caption-timing-density) · [Import](#import-subtitle-text-with-an-explicit-clock) · [Split long cues](#split-long-captions-in-an-authored-range) · [Split at caret](#split-one-caption-at-a-text-boundary) · [Merge](#merge-two-adjacent-authored-captions) · [Insert/remove](#insert-one-caption-or-remove-a-range) · [Edit one cue](#edit-one-authored-caption) · [Correct text](#correct-caption-text-without-replacing-cues) · [Shift timing](#shift-caption-timing-without-replacing-text) · [Assign speakers](#assign-a-speaker-to-an-authored-range) · [Style](#adjust-global-caption-appearance) |
 | Timeline | [Read project structure](#read-project-structure-without-full-content) · [Read clip clocks](#read-timeline-positions-in-pages) · [Split a clip](#split-one-clip-occurrence) · [Repeat a clip or range](#repeat-one-clip-occurrence) · [Move a clip](#move-one-clip-to-a-final-position) |
 | Composition | [Credit](#set-a-source-credit-independently) · [Effects](#adjust-video-effects-independently) · [Edit a card](#edit-an-existing-timed-card) · [Add/remove cards](#create-scripted-cards-without-importing-a-whole-project) · [Stacking](#change-card-stacking) |
 | Grouped/template edits | [Preview summary](#preview-an-edit-summary-without-committing) · [One commit](#apply-related-edits-in-one-commit) · [Inspect a built-in](#inspect-a-built-in-template-before-applying) · [Export a composition](#export-the-current-composition-as-a-template) · [Apply a template file](#apply-an-exported-custom-template) |
@@ -444,7 +445,7 @@ the example. Discover exact input fields in the [tool catalog](#tool-catalog).
 ### Preview an edit summary without committing
 
 Call `moment_project_preview` with the same closed `operations` schema as
-`moment_project_batch`: 1–20 sequential operations from the 25 allowed editing
+`moment_project_batch`: 1–20 sequential operations from the 26 allowed editing
 commands. Put `projectId:"session"` only on the outer call. For example:
 
 ```json
@@ -940,6 +941,40 @@ reported as a misleading number. These failures and unavailable safe grapheme se
 derived cue/byte overflows return `CAPTION_OUTPUT_LIMIT`.
 Save/edit the project only if requested; inspection is not automatic correction.
 
+### Split long captions in an authored range
+
+Call `moment_captions_split_long` after inspecting current authored rows:
+
+```json
+{"projectId":"session","limit":12,"captionIndex":0,"count":1}
+```
+
+| Input/result | Contract |
+|---|---|
+| `limit` | Optional enum `12`, `18`, `24`; default `18`, measured in graphemes |
+| Optional `captionIndex` / `count` | Neither: all; index only: through end; count only: first N; both: exact contiguous authored range |
+| Range bounds | Existing integer index `0..9999`, count `1..10000`, full range must fit even if nothing needs splitting; no clamping |
+| Result | `{updated, changedCaptions, addedCaptions, outputDuration}`: changed original cues versus net added rows; no commit when unchanged |
+
+Short/unchanged cues remain exact. Long cues use the existing grapheme helper's
+ASCII-space preference, trimming whole whitespace clusters at split boundaries.
+Unlike caret splitting, this does **not** preserve boundary whitespace. New timing
+is grapheme-weighted and marked `estimated`; original outer bounds, source/timeline
+clock and other metadata remain. No Unicode normalization, speech alignment,
+line-wrap-only behavior or source-ownership migration is introduced.
+
+Native `Intl.Segmenter` is required. Invalid ranges, more than 10,000 resulting
+cues or invalid computed intervals reject the whole edit with `INVALID_ARGUMENT`.
+Argument failures identify `arguments.limit`, `arguments.captionIndex` or
+`arguments.count`; capacity uses `project.captions`, per-cue errors its original index. Existing valid cues
+outside the current timeline remain valid; this is not full-array `captions.replace`
+clock validation. Input UTF-16 and derived export byte/occurrence/rounding limits
+still apply, so inspect the audio and exports separately. Re-read after uncertain
+results: changed row counts make old positional indexes unsafe to retry blindly.
+The command is batch-eligible; the existing browser bulk button still targets all
+cues, not a new UI range selection. Save separately with `moment_project_get`.
+[Executable CLI example](../INTEGRATIONS.md#긴-자막을-전체-또는-범위로-분할).
+
 ### Split one caption at a text boundary
 
 Read the current `project.captions` and its literal text, then call
@@ -1045,7 +1080,7 @@ read again instead of blindly retrying; the next removal could delete a differen
 
 Both are supported in `project.batch`, using each preceding step's current array.
 For example, remove index 0, then insert at index 0 to replace the first entry.
-All steps validate before one commit; 25 editing command names are allowed, but
+All steps validate before one commit; 26 editing command names are allowed, but
 there are still at most 20 operations per batch. See the [executable CLI sequence
 and batch recipe](../INTEGRATIONS.md#자막-하나-추가연속-범위-삭제).
 Mutation acknowledgments are not saved documents: retrieve `moment_project_get`

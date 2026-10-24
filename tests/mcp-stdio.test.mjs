@@ -32,7 +32,7 @@ test('stdio negotiates its supported version, waits for initialization and lists
   assert.equal(replies[1].result.protocolVersion, '2025-11-25');
   assert.deepEqual(replies[1].result.capabilities, {tools: {}});
   assert.equal(replies[2].error.code, -32600);
-  assert.equal(replies[3].result.tools.length,39);
+  assert.equal(replies[3].result.tools.length,40);
   assert.ok(replies[3].result.tools.some(tool => tool.name === 'moment_project_import'));
   assert.ok(replies[3].result.tools.every(tool => tool.inputSchema.required.includes('projectId')));
   assert.equal(replies[3].result.resultType, undefined);
@@ -249,4 +249,22 @@ test('stdio summary is read-only metadata and reflects preceding edits', () => {
   assert.equal(response(5).isError, true);
   assert.deepEqual(response(6).structuredContent, response(4).structuredContent);
   assert.equal('project' in response(4).structuredContent.data, false);
+});
+
+test('stdio splits long authored ranges and exposes a no-op after successful split', () => {
+  const p = createDemoProject();
+  p.captions = Array.from({length: 3}, () => ({start: 0, end: 2, text: 'This is a useful longer sentence for a short video.'}));
+  const replies = run([init, ready,
+    call(2, 'project_import', {document: createProjectDocument(p)}),
+    call(3, 'captions_split_long', {captionIndex: 1, count: 1}),
+    call(4, 'captions_list'),
+    call(5, 'captions_split_long', {captionIndex: 1, count: 3}),
+    call(6, 'captions_split_long', {count: 10000}),
+  ]);
+  const response = id => replies.find(reply => reply.id === id).result;
+  assert.deepEqual(response(3).structuredContent.data, {updated: true, changedCaptions: 1, addedCaptions: 2, outputDuration: 12});
+  assert.equal(response(4).structuredContent.data.totalCaptions, 5);
+  assert.equal(response(4).structuredContent.data.captions[0].caption.text, p.captions[0].text);
+  assert.equal(response(5).structuredContent.data.updated, false);
+  assert.equal(response(6).isError, true);
 });

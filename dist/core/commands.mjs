@@ -1,3 +1,4 @@
+import { splitLongCaptions } from './caption-split-long.mjs';
 import { commandDefinition, isBatchCommand } from './command-catalog.mjs';
 import { outputDimensions } from './aspect-ratio.mjs';
 import { assignCaptionSpeaker } from './caption-speakers.mjs';
@@ -307,6 +308,20 @@ export function prepareCommand(project, name, args = {}) {
       project: next,
       data: { updated: true, outputDuration: outputDuration(next), captionIndex: index }
     };
+  }
+  if (name === 'captions.split.long') {
+    const result = splitLongCaptions(project.captions, args);
+    const data = {
+      updated: result.changedCaptions > 0,
+      changedCaptions: result.changedCaptions,
+      addedCaptions: result.addedCaptions,
+      outputDuration: outputDuration(project)
+    };
+    if (!data.updated) return { data };
+    const next = structuredClone(project);
+    next.captions = structuredClone(result.captions);
+    validateProject(next);
+    return { project: next, data };
   }
   if (name === 'captions.split') {
     const index = args.captionIndex;

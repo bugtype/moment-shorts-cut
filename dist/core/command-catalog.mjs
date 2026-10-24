@@ -193,6 +193,12 @@ const definitions = [
     true
   ),
   command(
+    'captions.split.long',
+    '선택한 원본 자막 배열 범위의 긴 자막을 나눕니다. 범위 생략 시 전체이며, 경계 공백을 정리하고 글자 수에 비례한 추정 시간을 사용합니다.',
+    object({limit: choice(12, 18, 24), captionIndex: {type: 'integer', minimum: 0, maximum: 9999}, count: {type: 'integer', minimum: 1, maximum: MAX_CAPTIONS}}),
+    true
+  ),
+  command(
     'captions.split',
     '자막 하나를 문자 커서 위치에서 나눕니다. 시간은 문자 수 비례 추정이며 음성과 확인해야 합니다.',
     object({captionIndex: {type: 'integer', minimum: 0, maximum: 9999}, textOffset: {type: 'integer', minimum: 1, maximum: 1999}}, ['captionIndex', 'textOffset']),
@@ -298,7 +304,7 @@ const batchCommands = [
   'project.update', 'effects.update', 'template.apply', 'template.apply.document',
   'timeline.move', 'timeline.duplicate', 'timeline.split', 'timeline.replace', 'credit.update', 'title.update',
   'overlays.move', 'overlays.add', 'overlays.remove', 'overlays.update',
-  'captions.import', 'captions.split', 'captions.merge', 'captions.replace', 'captions.update', 'captions.insert', 'captions.remove',
+  'captions.import', 'captions.split', 'captions.split.long', 'captions.merge', 'captions.replace', 'captions.update', 'captions.insert', 'captions.remove',
   'captions.text.replace', 'captions.timing.shift', 'captions.style.update', 'captions.speaker.assign',
 ];
 definitions.push(command(

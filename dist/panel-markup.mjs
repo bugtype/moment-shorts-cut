@@ -57,14 +57,14 @@ export function captionsPanelMarkup({ captions, speakerLabels }, { toolsOpen, tr
         `<button class="button" id="inspectCaptions">${text('panels.inspectCaptions')}</button>` +
         `<section ${attrs('aria-label', 'panels.findReplace')}>` +
         `<label class="panel-label" for="captionFind">${text('panels.find')}</label>` +
-        `<input class="panel-input" id="captionFind" type="text" maxlength="2000" autocomplete="off" spellcheck="false">` +
+        `<textarea class="panel-input" id="captionFind" rows="2" maxlength="2000" autocomplete="off" spellcheck="false"></textarea>` +
         `<div class="panel-actions" role="group" ${attrs('aria-label', 'panels.matchNavigation')}>` +
         `<button class="button" id="previousCaptionMatch" ${attrs('aria-label', 'panels.previousMatch')} disabled>${text('panels.previous')}</button>` +
         `<output id="captionSearchStatus" role="status" aria-live="polite" aria-atomic="true">${text('panels.searchStatus', {current: 0, count: 0})}</output>` +
         `<button class="button" id="nextCaptionMatch" ${attrs('aria-label', 'panels.nextMatch')} disabled>${text('panels.next')}</button>` +
         `</div>` +
         `<label class="panel-label" for="captionReplacement">${text('panels.replacement')}</label>` +
-        `<input class="panel-input" id="captionReplacement" type="text" maxlength="2000" autocomplete="off" spellcheck="false">` +
+        `<textarea class="panel-input" id="captionReplacement" rows="2" maxlength="2000" autocomplete="off" spellcheck="false"></textarea>` +
         `<button class="button full" id="replaceCaptionMatch" disabled>${text('panels.replaceMatch')}</button>` +
         `<button class="button full" id="replaceAllCaptions" aria-live="polite" disabled>${text('panels.replaceAll')}</button>` +
         `</section>` +

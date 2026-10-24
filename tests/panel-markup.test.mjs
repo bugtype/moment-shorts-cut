@@ -142,7 +142,7 @@ test('caption tools group accessible find/replace fields without another disclos
   assert.match(tools, /<section aria-label="자막 찾기 및 바꾸기"[^>]*>/);
   for (const id of ['captionFind', 'captionReplacement']) {
     assert.match(tools, new RegExp(`<label class="panel-label" for="${id}">`));
-    assert.match(tools, new RegExp(`id="${id}" type="text" maxlength="2000"`));
+    assert.match(tools, new RegExp(`<textarea class="panel-input" id="${id}" rows="2" maxlength="2000"[^>]*></textarea>`));
   }
   assert.match(tools, /id="replaceAllCaptions" aria-live="polite" disabled><span[^>]*>모두 바꾸기<\/span>/);
   assert.ok(tools.indexOf('replaceAllCaptions') < tools.indexOf('splitLongCaptions'));

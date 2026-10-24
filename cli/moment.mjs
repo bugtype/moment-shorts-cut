@@ -3,7 +3,7 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { isUtf8 } from 'node:buffer';
-import { createDemoProject, createProjectDocument, readProjectDocument } from '../dist/core/project.mjs';
+import { createDemoProject, createProjectDocument, readProjectDocument, MAX_PROJECT_FILE_BYTES, assertProjectFileSize } from '../dist/core/project.mjs';
 import { createEditorService, errorResult } from '../dist/integration/editor-service.mjs';
 import { CommandError } from '../dist/core/validation.mjs';
 
@@ -17,7 +17,7 @@ const usage=`Moment CLI · Node.js 20+
 captions.export는 format(srt/vtt/txt)에 따라 SRT·WebVTT·TXT를 --out으로 저장합니다. 기본값은 SRT입니다.
 영상/음성 파일과 인코더는 포함하지 않습니다.
 `;
-const MAX_JSON_FILE_BYTES=10*1024*1024;
+const MAX_JSON_FILE_BYTES=MAX_PROJECT_FILE_BYTES;
 function parse(argv){
   const [mode,...tail]=argv,opts={},command=mode==='exec'?tail.shift():undefined;
   const allowed=mode==='exec'?['--project','--json','--args-file','--out','--overwrite','--dry-run']:mode==='init'?['--out','--overwrite']:[];
@@ -30,9 +30,9 @@ function parse(argv){
   return {mode,command,opts};
 }
 async function jsonFile(file){
-  const info=await fs.stat(file);if(info.size>MAX_JSON_FILE_BYTES)throw new CommandError('FILE_TOO_LARGE','JSON 파일은 10 MB 이하만 지원합니다.');
+  const info=await fs.stat(file);if(info.size>MAX_JSON_FILE_BYTES)throw new CommandError('FILE_TOO_LARGE','JSON 파일은 10 MiB 이하만 지원합니다.');
   const bytes=await fs.readFile(file);
-  if(bytes.length>MAX_JSON_FILE_BYTES)throw new CommandError('FILE_TOO_LARGE','JSON 파일은 10 MB 이하만 지원합니다.');
+  if(bytes.length>MAX_JSON_FILE_BYTES)throw new CommandError('FILE_TOO_LARGE','JSON 파일은 10 MiB 이하만 지원합니다.');
   if(!isUtf8(bytes))throw new CommandError('INVALID_JSON','JSON 파일을 올바른 UTF-8로 저장하세요.');
   return JSON.parse(bytes.toString('utf8').replace(/^\uFEFF/,''));
 }
@@ -53,7 +53,9 @@ async function main(){
   if(mode==='commands'){process.stdout.write(JSON.stringify({apiVersion:1,commands:service.describe()},null,2)+'\n');return;}
   if(mode==='init'){
     if(!opts['--out'])throw new CommandError('CLI_USAGE','--out 경로를 지정하세요.');
-    const output=await writeOutput(opts['--out'],JSON.stringify(createProjectDocument(state),null,2)+'\n',opts['--overwrite']);
+    const text=JSON.stringify(createProjectDocument(state),null,2)+'\n';
+    assertProjectFileSize(Buffer.byteLength(text,'utf8'));
+    const output=await writeOutput(opts['--out'],text,opts['--overwrite']);
     process.stdout.write(JSON.stringify({ok:true,output})+'\n');return;
   }
   if(mode!=='exec'||!command)throw new CommandError('CLI_USAGE','exec 뒤에 명령 이름을 지정하세요.');
@@ -69,6 +71,7 @@ async function main(){
   else if(opts['--out']){
     const data=descriptor.mutates?createProjectDocument(state):result.data;
     const text=command==='captions.export'?data.text:JSON.stringify(data,null,2)+'\n';
+    if(descriptor.mutates||command==='project.get')assertProjectFileSize(Buffer.byteLength(text,'utf8'));
     result.output=await writeOutput(opts['--out'],text,opts['--overwrite']);
   }
   process.stdout.write(JSON.stringify(result)+'\n');

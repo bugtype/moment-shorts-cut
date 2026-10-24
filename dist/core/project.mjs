@@ -5,6 +5,13 @@ import { assertJson, validate, object, string, number, choice, array, fail, Comm
 
 export function createDemoProject(){return {...defaultEnhancements(),name:'나의 첫 번째 쇼츠',kind:'demo',fileName:'느리게 걷는 하루 · 샘플',duration:12,clips:[{start:0,end:12}],ratio:'9:16',fit:'cover',zoom:1,panX:0,panY:0,volume:1,speed:1,schemaVersion:4,design:defaultDesign(),style:'impact',captionSize:36,captionY:.55,captionX:.47,captionColor:'#ffffff',captionAccent:'#b5ff00',captionStroke:3,captionItalic:true,captionAnimation:'pop',captions:[{start:0,end:4,text:'잠깐, 쉬어가도 괜찮아'},{start:4,end:8,text:'나만의 속도로 걷는 하루'},{start:8,end:12,text:'오늘의 순간을 기록해요'}],audioName:'',audioOffset:0,audioVolume:.7};}
 
+// File transport limit only: in-memory documents and integrations may be larger.
+export const MAX_PROJECT_FILE_BYTES=10*1024*1024;
+export function assertProjectFileSize(byteLength){
+  if(byteLength>MAX_PROJECT_FILE_BYTES)
+    throw new CommandError('FILE_TOO_LARGE','편집 설정 파일은 UTF-8 10 MiB까지 지원합니다. 설정·자막을 줄이거나 별도 통합 저장 방식을 사용하세요.');
+}
+
 export const MAX_CLIPS=1000;
 export const FORMAT='moment-project';
 export const FORMAT_VERSION=1;

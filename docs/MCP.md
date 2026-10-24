@@ -267,6 +267,16 @@ commit replaces its in-memory project; reusable custom hosts must supply their o
 storage atomicity and authorization. There is no automatic retry or rollback of
 an already completed sequence of tool calls.
 
+Built-in project-settings files are limited to **10 MiB (10,485,760 UTF-8 bytes)**
+on save as well as restore. Oversized serialized settings are rejected before a
+browser download or CLI project-file write, without truncation or overwriting an
+existing file. This is not a new project-state schema cap: the metadata API can
+represent a larger valid project, but the built-in file workflow cannot round-trip it.
+The CLI applies this to `init`, mutation `--out` and `project.get --out`, not
+stdout or `render.plan`. `--dry-run` previews in memory and is not a settings-file
+size preflight, even if `--out` is also present.
+Do not confuse this with subtitle budgets or the 256 KiB portable-template limit.
+
 Input frames exceeding **10 MiB** terminate the process; this includes the whole
 JSON-RPC frame, not only the nested project. A CLI document close to its own 10 MiB
 limit may therefore be too large to wrap in an MCP import request. There is no

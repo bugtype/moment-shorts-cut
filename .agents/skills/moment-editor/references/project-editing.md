@@ -64,6 +64,16 @@ For VTT, call `moment_captions_export` with `{"projectId":"session","format":"vt
 
 Do not save the JSON-RPC envelope, text-content wrapper or mutation acknowledgment as a project document.
 
+Project-settings files must fit **10 MiB (10,485,760 UTF-8 bytes)** for saving and
+restoring. Pretty JSON overhead and its final newline count. Oversized settings
+output is refused before writing/downloading, not truncated; existing files remain
+intact. CLI `init`, mutation `--out` and `project.get --out` enforce it; stdout and
+render plans do not. `--dry-run` is an in-memory preview, not a file-size preflight,
+even when `--out` is supplied. This is not a new project-state schema limit.
+`project.get` can represent larger valid state, but that does not make it restorable
+through built-in files or fit a whole 10 MiB MCP input frame. Preserve the original;
+do not silently discard captions to force a backup under the limit.
+
 ## Apply related edits together
 
 Use `project.batch` / `moment_project_batch` for 1–20 supported mutations that must
@@ -506,7 +516,7 @@ reimported as subtitles or recover timing; retain project JSON for reversibility
 | File/session failure | Recovery |
 |---|---|
 | CLI `FILE_EXISTS` / `FILE_ERROR` | Correct destination or permissions. Preserve the original; overwriting needs intent. |
-| CLI `FILE_TOO_LARGE` / `INVALID_JSON` | Use valid UTF-8 JSON within 10 MiB. One leading UTF-8 BOM is allowed; do not silently replace undecodable bytes. |
+| CLI `FILE_TOO_LARGE` / `INVALID_JSON` | Input JSON and serialized settings output must fit 10 MiB. Preserve the original on output refusal; dry-run is not a size preflight. Input allows one leading UTF-8 BOM; do not replace undecodable bytes. |
 | Lost MCP response | If the process is alive, read the project before repeating a mutation. |
 | MCP process exited | Import the last saved document into a new session. Reapply only verified missing edits; do not claim unsaved state persisted. |
 

@@ -1,4 +1,4 @@
-import { createProjectDocument, projectSubtitles } from './core/project.mjs';
+import { createProjectDocument, projectSubtitles, assertProjectFileSize } from './core/project.mjs';
 import { CommandError } from './core/validation.mjs';
 import { parseSubtitles, MAX_SUBTITLE_BYTES } from './captions.mjs';
 
@@ -7,8 +7,9 @@ export function createTextFileWorkflow({
     getProject, execute, query: $, closeModal, focusImportedCaption,
     settingsUnavailable, download, toast,
 }) {
-    async function readUtf8File(file) {
+    async function readUtf8File(file, settingsFile = false) {
         const bytes = await file.arrayBuffer();
+        if (settingsFile) assertProjectFileSize(bytes.byteLength);
         try {
             return new TextDecoder('utf-8', { fatal: true }).decode(bytes);
         }
@@ -27,9 +28,8 @@ export function createTextFileWorkflow({
     async function importProjectSettings(file) {
         try {
             const beforeCommit = guardTextImport();
-            if (file.size > 10 * 1024 * 1024)
-                throw new Error('편집 설정 JSON은 10 MB 이하만 불러올 수 있습니다.');
-            const result = await execute('project.import', { document: JSON.parse(await readUtf8File(file)) }, beforeCommit);
+            assertProjectFileSize(file.size);
+            const result = await execute('project.import', { document: JSON.parse(await readUtf8File(file, true)) }, beforeCommit);
             if (!result.ok)
                 throw new Error(result.error.message);
             closeModal();
@@ -47,7 +47,14 @@ export function createTextFileWorkflow({
     function downloadProjectSettings() {
         if (settingsUnavailable())
             return;
-        download(new Blob([JSON.stringify(createProjectDocument(getProject()), null, 2)], { type: 'application/json' }), `${getProject().name || 'moment'}.moment.json`);
+        try {
+            const project = getProject();
+            const blob = new Blob([JSON.stringify(createProjectDocument(project), null, 2)], { type: 'application/json' });
+            assertProjectFileSize(blob.size);
+            download(blob, `${project.name || 'moment'}.moment.json`);
+        } catch (error) {
+            toast(error.message || '편집 설정을 저장하지 못했습니다.');
+        }
     }
     function downloadSubtitles(format = 'srt') {
         if (settingsUnavailable())

@@ -39,7 +39,7 @@ The interface is currently in Korean. These labels will help you find each step:
 4. **오디오 (Audio):** add an audio file or record narration with microphone permission. Adjust its start time and volume alongside the original audio.
 5. **내보내기 (Export):** choose an available MP4/WebM format and 720p or 1080p. **Keep the tab visible until export finishes**, then play the downloaded file to check the result.
 
-Use **사용 가이드 (Help) → 편집 설정 저장 (Save editing settings)** to back up project JSON. Keep your original video and audio separately: **the JSON does not contain media files**.
+Use **사용 가이드 (Help) → 편집 설정 저장 (Save editing settings)** to back up project JSON. Settings files must fit **10 MiB (10,485,760 UTF-8 bytes)** for both save and restore; oversized output is rejected, not truncated. Keep your original video and audio separately: **the JSON does not contain media files**.
 
 **Preview shortcuts:** unmodified `,` / `.` move backward/forward by 1/30 of an
 output second to inspect cut or caption boundaries. Arrow keys still move one
@@ -226,7 +226,7 @@ Run `node examples/use-mcp-client.mjs` for an executable handshake → import �
 | Input or project limit | Maximum |
 | --- | --- |
 | Video / additional audio | 500 MiB / 100 MiB |
-| Project JSON / SRT or VTT input | 10 MiB / 2 MiB, UTF-8 |
+| Project-settings JSON save/restore / SRT or VTT input | 10 MiB / 2 MiB, UTF-8 |
 | Clips / source caption cues | 1,000 / 10,000; 2,000 UTF-16 code units per cue |
 | Custom templates / timed text layers | 20 / 12 |
 

@@ -444,3 +444,10 @@
 }
 
 .template-management { flex-wrap: wrap; }
+
+.template-demo-stage select { width:100%; min-height:38px; margin-bottom:8px; }
+.template-scene-compare { display:flex; gap:6px; margin-bottom:8px; }
+.template-scene-compare[hidden] { display:none; }
+.template-scene-compare .button { flex:1; width:auto; min-height:38px; margin-top:0; white-space:normal; }
+.template-scene-compare [aria-pressed="true"] { border-color:var(--accent); }
+#templateSceneStatus:empty { display:none; }

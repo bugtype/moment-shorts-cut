@@ -164,3 +164,18 @@ test('detached Project files relink button cannot replace a newer dialog',async(
     f.element('#projectFilesButton').onclick();const files=f.element('#modal').innerHTML;old();assert.equal(f.element('#modal').innerHTML,files);
     f.element('#relinkSessionMedia').onclick();assert.match(f.element('#modal').innerHTML,/sessionMediaConfirmed/);
 });
+
+test('relinked current-scene template comparison remains read-only while storage stays failed',async()=>{
+    const f=await fixture();f.open();f.choose();await f.connect();const before=f.snapshot();
+    f.context.templateDraws=[];
+    vm.runInContext('pause();composition.draw=(...args)=>templateDraws.push(args);templatePreview.open(TEMPLATES[1]);',f.context);
+    f.element('#templatePreviewMode').value='current';f.element('#templatePreviewMode').onchange({});
+    assert.equal(f.context.templateDraws.length,2);
+    f.element('#templateCurrentStyle').onclick({});assert.equal(f.context.templateDraws.length,3);
+    assert.deepEqual(f.snapshot(),before);assert.deepEqual(f.writes,[]);
+    assert.equal(f.evaluate('persistence.restorePhase'),'failed');assert.equal(f.evaluate('sessionMedia.mediaReady()'),true);
+    f.element('#applyTemplateStyle').onclick({});
+    assert.equal(f.evaluate('history.length'),1);assert.equal(f.evaluate('state.templateId'),'punch');
+    await vm.runInContext('saveProject(true);scheduleSave();',f.context);
+    assert.deepEqual(f.writes,[]);assert.equal(f.evaluate('persistence.restorePhase'),'failed');
+});

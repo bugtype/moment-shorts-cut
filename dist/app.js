@@ -1,3 +1,4 @@
+import { createTemplateScene } from './template-scene.mjs';
 import { createCaptionWorkspace } from './caption-workspace.mjs';
 import { createSessionMedia } from './session-media.mjs';
 import { createSessionMediaDialog } from './session-media-dialog.mjs';
@@ -128,7 +129,7 @@ const sessionMediaDialog = createSessionMediaDialog({
 });
 
 const templatePreview = createTemplatePreview({
-    composition,
+    composition, scene: () => createTemplateScene(app),
     getMedia: () => ({ source: sampleRaster || sample, ready: sample.complete }),
     modal,
     openModal: (title, body, foot) => modalOpen(title, body, foot),

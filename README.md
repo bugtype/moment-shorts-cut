@@ -81,6 +81,17 @@ Settings files must fit **10 MiB (10,485,760 UTF-8 bytes)** for both save and re
 
 The built-in templates cover review stories, bold opening lines, vlogs, explainers, interviews, recipes, rankings, product reviews, quizzes, and cinematic moments. Preview each with its animated sample. Quiz choices and countdowns are video graphics, not interactive polls.
 
+**Compare a template on your scene:** open a template preview and choose **Current
+scene**, then switch **Current style / Selected style**. Both use the same frozen
+raw frame and current timeline time; the selected view applies the existing
+style-only rules to a detached project copy. Authored title/credit/card text and
+captions are retained, but visual settings and applicable layer timing can differ.
+Comparison does not apply the template, edit, save, seek or play audio; opening the
+template preview already pauses playback. Use the existing apply buttons only when ready.
+The dialog starts in **Sample**, which remains available when current media is not ready. Reopen after the
+project, media, selection or playhead changes. This is a visual preview, not a
+native-resolution or source-frame-accurate export.
+
 **Reuse a card’s appearance:** choose **Copy style** on the selected timed card, select
 another card, then **Paste style**. Only color, text size/stroke, background styling, presentation
 and animation transfer; text, timing, position/width, role, type and enabled state stay intact.

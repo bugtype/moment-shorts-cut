@@ -1,15 +1,15 @@
-import { text, setText, message } from './i18n.mjs';
+import { text, setText, message, attrs, mark, t } from './i18n.mjs';
 import { createDemoProject } from './core/project.mjs';
 import { applyTemplate, REFERENCE_SOURCES, templateCategoryKey } from './template-catalog.mjs';
 import { esc } from './ui-format.mjs';
 
-export function createTemplatePreview({ composition, getMedia, modal, openModal: modalOpen, query: $, onApply }, {
+export function createTemplatePreview({ composition, getMedia, modal, openModal: modalOpen, query: $, onApply, scene = () => null }, {
     requestFrame = callback => requestAnimationFrame(callback),
     cancelFrame = frame => cancelAnimationFrame(frame),
     clock = () => performance.now(),
 } = {}) {
     const demos = new WeakMap();
-    let frame = 0;
+    let generation = 0, disposePrevious = () => {};
     function templateProject(template) {
         if (demos.has(template))
             return demos.get(template);
@@ -40,13 +40,22 @@ export function createTemplatePreview({ composition, getMedia, modal, openModal:
     }
 
     function open(template) {
+        disposePrevious();
+        const owner = ++generation, templateSignature = JSON.stringify(template), context = scene();
+        let snapshot = null, styled = null, mode = 'sample', frame = 0, disposed = false;
         const reference = REFERENCE_SOURCES[template.source];
         modalOpen(template.custom ? template.name : message('templates.builtin.'+template.id+'.name'), previewBody(template, reference), '<div class="modal-foot">' +
             `<button class="button" id="applyTemplateStructure">${text('templates.applyContent')}</button>` +
             `<button class="button primary" id="applyTemplateStyle">${text('templates.applyStyle')}</button>` +
             '</div>');
         modal.classList.add('template-modal');
-        draw($('#templateDemo'), template, .4);
+        const canvas = $('#templateDemo'), modeInput = $('#templatePreviewMode');
+        const current = () => !disposed && owner === generation && modal.open && $('#templateDemo') === canvas;
+        const valid = () => current() && JSON.stringify(template) === templateSignature && (!context || context.valid());
+        modeInput.value = 'sample';
+        modeInput.options && (modeInput.options[1].disabled = !context?.canCapture());
+        const showSample = () => { canvas.width = 432; canvas.height = 768; canvas.style.aspectRatio = '9 / 16'; draw(canvas, template, .4); };
+        showSample();
         let started = 0, running = false, lastPreview = -Infinity;
         const stop = () => {
             running = false;
@@ -55,7 +64,7 @@ export function createTemplatePreview({ composition, getMedia, modal, openModal:
             frame = 0;
         };
         const animate = now => {
-            if (!modal.open || !running) {
+            if (!valid() || !running) {
                 stop();
                 return;
             }
@@ -65,7 +74,9 @@ export function createTemplatePreview({ composition, getMedia, modal, openModal:
             }
             frame = requestFrame(animate);
         };
-        $('#toggleTemplateDemo').onclick = () => {
+        const composing = event => event?.isComposing || event?.keyCode === 229;
+        $('#toggleTemplateDemo').onclick = event => {
+            if (!current() || composing(event) || mode !== 'sample') return;
             if (running) {
                 stop();
                 setText($('#toggleTemplateDemo'), 'templates.play');
@@ -77,13 +88,51 @@ export function createTemplatePreview({ composition, getMedia, modal, openModal:
                 frame = requestFrame(animate);
             }
         };
-        modal.onclose = stop;
-        const apply = withContent => {
+        const dispose = () => { disposed = true; stop(); snapshot?.release(); snapshot = styled = null; };
+        disposePrevious = dispose;
+        modal.onreplace = dispose;
+        modal.onclose = () => { if (!modal.open) dispose(); };
+        const compare = selected => {
+            if (!current()) return;
+            if (!valid()) { setText($('#templateSceneStatus'), 'templates.sceneStale'); return; }
+            if (!context?.canCapture()) { setText($('#templateSceneStatus'), 'templates.sceneUnavailable'); return; }
+            try {
+                if (!snapshot) {
+                    snapshot = context.capture();
+                    if (!snapshot) throw new Error('Unavailable frame');
+                    styled = structuredClone(snapshot.project);
+                    applyTemplate(styled, template, false);
+                }
+                $('#templateSceneStatus').textContent = '';
+                $('#templateSceneStatus').removeAttribute('data-i18n');
+                const project = selected ? styled : snapshot.project, [w, h] = project.ratio.split(':').map(Number);
+                canvas.width = Math.round(432 * w / Math.max(w, h)); canvas.height = Math.round(432 * h / Math.max(w, h));
+                canvas.style.aspectRatio = `${w} / ${h}`;
+                composition.draw(canvas.getContext('2d'), canvas.width, canvas.height, project, snapshot.media);
+                $('#templateCurrentStyle').setAttribute('aria-pressed', String(!selected));
+                $('#templateSelectedStyle').setAttribute('aria-pressed', String(selected));
+            } catch { snapshot?.release(); snapshot = styled = null; setText($('#templateSceneStatus'), 'templates.sceneUnavailable'); }
+        };
+        modeInput.onchange = event => {
+            if (!current() || composing(event)) return;
+            stop(); mode = modeInput.value;
+            $('#toggleTemplateDemo').hidden = mode !== 'sample';
+            $('#templateSceneCompare').hidden = mode === 'sample';
+            $('#templateSampleLabel').hidden = mode !== 'sample';
+            setText($('#toggleTemplateDemo'), 'templates.play');
+            if (mode === 'sample') showSample(); else compare(true);
+        };
+        $('#templateCurrentStyle').onclick = event => { if (!composing(event) && mode !== 'sample') compare(false); };
+        $('#templateSelectedStyle').onclick = event => { if (!composing(event) && mode !== 'sample') compare(true); };
+        const apply = (withContent, event) => {
+            if (composing(event) || !current()) return;
+            if (!valid()) { setText($('#templateSceneStatus'), 'templates.sceneStale'); return; }
+            if (context && !context.canApply()) return;
             stop();
             onApply(template, withContent);
         };
-        $('#applyTemplateStyle').onclick = () => apply(false);
-        $('#applyTemplateStructure').onclick = () => apply(true);
+        $('#applyTemplateStyle').onclick = event => apply(false, event);
+        $('#applyTemplateStructure').onclick = event => apply(true, event);
     }
     return { draw, open };
 }
@@ -92,10 +141,13 @@ function previewBody(template, reference) {
     return (
         `<div class="template-preview-layout">` +
         `<div class="template-demo-stage">` +
+        `<select id="templatePreviewMode" ${attrs('aria-label','templates.previewMode')}><option value="sample" ${mark('templates.sampleMode')}>${t('templates.sampleMode')}</option><option value="current" ${mark('templates.currentScene')}>${t('templates.currentScene')}</option></select>` +
+        `<div id="templateSceneCompare" class="template-scene-compare" hidden><button class="button" id="templateCurrentStyle" aria-pressed="false">${text('templates.currentStyle')}</button><button class="button" id="templateSelectedStyle" aria-pressed="true">${text('templates.selectedStyle')}</button></div>` +
+        `<p id="templateSceneStatus" role="status"></p>` +
         `<canvas id="templateDemo" width="432" height="768">` +
         `</canvas>` +
         `<button class="button" id="toggleTemplateDemo">${text('templates.play')}</button>` +
-        `<small>${text('templates.sample')}</small>` +
+        `<small id="templateSampleLabel">${text('templates.sample')}</small>` +
         `</div>` +
         `<div class="template-details">` +
         `<span class="template-category">${template.custom&&template.category!=='내 템플릿'?esc(template.category):text(templateCategoryKey(template.category))}</span>` +

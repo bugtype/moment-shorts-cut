@@ -11,7 +11,7 @@ function fixture() {
   const query = selector => {
     if (!controls.has(selector)) {
       const attributes=new Map();
-      controls.set(selector, { width:432, height:768, getContext:()=>({}),
+      controls.set(selector, { style:{}, width:432, height:768, getContext:()=>({}),
         setAttribute:(name,value)=>attributes.set(name,String(value)),
         getAttribute:name=>attributes.get(name)??null,
         removeAttribute:name=>attributes.delete(name) });
@@ -66,7 +66,7 @@ test('preview play, pause, modal close and apply own only their animation loop',
   f.query('#toggleTemplateDemo').onclick();assert.equal(f.frames.size, 0);
   f.query('#toggleTemplateDemo').onclick();f.modal.open = false;f.tick(200);
   assert.equal(f.frames.size, 0);
-  f.preview.open(template);f.query('#toggleTemplateDemo').onclick();f.modal.onclose();
+  f.preview.open(template);f.query('#toggleTemplateDemo').onclick();f.modal.open=false;f.modal.onclose();
   assert.equal(f.frames.size, 0);
   f.preview.open(template);f.query('#toggleTemplateDemo').onclick();f.query('#applyTemplateStyle').onclick();
   assert.equal(f.frames.size, 0);

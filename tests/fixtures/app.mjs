@@ -1,3 +1,4 @@
+import { createTemplateScene } from '../../dist/template-scene.mjs';
 import { createCaptionOverlapDialog } from '../../dist/caption-overlap-dialog.mjs';
 import { createCardTimingDialog } from '../../dist/card-timing-dialog.mjs';
 import { createSessionMedia } from '../../dist/session-media.mjs';
@@ -158,6 +159,7 @@ export async function createAppFixture({sessionMediaDependencies = {}} = {}) {
       createAudioContext: () => new context.AudioContext(),
       createOfflineContext: (...args) => new context.OfflineAudioContext(...args),
     }),
+    createTemplateScene,
     createTemplatePreview: options => createTemplatePreview(options, {
       requestFrame: callback => context.requestAnimationFrame(callback),
       cancelFrame: id => context.cancelAnimationFrame(id),

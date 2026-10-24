@@ -1,6 +1,14 @@
 // UI presentation only. Authored sample/project text stays in the project catalog.
 export const messages = {
   "ko": {
+    "templates.previewMode": "미리보기 대상",
+    "templates.sampleMode": "샘플",
+    "templates.currentScene": "현재 장면",
+    "templates.currentStyle": "현재 스타일",
+    "templates.selectedStyle": "선택한 스타일",
+    "templates.sceneStale": "장면이 변경되었습니다. 미리보기를 다시 여세요.",
+    "templates.sceneUnavailable": "현재 장면을 불러올 수 없습니다. 샘플을 이용하세요.",
+
     "templates.heading": "템플릿",
     "templates.import": "불러오기",
     "templates.importLabel": "템플릿 파일 불러오기",
@@ -161,6 +169,14 @@ export const messages = {
     "templates.builtin.cinema.favorite": "시네마틱 모먼트 즐겨찾기"
   },
   "en": {
+    "templates.previewMode": "Preview content",
+    "templates.sampleMode": "Sample",
+    "templates.currentScene": "Current scene",
+    "templates.currentStyle": "Current style",
+    "templates.selectedStyle": "Selected style",
+    "templates.sceneStale": "The scene changed. Reopen the preview.",
+    "templates.sceneUnavailable": "Current scene is unavailable. Use the sample instead.",
+
     "templates.heading": "Templates",
     "templates.import": "Import",
     "templates.importLabel": "Import template file",
@@ -321,6 +337,14 @@ export const messages = {
     "templates.builtin.cinema.favorite": "Favorite Cinematic moment"
   },
   "zh-CN": {
+    "templates.previewMode": "预览内容",
+    "templates.sampleMode": "示例",
+    "templates.currentScene": "当前场景",
+    "templates.currentStyle": "当前样式",
+    "templates.selectedStyle": "所选样式",
+    "templates.sceneStale": "场景已更改。请重新打开预览。",
+    "templates.sceneUnavailable": "当前场景不可用。请使用示例。",
+
     "templates.heading": "模板",
     "templates.import": "导入",
     "templates.importLabel": "导入模板文件",

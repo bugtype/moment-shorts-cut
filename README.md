@@ -210,7 +210,11 @@ seeks that specific output occurrence, then focuses its row. Re-run if the proje
 changed since inspection. Inspection/navigation does not edit, save or add undo history.
 
 The caption editor shows **50 rows per page**, with previous/next controls and a
-visible range. Paging alone does not edit, save or seek playback. Search, timeline
+visible range. With more than 50 cues, enter a **1-based page number** and press
+**Go** or Enter to focus its first cue. Use 1 through the displayed last page
+(up to 200 pages); invalid input stays focused for correction. Switching UI language
+preserves the page-input draft and focus. Paging alone does not edit, save, create
+undo history or seek playback. Search, timeline
 selection, import and adding a caption reveal the target row’s page. Search,
 replace-all and long-caption splitting still cover the full authored list; exports
 retain the whole project’s clip/speed rules, not just the visible page. Existing

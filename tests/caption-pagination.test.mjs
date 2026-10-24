@@ -14,7 +14,7 @@ function fixture(count=101){
  const log=[],history=[],future=[];
  const target={querySelector:selector=>nodes.get(selector)||null,get innerHTML(){return html;},set innerHTML(value){
   html=value;nodes=new Map();
-  const node=(selector,dataset={})=>{const n={attributes: {}, setAttribute(name, value) { this.attributes[name] = String(value); }, getAttribute(name) { return this.attributes[name] ?? null; }, removeAttribute(name) { delete this.attributes[name]; },dataset,value:'',focus(){if (!this.disabled) log.push(['focus',selector]);},scrollIntoView(){},setSelectionRange(a,b){log.push(['selection',selector,a,b]);}};nodes.set(selector,n);return n;};
+  const node=(selector,dataset={})=>{const n={setCustomValidity(value) { this.validationMessage = value; }, reportValidity() { return !this.validationMessage; }, attributes: {}, setAttribute(name, value) { this.attributes[name] = String(value); }, getAttribute(name) { return this.attributes[name] ?? null; }, removeAttribute(name) { delete this.attributes[name]; },dataset,value:'',focus(){if (!this.disabled) log.push(['focus',selector]);},scrollIntoView(){},setSelectionRange(a,b){log.push(['selection',selector,a,b]);}};nodes.set(selector,n);return n;};
   for(const match of value.matchAll(/<[^>]+\bid="([^"]+)"[^>]*>/g)) {
    const n=node('#'+match[1]);n.disabled=/\bdisabled(?:\s|>)/.test(match[0]);
   }
@@ -139,4 +139,61 @@ test('export format persists through paging while detached selector cannot overr
  f.query('#nextCaptionPage').onclick();assert.equal(f.query('#captionExportFormat').value,'txt');
  select.value='vtt';select.onchange();f.render();assert.equal(f.query('#captionExportFormat').value,'txt');
  assert.equal(f.history.length,0);assert.ok(!f.log.some(e=>e[0]==='edit'));
+});
+
+const enterPage = (f, options = {}) => {
+ let prevented = false;
+ f.query('#captionPageNumber').onkeydown({key:'Enter',preventDefault(){prevented=true;},...options});
+ return prevented;
+};
+
+test('page jump reaches middle, tail, first and same page without editing project or history',()=>{
+ const f=fixture(10000),before=structuredClone(f.project());
+ for(const [page,first,last] of [[100,4950,4999],[200,9950,9999],[1,0,49],[1,0,49]]){
+  const markup=f.target.innerHTML;
+  input(f,'#captionPageNumber',String(page));
+  assert.equal(f.target.innerHTML,markup,'typing must not rerender rows');
+  if(page===200)f.query('#goCaptionPage').onclick();else assert.equal(enterPage(f),true);
+  assert.equal(rows(f)[0],first);assert.equal(rows(f).at(-1),last);assert.equal(rows(f).length,50);
+  assert.deepEqual(f.log.at(-1),['focus',`[data-caption-text="${first}"]`]);
+  assert.equal(f.query('#captionPageNumber').value,String(page));
+ }
+ assert.deepEqual(f.project(),before);assert.deepEqual(f.history,[]);
+ assert.ok(!f.log.some(event=>event[0]==='edit'||event[0]==='toast'));
+});
+
+test('page jump refuses blank, invalid and out-of-range values and rechecks the current caption count',()=>{
+ const f=fixture(10000),before=structuredClone(f.project());
+ for(const value of ['', ' ', 'NaN', 'Infinity', '1.5', '0', '-1', '201']){
+  const markup=f.target.innerHTML;
+  input(f,'#captionPageNumber',value);assert.equal(f.query('#captionPageNumber').validationMessage,'');
+  f.query('#goCaptionPage').onclick();
+  assert.equal(f.target.innerHTML,markup);assert.match(f.query('#captionPageNumber').validationMessage,/200/);
+  assert.deepEqual(f.log.at(-1),['focus','#captionPageNumber']);
+ }
+ assert.deepEqual(f.project(),before);assert.deepEqual(f.history,[]);
+ // External count changes must not rely on the input's stale max attribute.
+ f.project().captions.length=51;
+ input(f,'#captionPageNumber','200');assert.equal(enterPage(f),true);
+ assert.match(f.query('#captionPageNumber').validationMessage,/2/);assert.equal(rows(f)[0],0);
+ input(f,'#captionPageNumber','2');f.query('#goCaptionPage').onclick();
+ assert.deepEqual(rows(f),[50]);assert.equal(f.query('#captionPageNumber').validationMessage||'','');
+});
+
+test('jump keyboard modifiers, composition, hidden pager and detached controls are inert',()=>{
+ const f=fixture(101);input(f,'#captionPageNumber','3');const markup=f.target.innerHTML;
+ for(const options of [{key:'Escape'},{isComposing:true},{keyCode:229},{ctrlKey:true},{altKey:true},{metaKey:true},{shiftKey:true}]){
+  assert.equal(enterPage(f,options),false);
+ }
+ f.target.oncompositionstart();assert.equal(enterPage(f),false);f.query('#goCaptionPage').onclick();
+ assert.equal(f.target.innerHTML,markup);assert.deepEqual(f.log,[]);
+ f.target.oncompositionend();
+ const oldInput=f.query('#captionPageNumber'),oldGo=f.query('#goCaptionPage');
+ f.render();oldInput.onkeydown({key:'Enter',preventDefault(){assert.fail('stale Enter');}});oldGo.onclick();
+ assert.deepEqual(f.log,[]);assert.equal(rows(f)[0],0);
+ for(const count of [0,50]){
+  const hidden=fixture(count);input(hidden,'#captionPageNumber','1');
+  assert.equal(enterPage(hidden),false);hidden.query('#goCaptionPage').onclick();
+  assert.deepEqual(hidden.log,[]);assert.deepEqual(hidden.history,[]);
+ }
 });

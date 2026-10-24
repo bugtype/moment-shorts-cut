@@ -1,4 +1,4 @@
-import { setText, formatError, message } from './i18n.mjs';
+import { setText, setValidity, formatError, message } from './i18n.mjs';
 import { shiftCaptionTiming } from './core/caption-timing.mjs';
 import { replaceCaptionText } from './core/caption-text.mjs';
 import { MAX_CAPTIONS } from './captions.mjs';
@@ -149,6 +149,29 @@ export function createCaptionPanel({
                 focusTarget.focus({ preventScroll: true });
             };
         }
+        const pageInput = $('#captionPageNumber');
+        pageInput.value = String(page + 1);
+        const jumpPage = () => {
+            if (composing || getProject().captions.length <= CAPTION_PAGE_SIZE) return;
+            const value = pageInput.value.trim(), number = Number(value), total = lastPage() + 1;
+            if (!value || !Number.isInteger(number) || number < 1 || number > total) {
+                setValidity(pageInput, 'panels.pageInvalid', { total });
+                pageInput.reportValidity?.();
+                pageInput.focus({ preventScroll: true });
+                return;
+            }
+            setValidity(pageInput, '');
+            focusCaption((number - 1) * CAPTION_PAGE_SIZE);
+        };
+        pageInput.oninput = () => setValidity(pageInput, '');
+        pageInput.onkeydown = event => {
+            if (event.key !== 'Enter' || composing || event.isComposing || event.keyCode === 229 ||
+                event.altKey || event.ctrlKey || event.metaKey || event.shiftKey ||
+                getProject().captions.length <= CAPTION_PAGE_SIZE) return;
+            event.preventDefault();
+            jumpPage();
+        };
+        $('#goCaptionPage').onclick = jumpPage;
         target.oncompositionstart = () => { if (generation === renderGeneration) composing = true; };
         target.oncompositionend = () => { if (generation === renderGeneration) composing = false; };
         for (const [id, key] of [['captionFind', 'find'], ['captionReplacement', 'replacement']]) {
@@ -244,11 +267,11 @@ export function createCaptionPanel({
             ...$$('[data-caption-text]'), ...$$('[data-caption-start]'), ...$$('[data-caption-end]'),
             ...$$('[data-split-caption]'), ...$$('[data-merge-caption]'), ...$$('[data-caption-keywords]'), ...$$('[data-caption-speaker]'), ...$$('[data-delete-caption]'),
             ...['captionFind', 'captionReplacement', 'previousCaptionPage', 'nextCaptionPage',
-                'previousCaptionMatch', 'nextCaptionMatch', 'replaceAllCaptions', 'splitLongCaptions',
+                'captionPageNumber', 'goCaptionPage', 'previousCaptionMatch', 'nextCaptionMatch', 'replaceAllCaptions', 'splitLongCaptions',
                 'addCaption', 'importSrt', 'captionExportFormat', 'downloadCaptions', 'generateCaptions',
                 'inspectCaptions', 'captionDesignShortcut', 'captionShiftBasis', 'captionShiftDelta', 'shiftCaptionTiming'].map(id => $('#' + id)),
         ];
-        for (const control of controls) for (const event of ['onclick', 'onchange', 'oninput']) {
+        for (const control of controls) for (const event of ['onclick', 'onchange', 'oninput', 'onkeydown']) {
             const handler = control?.[event];
             if (handler) control[event] = (...args) => {
                 if (generation === renderGeneration) return handler(...args);

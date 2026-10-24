@@ -267,6 +267,11 @@ const entries = {
   "panels.exampleDontMiss": ["놓치면 아쉬운","Don’t miss this","不容错过"],
   "panels.exampleRecord": ["나의 작은 기록","My little journal","我的小小记录"],
   "panels.exampleSignature": ["my moment","my moment","我的瞬间"],
+  "panels.pageJump": ["자막 페이지 이동","Jump to caption page","跳转到字幕页"],
+  "panels.pageNumber": ["자막 페이지 번호","Caption page number","字幕页码"],
+  "panels.goPage": ["입력한 자막 페이지로 이동","Go to entered caption page","跳转到输入的字幕页"],
+  "panels.go": ["이동","Go","跳转"],
+  "panels.pageInvalid": ["1부터 {total}까지의 정수 페이지 번호를 입력하세요.","Enter a whole page number from 1 to {total}.","请输入 1 到 {total} 之间的整数页码。"],
 };
 
 export const messages = Object.fromEntries(['ko', 'en', 'zh-CN'].map((locale, index) => [

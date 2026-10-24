@@ -12,7 +12,7 @@ function fixture({ blocked = false } = {}) {
   const nodes = new Map(), log = [], commands = [];
   function query(selector) {
     if (!nodes.has(selector)) nodes.set(selector, {
-      value: '', dataset: {}, attributes: {}, setAttribute(name, value) { this.attributes[name] = String(value); }, getAttribute(name) { return this.attributes[name] ?? null; }, removeAttribute(name) { delete this.attributes[name]; },
+      value: '', dataset: {}, setCustomValidity(value) { this.validationMessage = value; }, reportValidity() { return !this.validationMessage; }, attributes: {}, setAttribute(name, value) { this.attributes[name] = String(value); }, getAttribute(name) { return this.attributes[name] ?? null; }, removeAttribute(name) { delete this.attributes[name]; },
       setSelectionRange: (start, end) => log.push(['selection', selector, start, end]),
       focus: options => log.push(['focus', selector, options]),
       scrollIntoView: options => log.push(['scroll', selector, options]),

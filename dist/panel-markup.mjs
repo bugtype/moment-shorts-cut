@@ -19,7 +19,11 @@ export function captionsPanelMarkup({ captions, speakerLabels }, { toolsOpen, tr
         `<nav class="panel-actions caption-pages" ${attrs('aria-label', 'panels.captionPages')} ${captions.length <= CAPTION_PAGE_SIZE ? 'hidden' : ''}>` +
         `<button class="button" id="previousCaptionPage" ${attrs('aria-label', 'panels.previousCaptionPage')} ${start === 0 ? 'disabled' : ''}>${text('panels.previous')}</button>` +
         `<span role="status" aria-live="polite">${captions.length ? start + 1 : 0}–${end} / ${captions.length}</span>` +
-        `<button class="button" id="nextCaptionPage" ${attrs('aria-label', 'panels.nextCaptionPage')} ${end >= captions.length ? 'disabled' : ''}>${text('panels.next')}</button></nav>` +
+        `<button class="button" id="nextCaptionPage" ${attrs('aria-label', 'panels.nextCaptionPage')} ${end >= captions.length ? 'disabled' : ''}>${text('panels.next')}</button>` +
+        `<div class="caption-page-jump" role="group" ${attrs('aria-label', 'panels.pageJump')}>` +
+        `<input class="panel-input" id="captionPageNumber" type="number" min="1" max="${Math.max(1, Math.ceil(captions.length / CAPTION_PAGE_SIZE))}" step="1" value="${Math.floor(start / CAPTION_PAGE_SIZE) + 1}" ${attrs('aria-label', 'panels.pageNumber')}>` +
+        `<span aria-hidden="true">/ ${Math.max(1, Math.ceil(captions.length / CAPTION_PAGE_SIZE))}</span>` +
+        `<button class="button" id="goCaptionPage" ${attrs('aria-label', 'panels.goPage')}>${text('panels.go')}</button></div></nav>` +
         `\n <details class="caption-disclosure" id="captionCreate" ${!captions.length || transcribing ? 'open' : ''}>` +
         `\n  <summary>${text('panels.generateImport')}<span data-icon="chevron">` +
         `</span>` +

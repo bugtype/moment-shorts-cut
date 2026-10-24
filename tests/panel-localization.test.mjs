@@ -37,6 +37,11 @@ test('localized caption panels preserve content, values, paging and descriptor s
         ...options, transcriptionStatus: message('panels.shifted', { count: 3 }),
       });
       assert.ok(html.includes(t('panels.captionsCount', { count: 51 })));
+      assert.ok(html.includes('id="captionPageNumber" type="number" min="1" max="2" step="1" value="1"'));
+      assert.ok(html.includes('aria-label="' + t('panels.pageNumber') + '"'));
+      assert.ok(html.includes('aria-label="' + t('panels.goPage') + '"'));
+      assert.ok(html.includes('data-i18n-aria-label="panels.pageNumber"'));
+      assert.ok(!html.includes('data-i18n="panels.pageNumber"'), 'locale changes label, not input contents');
       assert.ok(html.includes(t('panels.shifted', { count: 3 })));
       assert.ok(html.includes('&lt;保留 &amp; 원문&gt;'));
       assert.ok(html.includes('&lt;speaker&gt;'));

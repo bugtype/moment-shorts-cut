@@ -138,6 +138,16 @@ node cli/moment.mjs exec captions.text.replace --project edited.moment.json --js
 
 For MCP, call `moment_captions_text_replace` with `{"projectId":"session","find":"하루","replacement":"하루의 기록"}`. Both strings are required and limited to 2,000 UTF-16 code units; `find` must be nonempty. Matching is literal, case-sensitive and non-overlapping, without regex or Unicode normalization. Only caption text changes; preserve timings, basis, speaker, keywords and order.
 
+Optional `captionIndex`/`count` selects a contiguous authored-row range: omit both
+for all, index only for the tail, count only for the prefix, both for exact range.
+An explicit index must exist (0–9,999); count is 1–10,000 and must fit completely.
+Bad bounds reject even before a no-match/identical-replacement no-op. With no range,
+an empty cue list remains a no-op. Both source/timeline cues participate; no basis
+conversion or outside-range change. Counts are scoped to the range, not the page
+or output occurrences. Re-read positions after structural edits or uncertain
+results; a positional retry can now target other cues. Actual newlines and `$`
+remain literal. [Executable range examples](../../../../INTEGRATIONS.md#자막-문구-일괄-교정)
+
 The result is `{updated, matches, changedCaptions}`, not the document. With no match or an identical replacement, `updated` is false and no project change is committed. `matches` counts occurrences; `changedCaptions` counts actually changed cues. Read the document separately to save it.
 
 An empty replacement can remove a substring, not a whole cue: if any changed cue becomes blank after `trim()` or exceeds 2,000 UTF-16 code units, the entire operation fails before commit. Do not bypass this by dropping cues or silently truncating text. Explicit cue deletion uses `captions.remove`; preserve all other entries. UI replace-all is one undo step; MCP has no undo tool.
@@ -158,8 +168,13 @@ blank/overlong resulting cue text is rejected. A stale cue/query or uncommitted
 textarea edit is refused rather than overwritten: finish the edit and reselect.
 Opening/clicking controls may still trigger the field's normal blur/change commit.
 Search/replacement drafts persist; reselect if project/content/query changes.
-Replace-all remains a separate action and existing CLI/MCP command; this adds no
-new API command.
+**Replace in range…** captures current Find/Replacement drafts read-only, then asks
+for inclusive 1-based authored first/last rows (default: the selected match's row,
+otherwise the current page's first row; both bounds start at that single row). Its live match/change counts cover that range; explicit confirmation makes
+one undoable edit. No hit/identical text/cancel adds no edit. It creates no persistent
+selection and does not narrow search navigation. Reopen when project/media/search
+context becomes stale. Replace match and replace-all remain separate; no new API
+command is added.
 
 The browser mounts at most 50 editing rows per page. Search/timeline selection,
 import and added-caption focus reveal the target page. Paging alone changes no

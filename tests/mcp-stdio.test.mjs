@@ -201,3 +201,17 @@ test('stdio updates 4:5 projects and reports short-edge output dimensions', () =
   assert.equal(replies[3].result.structuredContent.data.output.height, 1350);
   assert.equal(replies[4].result.structuredContent.data.project.ratio, '4:5');
 });
+
+test('stdio scopes literal replacement to authored ranges and preserves error recovery', () => {
+  const project = createDemoProject();
+  project.captions = [0,1,2].map(start => ({start,end:start+1,text:'aa'}));
+  const replies = run([
+    init, ready, call(2,'project_import',{document:createProjectDocument(project)}),
+    call(3,'captions_text_replace',{find:'aa',replacement:'$&',captionIndex:1,count:1}),
+    call(4,'captions_text_replace',{find:'missing',replacement:'x',count:4}),
+    call(5,'captions_list'),
+  ]);
+  assert.deepEqual(replies[2].result.structuredContent.data,{updated:true,matches:1,changedCaptions:1});
+  assert.equal(replies[3].result.structuredContent.error.code,'INVALID_ARGUMENT');
+  assert.deepEqual(replies[4].result.structuredContent.data.captions.map(row => row.caption.text),['aa','$&','aa']);
+});

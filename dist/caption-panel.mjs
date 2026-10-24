@@ -6,14 +6,15 @@ import { splitCaptionText } from './effects.mjs';
 import { CAPTION_PAGE_SIZE, captionsPanelMarkup } from './panel-markup.mjs';
 
 export function createCaptionPanel({
-    query: $, queryAll: $$, getProject, getDuration, sourceTime, edit, refresh, toast, execute, inspect, view, overlaps, removeRange, shiftRange, speakerRange, importFile, blocked = () => false,
+    query: $, queryAll: $$, getProject, getDuration, sourceTime, edit, refresh, toast, execute, inspect, view, overlaps, removeRange, shiftRange, speakerRange, replaceRange, importFile, blocked = () => false,
 }) {
     const timingFields = { basis: 'source', delta: '0' };
     let exportFormat = 'srt';
     let page = 0, composing = false, renderGeneration = 0;
     const lastPage = () => Math.max(0, Math.ceil(getProject().captions.length / CAPTION_PAGE_SIZE) - 1);
     const search = createCaptionSearch({query:$,getProject,focusCaption,edit,execute,toast,
-        blocked: () => composing || blocked()});
+        blocked: () => composing || blocked(),
+        replaceRange: options => replaceRange?.({...options,index:options.index ?? page * CAPTION_PAGE_SIZE})});
     function shiftTiming() {
         if (composing) return;
         try {
@@ -201,7 +202,7 @@ export function createCaptionPanel({
             ...$$('[data-caption-text]'), ...$$('[data-caption-start]'), ...$$('[data-caption-end]'),
             ...$$('[data-view-caption]'), ...$$('[data-split-caption]'), ...$$('[data-merge-caption]'), ...$$('[data-caption-keywords]'), ...$$('[data-caption-speaker]'), ...$$('[data-delete-caption]'),
             ...['captionFind', 'captionReplacement', 'previousCaptionPage', 'nextCaptionPage',
-                'captionPageNumber', 'goCaptionPage', 'previousCaptionMatch', 'nextCaptionMatch', 'replaceCaptionMatch', 'replaceAllCaptions', 'splitLongCaptions',
+                'captionPageNumber', 'goCaptionPage', 'previousCaptionMatch', 'nextCaptionMatch', 'replaceCaptionMatch', 'replaceAllCaptions', 'replaceCaptionRange', 'splitLongCaptions',
                 'addCaption', 'removeCaptionRange', 'importSrt', 'captionExportFormat', 'downloadCaptions', 'generateCaptions',
                 'inspectCaptionOverlaps', 'inspectCaptions', 'captionDesignShortcut', 'captionShiftBasis', 'captionShiftDelta', 'shiftCaptionTiming', 'shiftCaptionRange', 'assignSpeakerRange'].map(id => $('#' + id)),
         ];

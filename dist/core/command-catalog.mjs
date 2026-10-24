@@ -225,8 +225,13 @@ const definitions = [
   ),
   command(
     'captions.text.replace',
-    '자막 본문에서 대소문자를 구분해 같은 문자열을 모두 바꿉니다. 시간과 메타데이터는 유지합니다.',
-    object({find: {...string(2000), minLength: 1}, replacement: string(2000)}, ['find', 'replacement']),
+    '지정한 원본 자막 범위에서 대소문자를 구분해 같은 문자열을 모두 바꿉니다. 범위 생략 시 전체에 적용하며 시간과 메타데이터는 유지합니다.',
+    object({
+      find: {...string(2000), minLength: 1},
+      replacement: string(2000),
+      captionIndex: {type: 'integer', minimum: 0, maximum: 9999},
+      count: {type: 'integer', minimum: 1, maximum: 10000},
+    }, ['find', 'replacement']),
     true
   ),
   command(

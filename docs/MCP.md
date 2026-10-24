@@ -292,7 +292,7 @@ Exceeding an output budget returns `CAPTION_OUTPUT_LIMIT`.
 | `moment_captions_merge` | `captionIndex` | `{updated:true, outputDuration, mergedCaptionIndex}` |
 | `moment_captions_split` | `captionIndex`, `textOffset` | `{updated:true, outputDuration, createdCaptionIndex}` |
 | `moment_captions_import` | `text`, `basis` | `{updated:true, outputDuration, importedCaptions}` |
-| `moment_captions_text_replace` | `find`, `replacement` | `{updated:boolean, matches:number, changedCaptions:number}` |
+| `moment_captions_text_replace` | `find`, `replacement`; optional `captionIndex`, `count` | `{updated:boolean, matches:number, changedCaptions:number}` |
 | `moment_captions_style_update` | `patch` | `{updated:true, outputDuration}` |
 | `moment_captions_speaker_assign` | `captionIndex`, `count`, `speaker` | `{updated:boolean, changedCaptions:number, outputDuration}` |
 | `moment_captions_timing_shift` | `basis`, `delta`; optional `captionIndex`, `count` | `{updated:boolean, shiftedCaptions:number, outputDuration}` |
@@ -1066,8 +1066,33 @@ Call `moment_captions_text_replace` after importing the intended document:
 |---|---|
 | `find`, `replacement` | Required strings, each at most 2,000 UTF-16 code units; `find` cannot be empty |
 | Matching | Literal, case-sensitive, non-overlapping; no regex or Unicode normalization |
-| `matches` | Total matched occurrences, not cue count |
+| `matches` | Matched occurrences within the selected authored range, not cue count |
 | `changedCaptions` | Cues whose text actually changed; timing, basis, speaker, keywords and order are preserved |
+
+Optional `captionIndex` / `count` selects **authored rows**, not search matches,
+visible pages or repeated output occurrences. Both time bases participate.
+
+| Range arguments | Selection |
+|---|---|
+| Neither | All cues, preserving existing behavior |
+| Index only | That row through the end |
+| Count only | First N rows |
+| Both | Exactly N rows starting at the index |
+
+An explicit index must exist (integer 0–9,999); count is 1–10,000 and the full range
+must fit. Invalid explicit bounds reject even for a no-match/identical replacement;
+no clipping. With both omitted, an empty list remains a no-op. Outside cues are
+unchanged; both result counts describe only the range. Example:
+
+```json
+{"projectId":"session","find":"old","replacement":"new","captionIndex":1,"count":2}
+```
+
+Actual newlines and `$` remain literal, not regex/replacement expressions.
+Re-read `moment_captions_list` after structural edits or an uncertain result before
+retrying a positional operation. Batch indices refer to the state after prior
+steps; preview does not reserve them.
+[Executable exact-range and tail-range CLI examples](../INTEGRATIONS.md#자막-문구-일괄-교정)
 
 No match or an identical replacement returns `updated:false` without committing
 a project change. An empty replacement is allowed only when every changed cue

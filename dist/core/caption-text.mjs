@@ -3,13 +3,24 @@ import { fail } from './validation.mjs';
 
 // Preview and application share validation, but preview never builds a caption
 // array or copies caption objects. Matches are literal and nonoverlapping.
-function inspectReplacement(captions, { find, replacement }, change) {
+function inspectReplacement(captions, options, change) {
+  const { find, replacement } = options;
   if (typeof find !== 'string' || !find.length || find.length > 2000)
     fail(msg('errors.findLength'), 'arguments.find');
   if (typeof replacement !== 'string' || replacement.length > 2000)
     fail(msg('errors.replacementLength'), 'arguments.replacement');
+  // Explicit authored ranges must exist, even for identical replacements/no hits.
+  const hasIndex = Object.hasOwn(options, 'captionIndex');
+  const hasCount = Object.hasOwn(options, 'count');
+  const first = hasIndex ? options.captionIndex : 0;
+  if (hasIndex && (!Number.isInteger(first) || first < 0 || first > 9999 || first >= captions.length))
+    fail(msg('errors.replaceCaptionIndex'), 'arguments.captionIndex');
+  const count = hasCount ? options.count : captions.length - first;
+  if (hasCount && (!Number.isInteger(count) || count < 1 || count > 10000 || first + count > captions.length))
+    fail(msg('errors.replaceCaptionCount'), 'arguments.count');
   let matches = 0, changedCaptions = 0;
-  for (const [index, caption] of captions.entries()) {
+  for (let index = first; index < first + count; index++) {
+    const caption = captions[index];
     // Application needs the pieces for joining; reuse them instead of scanning
     // the same text twice. Inspection counts without an array allocation.
     const parts = change ? caption.text.split(find) : null;

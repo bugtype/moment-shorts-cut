@@ -355,7 +355,7 @@ JavaScript에서 직접 호출할 때도 JSON으로 왕복 가능한 값을 전�
 | `captions.merge` | `captionIndex` | 다음 저장 행과 병합; `{updated:true, outputDuration, mergedCaptionIndex}` |
 | `captions.split` | `captionIndex`, `textOffset` | 지정 자막을 둘로 분할; `{updated:true, outputDuration, createdCaptionIndex}` |
 | `captions.import` | `text`, `basis` | 전체 교체; `{updated:true, outputDuration, importedCaptions}` |
-| `captions.text.replace` | `find`, `replacement` | 문구 모두 바꾸기; `{updated, matches, changedCaptions}` |
+| `captions.text.replace` | `find`, `replacement`, 선택 `captionIndex`, `count` | 문구 모두 바꾸기; `{updated, matches, changedCaptions}` |
 | `captions.style.update` | `patch` | 공통 자막 스타일; `{updated:true, outputDuration}` |
 | `captions.speaker.assign` | `captionIndex`, `count`, `speaker` | 연속 작성 행의 화자 배정; `{updated, changedCaptions, outputDuration}` |
 | `captions.timing.shift` | `basis`, `delta`, 선택 `captionIndex`, `count` | 시간 일괄 이동; `{updated, shiftedCaptions, outputDuration}` |
@@ -929,6 +929,21 @@ node cli/moment.mjs exec captions.update --project cue-edit-source.json --json '
 | 결과 | `{updated:boolean, matches:number, changedCaptions:number}`; 전체 문서가 아님 |
 | 변경 없음 | 일치 없음 또는 동일한 대체 문구이면 `updated:false`; 저장 반영·실행 취소 이력 추가 없음 |
 
+선택 범위는 0부터 시작하는 **작성 행**이며 검색 일치·현재 페이지·출력 출현이 아닙니다.
+source/timeline 기준과 관계없이 범위 안에서 교정하고 범위 밖 자막은 그대로 둡니다.
+
+| 선택 인수 | 범위 |
+|---|---|
+| 둘 다 생략 | 기존처럼 전체 자막 |
+| `captionIndex`만 | 해당 행부터 마지막까지 |
+| `count`만 | 처음부터 해당 개수 |
+| 둘 다 지정 | 해당 행부터 정확히 `count`개 |
+
+명시한 `captionIndex`는 현재 존재하는 정수 0–9,999, `count`는 정수 1–10,000입니다.
+범위 전체가 존재해야 하며 초과를 자르지 않습니다. 일치 없음/동일 대체여도 잘못된
+명시 범위는 거절합니다. 두 인수 생략 시 빈 배열은 기존처럼 변경 없음입니다.
+`matches`/`changedCaptions`도 선택 범위만 집계합니다.
+
 빈 `replacement`는 허용하지만, 바뀐 자막이 `trim()` 후 비거나 2,000 UTF-16 코드 단위를 넘으면 **전체 변경을 거절**합니다. 문구를 조용히 삭제하거나 잘라내지 않습니다. 구간 삭제는 UI의 개별/범위 삭제 또는 `captions.remove`를 사용하세요. 제목·크레딧·시간별 문구는 이 명령의 대상이 아닙니다.
 
 ```sh
@@ -937,6 +952,20 @@ node cli/moment.mjs exec captions.text.replace --project edited.json --json '{"f
 ```
 
 `matches`는 일치 횟수, `changedCaptions`는 실제 문구가 바뀐 자막 수입니다. 동일한 문구로 바꾸면 일치가 있어도 변경 수는 0입니다. CLI에서 저장한 출력 파일은 편집 프로젝트 문서이며, 변경 없음 응답도 파일 쓰기 자체를 금지하는 뜻은 아닙니다. UI에서는 미리 표시한 개수를 확인하고 모두 바꾸며, 반영된 변경은 한 번에 실행 취소합니다. MCP에는 실행 취소 도구가 없으므로 이전 문서를 보관하세요.
+
+범위 예제는 3개 작성 행을 준비해 같은 원본에서 각각 실행합니다.
+
+```sh
+node cli/moment.mjs init --out replace-range-source.json
+node cli/moment.mjs exec captions.replace --project replace-range-source.json --json '{"captions":[{"start":0,"end":1,"text":"old intro"},{"start":1,"end":2,"text":"old answer","basis":"source"},{"start":2,"end":3,"text":"old ending","basis":"timeline"}]}' --out replace-range-ready.json
+node cli/moment.mjs exec captions.text.replace --project replace-range-ready.json --json '{"find":"old","replacement":"new","captionIndex":1,"count":1}' --out replace-one.json
+node cli/moment.mjs exec captions.text.replace --project replace-range-ready.json --json '{"find":"old","replacement":"new","captionIndex":1}' --out replace-tail.json
+```
+
+실제 줄바꿈과 `$`도 리터럴이며 정규식이나 치환식으로 해석하지 않습니다. 구조 편집 후
+또는 결과가 불확실하면 `captions.list`로 현재 행을 다시 읽으세요. 위치는 고정 ID가
+아니므로 맹목적인 재시도는 다른 자막을 바꿀 수 있습니다. 배치에서도 앞 단계 이후의
+현재 위치를 사용합니다. 미리보기/실행 취소가 없는 클라이언트에서는 이전 문서를 보관하세요.
 
 ### 자막 시간을 앞뒤로 이동
 

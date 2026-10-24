@@ -2,7 +2,7 @@ import {setText, message, formatError} from './i18n.mjs';
 import {replaceCaptionText, inspectCaptionTextReplacement} from './core/caption-text.mjs';
 
 // Authored-text review owns only its search cursor/drafts, never project state.
-export function createCaptionSearch({query:$, getProject, focusCaption, edit, execute, toast, blocked}) {
+export function createCaptionSearch({query:$, getProject, focusCaption, edit, execute, toast, blocked, replaceRange}) {
     const fields = {find:'', replacement:''};
     let project = null, query = '', selected = null, anchor = null;
     function sync() {
@@ -34,6 +34,7 @@ export function createCaptionSearch({query:$, getProject, focusCaption, edit, ex
         $('#previousCaptionMatch').disabled=!count;
         $('#nextCaptionMatch').disabled=!count;
         $('#replaceCaptionMatch').disabled=!selected || fields.find===fields.replacement;
+        if ($('#replaceCaptionRange')) $('#replaceCaptionRange').disabled=!fields.find || !project.captions.length;
         const button=$('#replaceAllCaptions');
         setText(button,'panels.replaceAll'); button.disabled=!fields.find;
         if (fields.find) try {
@@ -121,6 +122,15 @@ export function createCaptionSearch({query:$, getProject, focusCaption, edit, ex
         }
         for (const [id,direction] of [['previousCaptionMatch',-1],['nextCaptionMatch',1]])
             $('#'+id).onclick=event=>{if (!event?.isComposing && event?.keyCode!==229) navigate(direction);};
+        const range = $('#replaceCaptionRange');
+        if (range) range.onclick=event=>{
+            if ($('#replaceCaptionRange')!==range || blocked() || event?.isComposing || event?.keyCode===229) return;
+            sync();
+            const find=fields.find, replacement=fields.replacement;
+            replaceRange?.({find,replacement,index:selected?.index,
+                isCurrent:()=>fields.find===find && fields.replacement===replacement &&
+                    $('#captionFind').value===find && $('#captionReplacement').value===replacement});
+        };
         $('#replaceAllCaptions').onclick=event=>{
             if (!event?.isComposing && event?.keyCode!==229) replaceAll();
         };

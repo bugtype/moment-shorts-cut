@@ -319,7 +319,9 @@ function inputSchema(command) {
   }
   if (command.name === 'captions.text.replace') {
     p.find.description = 'Nonempty literal, case-sensitive text. No regex or Unicode normalization; matches do not overlap.';
-    p.replacement.description = 'Literal replacement, including dollar signs. Empty or whitespace-only resulting cues and cues over 2000 characters reject the whole edit. Timing and metadata stay unchanged.';
+    p.replacement.description = 'Literal replacement, including dollar signs. Changed cues inside the selected authored range must not become empty/whitespace-only or exceed 2,000 UTF-16 units. Any failure rejects the whole edit. Outside cues, timing and metadata stay unchanged. Returned matches and changedCaptions count only the selected range.';
+    p.captionIndex.description = 'Optional zero-based first authored cue, default 0. If explicitly supplied it must exist, even for no-op/no-match requests. Not an output occurrence or stable ID; reread captions.list after structural edits.';
+    p.count.description = 'Optional number of authored cues. Omitted means the remaining tail; count alone selects the first count cues. Integer 1..10,000 and must fit completely, never truncates. Both range fields omitted preserves all-cue behavior including an empty-array no-op. No clock/basis filtering.';
   }
   if (p.quality) p.quality.description = 'Output short edge in pixels; defaults to 1080. Creates a plan only.';
   if (command.name === 'captions.export') {

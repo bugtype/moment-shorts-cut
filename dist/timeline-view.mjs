@@ -139,7 +139,14 @@ export function createTimelineView($, clock = () => performance.now()) {
         // including sub-second steps once a whole second becomes too coarse.
         const width = $('#tracksArea').clientWidth || 600;
         const target = clamp(Math.round(width / 90), 4, 12);
-        const step = [.1, .2, .5, 1, 2, 3, 5, 10, 15, 30, 60, 120, 300, 600].find(value => total / value <= target) || 600;
+        let step = [.1, .2, .5, 1, 2, 3, 5, 10, 15, 30, 60, 120, 300, 600].find(value => total / value <= target);
+        if (!step) {
+            // Long/repeated clips still need only a viewport-sized set of labels.
+            // Extend the ladder in whole-minute 1/2/5 decades, never one mark per 600s.
+            const minutes = total / target / 60;
+            const magnitude = 10 ** Math.floor(Math.log10(minutes));
+            step = [1, 2, 5, 10].find(factor => factor * magnitude >= minutes) * magnitude * 60;
+        }
         const decimals = (String(step).split('.')[1] || '').length;
         const rulerLabel = at => {
             if (!decimals) return fmt(at);

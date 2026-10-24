@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createInspectorView } from '../dist/inspector-view.mjs';
 import { createTimelineView } from '../dist/timeline-view.mjs';
-import { createDemoProject } from '../dist/core/project.mjs';
+import { createDemoProject, validateProject, timelineDuration } from '../dist/core/project.mjs';
 import { createTrack } from './fixtures/timeline-dom.mjs';
 
 function controls() {
@@ -186,6 +186,38 @@ test('ratio and fit selections synchronize visual and accessible state in both e
         assert.equal(button.active, button.dataset[key] === state[key]);
         assert.equal(button.attributes['aria-pressed'], String(button.active));
       }
+    }
+  }
+});
+
+
+test('long valid timelines keep ruler allocation bounded at all viewport widths and zoom levels', () => {
+  for (const clipCount of [1, 1000]) {
+    const state = createDemoProject();
+    state.duration = 86400;
+    state.clips = Array.from({length: clipCount}, () => ({start: 0, end: 86400}));
+    state.speed = clipCount === 1000 ? .25 : 1;
+    state.captions = [];
+    validateProject(state);
+    const before = structuredClone(state), len = timelineDuration(state);
+    const {query} = controls(), view = createTimelineView(query);
+    for (const width of [180, 600, 1200]) for (const zoom of view.zoomLevels()) {
+      view.setZoom(zoom);
+      // Model the resulting layout width; synthetic DOM does not perform CSS layout.
+      query('#tracksArea').clientWidth = width * zoom;
+      view.render(state, len, {selected: 0, thumbnail: '', hasAudio: false});
+      const html = query('#ruler').innerHTML;
+      const marks = [...html.matchAll(/left:([\d.]+)%">([^<]+)<\/span>/g)];
+      const target = Math.max(4, Math.min(12, Math.round(width * zoom / 90)));
+      assert.ok(marks.length >= 1 && marks.length <= target + 1);
+      assert.ok(html.length < 2000, 'ruler markup must not scale with duration');
+      assert.equal(new Set(marks.map(mark => mark[2])).size, marks.length);
+      const positions = marks.map(mark => Number(mark[1]));
+      assert.equal(positions[0], 0);
+      assert.ok(positions.every((value, i) => value >= 0 && value <= 100 && (!i || value > positions[i - 1])));
+      const tick = parseFloat(query('#ruler').style['--ruler-tick']);
+      assert.ok(Number.isFinite(tick) && tick > 0 && tick <= 100);
+      assert.deepEqual(state, before);
     }
   }
 });

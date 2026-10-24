@@ -48,7 +48,7 @@ its supported version, `2025-11-25`, even if the proposed version differs; a cli
 that cannot support that version should disconnect, not continue with another
 wire format. `ping` is supported. Initialize only once per process.
 
-All twelve tools require **`projectId: "session"`**. Each process owns one independent
+All thirteen tools require **`projectId: "session"`**. Each process owns one independent
 in-memory project, initially the demo. This value is neither a path nor a credential.
 Other project IDs return a tool error. A second client process does not share state.
 
@@ -136,6 +136,7 @@ Save `structuredContent.data.text` as UTF-8 `.vtt`; the server does not save fil
 | Tool | Editing input | Successful `structuredContent.data` |
 |---|---|---|
 | `moment_timeline_replace` | `clips: [{start,end}]` | Update acknowledgment and output duration |
+| `moment_timeline_split` | `clipIndex`, `sourceTime` | `{updated:true, outputDuration}` |
 | `moment_title_update` | `patch` | Update acknowledgment and output duration |
 
 ### Caption changes
@@ -159,6 +160,33 @@ entire domain validation. Unknown fields are rejected. Changing ratio resets zoo
 Timeline and speed changes retime output layers through the shared command logic.
 There is no arbitrary patch path, multi-command batch tool, file-save tool, media-upload tool,
 transcription tool or video-rendering tool on this host.
+
+### Split one clip occurrence
+
+Read `moment_project_get` first and inspect `project.clips` within its returned
+portable document. `moment_timeline_split` addresses an occurrence by array index,
+not by media identity. These arguments split the initial 12-second demo at 6 seconds:
+
+```json
+{"projectId":"session","clipIndex":0,"sourceTime":6}
+```
+
+| Input/constraint | Meaning |
+|---|---|
+| `clipIndex` | Required integer 0–999; zero-based position in the current clip array |
+| `sourceTime` | Required finite number 0–86,400; original source seconds, before trim/speed |
+| Boundaries | Must leave at least 0.1 seconds on each side within that clip |
+| Capacity | Rejects when the array already contains 1,000 clips; no partial change |
+
+Repeated source ranges still have distinct indexes. Only the selected occurrence
+is split, retaining order, intended total duration and speed. The caption array
+and title/card times remain unchanged; no retiming is applied. Source captions
+crossing the new boundary may produce adjacent output cues, so SRT/VTT bytes need
+not remain identical. Do not confuse output/playhead seconds with `sourceTime`.
+
+Use the returned standard acknowledgment to check success, then retrieve the
+project to save it. The browser's existing split action uses the same command and
+is one undo step; standalone MCP still has no undo tool.
 
 ### Correct caption text without replacing cues
 

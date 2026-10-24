@@ -23,6 +23,7 @@ const definitions=[
   command('project.import','검증된 편집 설정 JSON을 적용합니다. 미디어 파일은 별도로 연결해야 합니다.',object({document:{type:'object'}},['document']),true),
   command('templates.list','기본 템플릿 목록을 읽습니다.',object()),
   command('template.apply','기본 템플릿을 적용합니다. withContent=true는 제목과 구간 문구를 예시로 교체합니다.',object({templateId:string(100),withContent:boolean},['templateId']),true),
+  command('timeline.split','지정한 클립을 원본 영상 시간에서 둘로 나눕니다. 각 구간은 0.1초 이상이어야 합니다.',object({clipIndex:{type:'integer',minimum:0,maximum:MAX_CLIPS-1},sourceTime:number(0,86400)},['clipIndex','sourceTime']),true),
   command('timeline.replace','원본 영상 시간 기준 클립 목록을 교체합니다.',object({clips:array(clipSchema,MAX_CLIPS,1)},['clips']),true),
   command('title.update','기본 제목의 두 줄 문구와 스타일을 수정합니다.',object({patch:titleSchema},['patch']),true),
   command('captions.replace','자막을 교체합니다. source는 원본, timeline은 배속 전 편집 시간입니다.',object({captions:array(captionSchema,MAX_CAPTIONS)},['captions']),true),
@@ -60,6 +61,18 @@ export function prepareCommand(project,name,args={}){
     const template=TEMPLATES.find(t=>t.id===args.templateId);if(!template)throw new CommandError('NOT_FOUND','기본 템플릿을 찾을 수 없습니다.');
     applyTemplate(next,template,args.withContent===true);
   }else if(name==='timeline.replace')next.clips=structuredClone(args.clips);
+  else if(name==='timeline.split'){
+    if(!Number.isInteger(args.clipIndex)||args.clipIndex<0||args.clipIndex>=next.clips.length)
+      fail('나눌 클립의 인덱스를 확인하세요.','arguments.clipIndex');
+    if(next.clips.length>=MAX_CLIPS)
+      fail('클립은 1,000개 이하만 지원합니다. 클립을 삭제한 뒤 다시 분할하세요.','project.clips');
+    const clip=next.clips[args.clipIndex];
+    // Permit floating-point roundoff only; keep the caller's exact source time.
+    const tolerance=Number.EPSILON*Math.max(1,Math.abs(clip.start),Math.abs(clip.end))*4;
+    if(args.sourceTime-clip.start+tolerance<.1||clip.end-args.sourceTime+tolerance<.1)
+      fail('클립의 시작과 끝에서 0.1초 이상 떨어진 위치를 선택하세요.','arguments.sourceTime');
+    next.clips.splice(args.clipIndex,1,{start:clip.start,end:args.sourceTime},{start:args.sourceTime,end:clip.end});
+  }
   else if(name==='title.update')Object.assign(next.design.title,args.patch);
   else if(name==='captions.style.update')Object.assign(next,args.patch);
   else if(name==='captions.replace'){

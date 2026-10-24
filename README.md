@@ -138,6 +138,8 @@ Existing output files are protected; use `--overwrite` only when you intend to r
 
 **Caption appearance:** `captions.style.update` changes shared caption styling without resubmitting the full project. Only supplied fields change; styling applies to the visual renderer, not plain SRT/VTT files. [Style options](INTEGRATIONS.md#자막-스타일-수정) include size, position, colors and animation.
 
+**Clip splitting:** `timeline.split` divides one indexed clip without replacing the full timeline. It takes original source time, not output time; [the example and limits](INTEGRATIONS.md#클립-구간-분할) explain repeated clips and boundary checks.
+
 ### Choose an integration
 
 | Need | Use | Start here |

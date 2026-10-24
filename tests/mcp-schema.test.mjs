@@ -29,6 +29,7 @@ const inputs = {
   'project.import': { document: createProjectDocument(createDemoProject()) },
   'templates.list': {},
   'template.apply': { templateId: 'reference', withContent: false },
+  'timeline.split': {clipIndex:0,sourceTime:6},
   'timeline.replace': { clips: [{ start: 0, end: 12 }] },
   'title.update': { patch: { lines: ['첫째 줄', '둘째 줄'] } },
   'captions.replace': { captions: [{ start: 0, end: 1, text: '자막' }] },

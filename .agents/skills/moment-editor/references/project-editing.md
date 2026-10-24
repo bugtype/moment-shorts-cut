@@ -52,6 +52,32 @@ For VTT, call `moment_captions_export` with `{"projectId":"session","format":"vt
 
 Do not save the JSON-RPC envelope, text-content wrapper or mutation acknowledgment as a project document.
 
+## Split a clip without rebuilding the timeline
+
+Inspect the current `clips` array first. `timeline.split` takes a zero-based
+`clipIndex` and `sourceTime` in **original source seconds**, not edited or output
+time. This complete CLI example uses the known 12-second demo:
+
+```sh
+node cli/moment.mjs init --out split-source.json
+node cli/moment.mjs exec project.get --project split-source.json
+node cli/moment.mjs exec timeline.split --project split-source.json --json '{"clipIndex":0,"sourceTime":6}' --out split.json
+```
+
+Equivalent MCP: `moment_timeline_split` with
+`{"projectId":"session","clipIndex":0,"sourceTime":6}`. Import the intended
+project first; do not apply demo coordinates blindly to another document.
+The index must be an integer 0–999 and identify an existing occurrence. Source
+time must be finite, 0–86,400, and leave at least 0.1 seconds on each side of that
+clip. A timeline already containing 1,000 clips cannot be split further.
+
+Repeated source clips are distinct occurrences: preserve the user's selected
+index. Splitting retains order, intended duration, speed, authored captions and
+title/card times without rescaling. A source caption crossing the split may
+become adjacent derived output cues; do not claim SRT/VTT are byte-identical.
+The result is `{updated:true, outputDuration}`, not the document. Retrieve and
+save the project separately. UI splitting is one undo step; MCP has no undo tool.
+
 ## Correct repeated caption text
 
 Use `captions.text.replace` instead of rebuilding cue arrays when only wording changes:

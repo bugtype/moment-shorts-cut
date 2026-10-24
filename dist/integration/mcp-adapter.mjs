@@ -81,6 +81,10 @@ function inputSchema(command) {
     p.clips.items.properties.start.description = 'Clip start in source seconds, not output seconds.';
     p.clips.items.properties.end.description = 'Clip end in source seconds, exclusive.';
   }
+  if (command.name === 'timeline.split') {
+    p.clipIndex.description = 'Zero-based index in the current ordered clips array from project.get. Identifies a specific occurrence when source ranges repeat; must be an existing integer index.';
+    p.sourceTime.description = 'Absolute original-media seconds, NOT edited timeline or output seconds. Must leave at least 0.1 source seconds on each side. Adds one clip (maximum 1000), preserving order, caption metadata and output-layer timing.';
+  }
   if (p.captions) {
     p.captions.description = 'Replace the entire caption list; [] clears it. Each interval must fit its time basis.';
     p.captions.items.properties.basis.description = 'Default source: original media seconds. timeline: edited timeline seconds BEFORE speed. SRT/VTT export converts to output seconds.';

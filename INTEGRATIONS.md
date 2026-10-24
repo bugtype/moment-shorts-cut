@@ -55,6 +55,7 @@
 | 명령 | 주요 입력 | 결과 |
 |---|---|---|
 | `timeline.replace` | `clips: [{start,end}]` | 클립 구간/순서 교체 |
+| `timeline.split` | `clipIndex`, `sourceTime` | 지정 클립 구간 분할; `{updated:true, outputDuration}` |
 | `title.update` | `patch` | 기본 제목과 스타일 수정 |
 
 ### 자막 변경
@@ -64,6 +65,35 @@
 | `captions.replace` | `captions` | 대사 자막 교체 |
 | `captions.text.replace` | `find`, `replacement` | 문구 모두 바꾸기; `{updated, matches, changedCaptions}` |
 | `captions.style.update` | `patch` | 공통 자막 스타일; `{updated:true, outputDuration}` |
+
+### 클립 구간 분할
+
+`timeline.split`은 클립 목록 전체를 다시 보내지 않고 지정한 구간 하나를
+둘로 나눕니다. 먼저 `project.get`으로 현재 `clips`와 순서를 확인하세요.
+
+| 필드·조건 | 의미 |
+|---|---|
+| `clipIndex` | 필수 정수 0–999; 현재 클립 배열의 0부터 시작하는 위치 |
+| `sourceTime` | 필수 유한 숫자 0–86,400; 트림·배속 적용 전 **원본 영상의 초** |
+| 분할 위치 | 해당 클립 내부이며 앞뒤 각각 최소 0.1초 확보 |
+| 용량 | 이미 1,000개면 거절; 기존 구간 삭제 등 의도한 편집 후 재시도 |
+
+같은 원본 범위를 반복 사용해도 `clipIndex`로 지정한 **그 위치의 구간만**
+분할합니다. 원본 시간으로 어느 반복 구간인지 추측하지 않습니다. 입력 오류나
+용량 초과는 변경 없이 거절합니다.
+
+```sh
+node cli/moment.mjs init --out split-source.json
+node cli/moment.mjs exec project.get --project split-source.json
+node cli/moment.mjs exec timeline.split --project split-source.json --json '{"clipIndex":0,"sourceTime":6}' --out split.json
+```
+
+위 예제는 기본 12초 샘플을 6초에서 나눕니다. 다른 프로젝트에는 시간을
+그대로 재사용하지 말고 구간을 확인하세요. 순서·전체 길이·배속과 원본 자막
+배열·제목·시간별 문구의 시간을 유지하며 별도 비례 조정하지 않습니다.
+분할 경계를 가로지르는 원본 자막은 출력에서 인접한 두 구간으로 나뉠 수
+있으므로 **SRT/VTT 바이트가 이전과 같다는 뜻은 아닙니다.** 기존 UI 분할과
+동일한 동작이며 UI에서는 한 번에 실행 취소할 수 있습니다.
 
 ### 자막 문구 일괄 교정
 
@@ -213,8 +243,8 @@ CLI는 편집 메타데이터와 SRT/VTT를 다룹니다. MP4 파일을 생성�
 | 연속 파일 선택 | 가장 최근 선택한 요청만 적용 가능; 읽기가 끝난 뒤에도 현재 용량 재확인 |
 
 가져오기 중 다른 템플릿이 추가되어도 이전 라이브러리 스냅샷으로 덮어쓰지
-않습니다. 로컬 stdio MCP는 이 브라우저 라이브러리를 읽지 않으며 도구는
-그대로 12개입니다. CLI/MCP의 `templates.list`는 계속 기본 템플릿만 반환합니다.
+않습니다. 로컬 stdio MCP는 이 브라우저 라이브러리를 읽지 않으며, 이 파일
+공유 기능에 대응하는 도구를 추가하지 않습니다. CLI/MCP의 `templates.list`는 계속 기본 템플릿만 반환합니다.
 
 ### 템플릿 문서 검증 예제
 

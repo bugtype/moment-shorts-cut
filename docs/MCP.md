@@ -48,7 +48,7 @@ its supported version, `2025-11-25`, even if the proposed version differs; a cli
 that cannot support that version should disconnect, not continue with another
 wire format. `ping` is supported. Initialize only once per process.
 
-All sixteen tools require **`projectId: "session"`**. Each process owns one independent
+All seventeen tools require **`projectId: "session"`**. Each process owns one independent
 in-memory project, initially the demo. This value is neither a path nor a credential.
 Other project IDs return a tool error. A second client process does not share state.
 
@@ -147,10 +147,11 @@ Save `structuredContent.data.text` as UTF-8 `.vtt`; the server does not save fil
 | Tool | Editing input | Successful `structuredContent.data` |
 |---|---|---|
 | `moment_captions_replace` | `captions` | Update acknowledgment and output duration |
+| `moment_captions_import` | `text`, `basis` | `{updated:true, outputDuration, importedCaptions}` |
 | `moment_captions_text_replace` | `find`, `replacement` | `{updated:boolean, matches:number, changedCaptions:number}` |
 | `moment_captions_style_update` | `patch` | `{updated:true, outputDuration}` |
 
-`moment_timeline_replace` and `moment_captions_replace` replace the **entire array**. Preserve unrequested clips/captions
+`moment_timeline_replace`, `moment_captions_replace` and `moment_captions_import` replace the **entire array**. Preserve unrequested clips/captions
 rather than sending only the changed entry. `withContent:true` applies example title, credit
 and card content; use `false` when retaining authored content. `templates_list`
 returns built-ins, not custom templates stored in a browser. `title_update` edits
@@ -220,6 +221,44 @@ not remain identical. Do not confuse output/playhead seconds with `sourceTime`.
 Use the returned standard acknowledgment to check success, then retrieve the
 project to save it. The browser's existing split action uses the same command and
 is one undo step; standalone MCP still has no undo tool.
+
+### Import subtitle text with an explicit clock
+
+`moment_captions_import` parses supplied SRT/VTT text and replaces the complete
+caption array in one validated mutation. Save the existing project first if you
+need a reversible copy. A minimal call’s arguments are:
+
+```json
+{"projectId":"session","basis":"source","text":"1\n00:00:01,000 --> 00:00:02,000\nHello\n"}
+```
+
+| Required input | Meaning |
+|---|---|
+| `text` | Subtitle contents, not a path; at most 100,000 UTF-16 code units |
+| `basis:"source"` | Original media seconds **before speed**; bounded by source duration |
+| `basis:"timeline"` | Edited timeline seconds **before speed**; bounded by the sum of clip durations |
+
+There is **no output-clock import** or automatic inverse speed/trim mapping. An
+exported edited SRT/VTT is not a reversible project backup; choose the intended
+clock explicitly rather than importing final-output times as source times.
+
+The existing plain subtitle parser clamps cue ends to the chosen duration and
+drops out-of-range or nonpositive intervals. It removes markup and decodes known
+character references once; speaker/style/keyword metadata are not imported.
+Empty input or no valid cues returns an error without replacing current captions.
+This permissive parser may skip malformed cues; it is not a full SRT/WebVTT
+conformance validator. Success includes `importedCaptions`, the applied cue count,
+alongside `updated:true` and `outputDuration`.
+
+| Limit | Scope |
+|---|---|
+| 100,000 UTF-16 code units | API text string, including CLI/MCP, due to shared JSON validation |
+| 2 MiB UTF-8 | Existing parser/browser-file byte budget; browser limit is unchanged |
+| 10,000 cues / 2,000 UTF-16 code units per cue | Shared parser output limits |
+
+The tool does not read files or upload media. Use the [CLI args-file recipe](../INTEGRATIONS.md#srt-파일을-명령-인수로-감싸기)
+for local files, or pass already-read text through your client. Save the edited
+document using `moment_project_get`; the acknowledgment is not the project.
 
 ### Correct caption text without replacing cues
 

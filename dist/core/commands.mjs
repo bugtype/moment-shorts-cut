@@ -2,7 +2,7 @@ import { readTemplateDocument } from '../template-library.mjs';
 import { replaceCaptionText } from './caption-text.mjs';
 import { TEMPLATES, applyTemplate } from '../template-catalog.mjs';
 import { retimeOutputLayers } from '../effects.mjs';
-import { MAX_CAPTIONS } from '../captions.mjs';
+import { MAX_CAPTIONS, parseSubtitles } from '../captions.mjs';
 import { outputDuration, timelineDuration, validateProject, createProjectDocument, readProjectDocument, projectSubtitles, clipSchema, captionSchema, MAX_CLIPS } from './project.mjs';
 import { object, string, number, choice, boolean, array, validate, assertJson, fail, CommandError, hasMinimumDuration } from './validation.mjs';
 
@@ -44,6 +44,7 @@ const definitions=[
   command('timeline.replace','원본 영상 시간 기준 클립 목록을 교체합니다.',object({clips:array(clipSchema,MAX_CLIPS,1)},['clips']),true),
   command('title.update','기본 제목의 두 줄 문구와 스타일을 수정합니다.',object({patch:titleSchema},['patch']),true),
   command('overlays.update','기존 장면 카드의 지정한 문구·스타일·출력 표시 시간만 수정합니다. 카드 ID와 순서는 유지합니다.',object({id:{...string(2000),minLength:1},patch:overlayPatchSchema},['id','patch']),true),
+  command('captions.import','SRT/VTT 문자열로 자막 전체를 교체합니다. source 또는 배속 전 timeline 시간 기준을 명시하세요.',object({text:string(100000),basis:choice('source','timeline')},['text','basis']),true),
   command('captions.replace','자막을 교체합니다. source는 원본, timeline은 배속 전 편집 시간입니다.',object({captions:array(captionSchema,MAX_CAPTIONS)},['captions']),true),
   command('captions.text.replace','자막 본문에서 대소문자를 구분해 같은 문자열을 모두 바꿉니다. 시간과 메타데이터는 유지합니다.',object({find:{...string(2000),minLength:1},replacement:string(2000)},['find','replacement']),true),
   command('captions.style.update','자막의 공통 크기·위치·색상·표현만 수정합니다. 본문·시간과 SRT/VTT 내용은 유지합니다.',object({patch:captionStyleSchema},['patch']),true),
@@ -58,6 +59,15 @@ export function prepareCommand(project,name,args={}){
   validateProject(project);
   if(name==='project.get')return {data:createProjectDocument(project)};
   if(name==='captions.export')return {data:{format:args.format||'srt',text:projectSubtitles(project,args)}};
+  if(name==='captions.import'){
+    let captions;
+    try{
+      captions=parseSubtitles(args.text,args.basis==='source'?project.duration:timelineDuration(project));
+    }catch(error){fail(error.message||'자막 문자열을 확인하세요.','arguments.text');}
+    captions=captions.map(caption=>({...caption,basis:args.basis}));
+    const prepared=prepareCommand(project,'captions.replace',{captions});
+    return {...prepared,data:{...prepared.data,importedCaptions:captions.length}};
+  }
   if(name==='captions.text.replace'){
     const result=replaceCaptionText(project.captions,args);
     const data={updated:result.changedCaptions>0,matches:result.matches,changedCaptions:result.changedCaptions};

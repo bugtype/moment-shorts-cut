@@ -72,7 +72,7 @@ async function withClient(work) {
 
 const saved = await withClient(async ({request, call, data}) => {
   const {tools} = await request('tools/list', {});
-  assert.equal(tools.length, 16);
+  assert.equal(tools.length, 17);
   assert.ok(tools.some(tool => tool.name === 'moment_project_import'));
   await data('moment_project_import', {document: createProjectDocument(createDemoProject())});
   await data('moment_project_update', {patch: {name: 'MCP 예제', speed: 2}});
@@ -82,7 +82,8 @@ const saved = await withClient(async ({request, call, data}) => {
   assert.equal(rejected.structuredContent.error.code, 'INVALID_ARGUMENT');
   assert.deepEqual(await data('moment_project_get'), before, 'failed input must not change the project');
   await data('moment_timeline_replace', {clips: [{start: 2, end: 6}]});
-  await data('moment_captions_replace', {captions: [{start: 2, end: 4, text: '안녕하세요', basis: 'source'}]});
+  const imported = await data('moment_captions_import', {text: '1\n00:00:02,000 --> 00:00:04,000\n안녕하세요', basis: 'source'});
+  assert.deepEqual(imported, {updated: true, importedCaptions: 1, outputDuration: 2});
   const srt = await data('moment_captions_export');
   assert.match(srt.text, /00:00:00,000 --> 00:00:01,000/);
   assert.match(srt.text, /안녕하세요/);
@@ -126,4 +127,4 @@ await withClient(async ({data}) => {
   await data('moment_project_import', {document: saved});
   assert.deepEqual(await data('moment_project_get'), saved);
 });
-console.log(JSON.stringify({ok: true, tools: 16, recoveredFromInvalidInput: true, reimported: true, rendered: false}));
+console.log(JSON.stringify({ok: true, tools: 17, recoveredFromInvalidInput: true, reimported: true, rendered: false}));

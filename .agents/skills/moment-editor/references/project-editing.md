@@ -78,6 +78,32 @@ become adjacent derived output cues; do not claim SRT/VTT are byte-identical.
 The result is `{updated:true, outputDuration}`, not the document. Retrieve and
 save the project separately. UI splitting is one undo step; MCP has no undo tool.
 
+## Import SRT/VTT without constructing cue arrays
+
+Use CLI `captions.import` or MCP `moment_captions_import` with required `text` and
+`basis`. `text` must contain the file contents, not a path. For MCP:
+
+```json
+{"projectId":"session","basis":"source","text":"1\n00:00:01,000 --> 00:00:02,000\nHello\n"}
+```
+
+Choose `source` for original media seconds or `timeline` for edited-timeline
+seconds; **both are before playback speed**. There is no output-clock option or
+automatic reversal of trim/speed. Do not promise that importing exported subtitles
+restores the original project. The command replaces all captions atomically, so
+retain the prior project when reversibility matters.
+
+The [CLI args-file recipe](../../../../INTEGRATIONS.md#srt-파일을-명령-인수로-감싸기)
+reads UTF-8 SRT/VTT into `{text,basis}` JSON and protects existing outputs. API text
+is limited to 100,000 UTF-16 code units; browser file import remains 2 MiB. The
+shared parser also limits output to 10,000 cues and 2,000 code units per cue.
+It clamps ends to the chosen clock duration, drops out-of-range/nonpositive cues,
+strips markup and decodes known entities once. No speaker/style/keyword metadata
+is imported. Empty/no-valid input fails without replacing the existing captions.
+The permissive parser may skip malformed cues; it is not a full standard validator.
+Success returns `{updated:true, outputDuration, importedCaptions}`; the last field
+is the applied cue count. Read the project separately to save the document.
+
 ## Correct repeated caption text
 
 Use `captions.text.replace` instead of rebuilding cue arrays when only wording changes:

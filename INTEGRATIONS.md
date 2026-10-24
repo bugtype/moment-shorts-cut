@@ -66,8 +66,61 @@
 | 명령 | 주요 입력 | 결과 |
 |---|---|---|
 | `captions.replace` | `captions` | 대사 자막 교체 |
+| `captions.import` | `text`, `basis` | 전체 교체; `{updated:true, outputDuration, importedCaptions}` |
 | `captions.text.replace` | `find`, `replacement` | 문구 모두 바꾸기; `{updated, matches, changedCaptions}` |
 | `captions.style.update` | `patch` | 공통 자막 스타일; `{updated:true, outputDuration}` |
+
+### SRT/VTT 본문을 명령으로 가져오기
+
+`captions.import`는 파일 경로가 아닌 SRT/VTT **본문 문자열**과 시간 기준을
+받습니다. 기존 브라우저의 일반 자막 파서로 자막을 파싱하고 결과를 검증한 뒤 자막 배열을
+한 번에 교체합니다. 기존 자막을 유지하려면 먼저 프로젝트를 보관하세요.
+
+| 필수 입력 | 의미 |
+|---|---|
+| `text` | SRT/VTT 문자열; API 최대 100,000 UTF-16 코드 단위 |
+| `basis:"source"` | 배속 적용 전 원본 영상의 초; 원본 영상 길이 기준 |
+| `basis:"timeline"` | 배속 적용 전 편집 타임라인의 초; 클립 길이 합계 기준 |
+
+**출력 시계로 가져오는 옵션은 없습니다.** 편집·배속을 적용해 내보낸 SRT/VTT를
+동일 프로젝트에 다시 넣는다고 원래 자막 상태가 복원되지 않습니다. 시간 기준을
+직접 확인하며, 자동 역배속 변환이나 원본 구간 역매핑을 기대하지 마세요.
+
+파서는 선택한 기준 길이까지 끝 시간을 자르고, 범위 밖이거나 유효한 양수 길이가
+없는 구간을 제외합니다. 마크업은 제거하고 알려진 문자 참조는 한 번만 해석합니다.
+화자·스타일·키워드 메타데이터는 가져오지 않습니다. 빈 파일이나 유효 자막이
+없는 입력은 기존 자막을 유지하며 오류를 반환합니다. 완전한 SRT/WebVTT 규격
+검사기는 아니며 잘못된 개별 구간을 건너뛸 수 있습니다.
+
+| 한도 | 명령과 브라우저의 차이 |
+|---|---|
+| CLI/MCP 본문 | 공통 JSON 입력 검증에 따라 100,000 UTF-16 코드 단위 |
+| 브라우저 자막 파일 | 기존 UTF-8 2 MiB 한도 유지 |
+| 공통 파서 | 10,000개 자막, 구간당 2,000 UTF-16 코드 단위; 전체 UTF-8 2 MiB |
+
+### SRT 파일을 명령 인수로 감싸기
+
+현재 폴더의 `captions.srt`가 원본 시계 기준이라고 확인한 경우의 POSIX 셸 예제입니다.
+`project.json`은 편집할 기존 프로젝트입니다. VTT도 같은 방식으로 본문을 읽습니다.
+
+```sh
+node --input-type=module <<'JS'
+import { readFile, writeFile } from 'node:fs/promises';
+const bytes = await readFile('captions.srt');
+if (bytes.byteLength > 2 * 1024 * 1024) throw new Error('Subtitle exceeds 2 MiB');
+const text = new TextDecoder('utf-8', {fatal:true}).decode(bytes);
+if (text.length > 100000) throw new Error('API subtitle text exceeds 100,000 UTF-16 code units');
+await writeFile('captions-import.args.json', JSON.stringify({text, basis:'source'}), {flag:'wx'});
+JS
+node cli/moment.mjs exec captions.import --project project.json --args-file captions-import.args.json --dry-run
+node cli/moment.mjs exec captions.import --project project.json --args-file captions-import.args.json --out captioned.json
+```
+
+SRT/VTT 파일 자체를 `--args-file`에 전달하지 마세요. 인수 파일은 `{text, basis}`
+JSON이며 명령은 파일을 읽거나 미디어를 업로드하지 않습니다. 성공 응답은
+프로젝트 문서가 아닌 `{updated:true, outputDuration, importedCaptions}`입니다.
+`importedCaptions`는 적용된 자막 수이며 MCP는 변경 후 `moment_project_get`
+문서를 별도로 저장해야 합니다.
 
 ### 클립 구간 분할
 

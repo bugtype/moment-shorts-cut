@@ -30,6 +30,10 @@ function dataSchema(command) {
       updated: {type: 'boolean'}, matches: {type: 'integer', minimum: 0},
       changedCaptions: {type: 'integer', minimum: 0, maximum: 10000},
     });
+    case 'captions.import': return record({
+      updated: { enum: [true] }, importedCaptions: { type: 'integer', minimum: 1, maximum: 10000 },
+      outputDuration: { type: 'number', minimum: 0 },
+    });
     case 'captions.export': return record({ format: { enum: ['srt', 'vtt'] }, text: {
       type: 'string', description: 'SRT or plain WebVTT in final output seconds after clips and speed; save this string, not the result envelope.',
     } });
@@ -150,6 +154,10 @@ function inputSchema(command) {
     fields.captionStroke.description = 'Stroke width in the same canvas-relative units as captionSize; highlight style suppresses the stroke.';
     fields.captionItalic.description = 'Whether shared caption text is italic.';
     fields.captionAnimation.description = 'Shared caption entry animation; visual only, not a subtitle-file timing change.';
+  }
+  if (command.name === 'captions.import') {
+    p.text.description = 'SRT or plain WebVTT text, not a path. Replaces all captions using the browser parser: clips cue ends to the chosen duration, skips invalid/empty/out-of-range cues, strips tags and decodes supported entities once. Not full subtitle-standard validation. Runtime limit is 100,000 UTF-16 code units plus the parser’s 2 MiB UTF-8 ceiling; each cue is at most 2,000 units and at most 10,000 cues are accepted.';
+    p.basis.description = 'Required clock: source means original media seconds; timeline means edited timeline seconds BEFORE speed. No automatic time conversion. captions.export uses output seconds AFTER speed, so importing it as timeline is not a speed-adjusted round trip.';
   }
   if (command.name === 'captions.text.replace') {
     p.find.description = 'Nonempty literal, case-sensitive text. No regex or Unicode normalization; matches do not overlap.';

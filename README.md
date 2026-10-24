@@ -157,6 +157,8 @@ still counts occurrences. Navigation does not seek playback, edit or save the pr
 
 **Timed cards:** `overlays.update` edits an existing card’s text, style or output-time interval by its real ID. It does not add/delete/reorder cards; [the example](INTEGRATIONS.md#실제-카드-id를-조회하는-cli-예제) reads the ID before editing.
 
+**Subtitle import for agents:** `captions.import` accepts SRT/VTT text with an explicit source or edited-timeline clock, both before speed, and replaces all captions. Its API string limit is 100,000 UTF-16 code units; browser file import remains 2 MiB. [File-wrapping example and timing rules](INTEGRATIONS.md#srtvtt-본문을-명령으로-가져오기) prevent confusing a path or final-output timestamps with import data.
+
 ### Choose an integration
 
 | Need | Use | Start here |

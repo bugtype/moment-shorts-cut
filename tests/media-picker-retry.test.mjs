@@ -35,7 +35,7 @@ test('the identical captured File can be retried after busy rejection through ea
   f.context.retryFile=file;
   vm.runInContext('transcribing=true;',f.context);await p.choose(file);assert.equal(p.input.value,'');
   vm.runInContext('transcribing=false;sources.setVideoFile=async file=>{if(file!==retryFile)throw new Error("lost captured file");};sources.waitForMedia=async()=>{};',f.context);
-  f.context.Audio=class {removeAttribute(){}load(){}};
+  f.context.Audio=class {duration=1;removeAttribute(){}load(){}};
   f.context.URL={createObjectURL:received=>{assert.equal(received,file);return 'blob:retry';},revokeObjectURL(){}};
   const pending=p.choose(file);assert.equal(p.input.value,'');assert.equal(typeof pending.then,'function');await pending;
   assert.equal(f.evaluate(kind==='video'?'sources.videoFile===retryFile':'sources.audioFile===retryFile'),true);

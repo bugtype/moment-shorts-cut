@@ -153,7 +153,7 @@ test('media persistence, recording and export ownership', async () => {
   vm.runInContext('loadAudio=savedRecordingAudio;delete globalThis.savedRecordingAudio;',context);context.setInterval=oldInterval;context.clearInterval=oldClearInterval;
   // Exercise the actual audio metadata handoff with synthetic bytes, never a native decoder.
   vm.runInContext('globalThis.savedRecordingMedia={waitForMedia:sources.waitForMedia,persistMedia,scheduleSave};globalThis.recordingWrites=0;persistMedia=()=>recordingWrites++;scheduleSave=()=>recordingWrites++;',context);
-  context.Audio=class {removeAttribute(){}load(){}};
+  context.Audio=class {duration=1;removeAttribute(){}load(){}};
   let settleMetadata,rejectMetadata;
   context.recordingMetadata=()=>new Promise((resolve,reject)=>{settleMetadata=resolve;rejectMetadata=reject;});
   vm.runInContext('sources.waitForMedia=recordingMetadata;',context);

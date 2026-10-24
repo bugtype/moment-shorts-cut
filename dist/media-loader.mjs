@@ -1,4 +1,5 @@
 import { message as msg } from './i18n.mjs';
+import { LocalizedError } from './core/validation.mjs';
 import { retimeOutputLayers } from './effects.mjs';
 
 // Owns guarded video/audio imports and recording hand-off. Project replacement and
@@ -100,6 +101,9 @@ export function createMediaLoader(app, {
                 revokeObjectURL(nextURL);
                 return;
             }
+            // Match normal restore without rejecting indefinite-duration recordings.
+            if (!(probe.duration > 0))
+                throw new LocalizedError(msg('errors.audioFormat'));
             app.pause();
             if (app.sources.audioURL)
                 revokeObjectURL(app.sources.audioURL);

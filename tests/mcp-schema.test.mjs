@@ -33,6 +33,7 @@ const inputs = {
   'project.update': { patch: { name: '스키마 검사' } },
   'project.import': { document: createProjectDocument(schemaProject) },
   'templates.list': {},
+  'template.export': {id:'schema-export',name:'Schema style'},
   'template.apply.document': {document:createTemplateDocument(saveCustomTemplate('스키마',createDemoProject()))},
   'template.apply': { templateId: 'reference', withContent: false },
   'captions.split': {captionIndex:0,textOffset:1},

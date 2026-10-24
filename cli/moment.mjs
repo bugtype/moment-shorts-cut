@@ -70,7 +70,7 @@ async function main(){
   if(opts['--dry-run'])result.preview=descriptor.mutates?createProjectDocument(state):result.data;
   else if(opts['--out']){
     const data=descriptor.mutates?createProjectDocument(state):result.data;
-    const text=command==='captions.export'?data.text:JSON.stringify(data,null,2)+'\n';
+    const text=command==='captions.export'?data.text:JSON.stringify(data,null,2)+(command==='template.export'?'':'\n');
     if(descriptor.mutates||command==='project.get')assertProjectFileSize(Buffer.byteLength(text,'utf8'));
     result.output=await writeOutput(opts['--out'],text,opts['--overwrite']);
   }

@@ -4,9 +4,6 @@ import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
 import { createInterface } from 'node:readline';
 import { fileURLToPath } from 'node:url';
-import {newCard} from '../dist/effects.mjs';
-import {saveCustomTemplate} from '../dist/template-catalog.mjs';
-import {createTemplateDocument} from '../dist/template-library.mjs';
 import { createDemoProject, createProjectDocument } from '../dist/core/project.mjs';
 
 async function withClient(work) {
@@ -72,7 +69,7 @@ async function withClient(work) {
 
 const saved = await withClient(async ({request, call, data}) => {
   const {tools} = await request('tools/list', {});
-  assert.equal(tools.length, 31);
+  assert.equal(tools.length, 32);
   assert.ok(tools.some(tool => tool.name === 'moment_project_import'));
   await data('moment_project_import', {document: createProjectDocument(createDemoProject())});
   await data('moment_project_update', {patch: {name: 'MCP 예제', speed: 2}});
@@ -81,6 +78,10 @@ const saved = await withClient(async ({request, call, data}) => {
   assert.equal(rejected.isError, true);
   assert.equal(rejected.structuredContent.error.code, 'INVALID_ARGUMENT');
   assert.deepEqual(await data('moment_project_get'), before, 'failed input must not change the project');
+  const exportedTemplate = await data('moment_template_export', {id:'mcp-reusable-style',name:'Reusable style'});
+  assert.equal(exportedTemplate.format, 'moment-template');
+  assert.equal(exportedTemplate.template.id, 'mcp-reusable-style');
+  assert.deepEqual(await data('moment_project_get'), before, 'template capture is read-only');
   const beforeInspection = await data('moment_project_get');
   const inspection = await data('moment_captions_inspect', {maxGraphemesPerSecond:1,limit:2});
   assert.equal(inspection.metric, 'non-whitespace-graphemes-per-second');
@@ -120,9 +121,8 @@ const saved = await withClient(async ({request, call, data}) => {
   const split = await data('moment_timeline_split', {clipIndex: 0, sourceTime: 4});
   assert.equal(split.outputDuration, 2);
   assert.deepEqual((await data('moment_project_get')).project.clips, [{start: 2, end: 4}, {start: 4, end: 6}]);
-  const styleSource = createDemoProject();
-  styleSource.overlays = [{...newCard(12), id: 'shared-card'}];
-  const portable = createTemplateDocument(saveCustomTemplate('공유 스타일', styleSource));
+  await data('moment_overlays_add', {id:'shared-card',patch:{text:'공유 카드',start:0,end:1}});
+  const portable = await data('moment_template_export', {id:'shared-style',name:'공유 스타일'});
   portable.template.settings.captionSize = 40;
   await data('moment_template_apply_document', {document: portable, withContent: true});
   assert.equal((await data('moment_project_get')).project.captionSize, 40);
@@ -192,4 +192,4 @@ await withClient(async ({data}) => {
   await data('moment_project_import', {document: saved});
   assert.deepEqual(await data('moment_project_get'), saved);
 });
-console.log(JSON.stringify({ok: true, tools: 31, recoveredFromInvalidInput: true, reimported: true, rendered: false}));
+console.log(JSON.stringify({ok: true, tools: 32, recoveredFromInvalidInput: true, reimported: true, rendered: false}));

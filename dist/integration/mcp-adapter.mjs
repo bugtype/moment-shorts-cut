@@ -1,3 +1,4 @@
+import { templateDocumentSchema } from '../template-library.mjs';
 import { API_VERSION, commandDefinitions } from '../core/commands.mjs';
 import { FORMAT, FORMAT_VERSION, captionSchema } from '../core/project.mjs';
 import { CommandError, assertJson, validate } from '../core/validation.mjs';
@@ -23,6 +24,7 @@ function dataSchema(command) {
   switch (command) {
     case 'project.batch': return record({updated:{type:'boolean'},operationCount:{type:'integer',minimum:1,maximum:20},outputDuration:{type:'number',minimum:0}});
     case 'project.get': return documentSchema;
+    case 'template.export': return templateDocumentSchema();
     case 'project.import': return record({ imported: { enum: [true] } });
     case 'templates.list': return {
       type: 'array', items: record({ id: text, name: text, category: text, description: text }),
@@ -102,6 +104,10 @@ function inputSchema(command) {
   };
   schema.required = ['projectId', ...schema.required];
   const p = schema.properties;
+  if (command.name === 'template.export') {
+    p.id.description = 'Caller-chosen stable template ID, nonblank, maximum 200 UTF-16 code units; preserved exactly and must not conflict with a built-in template. No browser-library entry is created.';
+    p.name.description = 'Required name, maximum 40 UTF-16 code units before trimming; surrounding whitespace is trimmed, blank names rejected. Returns a portable moment-template document in data, not a project or media file. Captures visual settings, title/credit text and cards using existing relative output timing; excludes captions, clips and media. Cards are clipped to the output range and sorted by start. Existing 256 KiB pretty-printed UTF-8 budget applies. Read-only, with no project/history/storage changes.';
+  }
   if (command.name === 'captions.list') {
     p.offset.description = 'Zero-based authored array offset, default 0, integer 0–10,000. At or beyond the current count returns an empty page and nextOffset:null. This is ordinary tool pagination, not an MCP tools/list cursor. Pages are independent reads; indices may change after edits.';
     p.limit.description = 'Maximum returned authored cues, default 20, integer 1–50. Returns exact text and optional metadata without sorting, normalization, clipping, repetition or speed conversion. Missing basis means source; source and timeline times are both BEFORE speed. nextOffset is the next authored index or null. Read-only; does not change project/history.';

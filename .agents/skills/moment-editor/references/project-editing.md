@@ -498,6 +498,23 @@ template schema and 256 KiB limit before saving; a deleted target is not recreat
 This is not a CLI/MCP browser-library operation and
 is distinct from applying an exported template document to a project.
 
+## Capture the current composition as a portable template
+
+Use read-only `template.export` / `moment_template_export` with required `id` and
+`name` (MCP also needs `projectId:"session"`). ID is a nonblank string up to 200
+UTF-16 code units, preserved exactly and not a built-in ID. Name is at most 40 code
+units before trimming and must remain nonblank. Save result `data` as the existing
+`moment-template` version-1 document, not the response envelope; maximum 256 KiB.
+
+It captures visual style, title/credit/card content and relative output timing,
+not dialogue captions, clips or media. Existing capture clips cards to the output
+range, drops outside cards and orders by start; null title/credit ends remain null.
+Review text, global keywords and speaker labels before sharing. No project/library
+write, history or batch operation occurs. A template is not a project backup.
+Use `template.apply.document` to apply it, not `project.import`.
+[Runnable CLI/service recipes and complete limits](../../../../docs/MCP.md#export-the-current-composition-as-a-template)
+show separate protected output paths and the required apply-arguments wrapper.
+
 ## Apply a supplied template document
 
 Use CLI `template.apply.document` or MCP `moment_template_apply_document` for an

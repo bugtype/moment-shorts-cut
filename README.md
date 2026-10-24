@@ -63,61 +63,11 @@ The header folder icon opens **Project files**, including on compact screens. **
 
 Settings files must fit **10 MiB (10,485,760 UTF-8 bytes)** for both save and restore; oversized output is rejected, not truncated. Keep your original video and audio separately: **the JSON does not contain media files**.
 
-**Preview shortcuts:** unmodified `,` / `.` move backward/forward by 1/30 of an
-output second to inspect cut or caption boundaries. Arrow keys still move one
-pre-speed timeline second. The fine step uses the 30 fps output reference—not
-source-frame accuracy or frame-grid snapping—and retains any starting subframe
-offset. It is ignored in editing fields, during IME composition, with modifier
-keys or while busy.
-
-**Review cut boundaries:** use **Previous cut / Next cut** beside the scrubber to
-pause and move to the strictly previous/next edited clip boundary, including the
-start and end. At a boundary, the next action goes to the adjacent boundary, not
-back to the same one. Unmodified `[` / `]` do the same; they are ignored in
-editing/form controls, during IME composition, with a dialog open or while blocked
-by busy/recovery state. At an endpoint with no boundary in that direction, nothing
-changes, including playback. Speed changes displayed output times, not which cuts are
-visited. Navigation does not select another clip, edit, save or add undo history;
-this does not promise source-frame-accurate seeking.
-
-**Fill trim values from the playhead:** select a clip and move playback inside that
-selected occurrence. Use the target icon beside start/end (**Use playhead for
-start / Use playhead for end**). It pauses and fills only that field with the
-source time, keeping its precision and the opposite draft unchanged. It does not
-seek, edit, save or add history until you explicitly **Apply selected range**
-(or **Apply range** in the **Frame** panel). Repeated source clips use the selected occurrence;
-speed does not change the captured source value. Endpoint captures may leave an
-invalid range: correct it before applying; the 0.1-second minimum still applies.
-Outside the selected occurrence, the draft is left unchanged and a message asks
-you to move inside it. This is not a source-frame-accuracy guarantee.
-
-**Set an exact speed:** keep using the preview speed presets, or choose **Custom…**,
-enter a finite multiplier from **0.25 to 4**, then **Apply**. The current value is
-prefilled without rounding; non-preset values remain visible in the speed control.
-This changes the whole project's preview/output speed, not one clip. Existing
-speed-edit rules retime titles, credits and timed cards; stored clip/caption times
-and audio-offset data keep their existing clocks. Canceling or applying the same
-value does not edit, save, pause or add history. Reopen the dialog if the project
-or media changed. Pitch, codec behavior and frame accuracy are not guaranteed.
-
-**Go to an output time:** click the preview time display (**Go to output time**),
-enter seconds such as `2.5`, `01:02.5` or `00:01:02.5`, then choose **Go**.
-The value uses output time **after speed**, from zero through the output end.
-Confirming pauses and seeks; cancel leaves playback unchanged. It does not edit,
-save or add undo history. Reopen if the project or media source changed; busy/recovery guards apply.
-This is time navigation, not frame/sample-accurate seeking.
-
-In the **Frame** panel, enable **Loop full preview**, then start playback. This session-only
-choice defaults off and resets on reload; it never changes project JSON, saves or undo history.
-
-| Playback | Loop behavior |
+| Next task | Read only what you need |
 |---|---|
-| Full preview | Restarts from the beginning; enabling it while paused does not start playback |
-| Timed-card preview | Still stops at that card’s end |
-| Export | Always one pass, regardless of the preview setting |
-
-Turning it off lets the current pass finish, but cancels a pending restart. Manual
-pause/seek, hiding the tab or changing media takes priority. Seamless playback is not guaranteed.
+| Navigate the preview | [Fine steps, cut boundaries and exact output time](#navigate-the-preview) |
+| Edit timing | [Capture trim values and set an exact speed](#edit-timing-from-the-preview) |
+| Repeat playback | [Session-only loop, card preview and export boundaries](#repeat-the-full-preview) |
 
 ## Features
 
@@ -173,6 +123,72 @@ requires room in the 20-template library. Invalid files or failed saves leave th
 library and current project unchanged. [File contract and recovery](INTEGRATIONS.md#개별-사용자-템플릿-파일)
 cover format/version checks and concurrent selections. This browser-library
 workflow remains separate from CLI/MCP: they can [apply an exported template document](INTEGRATIONS.md#내보낸-템플릿을-climcp로-적용) to the current project, but cannot list or save the browser’s custom-template library.
+
+CLI/MCP can also [export the current composition as a portable template](docs/MCP.md#export-the-current-composition-as-a-template) with `template.export`, without changing the project or browser library. This captures style and saved title/credit/card content, not captions or media.
+
+## Preview and timing reference
+
+### Navigate the preview
+
+**Preview shortcuts:** unmodified `,` / `.` move backward/forward by 1/30 of an
+output second to inspect cut or caption boundaries. Arrow keys still move one
+pre-speed timeline second. The fine step uses the 30 fps output reference—not
+source-frame accuracy or frame-grid snapping—and retains any starting subframe
+offset. It is ignored in editing fields, during IME composition, with modifier
+keys or while busy.
+
+**Review cut boundaries:** use **Previous cut / Next cut** beside the scrubber to
+pause and move to the strictly previous/next edited clip boundary, including the
+start and end. At a boundary, the next action goes to the adjacent boundary, not
+back to the same one. Unmodified `[` / `]` do the same; they are ignored in
+editing/form controls, during IME composition, with a dialog open or while blocked
+by busy/recovery state. At an endpoint with no boundary in that direction, nothing
+changes, including playback. Speed changes displayed output times, not which cuts are
+visited. Navigation does not select another clip, edit, save or add undo history;
+this does not promise source-frame-accurate seeking.
+
+**Go to an output time:** click the preview time display (**Go to output time**),
+enter seconds such as `2.5`, `01:02.5` or `00:01:02.5`, then choose **Go**.
+The value uses output time **after speed**, from zero through the output end.
+Confirming pauses and seeks; cancel leaves playback unchanged. It does not edit,
+save or add undo history. Reopen if the project or media source changed; busy/recovery guards apply.
+This is time navigation, not frame/sample-accurate seeking.
+
+### Edit timing from the preview
+
+**Fill trim values from the playhead:** select a clip and move playback inside that
+selected occurrence. Use the target icon beside start/end (**Use playhead for
+start / Use playhead for end**). It pauses and fills only that field with the
+source time, keeping its precision and the opposite draft unchanged. It does not
+seek, edit, save or add history until you explicitly **Apply selected range**
+(or **Apply range** in the **Frame** panel). Repeated source clips use the selected occurrence;
+speed does not change the captured source value. Endpoint captures may leave an
+invalid range: correct it before applying; the 0.1-second minimum still applies.
+Outside the selected occurrence, the draft is left unchanged and a message asks
+you to move inside it. This is not a source-frame-accuracy guarantee.
+
+**Set an exact speed:** keep using the preview speed presets, or choose **Custom…**,
+enter a finite multiplier from **0.25 to 4**, then **Apply**. The current value is
+prefilled without rounding; non-preset values remain visible in the speed control.
+This changes the whole project's preview/output speed, not one clip. Existing
+speed-edit rules retime titles, credits and timed cards; stored clip/caption times
+and audio-offset data keep their existing clocks. Canceling or applying the same
+value does not edit, save, pause or add history. Reopen the dialog if the project
+or media changed. Pitch, codec behavior and frame accuracy are not guaranteed.
+
+### Repeat the full preview
+
+In the **Frame** panel, enable **Loop full preview**, then start playback. This session-only
+choice defaults off and resets on reload; it never changes project JSON, saves or undo history.
+
+| Playback | Loop behavior |
+|---|---|
+| Full preview | Restarts from the beginning; enabling it while paused does not start playback |
+| Timed-card preview | Still stops at that card’s end |
+| Export | Always one pass, regardless of the preview setting |
+
+Turning it off lets the current pass finish, but cancels a pending restart. Manual
+pause/seek, hiding the tab or changing media takes priority. Seamless playback is not guaranteed.
 
 ## Example results
 

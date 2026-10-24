@@ -30,10 +30,12 @@ export function readTemplateLibrary(templatesRaw,favoritesRaw){
 
 
 export const MAX_TEMPLATE_FILE_BYTES = 256 * 1024;
-const templateDocumentSchema = object({
+const templateDocumentShape = object({
   format: choice('moment-template'), formatVersion: choice(1),
   template: {...templateSchema, additionalProperties: false},
 }, ['format', 'formatVersion', 'template']);
+
+export function templateDocumentSchema() { return structuredClone(templateDocumentShape); }
 
 // Portable files are a deliberately closed format. Do not carry unrelated hidden
 // project/media fields through permissive legacy browser-storage objects.
@@ -67,7 +69,7 @@ function validatePortableTemplate(template) {
 export function createTemplateDocument(template) {
   const document = {format: 'moment-template', formatVersion: 1, template: structuredClone(template)};
   assertJson(document);
-  validate(templateDocumentSchema, document, 'document');
+  validate(templateDocumentShape, document, 'document');
   validatePortableTemplate(document.template);
   if (new TextEncoder().encode(JSON.stringify(document, null, 2)).byteLength > MAX_TEMPLATE_FILE_BYTES)
     fail(msg('errors.templateBytes'));
@@ -76,7 +78,7 @@ export function createTemplateDocument(template) {
 
 export function readTemplateDocument(document) {
   assertJson(document);
-  validate(templateDocumentSchema, document, 'document');
+  validate(templateDocumentShape, document, 'document');
   // Validate and detach the source; importing into a library assigns a new ID.
   return createTemplateDocument(document.template).template;
 }

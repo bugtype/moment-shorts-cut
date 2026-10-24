@@ -1,5 +1,7 @@
 // Product-owned diagnostics and progress. Project-authored text is never translated.
 const entries = [
+  ["errors.exportTemplateName","템플릿 이름을 입력하세요.","Enter a template name.","请输入模板名称。"],
+  ["errors.exportTemplateId","템플릿 ID는 공백만으로 지정할 수 없습니다.","Template ID must not be blank.","模板 ID 不能为空白。"],
   ["errors.insertCaptionIndex","현재 자막 목록 안의 삽입 위치 또는 맨 끝 위치를 정수로 입력하세요.","Enter an integer insertion position within the current caption list, including its end.","请输入当前字幕列表中的整数插入位置，也可选择列表末尾。"],
   ["errors.removeCaptionIndex","삭제할 자막의 현재 번호를 정수로 입력하세요.","Enter the current integer index of the caption to remove.","请输入要删除字幕的当前整数索引。"],
   ["errors.insertCaptionClock","새 자막의 시작·끝을 선택한 배속 전 시간 기준 안에서 확인하세요.","Check the new caption's start and end within its chosen pre-speed clock.","请检查新字幕的起止时间是否在所选变速前时间范围内。"],

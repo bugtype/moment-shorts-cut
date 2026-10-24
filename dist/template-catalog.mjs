@@ -83,14 +83,14 @@ export function applyTemplate(project, template, withContent = false) {
   project.overlays = cards.map(([label,text,detail,a,b],i) => ({...newCard(total),id:`${template.id}-${i}-${Date.now()}`,label,text,detail,start:a*total,end:b*total,accent:template.accent,background:template.id==='recipe'?'#283423':'#141a22',y:.16,role:'headline',presentation:'plain',size:template.id==='recipe'?32:36,stroke:3,animation:template.id==='cinema'?'fade':'slide',kind:template.id==='quiz'&&i===0?'countdown':'card'}));
 }
 
-export function saveCustomTemplate(name, project) {
+export function saveCustomTemplate(name, project, {id} = {}) {
   const total = project.clips.reduce((sum, clip) => sum + clip.end - clip.start, 0) / project.speed;
   const settings = visualPreset(project);
   for (const layer of [settings.design.title, settings.design.credit]) {
     layer.start = Math.min(total, Math.max(0, layer.start)) / total;
     if (layer.end != null) layer.end = Math.min(total, layer.end) / total;
   }
-  return { id:`custom-${newCard(total).id}`,custom:true,relativeTiming:true,name:name.trim().slice(0,40),category:'내 템플릿',accent:project.captionAccent,tag:'내가 저장한 구성',
+  return { id:id ?? `custom-${newCard(total).id}`,custom:true,relativeTiming:true,name:name.trim().slice(0,40),category:'내 템플릿',accent:project.captionAccent,tag:'내가 저장한 구성',
     title:[...project.design.title.lines],description:'이 브라우저에 저장한 스타일과 장면 카드입니다.',flow:['저장한 스타일','시간에 맞춘 카드'],settings,
     cards:structuredClone(projectStructure(project)).map(card=>({...card,start:card.start/total,end:card.end/total})) };
 }

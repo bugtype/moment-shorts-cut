@@ -49,7 +49,7 @@ its supported version, `2025-11-25`, even if the proposed version differs; a cli
 that cannot support that version should disconnect, not continue with another
 wire format. `ping` is supported. Initialize only once per process.
 
-All thirty-one tools require **`projectId: "session"`**. Each process owns one independent
+All thirty-two tools require **`projectId: "session"`**. Each process owns one independent
 in-memory project, initially the demo. This value is neither a path nor a credential.
 Other project IDs return a tool error. A second client process does not share state.
 
@@ -102,15 +102,18 @@ document. For file-oriented work with protected outputs and `--dry-run`, use the
 Every row below also requires `projectId`. Discover the actual `inputSchema` and
 `outputSchema` with `tools/list`; this overview is not an alternate validator.
 The output schema distinguishes success and error envelopes and each command's
-result shape. Nested project state is intentionally an open object there; the
-shared project validator still checks its version, required fields, types and
-ranges at runtime. Schema discovery does not bypass that validation.
+result shape. Nested project state and some template settings/card shapes remain
+generic in these schemas. Shared project and portable-template validators enforce
+the deeper version, known-field, required-field, type and range rules at runtime.
+Schema discovery alone does not establish portable-document validity or bypass
+that validation.
 
 ### Read and export
 
 | Tool | Editing input | Successful `structuredContent.data` |
 |---|---|---|
 | `moment_project_get` | none | Full portable project document |
+| `moment_template_export` | `id`, `name` | Portable `{format:"moment-template", formatVersion:1, template}` document |
 | `moment_templates_list` | none | Built-in template summaries: `id`, `name`, `category`, `description` |
 | `moment_captions_export` | optional `format: "srt"`, `"vtt"` or `"txt"` | `{format, text}` with the selected format |
 | `moment_captions_list` | optional `offset`, `limit` | Authored cue page with current array indexes |
@@ -329,7 +332,7 @@ the example. Discover exact input fields in the [tool catalog](#tool-catalog).
 | Captions | [Inspect timing density](#inspect-caption-timing-density) · [Import](#import-subtitle-text-with-an-explicit-clock) · [Split](#split-one-caption-at-a-text-boundary) · [Merge](#merge-two-adjacent-authored-captions) · [Insert/remove](#insert-or-remove-one-authored-caption) · [Edit one cue](#edit-one-authored-caption) · [Correct text](#correct-caption-text-without-replacing-cues) · [Shift timing](#shift-caption-timing-without-replacing-text) · [Style](#adjust-global-caption-appearance) |
 | Timeline | [Split a clip](#split-one-clip-occurrence) · [Repeat a clip](#repeat-one-clip-occurrence) |
 | Composition | [Credit](#set-a-source-credit-independently) · [Effects](#adjust-video-effects-independently) · [Edit a card](#edit-an-existing-timed-card) · [Add/remove cards](#create-scripted-cards-without-importing-a-whole-project) · [Stacking](#change-card-stacking) |
-| Grouped/template edits | [One commit](#apply-related-edits-in-one-commit) · [Apply a template file](#apply-an-exported-custom-template) |
+| Grouped/template edits | [One commit](#apply-related-edits-in-one-commit) · [Export a composition](#export-the-current-composition-as-a-template) · [Apply a template file](#apply-an-exported-custom-template) |
 
 ### Apply related edits in one commit
 
@@ -373,6 +376,67 @@ still owe atomic storage and conflict checks; this is not a cross-writer or exte
 storage transaction. An uncertain commit or lost response requires a fresh
 `moment_project_get` before retrying, especially when the batch contains duplication
 or splitting. See the [CLI dry-run and failure example](../INTEGRATIONS.md#여러-편집을-한-번에-반영).
+
+### Export the current composition as a template
+
+Call `moment_template_export` to capture the current session’s composition without
+editing the project or writing the browser library:
+
+```json
+{"projectId":"session","id":"custom-my-style","name":"My style"}
+```
+
+Save **`structuredContent.data`** as a separate `.moment-template.json` file, not
+the MCP envelope. The existing `moment_template_apply_document` can apply it later.
+
+| Contract | Behavior |
+|---|---|
+| `id` | Required nonblank string, at most 200 UTF-16 code units; preserved exactly, cannot collide with a built-in template ID |
+| `name` | Required nonblank string, at most 40 UTF-16 code units before trimming; trimmed, never silently truncated |
+| Result | Existing `moment-template` format version 1; maximum 256 KiB of pretty-printed UTF-8 JSON |
+| Captured | Visual settings, title/credit text, timed cards, global keywords and speaker labels/colors |
+| Excluded | Dialogue captions, clip list, source video/audio; not a full project or library backup |
+| Failure | Invalid input or portable-document validation returns `INVALID_ARGUMENT`; no partial project/library change |
+
+Timing follows existing custom-template capture rules: title/credit times become
+relative to output duration (null ends stay null); cards intersecting the output
+range are clipped, outside cards are omitted, remaining cards are sorted by start
+and normalized. This is not a byte-for-byte archive of the card array. Review saved
+text before sharing. The tool neither persists a browser template nor adds history;
+it is read-only and excluded from `project.batch`.
+
+Run this from the repository root; existing output files are protected by default:
+
+```sh
+node cli/moment.mjs init --out template-source.json
+node cli/moment.mjs exec template.export --project template-source.json --json '{"id":"custom-my-style","name":"My style"}' --out my-style.moment-template.json
+node --input-type=module <<'JS'
+import {readFileSync,writeFileSync} from 'node:fs';
+const document=JSON.parse(readFileSync('my-style.moment-template.json','utf8'));
+writeFileSync('apply-my-style.json',JSON.stringify({document,withContent:false}),{flag:'wx'});
+JS
+node cli/moment.mjs exec template.apply.document --project template-source.json --args-file apply-my-style.json --out styled-project.json
+```
+
+The export’s `--out` contains the returned template document, not a project.
+Apply arguments wrap it as `{document,withContent}`; do not pass the bare template
+file as an arguments file. `withContent:false` preserves authored text/cards as
+explained below.
+
+A dependency-free service call, with no file writes or media access:
+
+```sh
+node --input-type=module <<'JS'
+import {createDemoProject} from './dist/core/project.mjs';
+import {createEditorService} from './dist/integration/editor-service.mjs';
+const project=createDemoProject();
+const service=createEditorService({getProject:()=>project,
+  commitProject:()=>{throw new Error('Read-only export must not commit');}});
+const result=await service.execute('template.export',{id:'custom-my-style',name:'My style'});
+if(!result.ok) throw new Error(result.error.message);
+console.log(JSON.stringify(result.data));
+JS
+```
 
 ### Apply an exported custom template
 

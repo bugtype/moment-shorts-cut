@@ -1,9 +1,9 @@
 import { message as msg } from '../i18n.mjs';
 import { inspectCaptions } from './caption-inspection.mjs';
 import { shiftCaptionTiming } from './caption-timing.mjs';
-import { readTemplateDocument } from '../template-library.mjs';
+import { readTemplateDocument, createTemplateDocument } from '../template-library.mjs';
 import { replaceCaptionText } from './caption-text.mjs';
-import { TEMPLATES, applyTemplate } from '../template-catalog.mjs';
+import { TEMPLATES, applyTemplate, saveCustomTemplate } from '../template-catalog.mjs';
 import { newCard, retimeOutputLayers, splitCaptionAtOffset } from '../effects.mjs';
 import { MAX_CAPTIONS, parseSubtitles } from '../captions.mjs';
 import { outputDuration, timelineDuration, validateProject, createProjectDocument, readProjectDocument, projectSubtitles, clipSchema, captionSchema, MAX_CLIPS } from './project.mjs';
@@ -42,6 +42,7 @@ const definitions=[
   command('project.update','이름, 화면 비율, 구도, 배속과 볼륨을 수정합니다.',object({patch:patchSchema},['patch']),true),
   command('effects.update','움직임·색감·클립 시작과 끝 효과·진행 막대의 지정한 설정만 수정합니다.',object({patch:effectsSchema},['patch']),true),
   command('project.import','검증된 편집 설정 JSON을 적용합니다. 미디어 파일은 별도로 연결해야 합니다.',object({document:{type:'object'}},['document']),true),
+  command('template.export','현재 스타일·제목·크레딧·장면 카드를 재사용 가능한 템플릿 파일로 읽습니다. 미디어와 자막은 포함하지 않습니다.',object({id:{...string(200),minLength:1},name:{...string(40),minLength:1}},['id','name'])),
   command('templates.list','기본 템플릿 목록을 읽습니다.',object()),
   command('template.apply','기본 템플릿을 적용합니다. withContent=true는 제목과 구간 문구를 예시로 교체합니다.',object({templateId:string(100),withContent:boolean},['templateId']),true),
   command('template.apply.document','템플릿 파일의 스타일을 적용합니다. withContent=true는 제목·크레딧·장면 카드도 교체하며 자막은 유지합니다.',object({document:{type:'object'},withContent:boolean},['document']),true),
@@ -104,6 +105,13 @@ export function prepareCommand(project,name,args={}){
       }
     }
     return {...(updated?{project:next}:{}),data:{updated,operationCount:args.operations.length,outputDuration:outputDuration(next)}};
+  }
+  if(name==='template.export'){
+    if(!args.name.trim())fail(msg('errors.exportTemplateName'),'arguments.name');
+    if(!args.id.trim())fail(msg('errors.exportTemplateId'),'arguments.id');
+    const template=saveCustomTemplate(args.name,project,{id:args.id});
+    template.description='프로젝트에서 캡처한 스타일과 장면 카드입니다.';
+    return {data:createTemplateDocument(template)};
   }
   if(name==='project.get')return {data:createProjectDocument(project)};
   if(name==='captions.list'){

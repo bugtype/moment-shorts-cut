@@ -1,3 +1,4 @@
+import { createClipMove } from './clip-move.mjs';
 import { createPreviewExport } from './preview-export.mjs';
 import { createCaptionNavigation } from './caption-navigation.mjs';
 import { createSpeedDialog } from './speed-dialog.mjs';
@@ -291,6 +292,7 @@ const app = {
     changeSpeed: value => speedDialog.change(value), openSeek: () => seekDialog.open(), showHelp: () => showHelp(), toast: message => toast(message),
     modalOpen: (title, body, footer) => modalOpen(title, body, footer),
     confirmReset: () => confirmReset(), download: (blob, name) => download(blob, name),
+    openClipMove: trigger => clipMove.open(trigger), moveClip: index => clipMove.move(index),
     bindTrimDrafts: options => editingActions.bindTrimDrafts(options),
     trim: (start, end) => trim(start, end), split: () => split(), duplicate: () => editingActions.duplicate(), undo: redo => undo(redo),
     generateCaptions: () => generateCaptions(), downloadSubtitles: format => downloadSubtitles(format),
@@ -341,6 +343,7 @@ const exportFlow = createExportFlow(app, {
     fontsReady: () => document.fonts.ready,
 });
 const editingActions = createEditingActions(app);
+const clipMove = createClipMove(app);
 const captionFlow = createCaptionFlow(app);
 
 sample.onload = () => {

@@ -46,6 +46,7 @@ const definitions=[
   command('templates.list','기본 템플릿 목록을 읽습니다.',object()),
   command('template.apply','기본 템플릿을 적용합니다. withContent=true는 제목과 구간 문구를 예시로 교체합니다.',object({templateId:string(100),withContent:boolean},['templateId']),true),
   command('template.apply.document','템플릿 파일의 스타일을 적용합니다. withContent=true는 제목·크레딧·장면 카드도 교체하며 자막은 유지합니다.',object({document:{type:'object'},withContent:boolean},['document']),true),
+  command('timeline.move','클립을 지정한 최종 위치로 이동합니다. 원본 구간과 자막·출력 레이어의 시간 값은 유지합니다.',object({clipIndex:{type:'integer',minimum:0,maximum:MAX_CLIPS-1},toIndex:{type:'integer',minimum:0,maximum:MAX_CLIPS-1}},['clipIndex','toIndex']),true),
   command('timeline.duplicate','선택한 클립의 원본 구간을 바로 뒤에 복제합니다. 출력 글자 시간은 편집 길이에 비례 조정됩니다.',object({clipIndex:{type:'integer',minimum:0,maximum:MAX_CLIPS-1}},['clipIndex']),true),
   command('timeline.split','지정한 클립을 원본 영상 시간에서 둘로 나눕니다. 각 구간은 0.1초 이상이어야 합니다.',object({clipIndex:{type:'integer',minimum:0,maximum:MAX_CLIPS-1},sourceTime:number(0,86400)},['clipIndex','sourceTime']),true),
   command('timeline.replace','원본 영상 시간 기준 클립 목록을 교체합니다.',object({clips:array(clipSchema,MAX_CLIPS,1)},['clips']),true),
@@ -74,7 +75,7 @@ const definitions=[
 // separate browser media-relink guard; reads and provider jobs never participate.
 const batchCommands = [
   'project.update','effects.update','template.apply','template.apply.document',
-  'timeline.duplicate','timeline.split','timeline.replace','credit.update','title.update',
+  'timeline.move','timeline.duplicate','timeline.split','timeline.replace','credit.update','title.update',
   'overlays.move','overlays.add','overlays.remove','overlays.update',
   'captions.import','captions.split','captions.merge','captions.replace','captions.update','captions.insert','captions.remove',
   'captions.text.replace','captions.timing.shift','captions.style.update',
@@ -132,6 +133,17 @@ export function prepareCommand(project,name,args={}){
     captions=captions.map(caption=>({...caption,basis:args.basis}));
     const prepared=prepareCommand(project,'captions.replace',{captions});
     return {...prepared,data:{...prepared.data,importedCaptions:captions.length}};
+  }
+  if(name==='timeline.move'){
+    for(const key of ['clipIndex','toIndex'])
+      if(!Number.isInteger(args[key])||args[key]<0||args[key]>=project.clips.length)
+        fail(msg('errors.moveClipIndex'),`arguments.${key}`);
+    if(args.clipIndex===args.toIndex)return {data:{updated:false,outputDuration:outputDuration(project)}};
+    const next=structuredClone(project),[clip]=next.clips.splice(args.clipIndex,1);
+    next.clips.splice(args.toIndex,0,clip);
+    // Reordering preserves numeric layer times, even if summation order changes a last bit.
+    validateProject(next);
+    return {project:next,data:{updated:true,outputDuration:outputDuration(next)}};
   }
   if(name==='timeline.duplicate'){
     if(!Number.isInteger(args.clipIndex)||args.clipIndex<0||args.clipIndex>=project.clips.length)

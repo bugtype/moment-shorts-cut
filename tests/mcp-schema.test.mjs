@@ -38,6 +38,7 @@ const inputs = {
   'template.apply': { templateId: 'reference', withContent: false },
   'captions.split': {captionIndex:0,textOffset:1},
   'captions.merge': {captionIndex:0},
+  'timeline.move': {clipIndex:0,toIndex:0},
   'timeline.duplicate': {clipIndex:0},
   'timeline.split': {clipIndex:0,sourceTime:6},
   'timeline.replace': { clips: [{ start: 0, end: 12 }] },

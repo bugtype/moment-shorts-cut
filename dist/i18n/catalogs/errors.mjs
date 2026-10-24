@@ -1,5 +1,6 @@
 // Product-owned diagnostics and progress. Project-authored text is never translated.
 const entries = [
+  ["errors.moveClipIndex","이동할 클립과 대상 위치는 현재 클립 목록의 정수 인덱스여야 합니다.","The clip and destination must be integer indices in the current clip array.","片段和目标位置必须是当前片段数组中的整数索引。"],
   ["errors.exportTemplateName","템플릿 이름을 입력하세요.","Enter a template name.","请输入模板名称。"],
   ["errors.exportTemplateId","템플릿 ID는 공백만으로 지정할 수 없습니다.","Template ID must not be blank.","模板 ID 不能为空白。"],
   ["errors.insertCaptionIndex","현재 자막 목록 안의 삽입 위치 또는 맨 끝 위치를 정수로 입력하세요.","Enter an integer insertion position within the current caption list, including its end.","请输入当前字幕列表中的整数插入位置，也可选择列表末尾。"],

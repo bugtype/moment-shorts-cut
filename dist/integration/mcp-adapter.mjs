@@ -22,6 +22,7 @@ const mediaReference = {
 
 function dataSchema(command) {
   switch (command) {
+    case 'timeline.move': return record({updated:{type:'boolean'},outputDuration:{type:'number',minimum:0}});
     case 'project.batch': return record({updated:{type:'boolean'},operationCount:{type:'integer',minimum:1,maximum:20},outputDuration:{type:'number',minimum:0}});
     case 'project.get': return documentSchema;
     case 'template.export': return templateDocumentSchema();
@@ -131,6 +132,10 @@ function inputSchema(command) {
   if (command.name === 'template.apply.document') {
     p.document.description = 'Complete moment-template version 1 document, not a project or path. Strict known fields and a 256 KiB pretty-printed UTF-8 limit apply. Its ID becomes project.templateId; no browser-library save, ID reassignment or media access occurs.';
     p.withContent.description = 'Default false preserves title lines, credit text, existing scene cards and captions. Styles, effects, global keywords, speaker names/colors and title/credit timing can change. True also replaces title/credit text and scene cards, never captions. Relative title/credit timing scales when relativeTiming=true; imported card times scale by current output duration whenever content is applied, including supported legacy templates.';
+  }
+  if (command.name === 'timeline.move') {
+    p.clipIndex.description = 'Existing zero-based authored clip index. Read the latest project before editing; repeated identical ranges remain distinct indexed occurrences.';
+    p.toIndex.description = 'Final zero-based position after removal and insertion, within the current clip array. Same index is a no-op. Source intervals, captions, audio offsets and numeric output-layer times stay unchanged; no proportional retiming.';
   }
   if (command.name === 'timeline.duplicate') {
     p.clipIndex.description = 'Existing zero-based clip occurrence index. Copies its source interval immediately after it, maximum 1,000 clips. No media copy. Source caption occurrences repeat; timeline-basis captions and audioOffset stay absolute before speed. Title/credit/card times scale proportionally with output duration, preserving null ends, exactly as timeline.replace.';

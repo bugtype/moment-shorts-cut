@@ -284,6 +284,11 @@ const entries = {
   "panels.occurrenceClip": ["클립","Clip","片段"],
   "panels.viewCaptionOccurrence": ["자막의 {index}번째 위치 보기","View caption occurrence {index}","查看字幕第 {index} 次出现的位置"],
   "panels.occurrencePage": ["{current} / {total} 페이지","Page {current} of {total}","第 {current} 页，共 {total} 页"],
+  "panels.moveClip": ["클립 이동…","Move clip…","移动片段…"],
+  "panels.clipDestination": ["이동할 위치 (1–{total})","Destination position (1–{total})","目标位置（1–{total}）"],
+  "panels.move": ["이동","Move","移动"],
+  "panels.clipMoveStale": ["편집 내용이나 선택한 클립이 바뀌었습니다. 다시 열어 주세요.","The edit or selected clip changed. Open this dialog again.","剪辑或所选片段已更改。请重新打开此对话框。"],
+  "panels.clipMoveRange": ["1부터 {total}까지의 정수 위치를 입력하세요.","Enter a whole position from 1 to {total}.","请输入 1 到 {total} 之间的整数位置。"],
 };
 
 export const messages = Object.fromEntries(['ko', 'en', 'zh-CN'].map((locale, index) => [

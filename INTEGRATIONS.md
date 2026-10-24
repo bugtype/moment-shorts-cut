@@ -190,6 +190,7 @@ JavaScript에서 직접 호출할 때도 JSON으로 왕복 가능한 값을 전�
 |---|---|---|
 | `timeline.replace` | `clips: [{start,end}]` | 클립 구간/순서 교체 |
 | `timeline.split` | `clipIndex`, `sourceTime` | 지정 클립 구간 분할; `{updated:true, outputDuration}` |
+| `timeline.move` | `clipIndex`, `toIndex` | 최종 배열 위치로 이동; `{updated:boolean, outputDuration}` |
 | `timeline.duplicate` | `clipIndex` | 선택 구간 바로 뒤에 복제; `{updated:true, outputDuration}` |
 | `title.update` | `patch` | 기본 제목과 스타일 수정 |
 | `credit.update` | `patch` | 출처 크레딧 수정; `{updated:true, outputDuration}` |
@@ -351,6 +352,35 @@ node cli/moment.mjs exec timeline.split --project split-source.json --json '{"cl
 분할 경계를 가로지르는 원본 자막은 출력에서 인접한 두 구간으로 나뉠 수
 있으므로 **SRT/VTT 바이트가 이전과 같다는 뜻은 아닙니다.** 기존 UI 분할과
 동일한 동작이며 UI에서는 한 번에 실행 취소할 수 있습니다.
+
+### 클립을 지정한 위치로 이동
+
+`timeline.move`는 현재 `clips`의 한 구간을 **최종 배열 위치**로 옮깁니다.
+먼저 `project.get`으로 현재 순서를 읽으세요. 같은 원본 범위가 반복되어도 각 배열
+위치는 별개이며 안정된 클립 ID가 아닙니다.
+
+| 입력·결과 | 계약 |
+|---|---|
+| `clipIndex`, `toIndex` | 필수 정수 0–999, 두 위치 모두 현재 배열 안에 있어야 함 |
+| 목적지 | 삭제 전 삽입 지점이 아닌 이동 후 최종 위치 |
+| 결과 | `{updated:boolean,outputDuration}`; 같은 위치면 false, 반영·기록 없음 |
+| 보존 | 구간 원본 범위·자막 배열/메타데이터·오디오 오프셋·제목/크레딧/카드 시간 수치 |
+| 실패 | 잘못된 위치는 `INVALID_ARGUMENT`; 일부만 이동하지 않음 |
+
+```sh
+node cli/moment.mjs init --out move-source.json
+node cli/moment.mjs exec timeline.replace --project move-source.json --json '{"clips":[{"start":0,"end":4},{"start":4,"end":8},{"start":8,"end":12}]}' --out move-three.json
+node cli/moment.mjs exec project.get --project move-three.json
+node cli/moment.mjs exec timeline.move --project move-three.json --json '{"clipIndex":0,"toIndex":2}' --out move-result.json
+```
+
+구간 길이를 추가·삭제하지 않으며 출력 레이어 시간을 다시 비례 조정하지 않습니다. 원본 자막은
+재배치한 원본 구간을 따라 나타나며 타임라인 자막은 기존 배속 전 시간을 유지합니다.
+명령에 UI 선택·재생 기능은 없습니다. CLI 변경에는 `--out` 또는 `--dry-run`이 필요하며
+결과 파일은 전체 프로젝트 문서입니다. MCP는 `moment_timeline_move`에
+`projectId:"session"`을 더하고, 성공 후 `project.get`으로 저장할 문서를 읽습니다.
+배치에서는 앞 작업이 만든 현재 배열 위치를 사용합니다. 응답이 불확실하면 다시
+조회하세요. 무조건 재시도하면 다른 구간을 옮길 수 있습니다.
 
 ### 클립 구간 복제
 
@@ -587,7 +617,7 @@ node cli/moment.mjs exec project.batch --project cue-source.json --json '{"opera
 ```
 
 두 명령은 `project.batch`의 순차 현재 배열에 적용됩니다. 위 배치는 첫 자막을 삭제한
-**다음** 상태의 0번 위치에 삽입합니다. 배치 허용 편집 명령은 23개지만 한 요청의 작업
+**다음** 상태의 0번 위치에 삽입합니다. 배치 허용 편집 명령은 24개지만 한 요청의 작업
 수는 여전히 최대 20개이며, 하나라도 실패하면 전체가 반영되지 않습니다.
 CLI 변경에는 `--out` 또는 `--dry-run`이 필요합니다. 출력 파일은 조회 페이지가 아니라
 전체 프로젝트 문서이며 기존 파일은 기본 보호됩니다. MCP는 성공 확인 후 `project.get`으로

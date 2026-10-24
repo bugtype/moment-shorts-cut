@@ -227,7 +227,9 @@ test('app editing, selection, input history and keyboard boundaries', async () =
   // Equal bounds must not make two different clips share a draft.
   await context.window.moment.execute('timeline.replace',{clips:[{start:0,end:4},{start:0,end:4}]});
   trimDraft('1','3');selectTrimClip(1);assertTrimDraft('0.0','4.0');
-  trimDraft('1','3');element('#moveLeft').onclick();assertTrimDraft('0.0','4.0');
+  // Moving the same selected occurrence retains its draft; selecting its equal-range sibling does not.
+  trimDraft('1','3');element('#moveLeft').onclick();assertTrimDraft('1','3');
+  assert.equal(evaluate('selected'),0);assert.deepEqual(evaluate('state.clips[0]'),{start:0,end:4});
   trimDraft('1','3');element('#deleteButton').onclick();assertTrimDraft('0.0','4.0');
   trimDraft('1','3');vm.runInContext('current=2;split()',context);assertTrimDraft('2.0','4.0');
   trimDraft('2.5','3.5');

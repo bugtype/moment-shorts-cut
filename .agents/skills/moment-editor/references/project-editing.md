@@ -141,6 +141,16 @@ become adjacent derived output cues; do not claim SRT/VTT are byte-identical.
 The result is `{updated:true, outputDuration}`, not the document. Retrieve and
 save the project separately. UI splitting is one undo step; MCP has no undo tool.
 
+To reorder directly, use `timeline.move` / `moment_timeline_move` with required
+`clipIndex` and `toIndex`, both current zero-based indices (0–999). `toIndex` is the
+final destination. Read `project.clips` first; repeated source ranges are separate
+occurrences, not stable IDs. Only order changes: source ranges, captions, audioOffset
+and title/credit/card numeric times remain exact. Source-caption occurrences follow
+the reordered clips; timeline captions keep their pre-speed times. The result is
+`{updated:boolean,outputDuration}`; same-position is a no-commit no-op. Re-read after
+uncertain results instead of replaying stale indices. Batch indices are sequential.
+See [move contract and executable recipe](../../../../INTEGRATIONS.md#클립을-지정한-위치로-이동).
+
 To repeat rather than split, use `timeline.duplicate` / `moment_timeline_duplicate`
 with `{clipIndex:0}` (and MCP `projectId:"session"`). Inspect the actual index first.
 It inserts a copy of that source interval immediately after it, not a media-file

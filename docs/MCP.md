@@ -49,7 +49,7 @@ its supported version, `2025-11-25`, even if the proposed version differs; a cli
 that cannot support that version should disconnect, not continue with another
 wire format. `ping` is supported. Initialize only once per process.
 
-All thirty-two tools require **`projectId: "session"`**. Each process owns one independent
+All thirty-three tools require **`projectId: "session"`**. Each process owns one independent
 in-memory project, initially the demo. This value is neither a path nor a credential.
 Other project IDs return a tool error. A second client process does not share state.
 
@@ -164,6 +164,7 @@ The service emits no BOM.
 |---|---|---|
 | `moment_timeline_replace` | `clips: [{start,end}]` | Update acknowledgment and output duration |
 | `moment_timeline_split` | `clipIndex`, `sourceTime` | `{updated:true, outputDuration}` |
+| `moment_timeline_move` | `clipIndex`, `toIndex` | `{updated:boolean, outputDuration}` |
 | `moment_timeline_duplicate` | `clipIndex` | `{updated:true, outputDuration}` |
 | `moment_title_update` | `patch` | Update acknowledgment and output duration |
 | `moment_credit_update` | `patch` | `{updated:true, outputDuration}` |
@@ -330,7 +331,7 @@ the example. Discover exact input fields in the [tool catalog](#tool-catalog).
 | Task | Recipes |
 |---|---|
 | Captions | [Inspect timing density](#inspect-caption-timing-density) · [Import](#import-subtitle-text-with-an-explicit-clock) · [Split](#split-one-caption-at-a-text-boundary) · [Merge](#merge-two-adjacent-authored-captions) · [Insert/remove](#insert-or-remove-one-authored-caption) · [Edit one cue](#edit-one-authored-caption) · [Correct text](#correct-caption-text-without-replacing-cues) · [Shift timing](#shift-caption-timing-without-replacing-text) · [Style](#adjust-global-caption-appearance) |
-| Timeline | [Split a clip](#split-one-clip-occurrence) · [Repeat a clip](#repeat-one-clip-occurrence) |
+| Timeline | [Split a clip](#split-one-clip-occurrence) · [Repeat a clip](#repeat-one-clip-occurrence) · [Move a clip](#move-one-clip-to-a-final-position) |
 | Composition | [Credit](#set-a-source-credit-independently) · [Effects](#adjust-video-effects-independently) · [Edit a card](#edit-an-existing-timed-card) · [Add/remove cards](#create-scripted-cards-without-importing-a-whole-project) · [Stacking](#change-card-stacking) |
 | Grouped/template edits | [One commit](#apply-related-edits-in-one-commit) · [Export a composition](#export-the-current-composition-as-a-template) · [Apply a template file](#apply-an-exported-custom-template) |
 
@@ -494,6 +495,32 @@ not remain identical. Do not confuse output/playhead seconds with `sourceTime`.
 Use the returned standard acknowledgment to check success, then retrieve the
 project to save it. The browser's existing split action uses the same command and
 is one undo step; standalone MCP still has no undo tool.
+
+### Move one clip to a final position
+
+Read `moment_project_get` and inspect the current `project.clips` array, then call
+`moment_timeline_move`. For a project with at least three clips:
+
+```json
+{"projectId":"session","clipIndex":0,"toIndex":2}
+```
+
+| Contract | Meaning |
+|---|---|
+| `clipIndex`, `toIndex` | Required zero-based integers 0–999, each within the current array |
+| Destination | Final index after moving, not a before-removal insertion slot |
+| Result | `{updated:boolean,outputDuration}`; same position returns `updated:false` without committing |
+| Invalid index | `INVALID_ARGUMENT`, with `arguments.clipIndex` or `arguments.toIndex`; no partial change |
+| Preserved | Source intervals, authored caption array/metadata, audio offset and exact title/credit/card time values |
+
+Only array order changes. Repeated identical source intervals are distinct indexed
+occurrences, not stable IDs. Source captions follow the reordered source occurrences;
+timeline captions keep their existing pre-speed times. No clip duration is added
+or removed, and output layers are not proportionally retimed. This differs from adding/removing
+clip duration. Read again before retrying an uncertain result—indices may now refer
+to other clips. In `project.batch`, each operation uses the preceding step’s current
+indices; the maximum remains 20 operations. Save using `moment_project_get` afterward.
+[Executable CLI sequence](../INTEGRATIONS.md#클립을-지정한-위치로-이동) demonstrates setup and saving.
 
 ### Repeat one clip occurrence
 
@@ -731,7 +758,7 @@ read again instead of blindly retrying; the next removal could delete a differen
 
 Both are supported in `project.batch`, using each preceding step's current array.
 For example, remove index 0, then insert at index 0 to replace the first entry.
-All steps validate before one commit; 23 editing command names are allowed, but
+All steps validate before one commit; 24 editing command names are allowed, but
 there are still at most 20 operations per batch. See the [executable CLI sequence
 and batch recipe](../INTEGRATIONS.md#자막-하나를-추가하거나-삭제).
 Mutation acknowledgments are not saved documents: retrieve `moment_project_get`

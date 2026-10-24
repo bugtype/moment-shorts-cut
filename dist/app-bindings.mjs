@@ -159,18 +159,10 @@ export function bindUi(app) {
         });
         app.seekTo(0);
     };
+    $('#moveClipButton').onclick = event => { if (!event?.isComposing) app.openClipMove($('#moveClipButton')); };
     for (const [id, delta] of [['moveLeft', -1], ['moveRight', 1]])
-        $('#' + id).onclick = () => {
-            const dest = app.selected + delta;
-            if (dest < 0 || dest >= app.state.clips.length)
-                return;
-            app.pause();
-            app.edit(() => {
-                const clip = app.state.clips.splice(app.selected, 1)[0];
-                app.state.clips.splice(dest, 0, clip);
-                app.selected = dest;
-            });
-            app.seekTo(0);
+        $('#' + id).onclick = event => {
+            if (!app.modal.open && !event?.isComposing && event?.keyCode !== 229) app.moveClip(app.selected + delta);
         };
     $('#undoButton').onclick = () => app.undo();
     $('#redoButton').onclick = () => app.undo(true);

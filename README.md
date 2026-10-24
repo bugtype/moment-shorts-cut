@@ -309,12 +309,24 @@ retain the whole project’s clip/speed rules, not just the visible page. Existi
 
 | Task | Use | Keep in mind |
 |---|---|---|
+| Move a clip directly | **Move clip…** in the clip inspector or **Frame**, or [`timeline.move`](INTEGRATIONS.md#클립을-지정한-위치로-이동) | UI positions are 1-based; API indices are 0-based final destinations. Same position/cancel are no-ops. |
 | Apply related edits together | [`project.batch`](INTEGRATIONS.md#여러-편집을-한-번에-반영) | Validate 1–20 supported edits in sequence, then commit once; a rejected step leaves the project unchanged. Not a JSON-RPC batch or a cross-host storage transaction. |
 | Repeat a clip | [`timeline.duplicate`](INTEGRATIONS.md#클립-구간-복제) | Inserts the same source interval immediately after the selected occurrence, not a media-file copy. Source captions repeat; timed output layers rescale. |
 | Split one clip | [`timeline.split`](INTEGRATIONS.md#클립-구간-분할) | Original source time, not output time; identify the intended occurrence and check boundaries. No full-timeline replacement. |
 | Adjust video effects | [`effects.update`](INTEGRATIONS.md#영상-효과-수정) | Brightness, contrast, motion, boundary overlays and progress styling without replacing content or timing. Boundary overlays are not crossfades. |
 | Set a source credit | [`credit.update`](INTEGRATIONS.md#출처-크레딧-수정) | Text, appearance and output-time visibility without changing title/captions/cards. Maximum 100 UTF-16 code units; not included in subtitle files. |
 | Script timed cards | [`overlays.add`, `overlays.update`, `overlays.remove`](INTEGRATIONS.md#스크립트에-맞춰-카드-추가삭제) | Individual IDs and output time **after speed**, without replacing the project. Additions append; `overlays.move` changes card stacking. UI offers **Bring to front / Send to back** (front/back) within the card stack. |
+
+Choose **Move clip…**, enter a position from 1 to the clip count and choose **Move**.
+A changed move is one undoable edit: selection follows the moved clip, playback
+pauses and seeks its new start. Existing arrows use the same operation. The moved
+clip’s trim drafts are preserved; do not assume all other panel drafts survive an
+edit. Reopen if project/media/selection changed. Source ranges and stored caption
+and title/card times are not rewritten; source-caption occurrences follow the new
+order, while timeline captions retain their absolute times.
+If recovery failed but valid settings were readable, moves remain in-memory edits;
+browser saving stays blocked, so download a settings backup before reloading.
+
 
 ### Choose an integration
 

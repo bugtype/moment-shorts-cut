@@ -223,6 +223,12 @@ export function createWorkspacePanels(app) {
                 startButton: '#panelTrimStartPlayhead', endButton: '#panelTrimEndPlayhead',
                 current: () => app.panel === 'settings' && app.selected === trimIndex && app.state.clips[trimIndex] === trimClip,
             });
+            const moveClipButton = $('#panelMoveClip');
+            moveClipButton.onclick = event => {
+                if (!event?.isComposing && event?.keyCode !== 229 && app.panel === 'settings' &&
+                    $('#panelMoveClip') === moveClipButton && app.selected === trimIndex && app.state.clips[trimIndex] === trimClip)
+                    app.openClipMove(moveClipButton);
+            };
             $('#panelTrimApply').onclick = () => app.trim($('#panelTrimStart').valueAsNumber, $('#panelTrimEnd').valueAsNumber);
         }
         app.icons(target);

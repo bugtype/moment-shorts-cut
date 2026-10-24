@@ -69,7 +69,7 @@ async function withClient(work) {
 
 const saved = await withClient(async ({request, call, data}) => {
   const {tools} = await request('tools/list', {});
-  assert.equal(tools.length, 32);
+  assert.equal(tools.length, 33);
   assert.ok(tools.some(tool => tool.name === 'moment_project_import'));
   await data('moment_project_import', {document: createProjectDocument(createDemoProject())});
   await data('moment_project_update', {patch: {name: 'MCP 예제', speed: 2}});
@@ -148,6 +148,12 @@ const saved = await withClient(async ({request, call, data}) => {
   const duplicate = await data('moment_timeline_duplicate', {clipIndex: 0});
   assert.equal(duplicate.outputDuration, 3);
   assert.deepEqual((await data('moment_project_get')).project.clips, [{start: 2, end: 4}, {start: 2, end: 4}, {start: 4, end: 6}]);
+  const beforeMove = (await data('moment_project_get')).project;
+  assert.equal((await data('moment_timeline_move', {clipIndex: 2, toIndex: 0})).updated, true);
+  const afterMove = (await data('moment_project_get')).project;
+  assert.deepEqual(afterMove.clips, [beforeMove.clips[2], beforeMove.clips[0], beforeMove.clips[1]]);
+  assert.deepEqual(afterMove.overlays, beforeMove.overlays);
+  assert.equal((await data('moment_timeline_move', {clipIndex: 0, toIndex: 0})).updated, false);
   await data('moment_captions_replace', {captions: [{start:0,end:1,text:'Hello'}, {start:1,end:2,text:'world'}]});
   const merged = await data('moment_captions_merge', {captionIndex:0});
   assert.equal(merged.mergedCaptionIndex, 0);
@@ -192,4 +198,4 @@ await withClient(async ({data}) => {
   await data('moment_project_import', {document: saved});
   assert.deepEqual(await data('moment_project_get'), saved);
 });
-console.log(JSON.stringify({ok: true, tools: 32, recoveredFromInvalidInput: true, reimported: true, rendered: false}));
+console.log(JSON.stringify({ok: true, tools: 33, recoveredFromInvalidInput: true, reimported: true, rendered: false}));

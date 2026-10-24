@@ -171,6 +171,7 @@ node cli/moment.mjs commands
 |---|---|---|
 | 클립 하나 분할 | [`timeline.split`](INTEGRATIONS.md#클립-구간-분할) | 출력 시간이 아닌 원본 시간 사용. 반복 구간의 위치·경계 확인. 전체 타임라인을 교체하지 않음. |
 | 영상 효과 조절 | [`effects.update`](INTEGRATIONS.md#영상-효과-수정) | 내용·시간을 유지하며 밝기·대비·움직임·경계 효과·진행 표시 조절. 경계 효과는 교차 전환이 아님. |
+| 출처 크레딧 지정 | [`credit.update`](INTEGRATIONS.md#출처-크레딧-수정) | 제목·자막·카드를 유지하며 문구·모양·출력 시간 설정. 최대 100 UTF-16 코드 단위; 자막 파일에는 포함되지 않음. |
 | 시간별 카드 구성 | [`overlays.add`, `overlays.update`, `overlays.remove`](INTEGRATIONS.md#스크립트에-맞춰-카드-추가삭제) | 전체 프로젝트 교체 없이 ID별 작업. **배속 후** 출력 시간 사용. 뒤에 추가하며, `overlays.move` 또는 UI의 **맨 앞으로 / 맨 뒤로**로 카드끼리 겹치는 순서 변경. |
 
 ### 연동 방식 선택

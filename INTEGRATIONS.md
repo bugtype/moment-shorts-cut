@@ -62,6 +62,7 @@
 | `timeline.replace` | `clips: [{start,end}]` | 클립 구간/순서 교체 |
 | `timeline.split` | `clipIndex`, `sourceTime` | 지정 클립 구간 분할; `{updated:true, outputDuration}` |
 | `title.update` | `patch` | 기본 제목과 스타일 수정 |
+| `credit.update` | `patch` | 출처 크레딧 수정; `{updated:true, outputDuration}` |
 | `effects.update` | `patch` | 영상 효과 설정; `{updated:true, outputDuration}` |
 
 ### 시간별 카드 명령
@@ -240,6 +241,37 @@ node cli/moment.mjs exec captions.style.update --project corrected.json --json '
 **화면 적용:** 글자 크기와 외곽선은 캔버스 너비에 비례해 확대·축소하며 글자가 영역을 넘으면 맞춤 처리로 더 작아질 수 있습니다. `highlight`는 어두운 글자·강조색 상자·외곽선 없음으로 표시합니다. 그 외에는 지정 화자 색상이 우선하고, 화자가 없으면 `accent` 스타일은 `captionAccent`, 나머지는 `captionColor`를 사용합니다. 따라서 `captionColor` 수정이 화자·강조 스타일 색상을 덮어쓰지는 않습니다.
 
 스타일은 프로젝트 JSON과 영상 화면에 적용하며 일반 SRT/VTT에는 기록하지 않습니다. 이 명령은 영상을 인코딩하지 않으며 `render.plan`도 계속 계획만 반환합니다.
+
+### 출처 크레딧 수정
+
+`credit.update`는 `design.credit`에서 지정한 필드만 바꾸며 제목·대사 자막·카드는
+유지합니다. 크레딧은 영상의 시각 요소이며 SRT/VTT/TXT에는 들어가지 않습니다.
+필수 `patch` 안에 필요한 항목만 넣으세요.
+
+| 필드 | 허용 값 / 의미 |
+|---|---|
+| `text` | 최대 100 UTF-16 코드 단위; 빈 문자열도 허용 |
+| `enabled`, `italic` | 불리언; 숨기기에는 `enabled:false` |
+| `color` | `#RRGGBB` 또는 `#RRGGBBAA` |
+| `x`, `y` | 화면 너비·높이 기준 정규화 좌표 `0..1` |
+| `size` | `10..120`; 화면에 맞춰 배율·자동 맞춤 적용, 고정 픽셀 크기 아님 |
+| `start`, `end` | **배속 적용 후** 출력 초; `end:null`이면 출력 끝까지 |
+
+시간 필드를 하나라도 보내면 최종 `start`는 `0 <= start < outputDuration`,
+`end`는 `null` 또는 `start < end <= outputDuration`이어야 합니다. 별도의
+86,400초 상한은 없습니다. 내용만 바꾸면 기존의 유효하지만 현재 출력 밖인
+시간은 자동 조정하지 않습니다. 잘못된 입력은 `INVALID_ARGUMENT`로 전체 거절합니다.
+빈·동일한 패치도 일반 수정 명령처럼 `{updated:true, outputDuration}`를 반환하며
+커밋할 수 있으므로 변경 없음 응답으로 해석하지 마세요.
+
+아래 새 샘플은 12초이므로 마지막 2초에 출처를 표시합니다. 기존 프로젝트는
+먼저 `render.plan`의 `output.duration`을 읽고 시간 범위를 계산하세요.
+
+```sh
+node cli/moment.mjs init --out credit-source.json
+node cli/moment.mjs exec render.plan --project credit-source.json
+node cli/moment.mjs exec credit.update --project credit-source.json --json '{"patch":{"text":"Source: Example","enabled":true,"start":10,"end":12}}' --out credited.json
+```
 
 ### 영상 효과 수정
 

@@ -11,6 +11,7 @@ export const API_VERSION=1;
 const patchSchema=object({name:string(200),ratio:choice('9:16','1:1','16:9'),fit:choice('cover','contain'),zoom:number(1,3),panX:number(-1,1),panY:number(-1,1),speed:number(.25,4),volume:number(0,1),audioVolume:number(0,1)});
 const titleSchema=object({lines:array(string(200),2,2),colors:array(string(9),2,2),enabled:boolean,x:number(.05,.95),y:number(.06,.93),size:number(18,72),stroke:number(0,12),italic:boolean,start:number(0,86400),end:{type:['number','null'],minimum:0,maximum:86400}});
 const captionColorSchema={...string(9),pattern:'^#[0-9a-fA-F]{6}([0-9a-fA-F]{2})?$'};
+const creditSchema=object({text:string(100),enabled:boolean,italic:boolean,color:captionColorSchema,x:number(0,1),y:number(0,1),size:number(10,120),start:{type:'number',minimum:0},end:{type:['number','null'],minimum:0}});
 const captionStyleSchema=object({
   style:choice('impact','accent','highlight','minimal'),
   captionSize:number(10,120),captionX:number(0,1),captionY:number(0,1),
@@ -43,6 +44,7 @@ const definitions=[
   command('template.apply.document','템플릿 파일의 스타일을 적용합니다. withContent=true는 제목·크레딧·장면 카드도 교체하며 자막은 유지합니다.',object({document:{type:'object'},withContent:boolean},['document']),true),
   command('timeline.split','지정한 클립을 원본 영상 시간에서 둘로 나눕니다. 각 구간은 0.1초 이상이어야 합니다.',object({clipIndex:{type:'integer',minimum:0,maximum:MAX_CLIPS-1},sourceTime:number(0,86400)},['clipIndex','sourceTime']),true),
   command('timeline.replace','원본 영상 시간 기준 클립 목록을 교체합니다.',object({clips:array(clipSchema,MAX_CLIPS,1)},['clips']),true),
+  command('credit.update','크레딧 문구·스타일·표시 시간의 지정한 설정만 수정합니다.',object({patch:creditSchema},['patch']),true),
   command('title.update','기본 제목의 두 줄 문구와 스타일을 수정합니다.',object({patch:titleSchema},['patch']),true),
   command('overlays.move','장면 카드의 쌓임 순서를 변경합니다. 마지막 카드가 앞쪽입니다.',object({id:{...string(2000),minLength:1},toIndex:{type:'integer',minimum:0,maximum:11}},['id','toIndex']),true),
   command('overlays.add','장면 카드를 지정한 ID로 끝에 추가합니다. 표시 시간은 배속 후 출력 초입니다.',object({id:{...string(2000),minLength:1},patch:{...overlayPatchSchema,required:['text','start','end']}},['id','patch']),true),
@@ -147,6 +149,14 @@ export function prepareCommand(project,name,args={}){
     if(Object.hasOwn(args.patch,'start')||Object.hasOwn(args.patch,'end')){
       if(card.start<0||card.end<=card.start||card.end>outputDuration(next))
         fail('장면 카드의 표시 시간은 출력 영상의 0초부터 끝 사이에서 시작보다 끝이 늦어야 합니다.','arguments.patch');
+    }
+  }
+  else if(name==='credit.update'){
+    Object.assign(next.design.credit,args.patch);
+    if(Object.hasOwn(args.patch,'start')||Object.hasOwn(args.patch,'end')){
+      const {start,end}=next.design.credit,total=outputDuration(next);
+      if(start>=total||(end!==null&&(end<=start||end>total)))
+        fail('크레딧의 표시 시간은 출력 영상 길이 안에서 시작보다 끝이 늦어야 합니다.','arguments.patch');
     }
   }
   else if(name==='title.update')Object.assign(next.design.title,args.patch);

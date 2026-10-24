@@ -49,7 +49,7 @@ its supported version, `2025-11-25`, even if the proposed version differs; a cli
 that cannot support that version should disconnect, not continue with another
 wire format. `ping` is supported. Initialize only once per process.
 
-All twenty-one tools require **`projectId: "session"`**. Each process owns one independent
+All twenty-two tools require **`projectId: "session"`**. Each process owns one independent
 in-memory project, initially the demo. This value is neither a path nor a credential.
 Other project IDs return a tool error. A second client process does not share state.
 
@@ -159,6 +159,7 @@ The service emits no BOM.
 | `moment_timeline_replace` | `clips: [{start,end}]` | Update acknowledgment and output duration |
 | `moment_timeline_split` | `clipIndex`, `sourceTime` | `{updated:true, outputDuration}` |
 | `moment_title_update` | `patch` | Update acknowledgment and output duration |
+| `moment_credit_update` | `patch` | `{updated:true, outputDuration}` |
 | `moment_effects_update` | `patch` | `{updated:true, outputDuration}` |
 
 ### Timed card operations
@@ -381,6 +382,36 @@ These existing global settings apply across caption cues in the visual renderer.
 Text, timing and speaker metadata are untouched. Plain SRT/VTT do not carry these
 styles, and this command does not encode video. Retrieve `moment_project_get`
 to save the updated project; `moment_render_plan` remains only a plan.
+
+### Set a source credit independently
+
+`moment_credit_update` partially updates `design.credit`, not the base title,
+captions or timed cards. Its visual text is not included in SRT/VTT/TXT exports.
+
+| Optional field inside required `patch` | Contract |
+|---|---|
+| `text` | At most 100 UTF-16 code units; empty string allowed |
+| `enabled`, `italic` | Booleans; `enabled:false` hides the credit |
+| `color` | Six- or eight-digit hex color, including `#` |
+| `x`, `y` | Normalized canvas coordinates, `0..1` |
+| `size` | `10..120`; renderer scales and may shrink to fit, not fixed pixels |
+| `start`, `end` | Final output seconds **after speed**; `end:null` follows the output end |
+
+Read `moment_render_plan` and its `data.output.duration` first. For a 12-second
+output, show a credit in the final two seconds with:
+
+```json
+{"projectId":"session","patch":{"text":"Source: Example","enabled":true,"start":10,"end":12}}
+```
+
+If either timing field is supplied, the resulting start must satisfy
+`0 <= start < outputDuration`; end must be `null` or satisfy
+`start < end <= outputDuration`. There is no separate 86,400-second cap.
+Content-only updates preserve existing valid timing even if outside the current
+output. Invalid fields/timing return `INVALID_ARGUMENT` without partial changes.
+The acknowledgment is `{updated:true, outputDuration}`, even for empty/redundant
+patches, consistent with other partial design updates; this is not a no-op signal.
+Retrieve `moment_project_get` afterward to save the edited document.
 
 ### Adjust video effects independently
 

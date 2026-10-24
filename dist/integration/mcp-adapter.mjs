@@ -104,6 +104,17 @@ function inputSchema(command) {
     p.captions.items.properties.start.description = 'Start in the selected basis, not final output seconds.';
     p.captions.items.properties.end.description = 'End in the selected basis; must exceed start.';
   }
+  if (command.name === 'credit.update') {
+    p.patch.description = 'Partial footer-credit update only. Empty/redundant patches retain normal updated:true semantics. Unspecified credit fields and all titles/captions/cards/media stay unchanged. Content-only changes do not clamp existing times.';
+    const fields = p.patch.properties;
+    fields.text.description = 'Authored channel/source/narration credit, at most 100 UTF-16 code units; empty is allowed. Not dialogue captions or SRT/VTT/TXT transcript text.';
+    fields.color.description = 'Credit text color in #RRGGBB or #RRGGBBAA form.';
+    fields.x.description = 'Normalized horizontal center, 0..1.';
+    fields.y.description = 'Normalized vertical center, 0..1.';
+    fields.size.description = 'Canvas-relative font size: size × width / 540, with fitting within 78% width and 8% height. Existing renderer uses no stroke.';
+    fields.start.description = 'Start in output seconds AFTER speed. When either time is patched, start must be less than current output duration; no fixed 24-hour cap.';
+    fields.end.description = 'Exclusive end in output seconds AFTER speed, or null to follow output length. If either time is patched, finite end must exceed start and not exceed output duration.';
+  }
   if (command.name === 'title.update') {
     p.patch.description = 'Partial base-title update, not timed scene cards. A visible scene card can hide this base title.';
     p.patch.properties.lines.description = 'Exactly two authored title lines; use an empty string for an unused line.';

@@ -40,6 +40,7 @@ const inputs = {
   'overlays.add': {id:'schema-added',patch:{text:'추가',start:0,end:1}},
   'overlays.remove': {id:'schema-added'},
   'overlays.update': {id:'schema-card',patch:{text:'카드 교정'}},
+  'credit.update': {patch:{text:'출처: 테스트',start:0,end:null}},
   'title.update': { patch: { lines: ['첫째 줄', '둘째 줄'] } },
   'captions.import': {text:'1\n00:00:00,000 --> 00:00:01,000\n자막',basis:'source'},
   'captions.replace': { captions: [{ start: 0, end: 1, text: '자막' }] },

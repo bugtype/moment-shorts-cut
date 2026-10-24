@@ -1,11 +1,13 @@
 import { replaceCaptionText } from './core/caption-text.mjs';
 import { MAX_CAPTIONS } from './captions.mjs';
 import { splitCaptionText } from './effects.mjs';
-import { captionsPanelMarkup } from './panel-markup.mjs';
+import { CAPTION_PAGE_SIZE, captionsPanelMarkup } from './panel-markup.mjs';
 
 export function createCaptionPanel({
     query: $, queryAll: $$, getProject, getDuration, sourceTime, edit, refresh, toast,
 }) {
+    let page = 0, composing = false, renderGeneration = 0;
+    const lastPage = () => Math.max(0, Math.ceil(getProject().captions.length / CAPTION_PAGE_SIZE) - 1);
     const replacementFields = { find: '', replacement: '' };
     let searchProject = null, searchQuery = '', selectedSearchCaption = null;
     function searchResults() {
@@ -28,6 +30,7 @@ export function createCaptionPanel({
         return { rows, current };
     }
     function navigateSearch(direction) {
+        if (composing) return;
         const { rows, current } = searchResults();
         if (!rows.length) return;
         const index = current < 0 ? (direction > 0 ? 0 : rows.length - 1)
@@ -36,7 +39,7 @@ export function createCaptionPanel({
         selectedSearchCaption = row.caption;
         searchResults();
         focusCaption(row.index);
-        $('[data-caption-text="' + row.index + '"]').setSelectionRange(row.start, row.start + searchQuery.length);
+        $('[data-caption-text="' + row.index + '"]')?.setSelectionRange(row.start, row.start + searchQuery.length);
     }
     function previewReplacement() {
         const button = $('#replaceAllCaptions');
@@ -99,13 +102,36 @@ export function createCaptionPanel({
             toast('나눌 긴 자막이 없습니다.');
             return;
         }
-        edit(() => getProject().captions = captions, true);
+        let applied = false;
+        edit(() => { getProject().captions = captions; applied = true; }, true);
+        if (!applied) return;
         $('#splitLongCaptions').focus();
         toast('긴 자막을 나눴습니다. 시간은 글자 수 기준으로 배분했으니 음성과 확인해 주세요.');
     }
     function render(target, status, actions) {
+        const generation = ++renderGeneration;
+        composing = false; // External replacement detaches the previous composition owner.
         const toolsOpen = target.querySelector('#captionTools')?.open;
-        target.innerHTML = captionsPanelMarkup(getProject(), { toolsOpen, ...status });
+        page = Math.min(page, lastPage());
+        target.innerHTML = captionsPanelMarkup(getProject(), { toolsOpen, ...status, page });
+        // Click follows the native blur/change boundary; never replace rows on mousedown.
+        for (const [id, delta] of [['previousCaptionPage', -1], ['nextCaptionPage', 1]]) {
+            $('#' + id).onclick = () => {
+                if (composing) return;
+                const next = Math.max(0, Math.min(lastPage(), page + delta));
+                if (next === page) return;
+                page = next;
+                refresh();
+                const preferred = $('#' + id);
+                const alternate = $('#' + (delta > 0 ? 'previousCaptionPage' : 'nextCaptionPage'));
+                const focusTarget = getProject().captions.length <= CAPTION_PAGE_SIZE
+                    ? ($('#captionRows') || $('#addCaption'))
+                    : (!preferred.disabled ? preferred : alternate);
+                focusTarget.focus({ preventScroll: true });
+            };
+        }
+        target.oncompositionstart = () => { if (generation === renderGeneration) composing = true; };
+        target.oncompositionend = () => { if (generation === renderGeneration) composing = false; };
         for (const [id, key] of [['captionFind', 'find'], ['captionReplacement', 'replacement']]) {
             const field = $('#' + id);
             field.value = replacementFields[key];
@@ -130,19 +156,22 @@ export function createCaptionPanel({
                 toast('자막은 10,000개 이하만 지원합니다.');
                 return;
             }
+            let applied = false;
             edit(() => {
                 const t = Math.min(sourceTime(), Math.max(0, getProject().duration - .1));
                 getProject().captions.push({ start: t, end: Math.min(getProject().duration, t + 3), text: '새로운 자막을 입력하세요' });
+                applied = true;
             }, true);
-            focusCaption(getProject().captions.length - 1);
+            if (applied) focusCaption(getProject().captions.length - 1);
         };
         $('#importSrt').onclick = () => $('#srtInput').click();
         $('#downloadSrt').onclick = () => actions.download('srt');
         $('#downloadVtt').onclick = () => actions.download('vtt');
         $$('[data-delete-caption]').forEach(b => b.onclick = () => {
             const index = +b.dataset.deleteCaption;
-            edit(() => getProject().captions.splice(index, 1), true);
-            focusCaption(Math.min(index, getProject().captions.length - 1));
+            let applied = false;
+            edit(() => { getProject().captions.splice(index, 1); applied = true; }, true);
+            if (applied) focusCaption(Math.min(index, getProject().captions.length - 1));
         });
         $$('[data-caption-text]').forEach(el => el.onchange = () => {
             edit(() => getProject().captions[+el.dataset.captionText].text = el.value);
@@ -162,8 +191,30 @@ export function createCaptionPanel({
                 }
                 edit(() => c[side] = value);
             });
+        // Detached controls no longer own the rendered row indices or pager state.
+        const controls = [
+            ...$$('[data-caption-text]'), ...$$('[data-caption-start]'), ...$$('[data-caption-end]'),
+            ...$$('[data-caption-keywords]'), ...$$('[data-caption-speaker]'), ...$$('[data-delete-caption]'),
+            ...['captionFind', 'captionReplacement', 'previousCaptionPage', 'nextCaptionPage',
+                'previousCaptionMatch', 'nextCaptionMatch', 'replaceAllCaptions', 'splitLongCaptions',
+                'addCaption', 'importSrt', 'downloadSrt', 'downloadVtt', 'generateCaptions',
+                'captionDesignShortcut'].map(id => $('#' + id)),
+        ];
+        for (const control of controls) for (const event of ['onclick', 'onchange', 'oninput']) {
+            const handler = control?.[event];
+            if (handler) control[event] = (...args) => {
+                if (generation === renderGeneration) return handler(...args);
+            };
+        }
     }
     function focusCaption(index) {
+        if (composing) return;
+        index = Math.min(index, getProject().captions.length - 1);
+        const next = index < 0 ? 0 : Math.floor(index / CAPTION_PAGE_SIZE);
+        if (next !== page) {
+            page = next;
+            refresh();
+        }
         const field = (index < 0 ? null : $('[data-caption-text="' + index + '"]')) || $('#addCaption');
         field.focus({ preventScroll: true });
         field.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: 'instant' });

@@ -183,3 +183,7 @@ body.restore-failed #saveStatus i {
 .settings-group>.panel-label:first-child {
   margin-top:0
 }
+
+.caption-pages[hidden] {
+  display:none;
+}

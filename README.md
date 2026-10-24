@@ -159,6 +159,13 @@ Existing output files are protected; use `--overwrite` only when you intend to r
 | Change appearance | [`captions.style.update`](INTEGRATIONS.md#자막-스타일-수정) | Size, position, colors and animation: only supplied fields change, without resubmitting the project. Visual styles are absent from plain SRT/VTT. |
 | Import subtitle text | [`captions.import`](INTEGRATIONS.md#srtvtt-본문을-명령으로-가져오기) | Replaces all captions. Supply contents, not a path, and source/timeline time **before speed**, not output time. API: 100,000 UTF-16 code units; browser files: 2 MiB. |
 
+The caption editor shows **50 rows per page**, with previous/next controls and a
+visible range. Paging alone does not edit, save or seek playback. Search, timeline
+selection, import and adding a caption reveal the target row’s page. Search,
+replace-all and long-caption splitting still cover the full authored list; exports
+retain the whole project’s clip/speed rules, not just the visible page. Existing
+10,000-cue and 2 MiB limits are unchanged.
+
 **Clips and composition**
 
 | Task | Use | Keep in mind |

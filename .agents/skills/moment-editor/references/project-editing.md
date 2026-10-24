@@ -133,6 +133,12 @@ from current content. The query persists, but navigation position resets safely
 when the query/project changes or the selected match disappears. This is a browser
 review aid, not a new CLI/MCP command.
 
+The browser mounts at most 50 editing rows per page. Search/timeline selection,
+import and added-caption focus reveal the target page. Paging alone changes no
+project/history/saved state or playback position. Search, replace-all and long-
+caption splitting still use the full authored list; exports retain full-project
+clip/speed behavior, not visible-page scope. The existing cue/byte limits remain.
+
 ## Adjust shared caption styling
 
 For “larger captions,” use `captions.style.update` rather than rewriting the project:

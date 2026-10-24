@@ -1,8 +1,11 @@
 import { icon, esc, fmt } from './ui-format.mjs';
 
 // Pure markup: the app retains current state, event bindings and edit history.
-export function captionsPanelMarkup({ captions, speakerLabels }, { toolsOpen, transcribing, hasAudio, transcriptionStatus }) {
-    const rows = captions.map((c, i) => captionRowMarkup(c, i, speakerLabels)).join('');
+export const CAPTION_PAGE_SIZE = 50;
+export function captionsPanelMarkup({ captions, speakerLabels }, { toolsOpen, transcribing, hasAudio, transcriptionStatus, page = 0 }) {
+    const start = Math.max(0, Math.min(Math.floor(page), Math.ceil(captions.length / CAPTION_PAGE_SIZE) - 1)) * CAPTION_PAGE_SIZE;
+    const end = Math.min(captions.length, start + CAPTION_PAGE_SIZE);
+    const rows = captions.slice(start, end).map((c, i) => captionRowMarkup(c, start + i, speakerLabels)).join('');
     return (
         `<section class="caption-workspace">` +
         `\n <h1 class="panel-heading">자막 ${captions.length}개</h1>` +
@@ -12,6 +15,10 @@ export function captionsPanelMarkup({ captions, speakerLabels }, { toolsOpen, tr
         `<button class="button" id="downloadVtt">VTT 저장</button>` +
         `</div>` +
         `\n <div id="captionRows" role="region" aria-label="자막 목록" tabindex="0">${rows || '<p class="empty-text">자동으로 만들거나<br>첫 자막을 직접 추가해 보세요.</p>'}</div>` +
+        `<nav class="panel-actions caption-pages" aria-label="자막 페이지" ${captions.length <= CAPTION_PAGE_SIZE ? 'hidden' : ''}>` +
+        `<button class="button" id="previousCaptionPage" aria-label="이전 자막 페이지" ${start === 0 ? 'disabled' : ''}>이전</button>` +
+        `<span role="status" aria-live="polite">${captions.length ? start + 1 : 0}–${end} / ${captions.length}</span>` +
+        `<button class="button" id="nextCaptionPage" aria-label="다음 자막 페이지" ${end >= captions.length ? 'disabled' : ''}>다음</button></nav>` +
         `\n <details class="caption-disclosure" id="captionCreate" ${!captions.length || transcribing ? 'open' : ''}>` +
         `\n  <summary>자동 생성 · 불러오기<span data-icon="chevron">` +
         `</span>` +

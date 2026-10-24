@@ -20,3 +20,19 @@ test('app caption search reviews authored rows without seeking, saving or modify
  vm.runInContext("state=initial();state.captions=[{start:0,end:1,text:'새 이름'}];renderPanel();",context);
  assert.equal(element('#captionSearchStatus').textContent,'자막 0 / 1');element('#previousCaptionMatch').onclick();assert.equal(element('#captionSearchStatus').textContent,'자막 1 / 1');
 });
+
+test('app pagination reveals timeline/global search targets without page navigation editing or saving',async()=>{
+ const {context,evaluate,element,doc}=await createAppFixture();
+ vm.runInContext("state.duration=120;state.clips=[{start:0,end:120}];state.captions=Array.from({length:101},(_,i)=>({start:i,end:i+1,text:'자막 '+i}));current=1;history=[];future=[];globalThis.pageSaves=0;scheduleSave=()=>pageSaves++;switchPanel('captions');",context);
+ const markup=()=>element('#panelContent').innerHTML;
+ const before=evaluate('({state,current,history,future})');
+ element('#nextCaptionPage').onclick();assert.match(markup(),/data-caption-text="50"/);assert.doesNotMatch(markup(),/data-caption-text="0"/);
+ element('#captionFind').value='자막 100';element('#captionFind').oninput();element('#nextCaptionMatch').onclick();
+ assert.match(markup(),/data-caption-text="100"/);assert.equal(doc.activeElement,element('[data-caption-text="100"]'));
+ assert.deepEqual(evaluate('({state,current,history,future})'),before);assert.equal(evaluate('pageSaves'),0);
+ context.captionNavigation={target:{closest:()=>({dataset:{captionIndex:'49',captionTime:'49'}})}};
+ vm.runInContext('navigateCaption(captionNavigation)',context);
+ assert.match(markup(),/data-caption-text="49"/);assert.doesNotMatch(markup(),/data-caption-text="50"/);
+ assert.equal(doc.activeElement,element('[data-caption-text="49"]'));assert.equal(evaluate('current'),49);
+ assert.equal(evaluate('history.length'),0);assert.equal(evaluate('pageSaves'),0);
+});

@@ -107,6 +107,14 @@ with a new ID; it does not replace a saved template, change favorites or apply
 the template to the current project. Preview it, then choose style-only or
 example-content application as usual.
 
+**Duplicate a saved custom template** with its **Duplicate…** action. Edit the
+suggested copy name (trimmed, nonblank, at most 40 UTF-16 code units), then confirm.
+The new ID holds an independent copy of the **saved** settings, cards, timing and
+metadata—not the active project's composition. It does not apply the template or
+change project/history/favorites. A free slot is required in the 20-template library.
+If the source changes, reopen; cancel or failed storage leaves the library intact,
+and a failed write permits retry. A blocked/corrupt library cannot be duplicated.
+
 **Rename a saved template** from its custom card without making another copy.
 Names are trimmed, nonblank and at most 40 UTF-16 code units. The ID, favorites,
 saved styling/content and current project stay intact, even with a full 20-entry

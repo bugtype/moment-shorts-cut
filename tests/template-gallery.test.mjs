@@ -17,16 +17,17 @@ test('gallery imports selected files, resets the picker and exports only custom 
     }
     return nodes.get(key);
   };
+  const duplicateButton = {dataset:{duplicateTemplate:item.id}};
   const updateButton = {dataset:{updateTemplate:item.id}};
   const renameButton = {dataset:{renameTemplate:item.id}};
   const exportButton = {dataset:{exportTemplate:item.id}};
   const root = {
     innerHTML: '', querySelector: query,
-    querySelectorAll: selector => selector === '[data-update-template]' ? [updateButton] : selector === '[data-export-template]' ? [exportButton] : selector === '[data-rename-template]' ? [renameButton] : [],
+    querySelectorAll: selector => selector === '[data-duplicate-template]' ? [duplicateButton] : selector === '[data-update-template]' ? [updateButton] : selector === '[data-export-template]' ? [exportButton] : selector === '[data-rename-template]' ? [renameButton] : [],
   };
   mountTemplateGallery(root, {
     ui:{query:'',category:'전체'},custom:[item],favorites:[],
-    update:id=>events.push(['update',id]), save:()=>events.push('save'), import:async file=>events.push(file), export:id=>events.push(id), rename:id=>events.push(['rename',id]),
+    duplicate:id=>events.push(['duplicate',id]), update:id=>events.push(['update',id]), save:()=>events.push('save'), import:async file=>events.push(file), export:id=>events.push(id), rename:id=>events.push(['rename',id]),
   });
   assert.match(root.innerHTML,/id="importMyTemplate"><span data-i18n="templates.import"[^>]*>불러오기<\/span>/);
   assert.match(root.innerHTML,/id="templateFileInput" type="file"[^>]*hidden/);
@@ -36,6 +37,8 @@ test('gallery imports selected files, resets the picker and exports only custom 
   assert.match(cards,/role="group" aria-label="&lt;내 스타일&gt; 템플릿 관리"/);
   assert.equal([...cards.matchAll(/data-update-template=/g)].length,1);
   assert.match(cards,/&lt;내 스타일&gt; 현재 구성으로 업데이트/);
+  assert.equal([...cards.matchAll(/data-duplicate-template=/g)].length,1);
+  duplicateButton.onclick();assert.deepEqual(events.pop(),['duplicate',item.id]);
   updateButton.onclick();
   renameButton.onclick();
   exportButton.onclick();

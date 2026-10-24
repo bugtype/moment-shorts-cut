@@ -1,4 +1,4 @@
-import {formatError} from '../dist/i18n.mjs';
+import {formatError, setLocale, initLocale} from '../dist/i18n.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createTemplateWorkspace } from '../dist/template-workspace.mjs';
@@ -338,4 +338,76 @@ test('custom update rejects unexportable saved metadata and invalid captured set
   assert.deepEqual(b.writes,[]);
   assert.deepEqual(b.api.custom,[valid]);
   assert.ok(!b.events.includes('close'));
+});
+
+test('duplicate branches stored template exactly, not active project; independent nested fields and one write', () => {
+  const sourceProject=createDemoProject();sourceProject.overlays=[newCard(12)];
+  const source=saveCustomTemplate('Original',sourceProject);source.extraLegacy={note:'retained'};source.category='Custom collection';
+  const a=workspace([source],{makeId:()=> 'custom-copy'});a.project.design.title.lines=['Different','Project'];
+  a.api.favorite(source.id);a.writes.length=0;
+  const before=structuredClone(a.api.custom[0]), project=structuredClone(a.project), favorites=[...a.api.favorites];
+  a.api.duplicate(source.id);a.query('#duplicateTemplateName').value='Variant';
+  const confirm=a.query('#confirmDuplicateTemplate').onclick;confirm();confirm();
+  assert.equal(a.api.custom.length,2);const copy=a.api.custom[1];
+  assert.deepEqual(copy,{...before,id:'custom-copy',name:'Variant'});
+  assert.notEqual(copy.settings,a.api.custom[0].settings);assert.notEqual(copy.cards[0],a.api.custom[0].cards[0]);
+  assert.deepEqual(a.api.custom[0],before);assert.deepEqual(a.project,project);assert.deepEqual(a.api.favorites,favorites);
+  assert.deepEqual(a.writes,['moment-templates-v1']);
+  assert.equal(copy.category,'Custom collection');assert.equal(a.api.ui.category,'전체');assert.equal(a.api.ui.query,'');
+});
+
+test('duplicate validates names, IME, ID collisions and corrupt library without writes', () => {
+  const source=saveCustomTemplate('Baseline',createDemoProject());
+  const a=workspace([source],{makeId:()=>source.id});a.api.duplicate(source.id);
+  const confirm=a.query('#confirmDuplicateTemplate').onclick,input=a.query('#duplicateTemplateName');
+  for(const name of ['', ' '.repeat(2),'x'.repeat(41)]){input.value=name;confirm();}
+  input.value='Valid';input.oncompositionstart();confirm();input.oncompositionend();confirm({isComposing:true});confirm({keyCode:229});
+  assert.deepEqual(a.writes,[]);confirm();assert.deepEqual(a.writes,[]);assert.equal(a.api.custom.length,1);
+  const corrupt=workspace([],{raw:'{invalid'});corrupt.api.duplicate(source.id);assert.deepEqual(corrupt.writes,[]);assert.equal(corrupt.dialog,undefined);
+});
+
+test('duplicate storage failure rolls back, supports retry and never changes favorites',()=>{
+  const source=saveCustomTemplate('Baseline',createDemoProject()),a=workspace([source],{makeId:()=> 'custom-retry'});
+  const original=a.stored.get('moment-templates-v1');a.api.duplicate(source.id);a.query('#duplicateTemplateName').value='Retry';
+  a.failKey='moment-templates-v1';a.query('#confirmDuplicateTemplate').onclick();
+  assert.equal(a.stored.get('moment-templates-v1'),original);a.render();assert.equal(a.api.custom.length,1);
+  a.failKey='';a.query('#confirmDuplicateTemplate').onclick();assert.equal(a.api.custom.length,2);assert.deepEqual(a.api.favorites,[]);
+});
+
+test('duplicate rejects stale source, canceled or replaced dialog, and confirm-time capacity',()=>{
+  const source=saveCustomTemplate('Baseline',createDemoProject());
+  for(const mutation of ['rename','update','remove']){
+    const a=workspace([source]);a.api.duplicate(source.id);a.query('#duplicateTemplateName').value='Copy';
+    const confirm=a.query('#confirmDuplicateTemplate').onclick;
+    if(mutation==='rename'){a.api.custom[0].name='Changed';}
+    if(mutation==='update'){a.api.custom[0].settings.zoom=1.2;}
+    if(mutation==='remove'){a.api.custom.splice(0,1);}
+    confirm();assert.deepEqual(a.writes,[]);
+  }
+  const a=workspace([source]);a.api.duplicate(source.id);a.query('#duplicateTemplateName').value='Copy';
+  const stale=a.query('#confirmDuplicateTemplate').onclick;a.query('#cancelDuplicateTemplate').onclick();stale();
+  a.api.duplicate(source.id);const replaced=a.query('#confirmDuplicateTemplate').onclick;a.api.rename(source.id);replaced();assert.deepEqual(a.writes,[]);
+  const full=workspace(Array.from({length:20},(_,i)=>({...source,id:`custom-${i}`})));full.api.duplicate('custom-0');assert.equal(full.dialog,undefined);
+  const race=workspace([source]);race.api.duplicate(source.id);race.query('#duplicateTemplateName').value='Copy';
+  for(let i=1;i<20;i++)race.api.custom.push({...source,id:`custom-${i}`});race.query('#confirmDuplicateTemplate').onclick();assert.deepEqual(race.writes,[]);
+});
+
+test('duplicate preserves unrelated library changes and bounds Unicode default names',()=>{
+  const source=saveCustomTemplate('😀'.repeat(20),createDemoProject()),a=workspace([source],{makeId:()=> 'custom-copy'});
+  a.api.duplicate(source.id);const match=a.dialog.body.match(/value="([^"]*)"/),value=match[1];
+  assert.ok(value.length<=40);assert.ok(!/[\uD800-\uDBFF]$/.test(value.replace(/ 사본$/,'')));
+  a.api.custom.push({...source,id:'custom-unrelated',name:'Unrelated'});
+  a.query('#duplicateTemplateName').value=source.name;a.query('#confirmDuplicateTemplate').onclick();
+  assert.equal(a.api.custom.length,3);assert.equal(a.api.custom[1].id,'custom-unrelated');assert.equal(a.api.custom[2].name,source.name);
+});
+
+
+test('duplicate dialogs use three locales and retain authored names',()=>{
+  const source=saveCustomTemplate('原文 😀',createDemoProject());
+  try { for(const [locale,label,suffix] of [['ko','템플릿 복제',' 사본'],['en','Duplicate template',' copy'],['zh-CN','创建模板副本',' 副本']]){
+    setLocale(locale);const a=workspace([source]);a.api.duplicate(source.id);
+    assert.equal(formatError(a.dialog.title),label);assert.ok(a.dialog.body.includes(source.name+suffix));
+    a.query('#duplicateTemplateName').value=source.name+suffix;a.query('#confirmDuplicateTemplate').onclick();
+    assert.equal(a.api.custom[0].name,source.name);assert.equal(a.api.custom[1].name,source.name+suffix);
+  }}finally{initLocale();}
 });

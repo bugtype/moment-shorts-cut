@@ -142,6 +142,48 @@ export function createTemplateWorkspace({
             }
         };
     }
+    function duplicateTemplate(id) {
+        if (templateLibraryBlocked()) return;
+        const source = savedTemplates.find(item => item.id === id);
+        if (!source) { toast(message('templates.duplicateMissing')); return; }
+        if (savedTemplates.length >= 20) { toast(message('templates.capacity')); return; }
+        const signature = JSON.stringify(source), suffix = t('templates.copySuffix');
+        let base = '';
+        for (const character of source.name) {
+            if (base.length + character.length + suffix.length > 40) break;
+            base += character;
+        }
+        modalOpen(message('templates.duplicateTitle'), `<label class="panel-label" for="duplicateTemplateName">${text('templates.name')}</label><input class="panel-input" id="duplicateTemplateName" maxlength="40" value="${esc(base + suffix)}">`, `<div class="modal-foot"><button class="button" id="cancelDuplicateTemplate">${text('templates.cancel')}</button><button class="button primary" id="confirmDuplicateTemplate">${text('templates.duplicate')}</button></div>`);
+        const input = $('#duplicateTemplateName'), confirm = $('#confirmDuplicateTemplate'), generation = dialogGeneration;
+        let active = true, composing = false;
+        input.oncompositionstart = () => { composing = true; };
+        input.oncompositionend = () => { composing = false; };
+        const owns = () => active && generation === dialogGeneration && modal.open !== false && $('#confirmDuplicateTemplate') === confirm;
+        $('#cancelDuplicateTemplate').onclick = () => { if (owns()) { active = false; modal.close(); } };
+        confirm.onclick = event => {
+            if (!owns() || composing || event?.isComposing || event?.keyCode === 229 || templateLibraryBlocked()) return;
+            const current = savedTemplates.find(item => item.id === id);
+            if (current !== source || JSON.stringify(current) !== signature) { toast(message('templates.duplicateStale')); return; }
+            if (savedTemplates.length >= 20) { toast(message('templates.capacity')); return; }
+            const name = input.value.trim();
+            if (!name || name.length > 40) { toast(message('templates.nameLength')); input.focus(); return; }
+            try {
+                const copy = { ...structuredClone(source), id: makeId(), name };
+                const next = [...savedTemplates, copy];
+                validateTemplateLibrary(next, favoriteTemplates);
+                const previous = savedTemplates;
+                savedTemplates = next;
+                if (!persistTemplateLibrary('moment-templates-v1', next)) { savedTemplates = previous; return; }
+                active = false;
+                modal.close();
+                galleryUI.category = '전체';
+                galleryUI.query = '';
+                refresh();
+                toast(message('templates.duplicated'));
+            } catch (error) { toast(errorMessage(error, 'templates.duplicateError')); }
+        };
+        input.focus();
+    }
     function renameTemplate(id) {
         if (templateLibraryBlocked()) return;
         const item = savedTemplates.find(template => template.id === id);
@@ -192,6 +234,7 @@ export function createTemplateWorkspace({
             import: importTemplate,
             export: exportTemplate,
             rename: renameTemplate,
+            duplicate: duplicateTemplate,
             update: updateTemplate,
             favorite(id) {
                 if (templateLibraryBlocked())

@@ -1,6 +1,15 @@
 // UI presentation only. Authored sample/project text stays in the project catalog.
 export const messages = {
   "ko": {
+    "templates.duplicate": "복제…",
+    "templates.duplicateLabel": "{name} 템플릿 복제",
+    "templates.duplicateTitle": "템플릿 복제",
+    "templates.copySuffix": " 사본",
+    "templates.duplicateMissing": "복제할 템플릿이 없습니다.",
+    "templates.duplicateStale": "템플릿이 변경되었습니다. 복제 창을 다시 여세요.",
+    "templates.duplicated": "템플릿을 복제했습니다.",
+    "templates.duplicateError": "템플릿을 복제하지 못했습니다.",
+
     "templates.previewMode": "미리보기 대상",
     "templates.sampleMode": "샘플",
     "templates.currentScene": "현재 장면",
@@ -169,6 +178,15 @@ export const messages = {
     "templates.builtin.cinema.favorite": "시네마틱 모먼트 즐겨찾기"
   },
   "en": {
+    "templates.duplicate": "Duplicate…",
+    "templates.duplicateLabel": "Duplicate {name} template",
+    "templates.duplicateTitle": "Duplicate template",
+    "templates.copySuffix": " copy",
+    "templates.duplicateMissing": "The template to duplicate is missing.",
+    "templates.duplicateStale": "The template changed. Reopen Duplicate.",
+    "templates.duplicated": "Template duplicated.",
+    "templates.duplicateError": "Could not duplicate the template.",
+
     "templates.previewMode": "Preview content",
     "templates.sampleMode": "Sample",
     "templates.currentScene": "Current scene",
@@ -337,6 +355,15 @@ export const messages = {
     "templates.builtin.cinema.favorite": "Favorite Cinematic moment"
   },
   "zh-CN": {
+    "templates.duplicate": "创建副本…",
+    "templates.duplicateLabel": "复制 {name} 模板",
+    "templates.duplicateTitle": "创建模板副本",
+    "templates.copySuffix": " 副本",
+    "templates.duplicateMissing": "要复制的模板不存在。",
+    "templates.duplicateStale": "模板已更改。请重新打开创建副本窗口。",
+    "templates.duplicated": "已创建模板副本。",
+    "templates.duplicateError": "无法创建模板副本。",
+
     "templates.previewMode": "预览内容",
     "templates.sampleMode": "示例",
     "templates.currentScene": "当前场景",

@@ -158,7 +158,7 @@ export function settingsPanelMarkup({ ratio, fit, zoom, captionSize, captionY, v
         `<button class="button" id="keepPanelGaps">${text('panels.keepGaps')}</button>` +
         `<button class="button" id="openPanelFraming">${text('panels.framing')}</button>` +
         `<p class="tiny-note">${text('panels.dragFrame')}</p>` +
-        `<div class="panel-actions"><button class="button" id="savePreviewPng">${text('shell.savePreviewPng')}</button></div>` +
+        `<div class="panel-actions"><button class="button" id="savePreviewPng">${text('shell.savePreviewPng')}</button><button class="button" id="openScenePng">${text('scenePng.title')}</button></div>` +
         `<button class="button full" id="resetPosition">${icon('reset')} ${text('panels.resetPosition')}</button>` +
         `</section>` +
         `<section class="settings-group" ${attrs('aria-label', 'panels.captionSizePosition')}>` +

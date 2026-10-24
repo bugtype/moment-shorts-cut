@@ -1,3 +1,4 @@
+import {messages as scenePng} from './i18n/catalogs/scene-png.mjs';
 import {messages as stacking} from './i18n/catalogs/stacking.mjs';
 import {messages as keywords} from './i18n/catalogs/keywords.mjs';
 import {messages as review} from './i18n/catalogs/review.mjs';
@@ -13,7 +14,7 @@ import {messages as templates} from './i18n/catalogs/templates.mjs';
 export const SUPPORTED_LOCALES = Object.freeze(['ko', 'en', 'zh-CN']);
 export const LOCALE_STORAGE_KEY = 'moment-ui-locale-v1';
 const catalogs = Object.fromEntries(SUPPORTED_LOCALES.map(locale =>
-    [locale, Object.assign({}, shell[locale], panels[locale], errors[locale], templates[locale], session[locale], graphics[locale], collections[locale], speakers[locale], review[locale], keywords[locale], stacking[locale])]));
+    [locale, Object.assign({}, shell[locale], panels[locale], errors[locale], templates[locale], session[locale], graphics[locale], collections[locale], speakers[locale], review[locale], keywords[locale], stacking[locale], scenePng[locale])]));
 const attributes = ['aria-label', 'title', 'placeholder', 'alt', 'aria-valuetext', 'content', 'data-label'];
 const subscribers = new Set();
 let locale = 'ko', storage, root;

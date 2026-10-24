@@ -210,9 +210,9 @@ This is time navigation, not frame/sample-accurate seeking.
 ### Choose the frame ratio
 
 **Frame** offers numeric presets **9:16, 4:5, 1:1 and 16:9**. Export quality sets
-the short edge; preview/PNG uses the fixed bitmap below.
+the short edge; preview/preview PNG uses the fixed bitmap below.
 
-| Ratio | Preview / PNG | 720 export | 1080 export |
+| Ratio | Preview / preview PNG | 720 export | 1080 export |
 |---|---|---|---|
 | 9:16 | 540×960 | 720×1280 | 1080×1920 |
 | 4:5 | 540×675 | 720×900 | 1080×1350 |
@@ -277,6 +277,20 @@ Turning it off lets the current pass finish, but cancels a pending restart. Manu
 pause/seek, hiding the tab or changing media takes priority. Seamless playback is not guaranteed.
 
 ### Save a preview image
+
+| Frame action | Image and playback behavior |
+|---|---|
+| **Save preview PNG** | Copy the displayed preview bitmap without pausing |
+| **Output PNG… → Pause and save PNG** | Choose 720/1080 short-edge output dimensions (default 1080); pause and rerender the currently decoded scene at that size |
+
+**Output PNG** captures on confirmation, not when the dialog opens; opening or
+canceling does not pause playback. It renders from decoded source media with the
+existing composition renderer, not by enlarging the preview bitmap. It does not
+seek, initialize audio/recording, edit, save the project or add undo history.
+Wait for fonts/seeking/media readiness and retry if blocked; changed context or a
+new request suppresses stale downloads. The local file is
+`project-name.scene-WIDTHxHEIGHT.png`. More pixels do not recover source detail or
+guarantee exact-frame selection. This is browser-only, not a CLI/MCP PNG renderer.
 
 In **Frame**, choose **Save preview PNG** to download the edited canvas **as displayed
 when clicked**: 540×960 (9:16), 540×675 (4:5), 960×960 (1:1) or 960×540 (16:9). It captures

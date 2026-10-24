@@ -204,7 +204,7 @@ and `"16:9"`. A changed ratio resets zoom/pan through existing update rules;
 review framing and text/card placement afterward—ratio changes do not redesign
 existing content. For 4:5, `moment_render_plan` returns 720×900 at quality
 720 or 1080×1350 at quality 1080 (short-edge quality). Its `rendered:false` is
-not a generated video. Browser preview/PNG is the fixed 540×675 bitmap.
+not a generated video. Browser preview/preview PNG is the fixed 540×675 bitmap.
 
 ```json
 {"projectId":"session","patch":{"ratio":"4:5"}}

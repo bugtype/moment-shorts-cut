@@ -1,3 +1,5 @@
+import { createScenePngExport } from '../../dist/scene-png-export.mjs';
+import { createScenePngDialog } from '../../dist/scene-png-dialog.mjs';
 import { createCaptionKeywordsDialog } from '../../dist/caption-keywords-dialog.mjs';
 import { createCaptionSpeakerDialog } from '../../dist/caption-speaker-dialog.mjs';
 import { projectGraphicsText } from '../../dist/core/graphics-text.mjs';
@@ -138,7 +140,7 @@ export async function createAppFixture({sessionMediaDependencies = {}} = {}) {
     cancelAnimationFrame(id) { pendingFrames.delete(id); },
     setTimeout() {}, clearTimeout() {}, setInterval() {}, clearInterval() {},
     console, URL, Blob, TextDecoder, performance, Number, Math, Promise, structuredClone,
-    ...i18n, createCaptionKeywordsDialog, projectGraphicsText, createCaptionSpeakerDialog, createCaptionShiftDialog, createClipComplementDialog, createCaptionImportDialog, createFramingDialog, createPositionDialog, createCaptionRangeDialog, downloadBlob, createClipRange, createCaptionOverlapDialog, createCardTimingDialog, createSessionMediaDialog, createClipMove, createPreviewExport, createCaptionNavigation, createSpeedDialog, createShellPresentation, msg: i18n.message, ...projectModule, createSeekDialog, createCaptionInspectionDialog, replaceCaptionText, prepareCommand, CommandError, LocalizedError, hasMinimumDuration, createEditorService, ...captionModule,
+    ...i18n, createScenePngExport, createScenePngDialog, createCaptionKeywordsDialog, projectGraphicsText, createCaptionSpeakerDialog, createCaptionShiftDialog, createClipComplementDialog, createCaptionImportDialog, createFramingDialog, createPositionDialog, createCaptionRangeDialog, downloadBlob, createClipRange, createCaptionOverlapDialog, createCardTimingDialog, createSessionMediaDialog, createClipMove, createPreviewExport, createCaptionNavigation, createSpeedDialog, createShellPresentation, msg: i18n.message, ...projectModule, createSeekDialog, createCaptionInspectionDialog, replaceCaptionText, prepareCommand, CommandError, LocalizedError, hasMinimumDuration, createEditorService, ...captionModule,
     adjacentCut, renderCaptionTrack, renderCaptionTrackError, updateTimelineMarkup, createTimelineView, createInspectorView, createInputHistory,
     ...effectsModule, ...templateModule, readTemplateLibrary, validateTemplateLibrary,
     mountTemplateGallery, mountEffectsPanel, ...typographyModule, createCompositionRenderer,

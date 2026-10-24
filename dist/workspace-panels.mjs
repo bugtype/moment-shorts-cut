@@ -1,3 +1,5 @@
+import { createScenePngExport } from './scene-png-export.mjs';
+import { createScenePngDialog } from './scene-png-dialog.mjs';
 import { message, setAttr } from './i18n.mjs';
 import { mediaPanelMarkup, audioPanelMarkup, settingsPanelMarkup } from './panel-markup.mjs';
 
@@ -8,6 +10,7 @@ const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
 export function createWorkspacePanels(app) {
     const { query: $, queryAll: $$ } = app;
     let sheetOpen = false, renderGeneration = 0;
+    const scenePng = createScenePngDialog(app, createScenePngExport(app));
 
     // Compact layouts keep the preview visible and turn the side panel into a
     // sheet above the bottom tool rail. Desktop keeps the panel permanently docked.
@@ -221,6 +224,10 @@ export function createWorkspacePanels(app) {
             framing.onclick = event => {
                 if (app.panel === 'settings' && app.state === framingProject && framingGeneration === renderGeneration && $('#openPanelFraming') === framing &&
                     !event?.isComposing && event?.keyCode !== 229) app.openFraming('openPanelFraming');
+            };
+            const sceneButton = $('#openScenePng'), sceneGeneration = renderGeneration;
+            sceneButton.onclick = event => {
+                if (sceneGeneration === renderGeneration && $('#openScenePng') === sceneButton) scenePng.open(event);
             };
             const savePreview = $('#savePreviewPng'), previewProject = app.state;
             syncPreviewExportLabel();

@@ -28,7 +28,7 @@ Use `project.update` / `moment_project_update` with
 ratios are 9:16, 4:5, 1:1 and 16:9. A changed ratio resets zoom/pan; inspect framing
 and text/card placement rather than assuming existing content is redesigned.
 4:5 render plans are 720×900 or 1080×1350 at short-edge quality 720/1080, while the
-browser preview/PNG remains 540×675. A render plan is not an encoded video.
+browser preview/preview PNG remains 540×675. A render plan is not an encoded video.
 
 Existing files/ratios retain their sizes. New 4:5 files require an updated Moment:
 older builds reject the value despite unchanged schema 4/API 1. Do not claim

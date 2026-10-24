@@ -1,3 +1,4 @@
+import { createCaptionInspectionDialog } from './caption-inspection-dialog.mjs';
 import { createTextFileWorkflow } from './text-file-workflow.mjs';
 import { createMediaSources } from './media-sources.mjs';
 import { createProjectPersistence } from './project-persistence.mjs';
@@ -133,7 +134,16 @@ const templateWorkspace = createTemplateWorkspace({
     download: (blob, name) => download(blob, name),
     toast: message => toast(message),
 });
+const captionInspection = createCaptionInspectionDialog({
+    getProject: () => state, query: $, modal,
+    openModal: (...args) => modalOpen(...args),
+    blocked: () => !editorReady || exporting || loadingMedia || transcribing || persistence.restorePhase !== 'ready' || audioRecording.requesting || audioRecording.current,
+    pause, seek: time => seekTo(time),
+    focusCaption: index => { switchPanel('captions'); focusCaption(index); },
+    toast: message => toast(message),
+});
 const captionPanel = createCaptionPanel({
+    inspect: () => captionInspection.open(),
     execute: (command, args) => app.runEditorCommand(command, args),
     query: $, queryAll: $$,
     getProject: () => state,

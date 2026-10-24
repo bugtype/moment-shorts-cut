@@ -476,3 +476,8 @@ body.exporting .workspace,body.exporting .topbar {
 }
 
 .caption-row-actions { display:flex; flex-wrap:wrap; align-items:center; gap:5px; }
+
+.caption-inspection-table { overflow-x:auto; }
+.caption-inspection-table table { width:100%; border-collapse:collapse; }
+.caption-inspection-table th, .caption-inspection-table td { padding:8px 4px; text-align:left; border-bottom:1px solid var(--line); }
+#captionInspectionThreshold { width:auto; flex:1; min-width:0; margin:0; }

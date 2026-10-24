@@ -47,6 +47,7 @@ export function captionsPanelMarkup({ captions, speakerLabels }, { toolsOpen, tr
         `</span>` +
         `</summary>` +
         `\n  <div class="caption-disclosure-body">` +
+        `<button class="button" id="inspectCaptions">읽기 속도 검사</button>` +
         `<section aria-label="자막 찾기 및 바꾸기">` +
         `<label class="panel-label" for="captionFind">찾을 내용</label>` +
         `<input class="panel-input" id="captionFind" type="text" maxlength="2000" autocomplete="off" spellcheck="false">` +

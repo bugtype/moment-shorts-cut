@@ -166,11 +166,17 @@ Existing output files are protected; use `--overwrite` only when you intend to r
 | Correct repeated wording | [`captions.text.replace`](INTEGRATIONS.md#자막-문구-일괄-교정) | Literal, case-sensitive, non-overlapping; no regex/Unicode normalization. Preserves timing, speaker/keyword metadata and order. Blank or overlong results reject the whole edit. Browser UI previews occurrence counts and applies one undo step. |
 | Review matches first | Browser previous/next search controls | Wrap through authored rows, including trimmed-out captions; scroll/focus/select each row’s first match and show current/total rows. One row counts once; replace-all counts occurrences. No playback seek, project edit or save. |
 | Shift a constant subtitle delay | [`captions.timing.shift`](INTEGRATIONS.md#자막-시간을-앞뒤로-이동) | Choose source/timeline and signed seconds **before speed**. All cues in that basis move; any out-of-bounds result rejects the whole edit. Browser caption tools apply a real change as one undo step. |
-| Review dense caption timing | [`captions.inspect`](INTEGRATIONS.md#편집-후-자막-표시-속도-점검) | Read-only ranking against your chosen non-whitespace-graphemes/second threshold after cuts, repeats and speed. Not a language standard, speech-alignment or export-validity check. |
+| Review dense caption timing | Browser **읽기 속도 검사** or [`captions.inspect`](INTEGRATIONS.md#편집-후-자막-표시-속도-점검) | Read-only ranking against your chosen non-whitespace-graphemes/second threshold after cuts, repeats and speed. Not a language standard, speech-alignment or export-validity check. |
 | Split one caption at the caret | [`captions.split`](INTEGRATIONS.md#자막-하나를-커서-위치에서-분할) or the row split action | Keeps literal text and metadata; estimates timing by grapheme counts, not speech alignment. A caret boundary must not cut an emoji/combined character. Separate from bulk long-caption splitting. |
 | Merge adjacent captions | [`captions.merge`](INTEGRATIONS.md#인접한-자막-합치기) or row action **다음 자막과 합치기** | Combines the next authored row, even across pages. Requires matching clock/speaker/keywords and non-overlapping chronological times; merged text also appears across any gap. One browser undo step. |
 | Change appearance | [`captions.style.update`](INTEGRATIONS.md#자막-스타일-수정) | Size, position, colors and animation: only supplied fields change, without resubmitting the project. Visual styles are absent from plain SRT/VTT. |
 | Import subtitle text | [`captions.import`](INTEGRATIONS.md#srtvtt-본문을-명령으로-가져오기) | Replaces all captions. Supply contents, not a path, and source/timeline time **before speed**, not output time. API: 100,000 UTF-16 code units; browser files: 2 MiB. |
+
+In **읽기 속도 검사**, enter your own positive threshold; none is preselected.
+The report shows up to 20 highest-rate occurrences plus total, flagged and omitted
+counts. **자막** focuses the authored row without seeking; **구간 보기** pauses and
+seeks that specific output occurrence, then focuses its row. Re-run if the project or threshold
+changed since inspection. Inspection/navigation does not edit, save or add undo history.
 
 The caption editor shows **50 rows per page**, with previous/next controls and a
 visible range. Paging alone does not edit, save or seek playback. Search, timeline

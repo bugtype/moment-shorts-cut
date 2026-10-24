@@ -192,6 +192,15 @@ resolve authored indexes from the current project. Repeated derived occurrences
 are not independent editable cues. Existing derived-cue/raw-byte limits apply.
 See the [CLI workflow and precise metric](../../../../INTEGRATIONS.md#편집-후-자막-표시-속도-점검).
 
+For manual review in the browser, **읽기 속도 검사** starts with a blank required
+positive threshold and reports the worst 20 occurrences plus total/flagged/omitted
+counts. **자막** focuses the authored row without seeking; **구간 보기** pauses and
+seeks the selected occurrence before focusing that row. Project or threshold
+changes invalidate the report and require a new inspection. Busy/recovery guards still apply. Neither inspection nor navigation
+changes the project, saves it or creates history; CLI/MCP cannot drive this modal
+or the browser playhead.
+
+
 ## Split one caption at the caret boundary
 
 Use `captions.split` / `moment_captions_split` with `{captionIndex, textOffset}`

@@ -5,7 +5,7 @@ import { splitCaptionText } from './effects.mjs';
 import { CAPTION_PAGE_SIZE, captionsPanelMarkup } from './panel-markup.mjs';
 
 export function createCaptionPanel({
-    query: $, queryAll: $$, getProject, getDuration, sourceTime, edit, refresh, toast, execute,
+    query: $, queryAll: $$, getProject, getDuration, sourceTime, edit, refresh, toast, execute, inspect,
 }) {
     const timingFields = { basis: 'source', delta: '0' };
     let exportFormat = 'srt';
@@ -171,6 +171,7 @@ export function createCaptionPanel({
         $('#replaceAllCaptions').onclick = replaceAllCaptions;
         previewReplacement();
         $('#captionDesignShortcut').onclick = actions.design;
+        $('#inspectCaptions').onclick = () => { if (!composing) inspect(); };
         $('#splitLongCaptions').onclick = splitLongCaptions;
         $$('[data-caption-keywords]').forEach(el => el.onchange = () => edit(() => getProject().captions[+el.dataset.captionKeywords].keywords = el.value));
         $$('[data-caption-speaker]').forEach(el => el.onchange = () => edit(() => getProject().captions[+el.dataset.captionSpeaker].speaker = el.value));
@@ -246,7 +247,7 @@ export function createCaptionPanel({
             ...['captionFind', 'captionReplacement', 'previousCaptionPage', 'nextCaptionPage',
                 'previousCaptionMatch', 'nextCaptionMatch', 'replaceAllCaptions', 'splitLongCaptions',
                 'addCaption', 'importSrt', 'captionExportFormat', 'downloadCaptions', 'generateCaptions',
-                'captionDesignShortcut', 'captionShiftBasis', 'captionShiftDelta', 'shiftCaptionTiming'].map(id => $('#' + id)),
+                'inspectCaptions', 'captionDesignShortcut', 'captionShiftBasis', 'captionShiftDelta', 'shiftCaptionTiming'].map(id => $('#' + id)),
         ];
         for (const control of controls) for (const event of ['onclick', 'onchange', 'oninput']) {
             const handler = control?.[event];

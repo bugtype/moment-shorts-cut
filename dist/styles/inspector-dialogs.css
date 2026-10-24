@@ -481,3 +481,5 @@ body.exporting .workspace,body.exporting .topbar {
 .caption-inspection-table table { width:100%; border-collapse:collapse; }
 .caption-inspection-table th, .caption-inspection-table td { padding:8px 4px; text-align:left; border-bottom:1px solid var(--line); }
 #captionInspectionThreshold { width:auto; flex:1; min-width:0; margin:0; }
+
+.scene-appearance-actions { flex-wrap:wrap; margin-bottom:8px; }

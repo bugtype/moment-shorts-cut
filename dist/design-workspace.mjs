@@ -6,6 +6,8 @@ import { activeSceneLayers, defaultEnhancements, newCard, sceneBounds } from './
 // context, selection guides and the shared preview/undo callbacks.
 export function createDesignWorkspace(app) {
     const { query: $ } = app;
+    const appearanceKeys = ['color', 'accent', 'background', 'size', 'stroke', 'backgroundOpacity', 'presentation', 'animation'];
+    let copiedAppearance = null;
 
     function selectedSceneLayer() {
         const active = activeSceneLayers(app.state, app.current / app.state.speed);
@@ -88,11 +90,33 @@ export function createDesignWorkspace(app) {
     }
 
     function renderEffects(target) {
+        const project = app.state;
         mountEffectsPanel(target, {
             state: app.state,
             total: app.duration() / app.state.speed,
             tab: app.effectTab,
             selected: app.selectedCard,
+            current: () => app.state === project,
+            hasCopiedAppearance: copiedAppearance !== null,
+            copyAppearance(id) {
+                if (app.state !== project) return false;
+                const card = app.state.overlays.find(item => item.id === id);
+                if (!card) return false;
+                copiedAppearance = structuredClone(Object.fromEntries(appearanceKeys.filter(key => Object.hasOwn(card, key)).map(key => [key, card[key]])));
+                app.renderPanel();
+                app.toast('문구 스타일을 복사했습니다.');
+                return true;
+            },
+            pasteAppearance(id) {
+                if (app.state !== project) return false;
+                const card = app.state.overlays.find(item => item.id === id);
+                if (!card || !copiedAppearance) return false;
+                if (Object.entries(copiedAppearance).every(([key, value]) => card[key] === value)) {
+                    app.toast('이미 같은 문구 스타일입니다.');
+                    return false;
+                }
+                return app.runEditorCommand('overlays.update', { id, patch: structuredClone(copiedAppearance) });
+            },
             snapshot: app.snapshot,
             input: app.inputHistory.bind,
             update: previewDesign,

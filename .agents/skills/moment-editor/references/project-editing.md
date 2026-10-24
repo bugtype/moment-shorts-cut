@@ -322,6 +322,15 @@ card times. Active headlines can hide the base title, with the last active
 headline winning; do not confuse that visibility with deletion. Size/stroke are
 canvas-relative with fitting and safe bounds, not fixed output pixels.
 
+For appearance-only reuse, select just `color`, `accent`, `background`, `size`,
+`stroke`, `backgroundOpacity`, `presentation` and `animation` from the source card
+and send them as the target’s `overlays.update` patch. Do not copy its full object:
+position/width, role/kind/enabled, text/detail/label, times and ID must remain intact.
+The browser’s copy/paste action follows this same eight-field contract, keeps a
+snapshot only in editor memory (not OS clipboard/storage), and pastes changes as one
+undo step. An identical style is a no-op. Editing/removing the source does not alter that snapshot. CLI/MCP cannot
+access the browser’s copied snapshot; read the project and construct the patch.
+
 ## Build a hook, tip and CTA with individual cards
 
 Use `overlays.add` / `moment_overlays_add` with a stable caller-chosen `id` and

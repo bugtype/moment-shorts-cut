@@ -59,6 +59,13 @@ keys or while busy.
 
 The built-in templates cover review stories, bold opening lines, vlogs, explainers, interviews, recipes, rankings, product reviews, quizzes, and cinematic moments. Preview each with its animated sample. Quiz choices and countdowns are video graphics, not interactive polls.
 
+**Reuse a card’s appearance:** choose **스타일 복사** on the selected timed card, select
+another card, then **스타일 붙여넣기**. Only color, text size/stroke, background styling, presentation
+and animation transfer; text, timing, position/width, role, type and enabled state stay intact.
+The copied snapshot lives only in editor memory, not the OS clipboard or storage;
+later source edits/deletion do not change it. A changed paste is one undo step;
+pasting an identical style changes nothing.
+
 ### Share a custom template
 
 Export an individual custom-template card in the gallery, then use the gallery’s

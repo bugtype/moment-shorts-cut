@@ -39,11 +39,20 @@ export function mountEffectsPanel(root, api) {
       <label class="panel-label">등장 효과<select class="panel-select" data-card="animation">${[['none','없음'],['fade','서서히 등장'],['slide','아래에서 등장'],['pop','팝업']].map(([v,l])=>`<option value="${v}" ${card.animation===v?'selected':''}>${l}</option>`).join('')}</select></label>
       <div class="design-colors">${[['color','글자'],['accent','강조'],['background','배경']].map(([key,label])=>`<label class="design-color">${label}<input type="color" data-card="${key}" value="${card[key]}"></label>`).join('')}</div>
       ${[['x','가로 위치',.1,.9,.01],['y','세로 위치',.08,.8,.01],['width','문구 폭',.4,.82,.01],['size','글자 크기',20,48,1],['stroke','검은 테두리',0,6,.5],['backgroundOpacity','배경 불투명도',0,1,.05]].map(([key,label,min,max,step])=>`<label class="design-range"><span>${label}<output data-card-output="${key}">${card[key]}</output></span><input type="range" data-card="${key}" value="${card[key]}" min="${min}" max="${max}" step="${step}"></label>`).join('')}
-      <div class="panel-actions"><button class="button" id="duplicateSceneCard">문구 복제</button><button class="button" id="previewSceneCard">구간 재생</button></div></div>`:'<p class="empty-text">템플릿의 예시 구성을 적용하거나<br>첫 문구를 직접 추가하세요.</p>'}`;
+      <div class="panel-actions scene-appearance-actions" role="group" aria-label="문구 스타일"><button class="button" id="copySceneAppearance">스타일 복사</button><button class="button" id="pasteSceneAppearance" ${api.hasCopiedAppearance?'':'disabled'}>스타일 붙여넣기</button></div><div class="panel-actions"><button class="button" id="duplicateSceneCard">문구 복제</button><button class="button" id="previewSceneCard">구간 재생</button></div></div>`:'<p class="empty-text">템플릿의 예시 구성을 적용하거나<br>첫 문구를 직접 추가하세요.</p>'}`;
     target.querySelector('#addSceneCard').onclick=api.add;
     target.querySelector('#toggleSceneLayers').onclick=api.toggleAll;
     target.querySelectorAll('[data-scene-select]').forEach(button=>button.onclick=()=>api.select(button.dataset.sceneSelect));
     if(card){
+      for(const [id, action] of [['copySceneAppearance','copyAppearance'],['pasteSceneAppearance','pasteAppearance']]){
+        target.querySelector('#'+id).onclick=()=>{
+          if(renderOwners.get(root)!==owner || root.querySelector('#effectControls')!==target || api.current?.()===false)return;
+          if(!api[action](card.id))return;
+          const button=root.querySelector('#effectControls')?.querySelector('#'+id);
+          if(button && !button.disabled)button.focus();
+        };
+      }
+
       for(const [id, toIndex, opposite] of [['sceneToFront',state.overlays.length-1,'sceneToBack'],['sceneToBack',0,'sceneToFront']]){
         target.querySelector('#'+id).onclick=()=>{
           if(renderOwners.get(root)!==owner || root.querySelector('#effectControls')!==target || state.overlays[toIndex]===card)return;

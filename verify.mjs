@@ -177,7 +177,7 @@ const originalTitlePosition=evaluate('[state.design.title.x,state.design.title.y
 const originalScenePosition=evaluate('[state.overlays[0].x,state.overlays[0].y]');
 element('#preview').onpointerdown({clientX:250,clientY:160,pointerId:1});
 element('#preview').onpointermove({clientX:260,clientY:180,pointerId:1});
-element('#preview').onpointerup();
+element('#preview').onpointerup({pointerId:1});
 assert.deepEqual(evaluate('[state.design.title.x,state.design.title.y]'),originalTitlePosition,'dragging a timed headline must not move the hidden base title');
 assert.notDeepEqual(evaluate('[state.overlays[0].x,state.overlays[0].y]'),originalScenePosition);
 assert.equal(element('#layerSelection').dataset.label,'구간별 타이틀');
@@ -194,34 +194,34 @@ for(const mode of ['video','title','credit','caption','scene']){
  const position=()=>evaluate(`[${target}.${xKey},${target}.${yKey}]`);
  for(const end of ['onpointerup','onpointercancel']){
   seed();const before=evaluate('({state,history,future})');
-  preview.onpointerdown(pointer());preview[end]();
+  preview.onpointerdown(pointer());preview[end](pointer());
   assert.deepEqual(evaluate('({state,history,future})'),before,mode+' no-motion '+end+' preserves redo');
   assert.equal(evaluate('dragSaves'),0);
-  seed();preview.onpointerdown(pointer());preview.onpointermove(pointer());preview[end]();
+  seed();preview.onpointerdown(pointer());preview.onpointermove(pointer());preview[end](pointer());
   assert.equal(evaluate('future.length'),1,mode+' same coordinates preserve redo');assert.equal(evaluate('dragSaves'),0);
   const xmax=mode==='video'?1:.9,ymax=mode==='video'?1:mode==='scene'?.8:mode==='caption'?.9:.93;
-  seed(xmax,ymax);preview.onpointerdown(pointer());preview.onpointermove(pointer(350,260));preview[end]();
+  seed(xmax,ymax);preview.onpointerdown(pointer());preview.onpointermove(pointer(350,260));preview[end](pointer());
   assert.deepEqual(position(),[xmax,ymax]);assert.equal(evaluate('history.length'),0);assert.equal(evaluate('future.length'),1);assert.equal(evaluate('dragSaves'),0);
   const xmin=mode==='video'?-1:.1,ymin=mode==='video'?-1:mode==='scene'?.08:mode==='caption'?.1:.06;
-  seed(xmin,ymin);preview.onpointerdown(pointer());preview.onpointermove(pointer(150,60));preview[end]();
+  seed(xmin,ymin);preview.onpointerdown(pointer());preview.onpointermove(pointer(150,60));preview[end](pointer());
   assert.deepEqual(position(),[xmin,ymin]);assert.equal(evaluate('history.length'),0);assert.equal(evaluate('future.length'),1);assert.equal(evaluate('dragSaves'),0);
   seed();const original=evaluate('state');preview.onpointerdown(pointer());
   preview.onpointermove(pointer(260,180));preview.onpointermove(pointer(270,200));
   assert.equal(evaluate('history.length'),1,mode+' coalesces real moves');assert.equal(evaluate('future.length'),0);
-  const moved=evaluate('state');assert.notDeepEqual(moved,original);preview[end]();
+  const moved=evaluate('state');assert.notDeepEqual(moved,original);preview[end](pointer());
   assert.deepEqual(position(),[.5+20/540,.5+40/960],mode+' retains existing coordinate conversion');
   assert.equal(evaluate('dragSaves'),1,mode+' saves one changed gesture');
-  preview.onpointermove(pointer(300,300));preview[end]();assert.deepEqual(evaluate('state'),moved);assert.equal(evaluate('dragSaves'),1);
+  preview.onpointermove(pointer(300,300));preview[end](pointer());assert.deepEqual(evaluate('state'),moved);assert.equal(evaluate('dragSaves'),1);
   vm.runInContext('undo()',context);assert.deepEqual(evaluate('state'),original);
   vm.runInContext('undo(true)',context);assert.deepEqual(evaluate('state'),moved);
-  preview.onpointerdown(pointer());preview.onpointermove(pointer(280,210));preview[end]();
+  preview.onpointerdown(pointer());preview.onpointermove(pointer(280,210));preview[end](pointer());
   assert.equal(evaluate('history.length'),2,mode+' starts a new undo group for the next gesture');
   vm.runInContext('undo()',context);assert.deepEqual(evaluate('state'),moved);
  }
 }
 for(const layer of ['title','credit']){
  vm.runInContext(`state=initial();panel='text';textLayer='${layer}';state.design.${layer}.enabled=false;history=[];future=['retained'];dragSaves=0;`,context);
- const before=evaluate('state');preview.onpointerdown(pointer());preview.onpointermove(pointer(300,300));preview.onpointerup();
+ const before=evaluate('state');preview.onpointerdown(pointer());preview.onpointermove(pointer(300,300));preview.onpointerup(pointer());
  assert.deepEqual(evaluate('state'),before);assert.deepEqual(evaluate('future'),['retained']);assert.equal(evaluate('history.length'),0);assert.equal(evaluate('dragSaves'),0);
 }
 for(const moved of [false,true]){
@@ -229,12 +229,12 @@ for(const moved of [false,true]){
  preview.onpointerdown(pointer());if(moved)preview.onpointermove(pointer(270,200));
  vm.runInContext(moved?'undo()':'state=initial();state.zoom=2;',context);
  const replacement=evaluate('({state,history,future,dragSaves})');
- preview.onpointermove(pointer(300,300));preview.onpointerup();
+ preview.onpointermove(pointer(300,300));preview.onpointerup(pointer());
  assert.deepEqual(evaluate('({state,history,future,dragSaves})'),replacement,'A stale gesture cannot mutate a replaced/undone project');
 }
 for(const flag of ["exporting=true","persistence.restorePhase='restoring'"]){
  vm.runInContext(`state=initial();panel='settings';history=[];future=['retained'];dragSaves=0;${flag};`,context);
- const before=evaluate('({state,history,future})');preview.onpointerdown(pointer());preview.onpointermove(pointer(300,300));preview.onpointercancel();
+ const before=evaluate('({state,history,future})');preview.onpointerdown(pointer());preview.onpointermove(pointer(300,300));preview.onpointercancel(pointer());
  assert.deepEqual(evaluate('({state,history,future})'),before);assert.equal(evaluate('dragSaves'),0);
  vm.runInContext("exporting=false;persistence.restorePhase='ready';",context);
 }

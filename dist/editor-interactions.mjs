@@ -4,7 +4,7 @@ const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
 export function bindPreviewDrag(canvas, { getProject, blocked, pause, selection, snapshot, preview, commit }) {
     let drag = null;
     canvas.onpointerdown = e => {
-        if (blocked())
+        if (blocked() || drag)
             return;
         pause();
         const { scene, mode } = selection(), state = getProject();
@@ -12,6 +12,7 @@ export function bindPreviewDrag(canvas, { getProject, blocked, pause, selection,
         if (mode !== 'video' && l?.enabled === false)
             return;
         drag = {
+            pointerId: e.pointerId,
             x: e.clientX,
             y: e.clientY,
             px: mode === 'video' ? state.panX : l.x,
@@ -24,7 +25,7 @@ export function bindPreviewDrag(canvas, { getProject, blocked, pause, selection,
         canvas.setPointerCapture(e.pointerId);
     };
     canvas.onpointermove = e => {
-        if (!drag)
+        if (!drag || e.pointerId !== drag.pointerId)
             return;
         const state = getProject();
         if (drag.project !== state) {
@@ -56,8 +57,8 @@ export function bindPreviewDrag(canvas, { getProject, blocked, pause, selection,
         target[yKey] = nextY;
         preview();
     };
-    const endDrag = () => {
-        if (!drag)
+    const endDrag = e => {
+        if (!drag || e.pointerId !== drag.pointerId)
             return;
         const edited = drag.changed && drag.project === getProject();
         drag = null;
@@ -67,6 +68,7 @@ export function bindPreviewDrag(canvas, { getProject, blocked, pause, selection,
     };
     canvas.onpointerup = endDrag;
     canvas.onpointercancel = endDrag;
+    canvas.onlostpointercapture = endDrag;
 }
 
 export function bindEditorKeyboard(document, { blocked, togglePlayback, undo, seekBy }) {

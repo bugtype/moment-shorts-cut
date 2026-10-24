@@ -1202,6 +1202,21 @@ is a full project document, unlike a `captions.list` page.
 
 ### Edit one authored caption
 
+**Different reviewed corrections across rows:** the
+[text-only batch example](../examples/correct-caption-text.mjs) reads `captions.list`
+rows, then uses caller-reviewed distinct `captionIndex` values and arbitrary new
+text for each row. Build up to 20 `captions.update {captionIndex,patch:{text}}`
+operations; inspect `moment_project_preview`, then send the **same operations** to
+`moment_project_batch` with the same `projectId`. Text-only patches preserve timing,
+speakers and keywords, including retained cues outside the current output duration.
+Unlike literal find/replace, corrections can differ by row; unlike subtitle
+replacement import, metadata absent from the subtitle file is not lost.
+
+Atomicity covers only one batch of at most 20 operations, not automatic chunking or
+an entire multi-batch correction. Re-read indexes after structural edits; preview
+is not a reservation. This synthetic example accesses no media, files or network
+and does not translate or correct actual user content.
+
 Read the current `project.captions`, then use `moment_captions_update` to patch one
 row without resending the whole array:
 

@@ -142,6 +142,21 @@ recipes](../../../../INTEGRATIONS.md#자막-하나-추가연속-범위-삭제) c
 
 ## Edit one authored caption
 
+For different reviewed wording on several rows, follow the
+[text-only batch example](../../../../examples/correct-caption-text.mjs): inspect
+`captions.list`, use caller-reviewed distinct `captionIndex` values and each row's
+new text, then preview up to 20 `captions.update {captionIndex,patch:{text}}`
+operations with `project.preview` before sending the same operations to
+`project.batch`. This preserves timing, speaker and keyword metadata, including
+retained out-of-output cues. Unlike literal find/replace, each replacement may
+differ; unlike subtitle replacement import, it does not lose metadata absent from
+the subtitle file.
+
+Atomicity is per batch (at most 20 operations), with no automatic chunking or
+multi-batch atomicity. Re-read indexes after structural edits; preview reserves
+nothing. The synthetic example uses no media, files or network, and performs no
+translation or actual user corrections.
+
 Prefer `captions.update` / `moment_captions_update` for one cue rather than sending
 all captions again. Read a current `captions.list` page (MCP: `moment_captions_list`), then supply its `captionIndex`
 and a `patch` containing only requested `text`, `start`, `end`, `speaker` or `keywords`.

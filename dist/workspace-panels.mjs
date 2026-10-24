@@ -175,6 +175,29 @@ export function createWorkspacePanels(app) {
         }
     }
 
+    function bindOriginalDownload(target, generation, kind) {
+        const video = kind === 'video';
+        const id = video ? '#downloadOriginalVideo' : '#downloadOriginalAudio';
+        const fileKey = video ? 'videoFile' : 'audioFile';
+        const urlKey = video ? 'sourceURL' : 'audioURL';
+        const panel = video ? 'media' : 'audio';
+        const file = app.sources[fileKey], sourceURL = app.sources[urlKey], project = app.state;
+        const button = $(id);
+        let composing = false;
+        target.oncompositionstart = () => { composing = true; };
+        target.oncompositionend = () => { composing = false; };
+        button.disabled = !app.mediaReady();
+        button.onclick = event => {
+            if (composing || event?.isComposing || event?.keyCode === 229 || generation !== renderGeneration ||
+                app.panel !== panel || $(id) !== button || app.state !== project ||
+                app.sources[fileKey] !== file || app.sources[urlKey] !== sourceURL || (video && app.state.kind !== 'video') ||
+                app.modal.open || !app.editorReady || !app.mediaReady() || app.exporting || app.loadingMedia || app.transcribing ||
+                app.audioRecording.current || app.audioRecording.requesting) return;
+            try { app.download(file, file.name); }
+            catch { app.toast(message(video ? 'sourceVideo.failed' : 'panels.originalAudioDownloadFailed')); }
+        };
+    }
+
     function renderPanel() {
         const generation = ++renderGeneration;
         const target = $('#panelContent');
@@ -185,7 +208,8 @@ export function createWorkspacePanels(app) {
             app.renderEffects(target);
         }
         else if (app.panel === 'media') {
-            target.innerHTML = mediaPanelMarkup(app.state, app.sources.thumbnail);
+            target.innerHTML = mediaPanelMarkup(app.state, app.sources.thumbnail, !!app.sources.videoFile);
+            if (app.state.kind === 'video' && app.sources.videoFile) bindOriginalDownload(target, generation, 'video');
             $('#chooseVideo').onclick = () => $('#videoInput').click();
             $('#assetSelect').onclick = () => {
                 app.seekTo(0);
@@ -213,21 +237,7 @@ export function createWorkspacePanels(app) {
             $('#recordButton').onclick = app.toggleRecording;
             if (app.state.kind === 'video') bindAudioGain('audioSourceVolume', 'volume', generation);
             if (app.sources.audioFile) {
-                const file = app.sources.audioFile, project = app.state, audioURL = app.sources.audioURL;
-                const button = $('#downloadOriginalAudio');
-                let composing = false;
-                target.oncompositionstart = () => { composing = true; };
-                target.oncompositionend = () => { composing = false; };
-                button.disabled = !app.mediaReady();
-                button.onclick = event => {
-                    if (composing || event?.isComposing || event?.keyCode === 229 || generation !== renderGeneration ||
-                        app.panel !== 'audio' || $('#downloadOriginalAudio') !== button || app.state !== project ||
-                        app.sources.audioFile !== file || app.sources.audioURL !== audioURL || app.modal.open ||
-                        !app.editorReady || !app.mediaReady() || app.exporting || app.loadingMedia || app.transcribing ||
-                        app.audioRecording.current || app.audioRecording.requesting) return;
-                    try { app.download(file, file.name); }
-                    catch { app.toast(message('panels.originalAudioDownloadFailed')); }
-                };
+                bindOriginalDownload(target, generation, 'audio');
                 $('#removeAudio').onclick = () => {
                     if (app.recoveryBlocked() || app.audioRecording.current || app.audioRecording.requesting || app.loadingMedia)
                         return;

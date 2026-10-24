@@ -93,7 +93,7 @@ export function captionsPanelMarkup({ captions, speakerLabels }, { toolsOpen, tr
     );
 }
 
-export function mediaPanelMarkup({ kind, duration, fileName }, thumbnail) {
+export function mediaPanelMarkup({ kind, duration, fileName }, thumbnail, hasVideo = false) {
     return (
         `<section class="asset-workspace" aria-labelledby="mediaPanelHeading">` +
         `<h1 class="panel-heading" id="mediaPanelHeading">${text('panels.media')}</h1>` +
@@ -107,6 +107,7 @@ export function mediaPanelMarkup({ kind, duration, fileName }, thumbnail) {
         `<strong>${esc(fileName)}</strong>` +
         `<small>${kind === 'demo' ? text('panels.sampleDescription') : text('panels.sourceDescription')}</small>` +
         `</span></span></button>` +
+        (kind === 'video' && hasVideo ? `<div class="panel-actions"><button class="button" id="downloadOriginalVideo">${text('sourceVideo.download')}</button></div>` : '') +
         `<button class="sample-link" id="loadDemo">${icon('reset')} ${text('panels.openDemo')}</button>` +
         `</section>` +
         `<section class="asset-section" ${attrs('aria-label', 'panels.importVideo')}>` +

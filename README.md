@@ -302,16 +302,23 @@ This works independently of MediaRecorder; it is not source-frame-accurate expor
 Busy states and recovery without session media access block capture; a newer request or project/media change cancels
 an outdated pending download. Normal playback advancing does not change the snapshot.
 
-### Back up added audio
+<a id="back-up-added-audio"></a>
+### Back up connected media
 
-In **Audio**, choose **Download original audio** beside the attached asset to save
-the original added file, including microphone narration. It downloads the full
-original bytes, name and media type—not an edited mix or the source video's audio.
-Offset, volumes, speed and clips do not alter this backup; no codec conversion,
-pause, seek, project edit or history entry occurs. Project JSON still contains no media.
+Download the connected files separately from your settings backup:
 
-The file must be available in a ready project or a confirmed session-only media
-connection. Busy states, unavailable recovery media and stale actions are blocked;
+| Where | Action and file |
+|---|---|
+| **Media**, beneath the current video asset | **Download original video** saves the connected video file with its original bytes, name and media type; available only for a video project with a connected file |
+| **Audio**, beside the attached asset | **Download original audio** saves the full added file, including microphone narration—not an edited mix or audio extracted from the source video |
+
+Neither action applies cuts, offsets, volumes, speed, text or effects, transcodes,
+uploads media, pauses, seeks or changes project/history/storage. Project JSON still
+contains no media. A missing source cannot be recovered by this download; a relinked
+file is the file you supplied, not cryptographically proven to be the original.
+
+The project must be ready or have a confirmed session-only media connection.
+Busy states, unavailable recovery media and stale actions are blocked;
 this does not repair storage or re-enable browser saving.
 
 ## Example results

@@ -208,11 +208,11 @@ test('browser command API, imports and subtitle output guards', async () => {
   }
   // Enqueue a mutation during parsing, after any read-time check but before apply.
   resetImportFixture();
-  vm.runInContext('globalThis.importParser=parseSubtitles;parseSubtitles=(...args)=>{window.moment.execute("project.update",{patch:{zoom:1.5}});return importParser(...args);};',context);
+  vm.runInContext('globalThis.importParser=parseSubtitlesWithReport;parseSubtitlesWithReport=(...args)=>{window.moment.execute("project.update",{patch:{zoom:1.5}});return importParser(...args);};',context);
   const queuedImport=delayedImport('srt');queuedImport.finish();await queuedImport.pending;
   assert.equal(evaluate('state.zoom'),1.5);assert.notEqual(evaluate('state.captions[0].text'),'imported');
   assert.equal(evaluate('history.length'),1);assert.equal(context.importSaves,1);assert.match(element('#toast').textContent,/프로젝트가 변경/);
-  vm.runInContext('parseSubtitles=importParser;',context);
+  vm.runInContext('parseSubtitlesWithReport=importParser;',context);
   // Existing queued commands retain order; stale imports cannot jump the queue.
   resetImportFixture();const queuedJson=delayedImport('json');
   const commands=[context.window.moment.execute('project.update',{patch:{zoom:1.5}}),context.window.moment.execute('title.update',{patch:{lines:['queued title','second line']}})];

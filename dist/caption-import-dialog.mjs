@@ -1,4 +1,4 @@
-import { text, mark, t, message, setValidity } from './i18n.mjs';
+import { text, mark, t, message, setValidity, setText } from './i18n.mjs';
 import { esc } from './ui-format.mjs';
 import { CommandError } from './core/validation.mjs';
 
@@ -20,8 +20,8 @@ export function createCaptionImportDialog(app, blocked) {
             message('panels.importSrt'),
             `<label class="panel-label" for="subtitleImportFile">${text('panels.subtitleFile')}</label><input class="panel-input" id="subtitleImportFile" type="file" accept=".srt,.vtt,text/plain,text/vtt" required>` +
             `<label class="panel-label" for="subtitleImportClock">${text('panels.subtitleClock')}</label><select class="panel-select" id="subtitleImportClock"><option value="source" ${mark('panels.subtitleClockSource')}>${esc(t('panels.subtitleClockSource'))}</option><option value="output" ${mark('panels.subtitleClockOutput')}>${esc(t('panels.subtitleClockOutput'))}</option></select>` +
-            `<p class="notice">${text('panels.subtitleReplaceWarning')}</p>`,
-            `<div class="modal-foot"><button class="button" id="cancelSubtitleImport">${text('shell.cancel')}</button><button class="button primary" id="confirmSubtitleImport">${text('panels.subtitleReplace')}</button></div>`
+            `<p class="notice">${text('panels.subtitleReplaceWarning')}</p><div id="subtitleImportReport" aria-live="polite"></div>`,
+            `<div class="modal-foot"><button class="button" id="cancelSubtitleImport">${text('shell.cancel')}</button><button class="button primary" id="confirmSubtitleImport">${text('importReview.review')}</button></div>`
         );
 
         const fileInput = $('#subtitleImportFile');
@@ -31,6 +31,13 @@ export function createCaptionImportDialog(app, blocked) {
         let attemptVersion = 0;
         let pending = false;
         let composing = null;
+        let prepared = null;
+        const report = $('#subtitleImportReport');
+        const clearReview = () => {
+            prepared = null;
+            report.innerHTML = '';
+            setText(confirm, 'importReview.review');
+        };
 
         const ownsDialog = () => generation === owner && app.modal.open &&
             $('#confirmSubtitleImport') === confirm;
@@ -42,6 +49,7 @@ export function createCaptionImportDialog(app, blocked) {
             if (generation === owner) {
                 generation++;
                 attemptVersion++;
+                prepared = null;
             }
         };
         const close = () => {
@@ -81,13 +89,14 @@ export function createCaptionImportDialog(app, blocked) {
                 return;
             }
 
-            const attemptOwner = ++attemptVersion;
+            const attemptOwner = prepared ? attemptVersion : ++attemptVersion;
             pending = true;
             confirm.disabled = true;
             const isCurrent = () => ownsDialog() && attemptOwner === attemptVersion &&
                 fileInput.files?.[0] === file && clock.value === mode;
             try {
-                const result = await app.importSrt(file, {
+                const result = prepared ? await prepared.commit() : await app.importSrt(file, {
+                    prepareOnly: true,
                     owned: true,
                     clock: mode,
                     isCurrent,
@@ -100,8 +109,24 @@ export function createCaptionImportDialog(app, blocked) {
 
                 // Our successful commit replaces the project. Only failed attempts
                 // must still match the original context before reporting an error.
-                if (!isCurrent() || result.stale ||
-                    (!result.ok && (!originalContextIsCurrent() || blocked()))) return;
+                if (!isCurrent() ||
+                    ((!result.ok || result.prepared) && (!originalContextIsCurrent() || blocked()))) return;
+                if (result.stale) {
+                    clearReview();
+                    app.toast(message('importReview.expired'));
+                    return result;
+                }
+                if (result.prepared) {
+                    prepared = result;
+                    const counts = result.report;
+                    report.innerHTML =
+                        [['accepted', counts.acceptedCaptions], ['clipped', counts.clippedCaptions],
+                         ['discarded', counts.discardedRecognizedEntries]].map(([key, count]) =>
+                            `<div class="modal-field"><span>${text('importReview.' + key)}</span><strong>${esc(String(count))}</strong></div>`).join('') +
+                        `<p class="modal-copy">${text('importReview.limitations')}</p>`;
+                    setText(confirm, 'panels.subtitleReplace');
+                    return result;
+                }
                 if (result.ok) {
                     close();
                     app.focusCaption(0);
@@ -126,6 +151,7 @@ export function createCaptionImportDialog(app, blocked) {
                     pending = false;
                     confirm.disabled = false;
                     setValidity(fileInput, '');
+                    clearReview();
                 }
             };
             input.oncompositionstart = () => {

@@ -94,23 +94,34 @@ export function mapAudioCaptions(captions, offset, total) {
 // File size is checked before reading in the UI; keep the parser bounded for callers too.
 const subtitleReferences = {amp:'&',lt:'<',gt:'>',lrm:'\u200e',rlm:'\u200f',nbsp:'\u00a0'};
 export function parseSubtitles(text, duration) {
+  return parseSubtitlesWithReport(text, duration).captions;
+}
+
+// Counts describe this permissive parser’s recognized entries, not all file cues.
+export function parseSubtitlesWithReport(text, duration) {
   if (typeof text !== 'string' || text.length > MAX_SUBTITLE_BYTES || encoder.encode(text).byteLength > MAX_SUBTITLE_BYTES) throw new LocalizedError(msg('errors.subtitleFileLimit'));
   if (!Number.isFinite(duration) || duration <= 0) throw new LocalizedError(msg('errors.videoDuration'));
   const normalized = text.replace(/^\uFEFF/, '').replace(/\r\n?/g, '\n');
   // An empty first payload line ends the cue; never absorb the next cue's timing.
   const pattern = /^(?:(\d{1,2}):)?([0-5]\d):([0-5]\d)[,.](\d{3})[ \t]*-->[ \t]*(?:(\d{1,2}):)?([0-5]\d):([0-5]\d)[,.](\d{3})[^\n]*\n(?![ \t]*(?:\n|$))([\s\S]*?)(?=\n[ \t]*\n|(?![\s\S]))/gm;
   const captions = [];
+  let clippedCaptions = 0, discardedRecognizedEntries = 0;
   for (const match of normalized.matchAll(pattern)) {
     const start = (+match[1] || 0) * 3600 + (+match[2]) * 60 + (+match[3]) + (+match[4]) / 1000;
-    const end = Math.min((+match[5] || 0) * 3600 + (+match[6]) * 60 + (+match[7]) + (+match[8]) / 1000, duration);
+    const rawEnd = (+match[5] || 0) * 3600 + (+match[6]) * 60 + (+match[7]) + (+match[8]) / 1000;
+    const end = Math.min(rawEnd, duration);
     // Decode once after removing markup, so escaped literal tags remain text.
     const text = match[9].replace(/<[^>]*>/g, '').trim()
       .replace(/&(amp|lt|gt|lrm|rlm|nbsp);/g, (_, name) => subtitleReferences[name]);
-    if (!text || end <= start) continue;
+    if (!text || end <= start) {
+      discardedRecognizedEntries++;
+      continue;
+    }
     if (text.length > 2000) throw new LocalizedError(msg('errors.cueLength'));
     if (captions.length >= MAX_CAPTIONS) throw new LocalizedError(msg('errors.captionLimit'));
     captions.push({start, end, text});
+    if (rawEnd > duration) clippedCaptions++;
   }
   if (!captions.length) throw new LocalizedError(msg('errors.noSubtitles'));
-  return captions;
+  return {captions, report: {acceptedCaptions: captions.length, clippedCaptions, discardedRecognizedEntries}};
 }

@@ -770,6 +770,12 @@ This MCP command has **no output-clock import** or automatic inverse speed/trim 
 exported edited SRT/VTT is not a reversible project backup; choose the intended
 clock explicitly rather than importing final-output times as source times.
 
+The browser dialog separately uses **Review file → Replace**. Review does not edit:
+accepted cues, clipped accepted cues and discarded **recognized** candidates are
+shown, not a full-file validity or skipped-entry total. Changed file/clock/context
+requires a fresh review. This does not add a review phase or report fields to
+`moment_captions_import`; its existing immediate replacement/acknowledgment remains.
+
 Browser handoff caution: set the added-audio offset **before** importing output-clock
 subtitles. Its existing offset control shifts **all** `basis:"timeline"` cues,
 including imported cues, not only audio-generated ones. Undo the whole offset edit

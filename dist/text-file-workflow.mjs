@@ -3,7 +3,7 @@ import { LocalizedError } from './core/validation.mjs';
 import { message as msg, formatError } from './i18n.mjs';
 import { createProjectDocument, projectSubtitles, assertProjectFileSize, timelineDuration, outputDuration } from './core/project.mjs';
 import { CommandError } from './core/validation.mjs';
-import { parseSubtitles, MAX_SUBTITLE_BYTES } from './captions.mjs';
+import { parseSubtitlesWithReport, MAX_SUBTITLE_BYTES } from './captions.mjs';
 
 // JSON and subtitle imports share one request owner so neither can overwrite a newer import.
 export function createTextFileWorkflow({
@@ -111,28 +111,48 @@ export function createTextFileWorkflow({
             if (file.size > MAX_SUBTITLE_BYTES) throw new LocalizedError(msg('errors.subtitleFileLimit'));
             const text = await readUtf8File(file);
             beforeCommit();
-            let captions = parseSubtitles(text, duration);
+            const parsed = parseSubtitlesWithReport(text, duration);
+            let captions = parsed.captions;
             if (clock === 'output') captions = captions.map(caption => ({...caption,
                 start:caption.start * speed,
                 // A parser-clamped end represents the exact captured timeline end.
                 end:caption.end === duration ? total : caption.end * speed,
                 basis:'timeline',
             }));
-            const result = await execute('captions.replace', { captions }, beforeCommit);
-            if (!current()) return {ok:false,stale:true};
-            if (!result.ok) {
-                if (!owned) toast(result.error.message);
-                return result;
-            }
-            const success = msg('errors.captionsImported',{count:captions.length});
-            if (!owned) { focusImportedCaption(); toast(success); }
-            return {...result, message:success};
+            let inFlight = false, consumed = false;
+            const commit = async () => {
+                if (consumed || !current()) return {ok:false,stale:true};
+                if (inFlight) return {ok:false,error:{code:'BUSY',message:formatError(msg('errors.busy'))}};
+                inFlight = true;
+                try {
+                    beforeCommit();
+                    const result = await execute('captions.replace', { captions }, beforeCommit);
+                    if (result.ok) consumed = true;
+                    if (!current()) return {ok:false,stale:true};
+                    if (!result.ok) {
+                        if (!owned) toast(result.error.message);
+                        return result;
+                    }
+                    const success = msg('errors.captionsImported',{count:captions.length});
+                    if (!owned) { focusImportedCaption(); toast(success); }
+                    return {...result, message:success};
+                } catch (error) {
+                    if (!current()) return {ok:false,stale:true};
+                    if (!owned) toast((error.messageKey ? error : error.message) || msg('errors.captionRead'));
+                    return {ok:false,error:error.messageKey ? error : {code:error.code || 'IMPORT_FAILED',message:formatError(error)}};
+                } finally {
+                    inFlight = false;
+                }
+            };
+            if (options.prepareOnly === true)
+                return {ok:true,prepared:true,report:{...parsed.report},commit};
+            return await commit();
         } catch (error) {
             if (!current()) return {ok:false,stale:true};
             if (!owned) toast((error.messageKey ? error : error.message) || msg('errors.captionRead'));
             return {ok:false,error:error.messageKey ? error : {code:error.code || 'IMPORT_FAILED',message:formatError(error)}};
         } finally {
-            if (!owned && current()) $('#srtInput').value = '';
+            if (!owned && options.prepareOnly !== true && current()) $('#srtInput').value = '';
         }
     }
     return { importProjectSettings, downloadProjectSettings, downloadGraphicsText, importSrt, downloadSrt, downloadSubtitles };

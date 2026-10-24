@@ -43,7 +43,7 @@ function deferredFile(text = srt) {
         reads: () => reads
     };
 }
-test('import selection is unread until Replace; default source and legacy hidden import stay source-clock', async () => {
+test('import selection is unread until Review; default source and legacy hidden import stay source-clock', async () => {
     const f = await fixture(), d = deferredFile();
     f.open();
     assert.equal(f.element('#subtitleImportClock').value, 'source');
@@ -59,6 +59,8 @@ test('import selection is unread until Replace; default source and legacy hidden
     assert.equal(d.reads(), 1);
     d.finish();
     await pending;
+    assert.equal(f.evaluate('!!modal.open'), true);
+    await f.confirm(); // Explicit Replace after the read-only review.
 
     assert.deepEqual(f.evaluate('state.captions'), [{start: 0, end: 1, text: 'Imported'}]);
     assert.equal(f.evaluate('history.length'), 1);
@@ -82,6 +84,8 @@ test('edited-output SRT/VTT roundtrip preserves temporal occurrences across repe
         f.file(new Blob([output]));
         f.clock('output');
         await f.confirm();
+        assert.equal(f.evaluate('!!modal.open'), true);
+        await f.confirm(); // Explicit Replace after the read-only review.
         const after = f.evaluate('state');
         assert.equal(after.captions.length, 3);
         assert.ok(after.captions.every(c => c.basis === 'timeline'));
@@ -112,6 +116,8 @@ test('only parser-clamped output endpoint maps to exact captured timeline end', 
     f.clock('output');
     f.file(new Blob(['1\n00:00:00,000 --> 00:00:00,137\nBoundary']));
     await f.confirm();
+    assert.equal(f.evaluate('!!modal.open'), true);
+    await f.confirm(); // Explicit Replace after the read-only review.
     assert.equal(f.evaluate('state.captions[0].end'), 4 / 37);
     assert.equal(f.evaluate('state.captions[0].basis'), 'timeline');
     assert.equal(f.evaluate('history.length'), 1);
@@ -145,6 +151,8 @@ test('cancel, file/mode changes, close/reopen and modal replacement silence stal
             assert.equal(f.element('#confirmSubtitleImport').disabled, false);
             if (cancel === 'mode') f.file(new Blob([srt]));
             await f.confirm();
+            assert.equal(f.evaluate('!!modal.open'), true);
+            await f.confirm(); // Explicit Replace after the read-only review.
             assert.equal(f.evaluate('history.length'), 1);
         }
     }
@@ -158,6 +166,8 @@ test('cancel, file/mode changes, close/reopen and modal replacement silence stal
     d.finish();
     await old;
     await f.confirm();
+    assert.equal(f.evaluate('!!modal.open'), true);
+    await f.confirm(); // Explicit Replace after the read-only review.
     assert.equal(f.evaluate('state.captions[0].text'), 'New dialog');
 });
 
@@ -241,6 +251,8 @@ test('invalid files/limits/UTF8 are atomic; busy and IME do not read; duplicate 
     assert.equal(d.reads(), 1);
     d.finish();
     await pending;
+    assert.equal(f.evaluate('!!modal.open'), true);
+    await f.confirm(); // Explicit Replace after the read-only review.
 
     assert.equal(f.evaluate('history.length'), 1);
 });
@@ -265,6 +277,8 @@ test('failed-valid imports and undo remain memory-only; localized clock choice p
             assert.equal(f.element('#subtitleImportClock').value, 'output');
             assert.equal(f.element('#confirmSubtitleImport').onclick, handler);
             await f.confirm();
+            assert.equal(f.evaluate('!!modal.open'), true);
+            await f.confirm(); // Explicit Replace after the read-only review.
             assert.equal(f.evaluate('history.length'), 1);
             await vm.runInContext('saveProject(true);scheduleSave();undo();', f.context);
             assert.deepEqual(writes, []);
@@ -297,6 +311,8 @@ test('stale read rejections are silent and busy refusal can retry after the oper
             vm.runInContext('loadingMedia=false', f.context);
             f.file(new Blob([srt]));
             await f.confirm();
+            assert.equal(f.evaluate('!!modal.open'), true);
+            await f.confirm(); // Explicit Replace after the read-only review.
             assert.equal(f.evaluate('history.length'), 1);
         }
     }
@@ -309,6 +325,8 @@ test('new dialog import supersedes older legacy subtitle read without clearing n
     f.open();
     f.file(new Blob([srt]));
     await f.confirm();
+    assert.equal(f.evaluate('!!modal.open'), true);
+    await f.confirm(); // Explicit Replace after the read-only review.
     const toast = f.element('#toast').textContent, focus = f.doc.activeElement;
     f.element('#srtInput').value = 'new hidden file';
     d.finish();
@@ -339,6 +357,85 @@ test('file chooser and clock select keep native Enter activation instead of subm
     const pending = f.confirm();
     d.finish();
     await pending;
+    assert.equal(f.evaluate('!!modal.open'), true);
+    await f.confirm(); // Explicit Replace after the read-only review.
 
+    assert.equal(f.evaluate('history.length'), 1);
+});
+
+test('Review reports recognized counts without editing; Replace commits cached captions without rereading', async () => {
+    const f = await fixture();
+    const input = '1\n00:00:01,000 --> 00:00:20,000\nClipped\n\n2\n00:00:13,000 --> 00:00:14,000\nDiscarded';
+    const d = deferredFile(input);
+    f.open(); f.file(d.file);
+    const before = f.evaluate('({state,current,playing,history:history.length})');
+    const pending = f.confirm();
+    d.finish();
+    const review = await pending;
+    assert.equal(review.prepared, true);
+    assert.deepEqual(JSON.parse(JSON.stringify(review.report)), {acceptedCaptions: 1, clippedCaptions: 1, discardedRecognizedEntries: 1});
+    assert.deepEqual(f.evaluate('({state,current,playing,history:history.length})'), before);
+    assert.match(f.element('#subtitleImportReport').innerHTML, /importReview.accepted/);
+    assert.match(f.element('#subtitleImportReport').innerHTML, /importReview.clipped/);
+    assert.match(f.element('#subtitleImportReport').innerHTML, /importReview.discarded/);
+    assert.equal(f.element('#confirmSubtitleImport').getAttribute('data-i18n'), 'panels.subtitleReplace');
+    await f.confirm();
+    assert.equal(d.reads(), 1);
+    assert.equal(f.evaluate('history.length'), 1);
+    assert.deepEqual(f.evaluate('state.captions'), [{start: 1, end: 12, text: 'Clipped'}]);
+});
+
+test('changing file or clock discards reviewed results and requires a fresh read-only review', async () => {
+    for (const change of ['file', 'clock']) {
+        const f = await fixture();
+        f.open(); f.file(new Blob([srt]));
+        await f.confirm();
+        if (change === 'file') f.file(new Blob([srt.replace('Imported', 'New')]));
+        else f.clock('output');
+        assert.equal(f.element('#subtitleImportReport').innerHTML, '');
+        assert.equal(f.element('#confirmSubtitleImport').getAttribute('data-i18n'), 'importReview.review');
+        const reviewed = await f.confirm();
+        assert.equal(reviewed.prepared, true);
+        assert.equal(f.evaluate('history.length'), 0);
+        await f.confirm();
+        assert.equal(f.evaluate('history.length'), 1);
+        assert.equal(f.evaluate('state.captions[0].text'), change === 'file' ? 'New' : 'Imported');
+    }
+});
+
+test('prepared review cannot override a newer import; busy refusal keeps reviewed data retryable', async () => {
+    const f = await fixture(), d = deferredFile();
+    f.open(); f.file(d.file);
+    const pending = f.confirm(); d.finish(); await pending;
+    vm.runInContext('loadingMedia=true', f.context);
+    await f.confirm();
+    assert.equal(f.evaluate('history.length'), 0);
+    assert.equal(d.reads(), 1);
+    vm.runInContext('loadingMedia=false', f.context);
+    await f.confirm();
+    assert.equal(d.reads(), 1);
+    assert.equal(f.evaluate('history.length'), 1);
+
+    f.open(); f.file(new Blob([srt])); await f.confirm();
+    f.context.newImport = new Blob([srt.replace('Imported', 'Latest')]);
+    await vm.runInContext('importSrt(newImport)', f.context);
+    const before = f.evaluate('state');
+    await f.confirm();
+    assert.deepEqual(f.evaluate('state'), before);
+    assert.equal(f.evaluate('state.captions[0].text'), 'Latest');
+});
+
+test('a newer failed legacy read expires cached review visibly and permits reviewing again', async () => {
+    const f = await fixture();
+    f.open(); f.file(new Blob([srt])); await f.confirm();
+    f.context.invalidFile = new Blob(['invalid']);
+    await vm.runInContext('importSrt(invalidFile)', f.context);
+    await f.confirm();
+    assert.equal(f.element('#subtitleImportReport').innerHTML, '');
+    assert.equal(f.element('#confirmSubtitleImport').getAttribute('data-i18n'), 'importReview.review');
+    assert.match(f.element('#toast').textContent, /검토/);
+    assert.equal(f.evaluate('history.length'), 0);
+    assert.equal((await f.confirm()).prepared, true);
+    await f.confirm();
     assert.equal(f.evaluate('history.length'), 1);
 });

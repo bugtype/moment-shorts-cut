@@ -41,7 +41,13 @@ restores the original project. The command replaces all captions atomically, so
 retain the prior project when reversibility matters.
 
 The browser's dedicated file dialog separately offers **Original media** (default)
-or **Edited output**, then explicit **Replace**. Output mode parses against current
+or **Edited output**, then **Review file** before explicit **Replace**. Review
+parses without editing and caches the reviewed data. Counts are accepted cues,
+clipped accepted cues (a subset) and discarded recognized candidates only; malformed/
+unrecognized content is not counted, so this is not full-file validation. File/clock
+changes clear review; stale project/media/modal context requires a fresh review.
+CLI/MCP and legacy programmatic import still replace immediately with the existing
+acknowledgment, not this browser report. Output mode parses against current
 output duration and multiplies times by the captured speed into existing timeline
 cues (a parser-clipped final endpoint uses the exact captured timeline end).
 The existing parser may clip ends/skip invalid or out-of-range cues; successful

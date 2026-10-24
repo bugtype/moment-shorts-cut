@@ -445,10 +445,16 @@ valid failed-recovery edits still need a settings backup, not browser saving.
 | **Original media** (default) | Timestamps measured against the original source, before speed |
 | **Edited output** | Timestamps of the current edited result, after speed; each parsed time is converted to stored timeline time using the captured speed |
 
-The file is read only after **Replace**. A successful full replacement is one
-undoable edit and keeps the playhead position. The tolerant parser may clip ends
-to the selected duration or skip invalid/out-of-range cues.
-Choose **Replace** only after checking the clock; no automatic detection or
+Choose **Review file** to read and parse without editing captions, then check the counts before **Replace**.
+
+| Review count | Meaning |
+|---|---|
+| Captions to import | Cues this parser will import |
+| Of these, end times clipped | Accepted cues whose end was shortened to the selected duration; included in Captions to import, not additional cues |
+| Recognized entries discarded | Pattern-matched candidates dropped because parsed text was empty or the clipped interval was nonpositive |
+
+Malformed/unrecognized entries are **not counted**: these are not total-file counts or full SRT/VTT validation. File/clock changes clear the review; project/media/dialog changes invalidate it. Replace uses the reviewed private file data, not a second read. A successful full replacement is one undoable edit and keeps the playhead position.
+Choose **Replace** only after checking the clock and review; no automatic detection or
 existing-cue migration occurs. Exported subtitles already expand repeated cuts;
 output-clock import keeps those as timeline cues, rather than mapping them back to
 source occurrences. Later cuts/speed changes follow existing timeline-caption rules.

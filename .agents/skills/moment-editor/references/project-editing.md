@@ -8,7 +8,7 @@
 
 | Workflow | Start here |
 |---|---|
-| Captions | [Import](#import-srtvtt-without-constructing-cue-arrays) · [Text correction](#correct-repeated-caption-text) · [Split](#split-one-caption-at-the-caret-boundary) · [Merge](#merge-adjacent-authored-captions) · [Timing](#shift-a-constant-subtitle-delay) · [Style](#adjust-shared-caption-styling) |
+| Captions | [Inspect timing density](#inspect-caption-timing-density) · [Import](#import-srtvtt-without-constructing-cue-arrays) · [Text correction](#correct-repeated-caption-text) · [Split](#split-one-caption-at-the-caret-boundary) · [Merge](#merge-adjacent-authored-captions) · [Timing](#shift-a-constant-subtitle-delay) · [Style](#adjust-shared-caption-styling) |
 | Timeline | [Split/repeat a clip](#split-a-clip-without-rebuilding-the-timeline) |
 | Composition | [Effects](#adjust-video-effects-without-changing-content) · [Existing cards](#edit-an-existing-timed-card-by-id) · [Scripted cards/stacking](#build-a-hook-tip-and-cta-with-individual-cards) · [Credit](../../../../docs/MCP.md#set-a-source-credit-independently) |
 | Grouped/template edits | [One commit](#apply-related-edits-together) · [Browser template sharing](#share-one-browser-custom-template) · [Apply a supplied template](#apply-a-supplied-template-document) |
@@ -176,6 +176,21 @@ import and added-caption focus reveal the target page. Paging alone changes no
 project/history/saved state or playback position. Search, replace-all and long-
 caption splitting still use the full authored list; exports retain full-project
 clip/speed behavior, not visible-page scope. The existing cue/byte limits remain.
+
+## Inspect caption timing density
+
+After an edit, call `captions.inspect` / `moment_captions_inspect` with required
+`maxGraphemesPerSecond` chosen for the task and optional `limit` (`1..100`, default `20`).
+MCP also needs `projectId:"session"`. This is read-only, outside `project.batch`.
+It counts non-whitespace graphemes, including punctuation/literal markup, per
+output second after cuts/repeats/speed. It is not a language standard, speech
+alignment, render-fit or export-validity check. Do not silently apply fixes.
+
+Read total, flagged and omitted counts, not just the top issues. Results rank by
+rate descending, start ascending, then occurrence index. No full text is returned;
+resolve authored indexes from the current project. Repeated derived occurrences
+are not independent editable cues. Existing derived-cue/raw-byte limits apply.
+See the [CLI workflow and precise metric](../../../../INTEGRATIONS.md#편집-후-자막-표시-속도-점검).
 
 ## Split one caption at the caret boundary
 

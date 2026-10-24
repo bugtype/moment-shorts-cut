@@ -49,7 +49,7 @@ its supported version, `2025-11-25`, even if the proposed version differs; a cli
 that cannot support that version should disconnect, not continue with another
 wire format. `ping` is supported. Initialize only once per process.
 
-All twenty-six tools require **`projectId: "session"`**. Each process owns one independent
+All twenty-seven tools require **`projectId: "session"`**. Each process owns one independent
 in-memory project, initially the demo. This value is neither a path nor a credential.
 Other project IDs return a tool error. A second client process does not share state.
 
@@ -113,6 +113,7 @@ ranges at runtime. Schema discovery does not bypass that validation.
 | `moment_project_get` | none | Full portable project document |
 | `moment_templates_list` | none | Built-in template summaries: `id`, `name`, `category`, `description` |
 | `moment_captions_export` | optional `format: "srt"`, `"vtt"` or `"txt"` | `{format, text}` with the selected format |
+| `moment_captions_inspect` | `maxGraphemesPerSecond`, optional `limit` | Read-only output-occurrence rate report |
 | `moment_render_plan` | optional `quality`, `format` | Plan, project snapshot, output settings, required media and `rendered:false` |
 
 Omitting `format` preserves the existing SRT output. To request plain WebVTT, call
@@ -311,7 +312,7 @@ the example. Discover exact input fields in the [tool catalog](#tool-catalog).
 
 | Task | Recipes |
 |---|---|
-| Captions | [Import](#import-subtitle-text-with-an-explicit-clock) · [Split](#split-one-caption-at-a-text-boundary) · [Merge](#merge-two-adjacent-authored-captions) · [Correct text](#correct-caption-text-without-replacing-cues) · [Shift timing](#shift-caption-timing-without-replacing-text) · [Style](#adjust-global-caption-appearance) |
+| Captions | [Inspect timing density](#inspect-caption-timing-density) · [Import](#import-subtitle-text-with-an-explicit-clock) · [Split](#split-one-caption-at-a-text-boundary) · [Merge](#merge-two-adjacent-authored-captions) · [Correct text](#correct-caption-text-without-replacing-cues) · [Shift timing](#shift-caption-timing-without-replacing-text) · [Style](#adjust-global-caption-appearance) |
 | Timeline | [Split a clip](#split-one-clip-occurrence) · [Repeat a clip](#repeat-one-clip-occurrence) |
 | Composition | [Credit](#set-a-source-credit-independently) · [Effects](#adjust-video-effects-independently) · [Edit a card](#edit-an-existing-timed-card) · [Add/remove cards](#create-scripted-cards-without-importing-a-whole-project) · [Stacking](#change-card-stacking) |
 | Grouped/template edits | [One commit](#apply-related-edits-in-one-commit) · [Apply a template file](#apply-an-exported-custom-template) |
@@ -480,6 +481,44 @@ alongside `updated:true` and `outputDuration`.
 The tool does not read files or upload media. Use the [CLI args-file recipe](../INTEGRATIONS.md#srt-파일을-명령-인수로-감싸기)
 for local files, or pass already-read text through your client. Save the edited
 document using `moment_project_get`; the acknowledgment is not the project.
+
+### Inspect caption timing density
+
+Call `moment_captions_inspect` after editing, with a threshold you choose:
+
+```json
+{"projectId":"session","maxGraphemesPerSecond":5,"limit":10}
+```
+
+The threshold is a required finite positive number. The example `5` is not a
+recommended reading-speed standard. Optional `limit` is an integer `1..100`,
+default `20`. The read-only tool neither edits the project nor creates history;
+it is excluded from `project.batch`, so call it separately after the batch.
+
+The metric counts `Intl.Segmenter` graphemes except clusters made entirely of
+whitespace, divided by each derived cue’s **output seconds after speed**. Punctuation
+and literal markup count; whitespace-only text has zero count and is not flagged.
+Cuts and repeats can yield multiple occurrences of the same authored cue, each
+with its full text. This is not language/Netflix compliance, speech alignment,
+rendered text fitting or an SRT/VTT export-validity check.
+
+| Response field | Meaning |
+|---|---|
+| `metric`, `maxGraphemesPerSecond` | `"non-whitespace-graphemes-per-second"` and the requested threshold |
+| `totalOccurrences`, `flaggedOccurrences`, `omittedOccurrences` | All derived cues, cues strictly exceeding the unrounded threshold, flagged cues not included because of `limit` |
+| `issues[].occurrenceIndex`, `captionIndex`, optional `clipIndex` | Zero-based output-start-order occurrence, authored cue, source clip; timeline cues omit `clipIndex` |
+| `issues[].start`, `end`, `graphemeCount`, `graphemesPerSecond` | After-speed output times, counted graphemes and unrounded rate |
+
+Issues are ordered by rate descending, start ascending, then occurrence index ascending. No full caption text is returned. Resolve the
+reported authored caption index against `project.captions`; a derived occurrence
+is not an independently editable cue. Check omitted issues before concluding that
+all dense passages have been reviewed.
+
+Existing 10,000-derived-cue and 2 MiB repeated raw UTF-8 text limits apply. Invalid
+nonpositive/nonfinite output duration or nonfinite rate is rejected, rather than
+reported as a misleading number. These failures and unavailable safe grapheme segmentation return `INVALID_ARGUMENT`;
+derived cue/byte overflows return `CAPTION_OUTPUT_LIMIT`.
+Save/edit the project only if requested; inspection is not automatic correction.
 
 ### Split one caption at a text boundary
 

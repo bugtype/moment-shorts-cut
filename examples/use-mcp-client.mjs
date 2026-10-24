@@ -72,7 +72,7 @@ async function withClient(work) {
 
 const saved = await withClient(async ({request, call, data}) => {
   const {tools} = await request('tools/list', {});
-  assert.equal(tools.length, 26);
+  assert.equal(tools.length, 27);
   assert.ok(tools.some(tool => tool.name === 'moment_project_import'));
   await data('moment_project_import', {document: createProjectDocument(createDemoProject())});
   await data('moment_project_update', {patch: {name: 'MCP 예제', speed: 2}});
@@ -81,6 +81,12 @@ const saved = await withClient(async ({request, call, data}) => {
   assert.equal(rejected.isError, true);
   assert.equal(rejected.structuredContent.error.code, 'INVALID_ARGUMENT');
   assert.deepEqual(await data('moment_project_get'), before, 'failed input must not change the project');
+  const beforeInspection = await data('moment_project_get');
+  const inspection = await data('moment_captions_inspect', {maxGraphemesPerSecond:1,limit:2});
+  assert.equal(inspection.metric, 'non-whitespace-graphemes-per-second');
+  assert.ok(inspection.flaggedOccurrences > 0);
+  assert.ok(inspection.issues.length <= 2);
+  assert.deepEqual(await data('moment_project_get'), beforeInspection);
   await data('moment_timeline_replace', {clips: [{start: 2, end: 6}]});
   const imported = await data('moment_captions_import', {text: '1\n00:00:02,000 --> 00:00:04,000\n안녕하세요', basis: 'source'});
   assert.deepEqual(imported, {updated: true, importedCaptions: 1, outputDuration: 2});
@@ -169,4 +175,4 @@ await withClient(async ({data}) => {
   await data('moment_project_import', {document: saved});
   assert.deepEqual(await data('moment_project_get'), saved);
 });
-console.log(JSON.stringify({ok: true, tools: 26, recoveredFromInvalidInput: true, reimported: true, rendered: false}));
+console.log(JSON.stringify({ok: true, tools: 27, recoveredFromInvalidInput: true, reimported: true, rendered: false}));

@@ -41,6 +41,15 @@ function dataSchema(command) {
       updated: { enum: [true] }, importedCaptions: { type: 'integer', minimum: 1, maximum: 10000 },
       outputDuration: { type: 'number', minimum: 0 },
     });
+    case 'captions.inspect': return record({
+      metric:{enum:['non-whitespace-graphemes-per-second']},maxGraphemesPerSecond:{type:'number',exclusiveMinimum:0},
+      totalOccurrences:{type:'integer',minimum:0,maximum:10000},flaggedOccurrences:{type:'integer',minimum:0,maximum:10000},
+      omittedOccurrences:{type:'integer',minimum:0,maximum:10000},issues:{type:'array',maxItems:100,items:record({
+        occurrenceIndex:{type:'integer',minimum:0,maximum:9999},captionIndex:{type:'integer',minimum:0,maximum:9999},
+        clipIndex:{type:'integer',minimum:0,maximum:999},start:{type:'number',minimum:0},end:{type:'number',minimum:0},
+        graphemeCount:{type:'integer',minimum:0,maximum:2000},graphemesPerSecond:{type:'number',minimum:0},
+      },['occurrenceIndex','captionIndex','start','end','graphemeCount','graphemesPerSecond'])},
+    });
     case 'captions.export': return record({ format: { enum: ['srt', 'vtt', 'txt'] }, text: {
       type: 'string', description: 'SRT/WebVTT uses final output seconds; TXT contains literal edited cue paragraphs without timestamps. Repeated or cut cues may repeat text. Save this string, not the result envelope.',
     } });
@@ -84,6 +93,10 @@ function inputSchema(command) {
   };
   schema.required = ['projectId', ...schema.required];
   const p = schema.properties;
+  if (command.name === 'captions.inspect') {
+    p.maxGraphemesPerSecond.description = 'Required positive review threshold, not a universal language/Netflix standard. Count Intl grapheme clusters except whitespace-only clusters; punctuation and literal markup count. Rate uses each derived output occurrence after cuts/repeats/speed, not source duration. Does not assess speech alignment, rendered fit or export validity.';
+    p.limit.description = 'Maximum returned issues, default20, integer1..100. Reports all occurrence/flagged totals, then highest rates first with start/occurrenceIndex tie-breaking. No text payload. Inspect project.get for authored cue text. No project/history changes.';
+  }
   if (command.name === 'project.batch') {
     p.operations.description = '1–20 sequential in-memory edit operations, prepared against each preceding result and committed once. All fail together on validation error. Not JSON-RPC batching, not a cross-writer/storage transaction. Reads, provider jobs, project.import and nested batches are forbidden. Indices/times refer to the evolving project; inspect project.get before retrying non-idempotent edits.';
     p.operations.items.properties.arguments.description = 'Arguments for the named existing editing command, following its individual tool schema but without projectId. Every step is validated. No references to prior result objects or per-step outputs.';

@@ -7,7 +7,7 @@ const object = value => value !== null && typeof value === 'object' && !Array.is
 const failure = (id, code, message) => ({jsonrpc: '2.0', id, error: {code, message}});
 
 // Lifecycle and project state belong to one connection, independently of its byte transport.
-export function createMcpSession() {
+export function createMcpSession({ commands } = {}) {
   let state = createDemoProject();
   let phase = 'new';
   const service = createEditorService({
@@ -17,7 +17,27 @@ export function createMcpSession() {
   // The launched process owns exactly one ephemeral project, not a file or browser session.
   const adapter = createMcpToolAdapter({
     resolveService: projectId => projectId === 'session' ? service : null,
+    commands,
   });
+
+  const enabled = new Set((commands || []).map(name => `moment_${name.replaceAll('.', '_')}`));
+  const instructions = commands === undefined
+    ? 'Use projectId "session". Changes exist only in this process. Import an editing document with moment_project_import; retrieve moment_project_get before disconnecting to save it through your client. No media upload or video rendering is available.'
+    : [
+      'Use projectId "session". This process starts with demo metadata; changes exist only in this process.',
+      enabled.has('moment_project_import')
+        ? 'Import an editing document with moment_project_import.'
+        : 'Project import is disabled in this tool selection.',
+      enabled.has('moment_project_get')
+        ? 'Retrieve moment_project_get before disconnecting to save the complete project through your client.'
+        : enabled.has('moment_render_plan')
+          ? 'Retrieve the complete project document from moment_render_plan data.project before disconnecting to save it through your client.'
+          : 'Complete project retrieval is disabled; this selection cannot hand off a project settings document.',
+      'Tool selection limits discovery and direct calls, not authorization or a sandbox.',
+      ...(enabled.has('moment_project_batch') || enabled.has('moment_project_preview')
+        ? ['Enabled project.batch/project.preview retain their full existing nested edit allowlist, including edits without a directly exposed tool. Batch applies edits; preview only simulates them without committing.'] : []),
+      'No media upload or video rendering is available.',
+    ].join(' ');
 
   async function dispatch(message) {
     if (!object(message) || message.jsonrpc !== '2.0' ||
@@ -47,7 +67,7 @@ export function createMcpSession() {
         protocolVersion: MCP_PROTOCOL_VERSION,
         capabilities: {tools: {}},
         serverInfo: {name: 'moment-shorts-studio', version: '1.0.0'},
-        instructions: 'Use projectId "session". Changes exist only in this process. Import an editing document with moment_project_import; retrieve moment_project_get before disconnecting to save it through your client. No media upload or video rendering is available.',
+        instructions,
       };
     } else if (phase !== 'ready') {
       return failure(id, -32600, 'Initialize the session first');

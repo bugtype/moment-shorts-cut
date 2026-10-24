@@ -7,7 +7,7 @@ upload media or encode video.
 
 | Goal | Start here |
 |---|---|
-| Check the local connection | [Connect a client](#connect-a-client) |
+| Check the local connection | [Connect a client](#connect-a-client) · [Optional tool selection](#choose-a-smaller-tool-list-optional) |
 | Edit and keep a project | [Import, edit, inspect, save](#import-edit-inspect-save) |
 | Find fields and choose the correct clock | [Tool catalog](#tool-catalog) · [Time coordinates](#time-coordinates) |
 | Use files, recipes or recover safely | [CLI workflow](../INTEGRATIONS.md#실제-cli-사용) · [Editing recipes](#editing-recipes) · [Responses and recovery](#responses-and-recovery) |
@@ -77,6 +77,44 @@ browser project.** Use an explicitly supplied project document for real work.
 This is an optional local check, **not part of `npm test` or default CI**; it does
 not verify a desktop client application, browser playback or encoded video.
 
+## Choose a smaller tool list (optional)
+
+With no startup flag, all **40 tools** remain available. To expose only the direct
+commands needed for a task, add `--tools` and one comma-separated list of **core
+command names**, not `moment_` tool names. For example, keep import, targeted caption
+editing and full-document saving together:
+
+```sh
+node /absolute/path/to/moment-shorts-cut/cli/mcp.mjs --tools project.import,project.summary,captions.list,captions.update,captions.export,project.get
+```
+
+In a client's existing server entry, the optional `args` array is:
+
+```json
+["/absolute/path/to/moment-shorts-cut/cli/mcp.mjs","--tools","project.import,project.summary,captions.list,captions.update,captions.export,project.get"]
+```
+
+Keep `command: "node"` (or its absolute path); the default configuration example
+needs no change. Selection is fixed for that process and returned in canonical
+catalog order, not the order typed. Discover its actual list before calling tools.
+Restart with another selection to change it; no environment variable or profile is
+created. Empty, duplicate, unknown or malformed names and extra startup options
+reject before stdin is read. Use exactly two arguments: `--tools` then the list;
+no spaces, case folding, `--tools=...`, wildcards or aliases are accepted.
+
+| Choice | Consequence |
+|---|---|
+| Omit `project.import` | Starts with the demo and cannot directly import the user's full document |
+| Omit `project.get` | If `render.plan` is selected, save its `structuredContent.data.project` instead—not the whole plan. Without either tool, no full-document handoff is available; summary/pages are not backups |
+| Select `project.batch` or `project.preview` | Their **full 26-command nested allowlist and schemas remain**, including individually omitted editing commands |
+
+**This is discovery/direct-call selection, not authentication, a read-only boundary
+or a sandbox.** Selecting batch can still execute its nested mutations; preview
+prepares the same allowed edits without committing. It is not a promise of fewer
+billed tokens, lower cost or faster processing. An unselected direct tool returns JSON-RPC `-32602` before its arguments are
+processed. It requires a new process selection, not guessing a different tool name; preserve any edited
+full document before ending the old session.
+
 ## Lifecycle and session identity
 
 The client sends `initialize`, checks the returned `protocolVersion`, then sends
@@ -85,7 +123,7 @@ its supported version, `2025-11-25`, even if the proposed version differs; a cli
 that cannot support that version should disconnect, not continue with another
 wire format. `ping` is supported. Initialize only once per process.
 
-All forty tools require **`projectId: "session"`**. Each process owns one independent
+All available tools require **`projectId: "session"`** (40 by default). Each process owns one independent
 in-memory project, initially the demo. This value is neither a path nor a credential.
 Other project IDs return a tool error. A second client process does not share state.
 
@@ -144,6 +182,7 @@ newline-delimited JSON-RPC protocol and adds no tool or schema option.
 
 ## Tool catalog
 
+This is the default full catalog; `--tools` exposes only the selected direct rows.
 Every row below also requires `projectId`. Discover the actual `inputSchema` and
 `outputSchema` with `tools/list`; this overview is not an alternate validator.
 The output schema distinguishes success and error envelopes and each command's

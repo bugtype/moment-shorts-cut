@@ -1647,7 +1647,20 @@ const adapter = createMcpToolAdapter({
 
 서버 서비스의 저장 콜백은 원자적인 저장과 프로젝트 버전 비교를 맡아야 합니다. 서비스 내부 큐는 한 서비스 인스턴스의 명령만 순서대로 실행하므로, 여러 서버 인스턴스 간 충돌을 막는 데이터베이스 트랜잭션을 대신하지 않습니다.
 
-로컬 stdio 서버는 `node cli/mcp.mjs`로 실행합니다. 현재 사이트는 정적 배포이고 `/mcp`가 없습니다. 별도의 원격 HTTP MCP 서버를 켜려면 서버 런타임과 프로젝트 저장소를 추가하고, Sites의 MCP 기능 선언 및 인증된 엔드포인트를 구현해야 합니다. 이 단계에서 미디어 저장소도 연결해야 브라우저가 닫힌 뒤 작업할 수 있습니다.
+로컬 stdio 서버는 기본 `node cli/mcp.mjs`로 40개 도구를 제공합니다. 선택적으로
+`--tools project.import,project.summary,captions.list,captions.update,captions.export,project.get`을
+붙이면 해당 직접 호출만 제공하며 프로세스 동안 고정됩니다. `moment_` 이름이 아닌
+공통 명령 이름을 쉼표로 구분하세요. 빈 값·중복·알 수 없는 이름·잘못된 옵션은 stdin
+처리 전에 거절합니다. import/get은 자동 포함되지 않으므로 사용자 문서 가져오기와
+최종 전체 문서 저장에 필요한 명령을 직접 선택해야 합니다. `project.get`을 권장하며,
+대신 `render.plan`이 선택되어 있으면 결과의 `data.project` 문서를 저장할 수 있습니다.
+계획 전체가 아닌 이 필드를 사용하세요. 두 명령이 모두 없으면 전체 문서 왕복이 불가합니다.
+
+**보안·읽기 전용 제한이 아닙니다.** `project.batch` 또는 `project.preview`를 선택하면
+개별 도구에서 제외한 명령도 기존 26개 중첩 허용 목록/스키마에 남습니다. batch는
+수정도 실행합니다. 토큰·비용·속도 보장은 아니며, [클라이언트 인수 배열과 제약](docs/MCP.md#choose-a-smaller-tool-list-optional)을 확인하세요.
+
+ 현재 사이트는 정적 배포이고 `/mcp`가 없습니다. 별도의 원격 HTTP MCP 서버를 켜려면 서버 런타임과 프로젝트 저장소를 추가하고, Sites의 MCP 기능 선언 및 인증된 엔드포인트를 구현해야 합니다. 이 단계에서 미디어 저장소도 연결해야 브라우저가 닫힌 뒤 작업할 수 있습니다.
 
 로컬 호스트의 공식 규격: https://modelcontextprotocol.io/specification/2025-11-25/server/tools
 

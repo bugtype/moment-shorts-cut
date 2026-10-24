@@ -66,6 +66,17 @@ Each read uses current state, not a reserved snapshot. Summary `--out` is a repo
 not an importable project. It is read-only, excluded from batches, and has no media
 provider work or constant-time guarantee. See the [contract and runnable recipe](../../../../INTEGRATIONS.md#프로젝트-구조-먼저-확인).
 
+For a task-specific MCP discovery list, optionally start with `--tools` and comma-
+separated core command names. Keep `project.import` and `project.get` when importing
+and saving user documents; neither is added implicitly. If get is omitted but
+`render.plan` is selected, its `structuredContent.data.project` is the full document
+to save—not the whole plan. Without either read tool there is no full-document
+handoff. Selection is per-process,
+not authentication/read-only isolation: selected `project.batch`/`project.preview`
+still accept their full 26-command nested schemas, even for omitted direct tools.
+Use actual tools/list and preserve the full document before restarting. See the
+[optional startup configuration](../../../../docs/MCP.md#choose-a-smaller-tool-list-optional).
+
 The file envelope is `{format:"moment-project", formatVersion:1, project:{...}}`. The nested project's current `schemaVersion` is 4. Import the full envelope, not only its `project` field. Reject unsupported versions rather than replacing fields with guessed defaults. The CLI `init` command is the supported way to create a valid demo document.
 
 ## Apply a small change, preview and save

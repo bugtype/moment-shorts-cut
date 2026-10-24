@@ -610,6 +610,8 @@ edits still need a settings backup before reloading.
 
 Run `node examples/use-mcp-client.mjs` for an executable handshake → import → edit → SRT → restart/reimport example. It launches local Node processes and keeps its exported document in memory; it does not write your files or connect to a browser.
 
+**Optional smaller MCP tool list:** [`--tools`](docs/MCP.md#choose-a-smaller-tool-list-optional) selects direct commands for one process; default remains all 40. Include import/get for document handoff; if get is omitted, selected `render.plan` can return the document in `data.project` (not the whole plan). This is not a security or read-only boundary: selected batch/preview retains its full nested command set.
+
 **MCP changes disappear when its process exits.** Retrieve `moment_project_get` and save `structuredContent.data` through your client's authorized file workflow. The bundled server has one temporary `session` project, not your open browser project.
 
 **`render.plan` does not produce an MP4.** Neither the CLI nor the bundled MCP server uploads media or encodes video. A custom remote host must supply its own transport, authentication and storage. An external AI client may send project text to its provider; review that client's privacy settings before sharing private captions.

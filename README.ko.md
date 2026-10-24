@@ -578,6 +578,8 @@ CLI/MCP `captions.import`는 여전히 원본 또는 **배속 전** 타임라인
 
 `node examples/use-mcp-client.mjs`는 연결 → 가져오기 → 편집 → SRT → 재시작/재가져오기를 실행합니다. 로컬 Node 프로세스만 사용하고 결과 문서는 메모리에 보관합니다. 사용자 파일을 쓰거나 브라우저에 연결하지 않습니다.
 
+**선택적 MCP 도구 목록:** [`--tools`](docs/MCP.md#choose-a-smaller-tool-list-optional)로 프로세스의 직접 호출 목록을 고를 수 있으며 기본은 전체 40개입니다. 문서 왕복에는 import/get을 권장합니다. get 대신 선택한 `render.plan`의 `data.project`도 전체 문서이며, 계획 전체를 저장하는 것은 아닙니다. 보안·읽기 전용 경계가 아니며 선택한 batch/preview의 전체 중첩 명령은 유지됩니다.
+
 **MCP 프로세스가 종료되면 편집 내용이 사라집니다.** `moment_project_get`의 `structuredContent.data`를 클라이언트의 허용된 파일 저장 기능으로 보관하세요. 기본 서버의 임시 `session` 프로젝트는 열려 있는 브라우저 프로젝트와 별개입니다.
 
 **`render.plan`은 MP4를 만들지 않습니다.** CLI와 기본 MCP 서버는 미디어 업로드·영상 인코딩을 제공하지 않습니다. 별도 원격 호스트에는 전송·인증·저장소 구현이 필요합니다. 외부 AI 클라이언트는 프로젝트 문구를 제공자에게 보낼 수 있으므로 비공개 자막을 전달하기 전에 해당 클라이언트의 개인정보 설정을 확인하세요.

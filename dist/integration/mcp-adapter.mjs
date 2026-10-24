@@ -215,9 +215,17 @@ function inputSchema(command) {
 
 // Tool mapping only. The host supplies transport, discovery, authentication and storage.
 // A project ID is a selector, never authorization. Resolve it per authenticated call.
-export function createMcpToolAdapter({ resolveService }) {
+export function createMcpToolAdapter({ resolveService, commands }) {
   if (typeof resolveService !== 'function') throw new TypeError('An authorized project resolver is required.');
-  const names = new Map(commandDefinitions().map(command => [
+  const definitions = commandDefinitions();
+  if (commands !== undefined && (!Array.isArray(commands) || !commands.length ||
+      new Set(commands).size !== commands.length ||
+      Array.from(commands).some(name => typeof name !== 'string' || !definitions.some(command => command.name === name)))) {
+    throw new TypeError('Tool selection must contain distinct existing command names.');
+  }
+  // Copy the selection into a fixed map in canonical catalog order.
+  const selected = commands === undefined ? definitions : definitions.filter(command => commands.includes(command.name));
+  const names = new Map(selected.map(command => [
     `moment_${command.name.replaceAll('.', '_')}`, command,
   ]));
 

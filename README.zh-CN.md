@@ -370,6 +370,8 @@ node cli/moment.mjs commands
 
 运行 `node examples/use-mcp-client.mjs` 可执行握手 → 导入 → 编辑 → SRT → 重启/重新导入示例。它启动本地 Node 进程，并把导出的文档保存在内存；不会写入用户文件或连接浏览器。
 
+**可选精简 MCP 工具列表：** [`--tools`](docs/MCP.md#choose-a-smaller-tool-list-optional)选择单个进程的直接调用工具，默认仍为全部 40 个。文档交接建议包含 import/get；若省略 get，可保存已选 `render.plan` 的 `data.project` 文档，而非整个计划。这不是安全或只读边界；选中的 batch/preview 仍保留完整嵌套命令集。
+
 **MCP 进程退出后，修改会丢失。** 调用 `moment_project_get`，通过客户端获准的文件流程保存 `structuredContent.data`。内置服务器只有一个临时 `session` 项目，不是当前浏览器项目。
 
 **`render.plan` 不会生成 MP4。** CLI 和内置 MCP 都不上传媒体或编码视频。自定义远程主机需自行提供传输、身份验证和存储。外部 AI 客户端可能把项目文字发送到其提供商；分享私人字幕前请检查该客户端的隐私设置。

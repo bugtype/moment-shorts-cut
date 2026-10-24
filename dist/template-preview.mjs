@@ -22,7 +22,7 @@ export function createTemplatePreview({ composition, getMedia, modal, openModal:
         return p;
     }
 
-    function draw(target, template, fraction = .4) {
+    function draw(target, template, fraction = template.hook ? 0 : .4) {
         const { source, ready } = getMedia();
         const p = templateProject(template), t = Math.max(0, Math.min(.999, fraction)) * 12;
         composition.draw(target.getContext('2d'), target.width, target.height, p, {
@@ -54,7 +54,7 @@ export function createTemplatePreview({ composition, getMedia, modal, openModal:
         const valid = () => current() && JSON.stringify(template) === templateSignature && (!context || context.valid());
         modeInput.value = 'sample';
         modeInput.options && (modeInput.options[1].disabled = !context?.canCapture());
-        const showSample = () => { canvas.width = 432; canvas.height = 768; canvas.style.aspectRatio = '9 / 16'; draw(canvas, template, .4); };
+        const showSample = () => { canvas.width = 432; canvas.height = 768; canvas.style.aspectRatio = '9 / 16'; draw(canvas, template); };
         showSample();
         let started = 0, running = false, lastPreview = -Infinity;
         const stop = () => {
@@ -158,6 +158,7 @@ function previewBody(template, reference) {
             `<span>${template.custom?esc(line):text('templates.builtin.'+template.id+'.flow'+i)}</span>` +
             `</div>`
         )).join('')}</div>` +
+        (template.hook ? `<p class="notice">${text('templates.hookTiming')}<br>${text('templates.hookCover')}</p>` : '') +
         `<div class="notice">` +
         `<strong>${text('templates.applyStyle')}</strong>` +
         `<br>${text('templates.keepContent')}<br>` +

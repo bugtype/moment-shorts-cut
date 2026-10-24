@@ -89,3 +89,19 @@ test('built-in preview passes a localizable title descriptor, not HTML markup', 
   const f=fixture(); f.preview.open(TEMPLATES[0]);
   assert.deepEqual(f.dialogs[0][0],message('templates.builtin.reference.name'));
 });
+
+test('hook gallery thumbnails and modal samples open on the first frame while older templates keep their sample beat', () => {
+  const hooks = TEMPLATES.filter(template => template.hook);
+  assert.equal(hooks.length, 6);
+  for (const template of [...hooks, TEMPLATES[0]]) {
+    const f = fixture(), expected = template.hook ? 0 : .4 * 12;
+    f.preview.draw(f.query('#canvas'), template);
+    assert.equal(f.draws.at(-1)[4].time, expected);
+    f.preview.open(template);
+    assert.equal(f.draws.at(-1)[4].time, expected);
+    f.preview.draw(f.query('#canvas'), template, .75);
+    assert.equal(f.draws.at(-1)[4].time, 9, 'Explicit seek can still inspect later beats');
+    f.query('#toggleTemplateDemo').onclick(); f.tick(100);
+    assert.equal(f.draws.at(-1)[4].time, 0, 'Playback begins at the opening frame');
+  }
+});

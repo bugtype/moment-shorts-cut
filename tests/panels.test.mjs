@@ -86,13 +86,13 @@ test('design, effects and template panel controls and hierarchy', () => {
   const galleryActions=[];
   const galleryRoot=panelRoot({'[data-category]':categories,'[data-preview-template]':[previewButton],'[data-favorite]':[favoriteButton],'[data-remove-template]':[removeButton]}, {'#templateSearch':search,'#templateGrid':grid,'#templateCount':count,'#saveMyTemplate':saveButton,'#importMyTemplate':{},'#templateFileInput':{}});
   const galleryState={query:'',category:'전체'},galleryApi={ui:galleryState,custom:[],favorites:['recipe'],active:'reference',save(){galleryActions.push('save');},preview(item){galleryActions.push(['preview',item.id]);},favorite(id){galleryActions.push(['favorite',id]);},remove(id){galleryActions.push(['remove',id]);}};
-  mountTemplateGallery(galleryRoot,galleryApi);assert.equal(count.textContent,'10개의 구성');
+  mountTemplateGallery(galleryRoot,galleryApi);assert.equal(count.textContent,'16개의 구성');
   assert.match(galleryRoot.innerHTML,/<div class="gallery-heading"><h1 class="panel-heading"><span[^>]*>템플릿<\/span><\/h1><button[^>]*id="importMyTemplate"/);
   assert.ok(galleryRoot.innerHTML.indexOf('id="saveMyTemplate"')<galleryRoot.innerHTML.indexOf('id="templateSearch"'));
   assert.match(galleryRoot.innerHTML,/role="group" aria-label="템플릿 분류"/);
   assert.match(galleryRoot.innerHTML,/role="group" aria-label="개인 템플릿"/);
   assert.match(galleryRoot.innerHTML,/aria-label="템플릿 검색"/);
-  assert.equal((galleryRoot.innerHTML.match(/data-category=/g)||[]).length,8);
+  assert.equal((galleryRoot.innerHTML.match(/data-category=/g)||[]).length,9);
   assert.ok(!galleryRoot.innerHTML.includes('TEMPLATE STUDIO'));assert.ok(!galleryRoot.innerHTML.includes('gallery-disclosure'));
   assert.ok(!grid.innerHTML.includes('template-tag'));assert.ok(grid.innerHTML.includes('· 적용됨'));
   assert.match(grid.innerHTML,/aria-label="한눈에 보는 레시피 미리보기"/);assert.match(grid.innerHTML,/aria-label="한눈에 보는 레시피 즐겨찾기"[^>]* aria-pressed="true"/);
@@ -101,7 +101,7 @@ test('design, effects and template panel controls and hierarchy', () => {
   categories[6].onclick();assert.equal(galleryState.category,'즐겨찾기');assert.equal(count.textContent,'1개의 구성');
   assert.deepEqual(categories.map(button=>button['aria-pressed']),[false,false,false,false,false,false,true,false]);
   categories[1].onclick();assert.equal(galleryState.category,'리뷰');assert.equal(categories[6]['aria-pressed'],false);assert.equal(categories[1]['aria-pressed'],true);
-  categories[0].onclick();assert.equal(count.textContent,'10개의 구성');
+  categories[0].onclick();assert.equal(count.textContent,'16개의 구성');
   search.oninput({target:{value:' 요리 '}});assert.ok(grid.innerHTML.includes('한눈에 보는 레시피'));
   search.oninput({target:{value:'인터뷰'}});assert.ok(grid.innerHTML.includes('인터뷰 하이라이트'));assert.ok(!grid.innerHTML.includes('시네마틱 모먼트'));
   galleryState.query='';galleryState.category='즐겨찾기';mountTemplateGallery(galleryRoot,galleryApi);assert.equal(count.textContent,'1개의 구성');assert.ok(grid.innerHTML.includes('한눈에 보는 레시피'));

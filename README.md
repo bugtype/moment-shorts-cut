@@ -76,11 +76,27 @@ Settings files must fit **10 MiB (10,485,760 UTF-8 bytes)** for both save and re
 | Work on | Available tools | Important boundary |
 | --- | --- | --- |
 | Video and timing | Trim, split, reorder, delete, speed, pan/zoom, undo/redo; brightness, contrast, saturation, vignette, slow zoom and progress bar | One source video and one video track; boundary fades/flash do not overlap clips |
-| Layout and text | 10 built-in templates, search/favorites, up to 20 local custom templates with individual JSON import/export, title/credit styling and 12 timed text layers | Style-only preserves authored text; example content replaces title, credit and timed cards |
+| Layout and text | 16 built-in templates, search/favorites, up to 20 local custom templates with individual JSON import/export, title/credit styling and 12 timed text layers | Style-only preserves authored text; example content replaces title, credit and timed cards |
 | Captions and audio | SRT/VTT import, edited SRT/VTT/TXT export, literal find/replace-all, highlighting, effects, two manual speakers; one added audio file or microphone narration | On-device ASR uses Transformers.js 3.8.1 + `Xenova/whisper-tiny`; recognition and estimated split timing need review |
 | Save and automate | Browser storage, project JSON, CLI, repository skill and stdio MCP; Canvas/Web Audio → MediaRecorder export | Project JSON contains no media; CLI/MCP do not encode video |
 
 The built-in templates cover review stories, bold opening lines, vlogs, explainers, interviews, recipes, rankings, product reviews, quizzes, and cinematic moments. Preview each with its animated sample. Quiz choices and countdowns are video graphics, not interactive polls.
+
+**Opening hooks:** six additional compositions cover result-first reveals, mistake fixes,
+A/B comparisons, a 10-second mini experiment, a 3-second observation quiz, and myth checks.
+Choose **Opening hooks** in Templates. Use **Apply example content** for their timed
+story structure, or **Apply style only** to retain your wording. Example application
+replaces title, credit and timed cards; footage and dialogue captions stay intact.
+The default 12-second structure uses 0–2 / 2–5 / 5–8 / 8 seconds to the end;
+the quiz uses 0–3 / 3–5 / 5–8 / 8 seconds to the end. **When applying example content,**
+these opening boundaries stay fixed for outputs of at least 12 seconds and compress
+only for shorter outputs. **Later clip-length or speed edits proportionally retime
+the cards**, so review the opening again and adjust card times as needed.
+Match your footage and claims to the example text yourself; templates do not reorder
+footage, create split screens or verify facts. [Research, six practical cases, implementation plan and review criteria (Korean)](docs/SHORTS_HOOK_TEMPLATES.md)
+explain the design. For a cover candidate, use [Save preview PNG](#save-a-preview-image)
+at the desired moment; it saves the current canvas size and does not upload or set a
+YouTube thumbnail. A template does not guarantee views or completion.
 
 **Compare a template on your scene:** open a template preview and choose **Current
 scene**, then switch **Current style / Selected style**. Both use the same frozen

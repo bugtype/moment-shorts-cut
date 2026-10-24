@@ -9,7 +9,7 @@ export function mountTemplateGallery(root, api) {
     ${api.error?`<p class="notice" role="alert">${api.errorKey?text(api.errorKey):esc(api.error)}</p>`:''}
     <div class="template-search"><input id="templateSearch" ${attrs('placeholder','templates.searchPlaceholder')} ${attrs('aria-label','templates.searchLabel')} value="${esc(ui.query)}"></div>
     <div class="template-filter-groups">${[
-      {name:'templates.categoryGroup',categories:['전체','리뷰','정보','라이프','대화','참여']},
+      {name:'templates.categoryGroup',categories:['전체','초반 훅','리뷰','정보','라이프','대화','참여']},
       {name:'templates.personalGroup',categories:['즐겨찾기','내 템플릿']}
     ].map(group=>`<div class="template-filters" role="group" ${attrs('aria-label',group.name)}>${group.categories.map(category=>`<button data-category="${category}" class="${ui.category===category?'active':''}" aria-pressed="${ui.category===category}">${text(templateCategoryKey(category))}</button>`).join('')}</div>`).join('')}</div>
     <div class="gallery-summary"><span id="templateCount"></span></div>

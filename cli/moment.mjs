@@ -14,7 +14,8 @@ const usage=`Moment CLI · Node.js 20+
 
 명령과 입력 규격: commands
 수정 명령에는 --out이 필요합니다. 기존 파일 교체는 --overwrite로 지정하세요.
-자막 출력은 --out으로 SRT를 저장합니다. 영상/음성 파일과 인코더는 포함하지 않습니다.
+captions.export는 format(srt/vtt/txt)에 따라 SRT·WebVTT·TXT를 --out으로 저장합니다. 기본값은 SRT입니다.
+영상/음성 파일과 인코더는 포함하지 않습니다.
 `;
 const MAX_JSON_FILE_BYTES=10*1024*1024;
 function parse(argv){

@@ -60,6 +60,10 @@ test('exec dry-run preserves inputs and explicit outputs even with overwrite',as
 
 test('CLI retains help/discovery and rejects malformed option lists',()=>{
   for(const args of [[],['help'],['--help'],['-h'],['commands']])assert.equal(run(...args).status,0);
+  const help=run('--help').stdout;
+  assert.match(help,/format\(srt\/vtt\/txt\)/);
+  assert.match(help,/SRT·WebVTT·TXT/);
+  assert.match(help,/기본값은 SRT/);
   for(const args of [
     ['init','--out'],['init','--out','unused','--out','other'],
     ['exec','project.get','--project'],['exec','templates.list','--dry-run','--dry-run'],

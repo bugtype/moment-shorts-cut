@@ -13,7 +13,103 @@
 
 **빠른 찾기:** [명령 목록](#명령-v1) · [시간 기준](#시간-기준) ·
 [CLI 시작](#실제-cli-사용) · [결과·검증](#결과와-검증) ·
-[입력 한도](#입력-인코딩과-크기) · [오류·복구](docs/MCP.md#responses-and-recovery)
+[입력 한도](#입력-인코딩과-크기) · [오류·복구](docs/MCP.md#responses-and-recovery) ·
+[작업별 예제](#작업별-편집-예제)
+
+## 실제 CLI 사용
+
+Node.js 20 이상, 추가 패키지 설치 없이 실행합니다. 저장소 루트 기준입니다.
+
+```bash
+node cli/moment.mjs init --out project.json
+node cli/moment.mjs exec template.apply --project project.json --args-file examples/explainer.json --out edited.json
+node cli/moment.mjs exec title.update --project edited.json --json '{"patch":{"lines":["첫 번째 제목","두 번째 제목"]}}' --out titled.json
+node cli/moment.mjs exec captions.export --project titled.json --out captions.srt
+node cli/moment.mjs exec captions.export --project titled.json --json '{"format":"vtt"}' --out captions.vtt
+node cli/moment.mjs exec captions.export --project titled.json --json '{"format":"txt"}' --out captions.txt
+node cli/moment.mjs exec render.plan --project titled.json --json '{"quality":1080,"format":"mp4"}' --out render-plan.json
+```
+
+### 출력과 기존 파일 보호
+
+**`exec --dry-run`은 파일을 쓰지 않습니다.** 결과를 JSON으로 미리 확인하세요. `init`은 `--out`과 `--overwrite`만 지원하며, 지원하지 않는 옵션은 파일 접근 전에 거부합니다.
+
+| 상황 | 동작 |
+|---|---|
+| 기존 출력 파일 | 기본 거절; 의도한 교체에만 `--overwrite` 사용 |
+| 성공 | 종료 코드 0, stdout JSON |
+| 실패 | 종료 코드 1, stderr JSON |
+
+출력은 임시 파일에 먼저 쓴 뒤 최종 경로로 반영합니다.
+
+### 입력 인코딩과 크기
+
+**JSON 파일 상한은 BOM 포함 10 MiB(10,485,760바이트)입니다.** 읽기 전 파일 크기와 읽은 바이트 수를 모두 확인하므로 중간에 커진 파일도 초과하면 거부합니다.
+
+파일 전체를 읽은 뒤 재검사하므로 메모리 할당 상한이나 다른 프로세스와의 원자적 읽기를 보장하지는 않습니다.
+
+`--project`와 `--args-file`은 UTF-8 JSON 파일을 읽으며, 파일 시작의 BOM 하나는 허용합니다. 본문의 문자는 그대로 보존하고 출력 JSON에는 BOM을 붙이지 않습니다. 잘못된 UTF-8 바이트는 대체 문자로 변환하지 않고 `INVALID_JSON`으로 거부합니다. UTF-16 파일은 지원하지 않으므로 UTF-8로 저장하세요. `--json` 인수에는 BOM 없는 JSON 문자열을 전달합니다.
+
+### SRT 출력 제한
+
+**SRT·VTT·TXT 모두 아래 한도를 적용합니다.** `format` 생략 시 기존 SRT 출력을 유지합니다. VTT는 `{"format":"vtt"}`를 명시해야 하며 출력 확장자로 형식을 추측하지 않습니다.
+
+VTT는 UTF-8 일반 WebVTT로 `WEBVTT` 헤더와 점 단위 밀리초를 사용합니다. 편집 구간·반복·배속과 문구 이스케이프는 SRT와 동일합니다. 꾸밈 스타일·영역·화자 메타데이터는 내보내지 않습니다. NUL 문자는 VTT에서 거부합니다. 자막이 없으면 CLI/서비스는 `WEBVTT\n\n`을 반환하고 브라우저는 빈 자막 파일을 내려받지 않습니다.
+
+| 제한 대상 | 상한 |
+|---|---|
+| 편집 후 출력 자막 | 10,000개 |
+| 반복분을 포함한 원문 UTF-8 | 2 MiB |
+| 완성된 SRT, VTT 또는 TXT | 2 MiB |
+
+`captions.export`는 이 세 제한을 각각 적용합니다. 파일 크기는 이스케이프·시간·구분자·VTT 헤더(해당 시)를 포함하며 CLI/서비스는 BOM을 출력하지 않습니다. 브라우저는 SRT에만 BOM을 넣고 그 3바이트도 계산하며, VTT/TXT에는 넣지 않습니다. 초과 시 `CAPTION_OUTPUT_LIMIT`로 전체 출력을 거절하고 CLI는 기존 출력 파일을 보존합니다. 원본 프로젝트 검증·JSON·편집·`render.plan`에는 이 파생 출력 제한을 적용하지 않습니다. 반복 클립이나 자막을 줄여 재시도할 수 있습니다.
+
+CLI는 편집 메타데이터와 SRT/VTT/TXT 출력을 다룹니다. MP4 파일을 생성하거나 브라우저 IndexedDB의 원본 파일을 직접 가져오지 않습니다.
+
+### 편집 후 자막을 일반 TXT로 저장
+
+`captions.export`에 `{"format":"txt"}`를 전달하면 `{format:"txt", text}`를
+반환합니다. 위 CLI 예제처럼 별도 `.txt` 파일로 저장하세요. 확장자만 바꾸면
+형식이 바뀌지 않으며 기본 SRT는 그대로입니다.
+
+| TXT 내용 | 경계 |
+|---|---|
+| 파생 자막마다 한 문단 | 클립·반복·원본/타임라인 기준·배속을 적용한 출력 순서, 중복 제거 없음 |
+| 원문 보존 | `<>&`·공백·여러 줄 보존, LF로 정규화; 구간 사이 빈 줄과 마지막 줄바꿈 |
+| 포함하지 않는 것 | 시간·ID·화자 이름·제목·카드·스타일; 단어별 정확한 녹취나 프로젝트 백업 아님 |
+| 예외·한도 | 빈 줄·밀리초 미만 구간 허용, NUL 거부, 자막 없으면 `""`; 실제 UTF-8 구분자 포함 2 MiB |
+
+10,000개 파생 구간·반복 원문 2 MiB 한도도 적용합니다. 원문 바이트 검사는
+줄바꿈 정규화 전이므로 최종 TXT가 작아져도 원문 한도 초과는 거절합니다. 분할이나 반복 클립은
+같은 자막 단어를 여러 번 출력할 수 있습니다. TXT는 SRT/VTT 가져오기 형식이
+아니며 시간 정보를 복원할 수 없습니다. 브라우저는 형식 선택 후 하나의 저장
+버튼을 사용하고 SRT만 BOM을 붙입니다. 빈 결과는 내려받지 않습니다.
+
+### 결과와 검증
+
+| 결과 | 형식 |
+|---|---|
+| 성공 | `{ok:true, apiVersion:1, command, data}` |
+| 실패 | `{ok:false, apiVersion:1, command, error:{code,message,path?}}` |
+
+잘못된 숫자·시간·색상·알 수 없는 필드는 변경 전에 거부합니다. 변경은 복사본에서 준비하며 저장 포트가 성공한 뒤 완료를 반환합니다. **수정 성공의 `data`는 전체 문서가 아닙니다.** 저장할 문서는 `project.get`으로 다시 읽으세요.
+
+JavaScript에서 직접 호출할 때도 JSON으로 왕복 가능한 값을 전달하세요. 배열의 빈 슬롯(예: `[, '둘째 줄']`)과 열거되지 않는 인덱스는 `INVALID_ARGUMENT`로 거부합니다. 빈 제목 줄에는 `''`를 사용하고, `null`은 해당 입력 스키마가 허용하는 곳에서만 사용합니다.
+
+주요 오류: `INVALID_ARGUMENT`, `UNKNOWN_COMMAND`, `NOT_FOUND`, `UNSUPPORTED_VERSION`, `BUSY`, `MEDIA_RELINK_REQUIRED`, `NOT_CONFIGURED`, `INVALID_PROVIDER_RESULT`, `CAPTION_OUTPUT_LIMIT`. 예상하지 못한 내부 오류는 `INTERNAL_ERROR`로 반환하며 스택이나 내부 인증 정보를 반환하지 않습니다.
+
+### 시간 기준
+
+| 필드·출력 | 시간 기준 |
+|---|---|
+| 클립 `start/end`, 자막 `basis: "source"` 또는 생략 | 원본 영상의 초 |
+| 자막 `basis: "timeline"` | 배속 적용 **전** 편집 타임라인의 초 |
+| 제목·크레딧·구간 문구 | 배속 적용 **후** 출력 영상의 초 |
+| SRT/VTT | 편집 구간·반복·배속을 반영한 최종 출력 시간 |
+
+배속이나 편집 길이 변경 시 출력 글자의 시간은 **한 번만** 비례 조정합니다.
+
+`title.update`는 기본 제목을 수정합니다. 구간별 제목이 나오는 시간에는 기본 제목이 숨겨집니다. 기존 구간별 문구는 `overlays.update`로 수정할 수 있습니다. 추가·삭제는 `overlays.add`/`overlays.remove`를 사용하며 카드끼리 겹치는 순서는 `overlays.move` 또는 UI의 맨 앞으로/맨 뒤로로 바꿉니다.
 
 ## 구성과 책임
 
@@ -87,6 +183,18 @@
 | `captions.text.replace` | `find`, `replacement` | 문구 모두 바꾸기; `{updated, matches, changedCaptions}` |
 | `captions.style.update` | `patch` | 공통 자막 스타일; `{updated:true, outputDuration}` |
 | `captions.timing.shift` | `basis`, `delta` | 시간 일괄 이동; `{updated, shiftedCaptions, outputDuration}` |
+
+## 작업별 편집 예제
+
+필요한 작업부터 골라 읽으세요. 각 예제의 시간 기준·교체 범위·재시도 주의사항을
+함께 확인하고, 개별 입력 필드는 [명령 목록](#명령-v1)에서 찾으세요.
+
+| 작업 | 예제 |
+|---|---|
+| 자막 | [가져오기](#srtvtt-본문을-명령으로-가져오기) · [커서 분할](#자막-하나를-커서-위치에서-분할) · [합치기](#인접한-자막-합치기) · [문구 교정](#자막-문구-일괄-교정) · [시간 이동](#자막-시간을-앞뒤로-이동) · [스타일](#자막-스타일-수정) |
+| 타임라인 | [클립 분할](#클립-구간-분할) · [클립 복제](#클립-구간-복제) |
+| 구성 | [크레딧](#출처-크레딧-수정) · [영상 효과](#영상-효과-수정) · [카드 수정](#기존-시간별-카드-수정) · [카드 추가·삭제](#스크립트에-맞춰-카드-추가삭제) · [쌓임 순서](#카드-쌓임-순서-변경) |
+| 묶음·템플릿 | [한 번에 편집](#여러-편집을-한-번에-반영) · [템플릿 파일 관리](#개별-사용자-템플릿-파일) · [파일 적용](#내보낸-템플릿을-climcp로-적용) |
 
 ### 여러 편집을 한 번에 반영
 
@@ -572,101 +680,6 @@ node cli/moment.mjs exec overlays.update --project cards.json --args-file card-e
 `min(너비/540, 높이/960)`으로 확대·축소하고 글자 맞춤 처리가 추가됩니다.
 위치는 안전 영역에 맞추며, `width:0`은 기존 0.78 기본 폭으로 처리하고 최대
 표시 폭은 캔버스의 0.82입니다. 저장한 숫자가 고정 출력 픽셀을 뜻하지 않습니다.
-
-### 결과와 검증
-
-| 결과 | 형식 |
-|---|---|
-| 성공 | `{ok:true, apiVersion:1, command, data}` |
-| 실패 | `{ok:false, apiVersion:1, command, error:{code,message,path?}}` |
-
-잘못된 숫자·시간·색상·알 수 없는 필드는 변경 전에 거부합니다. 변경은 복사본에서 준비하며 저장 포트가 성공한 뒤 완료를 반환합니다. **수정 성공의 `data`는 전체 문서가 아닙니다.** 저장할 문서는 `project.get`으로 다시 읽으세요.
-
-JavaScript에서 직접 호출할 때도 JSON으로 왕복 가능한 값을 전달하세요. 배열의 빈 슬롯(예: `[, '둘째 줄']`)과 열거되지 않는 인덱스는 `INVALID_ARGUMENT`로 거부합니다. 빈 제목 줄에는 `''`를 사용하고, `null`은 해당 입력 스키마가 허용하는 곳에서만 사용합니다.
-
-주요 오류: `INVALID_ARGUMENT`, `UNKNOWN_COMMAND`, `NOT_FOUND`, `UNSUPPORTED_VERSION`, `BUSY`, `MEDIA_RELINK_REQUIRED`, `NOT_CONFIGURED`, `INVALID_PROVIDER_RESULT`, `CAPTION_OUTPUT_LIMIT`. 예상하지 못한 내부 오류는 `INTERNAL_ERROR`로 반환하며 스택이나 내부 인증 정보를 반환하지 않습니다.
-
-### 시간 기준
-
-| 필드·출력 | 시간 기준 |
-|---|---|
-| 클립 `start/end`, 자막 `basis: "source"` 또는 생략 | 원본 영상의 초 |
-| 자막 `basis: "timeline"` | 배속 적용 **전** 편집 타임라인의 초 |
-| 제목·크레딧·구간 문구 | 배속 적용 **후** 출력 영상의 초 |
-| SRT/VTT | 편집 구간·반복·배속을 반영한 최종 출력 시간 |
-
-배속이나 편집 길이 변경 시 출력 글자의 시간은 **한 번만** 비례 조정합니다.
-
-`title.update`는 기본 제목을 수정합니다. 구간별 제목이 나오는 시간에는 기본 제목이 숨겨집니다. 기존 구간별 문구는 `overlays.update`로 수정할 수 있습니다. 추가·삭제는 `overlays.add`/`overlays.remove`를 사용하며 카드끼리 겹치는 순서는 `overlays.move` 또는 UI의 맨 앞으로/맨 뒤로로 바꿉니다.
-
-## 실제 CLI 사용
-
-Node.js 20 이상, 추가 패키지 설치 없이 실행합니다. 저장소 루트 기준입니다.
-
-```bash
-node cli/moment.mjs init --out project.json
-node cli/moment.mjs exec template.apply --project project.json --args-file examples/explainer.json --out edited.json
-node cli/moment.mjs exec title.update --project edited.json --json '{"patch":{"lines":["첫 번째 제목","두 번째 제목"]}}' --out titled.json
-node cli/moment.mjs exec captions.export --project titled.json --out captions.srt
-node cli/moment.mjs exec captions.export --project titled.json --json '{"format":"vtt"}' --out captions.vtt
-node cli/moment.mjs exec captions.export --project titled.json --json '{"format":"txt"}' --out captions.txt
-node cli/moment.mjs exec render.plan --project titled.json --json '{"quality":1080,"format":"mp4"}' --out render-plan.json
-```
-
-### 출력과 기존 파일 보호
-
-**`exec --dry-run`은 파일을 쓰지 않습니다.** 결과를 JSON으로 미리 확인하세요. `init`은 `--out`과 `--overwrite`만 지원하며, 지원하지 않는 옵션은 파일 접근 전에 거부합니다.
-
-| 상황 | 동작 |
-|---|---|
-| 기존 출력 파일 | 기본 거절; 의도한 교체에만 `--overwrite` 사용 |
-| 성공 | 종료 코드 0, stdout JSON |
-| 실패 | 종료 코드 1, stderr JSON |
-
-출력은 임시 파일에 먼저 쓴 뒤 최종 경로로 반영합니다.
-
-### 입력 인코딩과 크기
-
-**JSON 파일 상한은 BOM 포함 10 MiB(10,485,760바이트)입니다.** 읽기 전 파일 크기와 읽은 바이트 수를 모두 확인하므로 중간에 커진 파일도 초과하면 거부합니다.
-
-파일 전체를 읽은 뒤 재검사하므로 메모리 할당 상한이나 다른 프로세스와의 원자적 읽기를 보장하지는 않습니다.
-
-`--project`와 `--args-file`은 UTF-8 JSON 파일을 읽으며, 파일 시작의 BOM 하나는 허용합니다. 본문의 문자는 그대로 보존하고 출력 JSON에는 BOM을 붙이지 않습니다. 잘못된 UTF-8 바이트는 대체 문자로 변환하지 않고 `INVALID_JSON`으로 거부합니다. UTF-16 파일은 지원하지 않으므로 UTF-8로 저장하세요. `--json` 인수에는 BOM 없는 JSON 문자열을 전달합니다.
-
-### SRT 출력 제한
-
-**SRT·VTT·TXT 모두 아래 한도를 적용합니다.** `format` 생략 시 기존 SRT 출력을 유지합니다. VTT는 `{"format":"vtt"}`를 명시해야 하며 출력 확장자로 형식을 추측하지 않습니다.
-
-VTT는 UTF-8 일반 WebVTT로 `WEBVTT` 헤더와 점 단위 밀리초를 사용합니다. 편집 구간·반복·배속과 문구 이스케이프는 SRT와 동일합니다. 꾸밈 스타일·영역·화자 메타데이터는 내보내지 않습니다. NUL 문자는 VTT에서 거부합니다. 자막이 없으면 CLI/서비스는 `WEBVTT\n\n`을 반환하고 브라우저는 빈 자막 파일을 내려받지 않습니다.
-
-| 제한 대상 | 상한 |
-|---|---|
-| 편집 후 출력 자막 | 10,000개 |
-| 반복분을 포함한 원문 UTF-8 | 2 MiB |
-| 완성된 SRT, VTT 또는 TXT | 2 MiB |
-
-`captions.export`는 이 세 제한을 각각 적용합니다. 파일 크기는 이스케이프·시간·구분자·VTT 헤더(해당 시)를 포함하며 CLI/서비스는 BOM을 출력하지 않습니다. 브라우저는 SRT에만 BOM을 넣고 그 3바이트도 계산하며, VTT/TXT에는 넣지 않습니다. 초과 시 `CAPTION_OUTPUT_LIMIT`로 전체 출력을 거절하고 CLI는 기존 출력 파일을 보존합니다. 원본 프로젝트 검증·JSON·편집·`render.plan`에는 이 파생 출력 제한을 적용하지 않습니다. 반복 클립이나 자막을 줄여 재시도할 수 있습니다.
-
-CLI는 편집 메타데이터와 SRT/VTT/TXT 출력을 다룹니다. MP4 파일을 생성하거나 브라우저 IndexedDB의 원본 파일을 직접 가져오지 않습니다.
-
-### 편집 후 자막을 일반 TXT로 저장
-
-`captions.export`에 `{"format":"txt"}`를 전달하면 `{format:"txt", text}`를
-반환합니다. 위 CLI 예제처럼 별도 `.txt` 파일로 저장하세요. 확장자만 바꾸면
-형식이 바뀌지 않으며 기본 SRT는 그대로입니다.
-
-| TXT 내용 | 경계 |
-|---|---|
-| 파생 자막마다 한 문단 | 클립·반복·원본/타임라인 기준·배속을 적용한 출력 순서, 중복 제거 없음 |
-| 원문 보존 | `<>&`·공백·여러 줄 보존, LF로 정규화; 구간 사이 빈 줄과 마지막 줄바꿈 |
-| 포함하지 않는 것 | 시간·ID·화자 이름·제목·카드·스타일; 단어별 정확한 녹취나 프로젝트 백업 아님 |
-| 예외·한도 | 빈 줄·밀리초 미만 구간 허용, NUL 거부, 자막 없으면 `""`; 실제 UTF-8 구분자 포함 2 MiB |
-
-10,000개 파생 구간·반복 원문 2 MiB 한도도 적용합니다. 원문 바이트 검사는
-줄바꿈 정규화 전이므로 최종 TXT가 작아져도 원문 한도 초과는 거절합니다. 분할이나 반복 클립은
-같은 자막 단어를 여러 번 출력할 수 있습니다. TXT는 SRT/VTT 가져오기 형식이
-아니며 시간 정보를 복원할 수 없습니다. 브라우저는 형식 선택 후 하나의 저장
-버튼을 사용하고 SRT만 BOM을 붙입니다. 빈 결과는 내려받지 않습니다.
 
 ## 개별 사용자 템플릿 파일
 

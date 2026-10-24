@@ -10,7 +10,7 @@ upload media or encode video.
 | Check the local connection | [Connect a client](#connect-a-client) |
 | Edit and keep a project | [Import, edit, inspect, save](#import-edit-inspect-save) |
 | Find fields and choose the correct clock | [Tool catalog](#tool-catalog) · [Time coordinates](#time-coordinates) |
-| Use files or recover safely | [CLI workflow](../INTEGRATIONS.md#실제-cli-사용) · [Responses and recovery](#responses-and-recovery) |
+| Use files, recipes or recover safely | [CLI workflow](../INTEGRATIONS.md#실제-cli-사용) · [Editing recipes](#editing-recipes) · [Responses and recovery](#responses-and-recovery) |
 
 ## Connect a client
 
@@ -198,6 +198,123 @@ entire domain validation. Unknown fields are rejected. Changing ratio resets zoo
 Timeline and speed changes retime output layers through the shared command logic.
 There is no arbitrary patch path, file-save tool, media-upload tool,
 transcription tool or video-rendering tool on this host.
+
+## Shared editing contracts
+
+### Time coordinates
+
+| Value | Time basis |
+|---|---|
+| Clips and source captions | Original media seconds |
+| Captions with `basis:"timeline"` | Edited timeline seconds **before speed** |
+| Title, credit and timed cards | Output seconds **after speed** |
+| Exported SRT/VTT | Final output seconds, with clip order/repetition and speed applied |
+
+For clips `[2,6]` and `[8,12]` at speed 2, edited duration is 8 seconds and output is
+4 seconds. A source caption `[3,5]` appears at output `[0.5,1.5]`. A timeline caption
+`[2,4]` appears at output `[1,2]`. Do not rescale exported SRT/VTT or an output-layer range
+again. See the skill's [editing reference](../.agents/skills/moment-editor/references/project-editing.md)
+for replacement and recovery workflows.
+
+## Responses and recovery
+
+Tool calls return `content` containing a JSON text block, the same result in
+`structuredContent`, and `isError`. The structured result is one of:
+
+```js
+{ok:true, apiVersion:1, command:"project.get", data: {/* command result */}}
+{ok:false, apiVersion:1, command:"project.update",
+ error:{code:"INVALID_ARGUMENT", message:"...", path:"arguments.patch.speed"}}
+```
+
+`error.path` is optional. Use error codes and the current schema rather than parsing
+translated error messages. Transport success alone does not mean an edit succeeded.
+Tool annotations are discovery hints, not authorization; validate inputs and inspect
+results regardless of those hints.
+
+### Protocol failures
+
+| Failure | Meaning and safe next step |
+|---|---|
+| JSON-RPC `-32700` | Malformed JSON or UTF-8; fix the frame. No tool ran. |
+| JSON-RPC `-32600` | Invalid request or tools before initialization; fix the request/lifecycle. |
+| JSON-RPC `-32601` | Unsupported method; use advertised methods. |
+| JSON-RPC `-32602` | Invalid initialization/params, unknown tool or unsupported pagination; rediscover names and schemas. |
+
+JSON-RPC **`-32603`** means an unexpected dispatch failure. Inspect the current
+project before repeating a mutation.
+
+### Editing failures
+
+| Failure | Meaning and safe next step |
+|---|---|
+| Tool `INVALID_ARGUMENT` | Input validation failed; correct the field indicated by `path`. |
+| Tool `NOT_FOUND` | Check `session`, rediscover built-in template IDs, or read `project.overlays` for the exact existing card ID. Do not recreate a missing card or silently target another one. |
+| Tool `UNSUPPORTED_VERSION` | Preserve the document and use a compatible editor; do not falsify its version. |
+| Tool `CAPTION_OUTPUT_LIMIT` | Derived SRT/VTT/TXT exceeds its cue/byte budget; keep the project and reduce output only as requested. |
+
+Tool **`INTERNAL_ERROR`** does not establish atomic failure in every custom host.
+Inspect the session before retrying.
+
+**Process exited or response lost:** unsaved state may be gone. If the process is
+alive, read before replaying the edit. Otherwise import the last saved document
+into a new session.
+
+The shared service validates a copied project before committing. The local host's
+commit replaces its in-memory project; reusable custom hosts must supply their own
+storage atomicity and authorization. There is no automatic retry or rollback of
+an already completed sequence of tool calls.
+
+Input frames exceeding **10 MiB** terminate the process; this includes the whole
+JSON-RPC frame, not only the nested project. A CLI document close to its own 10 MiB
+limit may therefore be too large to wrap in an MCP import request. There is no
+chunked import. Malformed frames receive parse errors and do not become tool calls.
+Notifications never execute tools; cancellation notifications do not cancel work.
+The host handles short metadata requests serially, not background media tasks.
+
+SRT, VTT and TXT export are each limited to 10,000 resulting cues, 2 MiB of repeated raw
+caption UTF-8 text and 2 MiB of the complete file, including escaping, timing,
+separators and the VTT header where present. The service emits none of these formats with
+a BOM. A source project can still be valid for JSON export when subtitle output
+exceeds these limits.
+
+VTT is plain UTF-8 WebVTT with a `WEBVTT` header and dot-separated milliseconds.
+It uses the same clip/speed mapping and text escaping as SRT, not rich styles,
+regions or speaker metadata. NUL characters are rejected for VTT. Empty VTT
+export returns valid `WEBVTT\n\n`; the browser instead skips empty downloads.
+SRT/VTT reject blank cues/paragraphs and intervals that collapse when rounded to
+milliseconds rather than silently dropping or retiming them; TXT permits them.
+
+## Boundaries and extension points
+
+Supported methods are initialize, ping, tools/list and tools/call plus the initialized
+notification. No HTTP, resources, prompts, pagination, subscriptions, background
+tasks or server-side authentication are advertised. Do not expose this process as
+an unauthenticated network service.
+
+The adapter retains internal `resultType:"complete"` metadata; the stdio host omits
+it from its negotiated 2025-11-25 wire results. Using the adapter alone does not
+implement a later MCP protocol. For a custom host, see
+[INTEGRATIONS.md](../INTEGRATIONS.md#mcp-어댑터와-호스트-확장): resolve an authorized
+service per request, provide transport/lifecycle handling, and keep storage and
+media-provider permissions at the host boundary.
+
+Media bytes are never loaded by this host. `render.plan` is not encoding. The
+optional service job-provider interface is not configured or exposed as MCP tools.
+An external AI client may send project text to its model provider; check that
+client's privacy settings before supplying private captions.
+
+## Editing recipes
+
+Choose the task, then keep its timing, replacement and retry warnings alongside
+the example. Discover exact input fields in the [tool catalog](#tool-catalog).
+
+| Task | Recipes |
+|---|---|
+| Captions | [Import](#import-subtitle-text-with-an-explicit-clock) · [Split](#split-one-caption-at-a-text-boundary) · [Merge](#merge-two-adjacent-authored-captions) · [Correct text](#correct-caption-text-without-replacing-cues) · [Shift timing](#shift-caption-timing-without-replacing-text) · [Style](#adjust-global-caption-appearance) |
+| Timeline | [Split a clip](#split-one-clip-occurrence) · [Repeat a clip](#repeat-one-clip-occurrence) |
+| Composition | [Credit](#set-a-source-credit-independently) · [Effects](#adjust-video-effects-independently) · [Edit a card](#edit-an-existing-timed-card) · [Add/remove cards](#create-scripted-cards-without-importing-a-whole-project) · [Stacking](#change-card-stacking) |
+| Grouped/template edits | [One commit](#apply-related-edits-in-one-commit) · [Apply a template file](#apply-an-exported-custom-template) |
 
 ### Apply related edits in one commit
 
@@ -701,109 +818,6 @@ or other base layers. Browser **맨 앞으로 / 맨 뒤로** uses the same card 
 keeps the selected card. Real UI moves have one undo step; MCP has no undo tool.
 If the response is lost, inspect the current ID/order before retrying; retrieve
 `moment_project_get` afterward to save the document.
-
-### Time coordinates
-
-| Value | Time basis |
-|---|---|
-| Clips and source captions | Original media seconds |
-| Captions with `basis:"timeline"` | Edited timeline seconds **before speed** |
-| Title, credit and timed cards | Output seconds **after speed** |
-| Exported SRT/VTT | Final output seconds, with clip order/repetition and speed applied |
-
-For clips `[2,6]` and `[8,12]` at speed 2, edited duration is 8 seconds and output is
-4 seconds. A source caption `[3,5]` appears at output `[0.5,1.5]`. A timeline caption
-`[2,4]` appears at output `[1,2]`. Do not rescale exported SRT/VTT or an output-layer range
-again. See the skill's [editing reference](../.agents/skills/moment-editor/references/project-editing.md)
-for replacement and recovery workflows.
-
-## Responses and recovery
-
-Tool calls return `content` containing a JSON text block, the same result in
-`structuredContent`, and `isError`. The structured result is one of:
-
-```js
-{ok:true, apiVersion:1, command:"project.get", data: {/* command result */}}
-{ok:false, apiVersion:1, command:"project.update",
- error:{code:"INVALID_ARGUMENT", message:"...", path:"arguments.patch.speed"}}
-```
-
-`error.path` is optional. Use error codes and the current schema rather than parsing
-translated error messages. Transport success alone does not mean an edit succeeded.
-Tool annotations are discovery hints, not authorization; validate inputs and inspect
-results regardless of those hints.
-
-### Protocol failures
-
-| Failure | Meaning and safe next step |
-|---|---|
-| JSON-RPC `-32700` | Malformed JSON or UTF-8; fix the frame. No tool ran. |
-| JSON-RPC `-32600` | Invalid request or tools before initialization; fix the request/lifecycle. |
-| JSON-RPC `-32601` | Unsupported method; use advertised methods. |
-| JSON-RPC `-32602` | Invalid initialization/params, unknown tool or unsupported pagination; rediscover names and schemas. |
-
-JSON-RPC **`-32603`** means an unexpected dispatch failure. Inspect the current
-project before repeating a mutation.
-
-### Editing failures
-
-| Failure | Meaning and safe next step |
-|---|---|
-| Tool `INVALID_ARGUMENT` | Input validation failed; correct the field indicated by `path`. |
-| Tool `NOT_FOUND` | Check `session`, rediscover built-in template IDs, or read `project.overlays` for the exact existing card ID. Do not recreate a missing card or silently target another one. |
-| Tool `UNSUPPORTED_VERSION` | Preserve the document and use a compatible editor; do not falsify its version. |
-| Tool `CAPTION_OUTPUT_LIMIT` | Derived SRT/VTT/TXT exceeds its cue/byte budget; keep the project and reduce output only as requested. |
-
-Tool **`INTERNAL_ERROR`** does not establish atomic failure in every custom host.
-Inspect the session before retrying.
-
-**Process exited or response lost:** unsaved state may be gone. If the process is
-alive, read before replaying the edit. Otherwise import the last saved document
-into a new session.
-
-The shared service validates a copied project before committing. The local host's
-commit replaces its in-memory project; reusable custom hosts must supply their own
-storage atomicity and authorization. There is no automatic retry or rollback of
-an already completed sequence of tool calls.
-
-Input frames exceeding **10 MiB** terminate the process; this includes the whole
-JSON-RPC frame, not only the nested project. A CLI document close to its own 10 MiB
-limit may therefore be too large to wrap in an MCP import request. There is no
-chunked import. Malformed frames receive parse errors and do not become tool calls.
-Notifications never execute tools; cancellation notifications do not cancel work.
-The host handles short metadata requests serially, not background media tasks.
-
-SRT, VTT and TXT export are each limited to 10,000 resulting cues, 2 MiB of repeated raw
-caption UTF-8 text and 2 MiB of the complete file, including escaping, timing,
-separators and the VTT header where present. The service emits none of these formats with
-a BOM. A source project can still be valid for JSON export when subtitle output
-exceeds these limits.
-
-VTT is plain UTF-8 WebVTT with a `WEBVTT` header and dot-separated milliseconds.
-It uses the same clip/speed mapping and text escaping as SRT, not rich styles,
-regions or speaker metadata. NUL characters are rejected for VTT. Empty VTT
-export returns valid `WEBVTT\n\n`; the browser instead skips empty downloads.
-SRT/VTT reject blank cues/paragraphs and intervals that collapse when rounded to
-milliseconds rather than silently dropping or retiming them; TXT permits them.
-
-## Boundaries and extension points
-
-Supported methods are initialize, ping, tools/list and tools/call plus the initialized
-notification. No HTTP, resources, prompts, pagination, subscriptions, background
-tasks or server-side authentication are advertised. Do not expose this process as
-an unauthenticated network service.
-
-The adapter retains internal `resultType:"complete"` metadata; the stdio host omits
-it from its negotiated 2025-11-25 wire results. Using the adapter alone does not
-implement a later MCP protocol. For a custom host, see
-[INTEGRATIONS.md](../INTEGRATIONS.md#mcp-어댑터와-호스트-확장): resolve an authorized
-service per request, provide transport/lifecycle handling, and keep storage and
-media-provider permissions at the host boundary.
-
-Media bytes are never loaded by this host. `render.plan` is not encoding. The
-optional service job-provider interface is not configured or exposed as MCP tools.
-An external AI client may send project text to its model provider; check that
-client's privacy settings before supplying private captions.
 
 ## Repository skill and verification
 

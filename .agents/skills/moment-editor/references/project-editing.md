@@ -6,6 +6,13 @@
 [Command catalog](../../../../INTEGRATIONS.md#명령-v1) · [Clocks](#time-coordinate-example) ·
 [Recovery](#recover-without-losing-work)
 
+| Workflow | Start here |
+|---|---|
+| Captions | [Import](#import-srtvtt-without-constructing-cue-arrays) · [Text correction](#correct-repeated-caption-text) · [Split](#split-one-caption-at-the-caret-boundary) · [Merge](#merge-adjacent-authored-captions) · [Timing](#shift-a-constant-subtitle-delay) · [Style](#adjust-shared-caption-styling) |
+| Timeline | [Split/repeat a clip](#split-a-clip-without-rebuilding-the-timeline) |
+| Composition | [Effects](#adjust-video-effects-without-changing-content) · [Existing cards](#edit-an-existing-timed-card-by-id) · [Scripted cards/stacking](#build-a-hook-tip-and-cta-with-individual-cards) · [Credit](../../../../docs/MCP.md#set-a-source-credit-independently) |
+| Grouped/template edits | [One commit](#apply-related-edits-together) · [Browser template sharing](#share-one-browser-custom-template) · [Apply a supplied template](#apply-a-supplied-template-document) |
+
 ## Discover and inspect
 
 Run commands from the repository root with Node.js 20+. No package installation is required.

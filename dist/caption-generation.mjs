@@ -30,11 +30,16 @@ export function createCaptionGeneration({ transcription, getProject, getFile, ge
         const decodeCtx = createAudioContext();
         let buffer;
         try {
-            buffer = await decodeCtx.decodeAudioData(await file.arrayBuffer());
+            const bytes = await file.arrayBuffer();
+            beforeApply();
+            buffer = await decodeCtx.decodeAudioData(bytes);
         }
         finally {
             await decodeCtx.close();
         }
+        // Native reads/decodes already in flight cannot be aborted here. Reject
+        // stale work before allocating and rendering the next expensive stage.
+        beforeApply();
         const length = Math.min(buffer.duration, 180);
         const offline = createOfflineContext(1, Math.ceil(length * 16000), 16000);
         const src = offline.createBufferSource();

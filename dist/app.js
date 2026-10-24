@@ -1,3 +1,4 @@
+import { downloadBlob } from './download.mjs';
 import { createTemplateScene } from './template-scene.mjs';
 import { createCaptionWorkspace } from './caption-workspace.mjs';
 import { createSessionMedia } from './session-media.mjs';
@@ -479,13 +480,7 @@ function undo(redo = false) { return editingActions.undo(redo); }
 function modalOpen(title, body, footer = '') { shellPresentation.modalOpen(title, body, footer); }
 function confirmReset() { return editingActions.confirmReset(); }
 function download(blob, name) {
-    const url = URL.createObjectURL(blob), anchor = document.createElement('a');
-    anchor.href = url;
-    anchor.download = name;
-    document.body.append(anchor);
-    anchor.click();
-    anchor.remove();
-    setTimeout(() => URL.revokeObjectURL(url), 60000);
+    downloadBlob(blob, name, {document, URL, setTimer: setTimeout});
 }
 function srtTime(t) {
     return srtTimestamp(t);

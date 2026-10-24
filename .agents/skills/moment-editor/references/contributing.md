@@ -21,6 +21,7 @@ Read [CONTRIBUTING.md](../../../../CONTRIBUTING.md) for repository conventions. 
 | CLI file loading, safe output publication and options | `cli/moment.mjs` |
 | Browser orchestration and integration boundary | `dist/app.js` |
 | Caption panel, inspection/navigation and overlap-tool composition | `dist/caption-workspace.mjs`; individual panel/dialog modules retain rendering and handlers, app retains project/history/media/persistence authority |
+| Transient download URL/anchor cleanup | `dist/download.mjs`; never owns media-source URLs. The existing 60-second delay after a successful click is not download-completion detection or a guarantee |
 | Browser playback, media imports, export and UI bindings | `dist/playback.mjs`, `dist/media-loader.mjs`, `dist/export-flow.mjs`, `dist/app-bindings.mjs` |
 
 Inspect current imports before moving code; these are entry points, not an instruction to introduce additional modules. A responsibility split should reduce coupling, not replace a large function with a bag of callbacks.

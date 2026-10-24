@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { createPlayback } from '../dist/playback.mjs';
 
 function audioFixture(failingStage) {
-  const calls = new Map(), links = new Set(), sources = new Map();
+  const calls = new Map(), links = new Set(), sources = new Map(), gainNodes = [], observations = [];
   let failed = false, gains = 0, refreshes = 0;
   const step = name => {
     calls.set(name, (calls.get(name) || 0) + 1);
@@ -12,7 +12,7 @@ function audioFixture(failingStage) {
       throw new Error(`temporary ${name} failure`);
     }
   };
-  const node = name => ({ name, gain: { value: 0 }, connect(target) { links.add(`${name}->${target.name}`); } });
+  const node = name => ({ name, gain: { value: 0 }, connect(target) { step(`connect:${name}`); observations.push({at: 'connect', gains: gainNodes.map(node => node.gain.value)}); links.add(`${name}->${target.name}`); } });
   const context = {
     destination: node('speaker'),
     createMediaStreamDestination() { step('destination'); return { ...node('recording'), stream: {} }; },
@@ -23,15 +23,15 @@ function audioFixture(failingStage) {
       sources.set(element, source);
       return source;
     },
-    createGain() { step(`gain${gains + 1}`); return node(`gain${++gains}`); },
-    async resume() { step('resume'); },
+    createGain() { step(`gain${gains + 1}`); const gain = node(`gain${++gains}`); gainNodes.push(gain); return gain; },
+    async resume() { observations.push({at: 'resume', gains: gainNodes.map(node => node.gain.value)}); step('resume'); },
   };
-  const app = { video: { name: 'video' }, audio: { name: 'audio' }, state: { volume: .8, audioVolume: .4 }, renderInspector() { refreshes++; } };
+  const app = { muted: true, video: { name: 'video' }, audio: { name: 'audio' }, state: { volume: .8, audioVolume: .4 }, renderInspector() { refreshes++; } };
   const playback = createPlayback(app, { createAudioContext() { step('context'); return context; } });
-  return { playback, calls, links, sources, get refreshes() { return refreshes; } };
+  return { app, gainNodes, observations, playback, calls, links, sources, get refreshes() { return refreshes; } };
 }
 
-for (const stage of ['context', 'destination', 'video', 'audio', 'gain1', 'gain2', 'resume']) {
+for (const stage of ['context', 'destination', 'video', 'audio', 'gain1', 'gain2', 'gain3', 'connect:gain3', 'resume']) {
   test(`audio initialization retries after ${stage} failure without duplicating media sources`, async () => {
     const f = audioFixture(stage);
     await assert.rejects(f.playback.ensureAudio(), /temporary/);
@@ -40,7 +40,7 @@ for (const stage of ['context', 'destination', 'video', 'audio', 'gain1', 'gain2
     assert.ok(f.playback.destination?.stream, 'export must have an audio destination after retry');
     assert.equal(f.sources.size, 2);
     assert.deepEqual([...f.links].sort(), [
-      'video->gain1', 'audio->gain2', 'gain1->speaker', 'gain2->speaker',
+      'video->gain1', 'audio->gain2', 'gain1->gain3', 'gain2->gain3', 'gain3->speaker',
       'gain1->recording', 'gain2->recording',
     ].sort());
     f.playback.applyVolumes(false);
@@ -50,3 +50,24 @@ for (const stage of ['context', 'destination', 'video', 'audio', 'gain1', 'gain2
     assert.equal(f.refreshes, 2);
   });
 }
+
+ test('preview mute affects only the speaker path, initialized before connections and resume', async () => {
+  const f = audioFixture();
+  const before = structuredClone(f.app.state);
+  await f.playback.ensureAudio();
+  assert.ok(f.observations.length > 0);
+  for (const observation of f.observations) assert.deepEqual(observation.gains, [.8, .4, 0]);
+  f.playback.applyVolumes(false);
+  assert.deepEqual(f.gainNodes.map(node => node.gain.value), [.8, .4, 1]);
+  f.app.state.volume = .25; f.app.state.audioVolume = .65;
+  f.playback.applyVolumes(true);
+  assert.deepEqual(f.gainNodes.map(node => node.gain.value), [.25, .65, 0]);
+  f.app.state.volume = 0; f.app.state.audioVolume = 0;
+  f.playback.applyVolumes(false);
+  assert.deepEqual(f.gainNodes.map(node => node.gain.value), [0, 0, 1]);
+  f.app.state = before;
+  await f.playback.ensureAudio();
+  assert.deepEqual(f.observations.at(-1), {at: 'resume', gains: [.8, .4, 0]});
+  assert.deepEqual(f.app.state, before);
+  assert.equal(f.app.muted, true);
+ });

@@ -104,8 +104,6 @@ export function createExportFlow(app, {
             });
             modal.innerHTML = `<div class="modal-head"><h2>${text("shell.exportRunning")}</h2><strong id="exportPercent">0%</strong></div><p class="modal-copy">${text("shell.exportKeepOpen")}</p><div class="progress"><i id="exportProgress"></i></div><button class="button full" id="cancelRunningExport">${text("shell.exportCancel")}</button>`;
             $('#cancelRunningExport').onclick = cancel;
-            app.muted = false;
-            app.renderInspector();
             recorder.start(250);
             await app.play();
         }

@@ -402,6 +402,12 @@ At 1,000 clips, delete a clip before splitting another.
 
 **Automatic captions:** the original video must be **180 seconds or shorter**, even after trimming. Selected audio is processed for at most 180 seconds. Recognition, manual speaker labels and estimated split timing need review.
 
+**Preview mute is not export silence.** The preview speaker button mutes only what
+you hear, including during export; the recorded mix still uses the project's
+source-volume and added-audio-volume settings. Set **both volumes to 0** for a
+silent mix. Preview mute stays as selected through export, cancel and retry, but
+is session-only (reload defaults to unmuted), not a saved project field.
+
 **Video export:** keep the tab visible; hiding it cancels recording. MP4/WebM support depends on the browser. Recording is real-time, with a 30 fps target rather than a fixed-rate guarantee. The historical 4-second Chromium test averaged about 21.7 fps; see [the measured report](docs/BROWSER_QA.md).
 
 In the export dialog, **Include captions in video** starts checked each time.

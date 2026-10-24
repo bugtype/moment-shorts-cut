@@ -189,9 +189,11 @@ test('media persistence, recording and export ownership', async () => {
   doc.createElement=tag=>{const el=originalCreate(tag);if(tag==='canvas')el.captureStream=captureStream;else if(tag==='a'){el.click=()=>downloads++;el.remove=()=>{};}return el;};
   doc.body.append=()=>{};
   context.MediaRecorder=class {static isTypeSupported(mime){return mime.includes('vp8');}constructor(stream,options){this.mimeType=options.mimeType;this.state='inactive';}start(){this.state='recording';recorderStarts++;}stop(){this.state='inactive';this.ondataavailable?.({data:new Blob(['fake-encoded-bytes'])});this.onstop?.();}};
-  vm.runInContext('state=initial();timelineCache=null;current=0;',context);
+  vm.runInContext('state=initial();timelineCache=null;current=0;muted=true;',context);
+  const monitorState=evaluate('state'), monitorHistory=evaluate('history');
   await vm.runInContext('startExport({mime:"video/webm;codecs=vp8,opus",ext:"webm"},720)',context);
   assert.equal(evaluate('exporting'),true);assert.equal(recorderStarts,1);
+  assert.equal(evaluate('muted'),true,'export preserves monitor mute');
   context.captionDraws=[];
   vm.runInContext('globalThis.originalDraw=composition.draw;composition.draw=(...args)=>captionDraws.push({target:args[0]===videoExport.context?"export":"preview",options:args[5]});draw();',context);
   assert.equal(context.captionDraws[0].options.includeCaptions,true);
@@ -200,11 +202,14 @@ test('media persistence, recording and export ownership', async () => {
   await vm.runInContext('startExport({mime:"video/webm;codecs=vp8,opus",ext:"webm"},720)',context);
   assert.equal(recorderStarts,1,'double-click does not start another recorder');
   vm.runInContext('stopExport(true)',context);
+  assert.equal(evaluate('muted'),true,'cancel preserves monitor mute');
   assert.equal(evaluate('exporting'),false);assert.equal(evaluate('playing'),false);assert.equal(stoppedExportTracks,2);assert.equal(downloads,0,'cancelled exports never download');
   await vm.runInContext('startExport({mime:"video/webm;codecs=vp8,opus",ext:"webm"},1080)',context);
   assert.deepEqual(evaluate('[videoExport.canvas.width,videoExport.canvas.height]'),[1080,1920]);
   vm.runInContext('current=duration();stopExport(false);',context);
   assert.equal(downloads,1);assert.equal(evaluate('exporting'),false);assert.equal(stoppedExportTracks,4);
+  assert.equal(evaluate('muted'),true,'cancel, retry and successful export preserve monitor mute');
+  assert.deepEqual(evaluate('state'),monitorState);assert.deepEqual(evaluate('history'),monitorHistory);
   console.log('PASS: export start/double-click guard/cancel/restart/completion, output dimensions and media-track cleanup with mocked codecs.');
   const cleanState=evaluate('state'), cleanHistory=evaluate('history');
   await vm.runInContext('exportFlow.startExport({mime:"video/webm;codecs=vp8,opus",ext:"webm"},720,{includeCaptions:false})',context);
@@ -270,6 +275,7 @@ test('media persistence, recording and export ownership', async () => {
   assert.equal(evaluate('exporting'),false);assert.equal(evaluate('playing'),false);assert.equal(evaluate('exportCancelled'),true);
   assert.match(element('#toast').textContent,/재생할 수 없습니다/);
   assert.equal(stoppedExportTracks,beforeFailedExportStops+2);assert.equal(downloads,beforeFailedExportDownloads);
+  assert.equal(evaluate('muted'),true,'failed export also preserves monitor mute');
   vm.runInContext('ensureAudio=savedPlayback.ensureAudio;seekVideo=savedPlayback.seekVideo;video.play=savedPlayback.play;video.pause=savedPlayback.pause;delete globalThis.savedPlayback;delete globalThis.mediaPauses;pause();state=initial();',context);
   console.log('PASS: superseded audio/seek/play fulfillment and rejection preserve current playback; current failures still report.');
   console.log('PASS: stale preview completion cannot cancel preparing/running export; current export playback failure releases tracks without download.');

@@ -13,7 +13,7 @@ export function createPlayback(app, {
     clearTimer = timer => clearTimeout(timer),
     clock = () => performance.now(),
 } = {}) {
-    let audioCtx, videoNode, audioNode, videoGain, audioGain, destination;
+    let audioCtx, videoNode, audioNode, videoGain, audioGain, monitorGain, destination;
     let audioGraphReady = false;
     let loopPreview = false, pendingRestart = null;
     const canLoop = owner => loopPreview && app.editorReady && !app.exporting && !app.loadingMedia &&
@@ -70,23 +70,27 @@ export function createPlayback(app, {
             audioNode ||= audioCtx.createMediaElementSource(app.audio);
             videoGain ||= audioCtx.createGain();
             audioGain ||= audioCtx.createGain();
+            monitorGain ||= audioCtx.createGain();
+            // Set the mix and speaker mute before exposing any newly connected audio path.
+            applyVolumes(app.muted);
             videoNode.connect(videoGain);
             audioNode.connect(audioGain);
-            videoGain.connect(audioCtx.destination);
-            audioGain.connect(audioCtx.destination);
+            videoGain.connect(monitorGain);
+            audioGain.connect(monitorGain);
+            monitorGain.connect(audioCtx.destination);
             videoGain.connect(destination);
             audioGain.connect(destination);
             audioGraphReady = true;
         }
+        applyVolumes(app.muted);
         await audioCtx.resume();
         app.renderInspector();
     }
 
     function applyVolumes(muted) {
-        if (!audioGraphReady)
-            return;
-        videoGain.gain.value = muted ? 0 : app.state.volume;
-        audioGain.gain.value = muted ? 0 : app.state.audioVolume;
+        if (videoGain) videoGain.gain.value = app.state.volume;
+        if (audioGain) audioGain.gain.value = app.state.audioVolume;
+        if (monitorGain) monitorGain.gain.value = muted ? 0 : 1;
     }
 
     function syncAudio(force = false) {

@@ -30,6 +30,19 @@ export function createEditingActions(app) {
         app.toast('재생 위치에서 클립을 분할했습니다.');
     }
 
+    function duplicate() {
+        const index = app.selected;
+        if (!app.runEditorCommand('timeline.duplicate', { clipIndex: index })) return;
+        app.selected = index + 1;
+        const start = app.state.clips.slice(0, app.selected).reduce((sum, clip) => sum + clip.end - clip.start, 0);
+        app.renderTimeline();
+        app.renderInspector();
+        app.openInspector('clip');
+        app.seekTo(start);
+        if (app.panel === 'settings') app.renderPanel();
+        app.toast('선택한 클립을 바로 뒤에 복제했습니다.');
+    }
+
     function undo(redo = false) {
         app.inputHistory.reset();
         const from = redo ? app.future : app.history, to = redo ? app.history : app.future;
@@ -84,5 +97,5 @@ export function createEditingActions(app) {
         };
     }
 
-    return { trim, split, undo, confirmReset };
+    return { trim, split, duplicate, undo, confirmReset };
 }

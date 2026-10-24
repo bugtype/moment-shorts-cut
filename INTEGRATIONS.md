@@ -61,6 +61,7 @@
 |---|---|---|
 | `timeline.replace` | `clips: [{start,end}]` | 클립 구간/순서 교체 |
 | `timeline.split` | `clipIndex`, `sourceTime` | 지정 클립 구간 분할; `{updated:true, outputDuration}` |
+| `timeline.duplicate` | `clipIndex` | 선택 구간 바로 뒤에 복제; `{updated:true, outputDuration}` |
 | `title.update` | `patch` | 기본 제목과 스타일 수정 |
 | `credit.update` | `patch` | 출처 크레딧 수정; `{updated:true, outputDuration}` |
 | `effects.update` | `patch` | 영상 효과 설정; `{updated:true, outputDuration}` |
@@ -164,6 +165,35 @@ node cli/moment.mjs exec timeline.split --project split-source.json --json '{"cl
 분할 경계를 가로지르는 원본 자막은 출력에서 인접한 두 구간으로 나뉠 수
 있으므로 **SRT/VTT 바이트가 이전과 같다는 뜻은 아닙니다.** 기존 UI 분할과
 동일한 동작이며 UI에서는 한 번에 실행 취소할 수 있습니다.
+
+### 클립 구간 복제
+
+`timeline.duplicate`는 현재 `clips` 배열의 구간을 복사해 **바로 뒤**에 넣습니다.
+필수 `clipIndex`는 기존 위치를 가리키는 0–999 정수입니다. 같은 원본을 반복
+사용해도 위치로 구분하므로 먼저 `project.get`으로 배열을 확인하세요.
+미디어 파일은 복사하지 않으며 클립별 별도 효과도 만들지 않습니다.
+
+```sh
+node cli/moment.mjs init --out repeat-source.json
+node cli/moment.mjs exec project.get --project repeat-source.json
+node cli/moment.mjs exec timeline.duplicate --project repeat-source.json --json '{"clipIndex":0}' --out repeated.json
+```
+
+기본 샘플은 12초에서 24초가 됩니다. 기존 프로젝트에서는 선택 구간 길이와
+배속으로 증가량이 결정됩니다. 없는 위치나 이미 1,000개인 배열은
+`INVALID_ARGUMENT`로 거절하며 프로젝트는 그대로입니다.
+
+| 함께 달라지는 것 | 동작 |
+|---|---|
+| 원본 기준 자막 | 새 구간에서도 나타남; 저장된 자막 배열 자체를 복제하지 않음 |
+| 타임라인 기준 자막 | 배속 전 절대 시간을 유지; 새 위치에 자동 복제·밀어내기 없음 |
+| 제목·크레딧·시간별 카드 | 기존 타임라인 교체 규칙대로 출력 길이에 비례해 시간 조정; `null` 끝점은 유지 |
+| 배속·미디어·오디오 오프셋·공통 효과 | 유지 |
+
+UI의 복제는 새로 넣은 구간을 선택하고 그 시작 위치로 이동하며, 한 번에 실행
+취소합니다. MCP에는 선택·재생 위치·실행 취소 기능이 없고, 성공 결과
+`{updated:true, outputDuration}` 확인 후 `project.get`으로 문서를 저장해야 합니다.
+응답을 놓치면 현재 배열부터 확인하세요. 무조건 재시도하면 구간이 다시 늘어납니다.
 
 ### 자막 문구 일괄 교정
 

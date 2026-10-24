@@ -72,7 +72,7 @@ async function withClient(work) {
 
 const saved = await withClient(async ({request, call, data}) => {
   const {tools} = await request('tools/list', {});
-  assert.equal(tools.length, 22);
+  assert.equal(tools.length, 23);
   assert.ok(tools.some(tool => tool.name === 'moment_project_import'));
   await data('moment_project_import', {document: createProjectDocument(createDemoProject())});
   await data('moment_project_update', {patch: {name: 'MCP 예제', speed: 2}});
@@ -136,6 +136,9 @@ const saved = await withClient(async ({request, call, data}) => {
   const plan = await data('moment_render_plan', {quality: 720, format: 'webm'});
   assert.equal(plan.rendered, false);
   assert.equal(plan.output.duration, 2);
+  const duplicate = await data('moment_timeline_duplicate', {clipIndex: 0});
+  assert.equal(duplicate.outputDuration, 3);
+  assert.deepEqual((await data('moment_project_get')).project.clips, [{start: 2, end: 4}, {start: 2, end: 4}, {start: 4, end: 6}]);
   // Save this document through the client's authorized file workflow in a real integration.
   return JSON.parse(JSON.stringify(await data('moment_project_get')));
 });
@@ -144,4 +147,4 @@ await withClient(async ({data}) => {
   await data('moment_project_import', {document: saved});
   assert.deepEqual(await data('moment_project_get'), saved);
 });
-console.log(JSON.stringify({ok: true, tools: 22, recoveredFromInvalidInput: true, reimported: true, rendered: false}));
+console.log(JSON.stringify({ok: true, tools: 23, recoveredFromInvalidInput: true, reimported: true, rendered: false}));

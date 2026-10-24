@@ -42,6 +42,7 @@ const definitions=[
   command('templates.list','기본 템플릿 목록을 읽습니다.',object()),
   command('template.apply','기본 템플릿을 적용합니다. withContent=true는 제목과 구간 문구를 예시로 교체합니다.',object({templateId:string(100),withContent:boolean},['templateId']),true),
   command('template.apply.document','템플릿 파일의 스타일을 적용합니다. withContent=true는 제목·크레딧·장면 카드도 교체하며 자막은 유지합니다.',object({document:{type:'object'},withContent:boolean},['document']),true),
+  command('timeline.duplicate','선택한 클립의 원본 구간을 바로 뒤에 복제합니다. 출력 글자 시간은 편집 길이에 비례 조정됩니다.',object({clipIndex:{type:'integer',minimum:0,maximum:MAX_CLIPS-1}},['clipIndex']),true),
   command('timeline.split','지정한 클립을 원본 영상 시간에서 둘로 나눕니다. 각 구간은 0.1초 이상이어야 합니다.',object({clipIndex:{type:'integer',minimum:0,maximum:MAX_CLIPS-1},sourceTime:number(0,86400)},['clipIndex','sourceTime']),true),
   command('timeline.replace','원본 영상 시간 기준 클립 목록을 교체합니다.',object({clips:array(clipSchema,MAX_CLIPS,1)},['clips']),true),
   command('credit.update','크레딧 문구·스타일·표시 시간의 지정한 설정만 수정합니다.',object({patch:creditSchema},['patch']),true),
@@ -74,6 +75,14 @@ export function prepareCommand(project,name,args={}){
     captions=captions.map(caption=>({...caption,basis:args.basis}));
     const prepared=prepareCommand(project,'captions.replace',{captions});
     return {...prepared,data:{...prepared.data,importedCaptions:captions.length}};
+  }
+  if(name==='timeline.duplicate'){
+    if(!Number.isInteger(args.clipIndex)||args.clipIndex<0||args.clipIndex>=project.clips.length)
+      fail('복제할 클립의 인덱스를 확인하세요.','arguments.clipIndex');
+    if(project.clips.length>=MAX_CLIPS)fail('클립은 1,000개 이하만 지원합니다.','project.clips');
+    const clips=structuredClone(project.clips);
+    clips.splice(args.clipIndex+1,0,{...clips[args.clipIndex]});
+    return prepareCommand(project,'timeline.replace',{clips});
   }
   if(name==='overlays.move'){
     if(!args.id.length)fail('이동할 장면 카드 ID를 입력하세요.','arguments.id');

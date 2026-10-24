@@ -67,6 +67,7 @@ export function bindUi(app) {
     });
     $('#trimButton').onclick = () => app.trim($('#trimStart').valueAsNumber, $('#trimEnd').valueAsNumber);
     $('#splitButton').onclick = app.split;
+    $('#duplicateClipButton').onclick = app.duplicate;
     $('#timelineToggle').onclick = () => {
         app.timelineView.setCollapsed(!app.timelineView.isCollapsed());
         app.resizePreview();

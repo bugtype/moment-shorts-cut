@@ -49,7 +49,7 @@ its supported version, `2025-11-25`, even if the proposed version differs; a cli
 that cannot support that version should disconnect, not continue with another
 wire format. `ping` is supported. Initialize only once per process.
 
-All twenty-two tools require **`projectId: "session"`**. Each process owns one independent
+All twenty-three tools require **`projectId: "session"`**. Each process owns one independent
 in-memory project, initially the demo. This value is neither a path nor a credential.
 Other project IDs return a tool error. A second client process does not share state.
 
@@ -158,6 +158,7 @@ The service emits no BOM.
 |---|---|---|
 | `moment_timeline_replace` | `clips: [{start,end}]` | Update acknowledgment and output duration |
 | `moment_timeline_split` | `clipIndex`, `sourceTime` | `{updated:true, outputDuration}` |
+| `moment_timeline_duplicate` | `clipIndex` | `{updated:true, outputDuration}` |
 | `moment_title_update` | `patch` | Update acknowledgment and output duration |
 | `moment_credit_update` | `patch` | `{updated:true, outputDuration}` |
 | `moment_effects_update` | `patch` | `{updated:true, outputDuration}` |
@@ -251,6 +252,33 @@ not remain identical. Do not confuse output/playhead seconds with `sourceTime`.
 Use the returned standard acknowledgment to check success, then retrieve the
 project to save it. The browser's existing split action uses the same command and
 is one undo step; standalone MCP still has no undo tool.
+
+### Repeat one clip occurrence
+
+Read `moment_project_get` and inspect the current `project.clips` before calling
+`moment_timeline_duplicate`:
+
+```json
+{"projectId":"session","clipIndex":0}
+```
+
+The required `clipIndex` is an integer `0..999` selecting an existing occurrence.
+Its source interval is inserted **immediately after it**, not copied to a new media
+file. The initial 12-second demo becomes 24 seconds. An absent index or an already
+1,000-clip array returns `INVALID_ARGUMENT` without mutation.
+
+| Project content | Effect of duplication |
+|---|---|
+| Source-clock captions | Appear again in the new occurrence; authored cue array is not copied |
+| Timeline-clock captions | Stay at absolute pre-speed times; not duplicated or shifted after insertion |
+| Title, credit and timed cards | Timing scales proportionally with output duration; null ends stay null, using existing timeline replacement rules |
+| Speed, media, audio offset, global effects | Unchanged; no new per-clip effect state |
+
+The result is `{updated:true, outputDuration}`; retrieve the document separately
+to save it. A lost response requires re-reading the clip array before retrying:
+a second successful call inserts another occurrence. Browser duplication selects
+the inserted clip, seeks its start and is one undo step; MCP does not control the
+browser selection/playhead or provide undo.
 
 ### Import subtitle text with an explicit clock
 

@@ -83,6 +83,18 @@ become adjacent derived output cues; do not claim SRT/VTT are byte-identical.
 The result is `{updated:true, outputDuration}`, not the document. Retrieve and
 save the project separately. UI splitting is one undo step; MCP has no undo tool.
 
+To repeat rather than split, use `timeline.duplicate` / `moment_timeline_duplicate`
+with `{clipIndex:0}` (and MCP `projectId:"session"`). Inspect the actual index first.
+It inserts a copy of that source interval immediately after it, not a media-file
+copy. Source captions repeat in the added occurrence; timeline captions keep
+absolute pre-speed times and are not duplicated. Title/credit/card times scale
+with output length through the existing timeline replacement rules; speed, media,
+audio offset and global effects remain unchanged. Invalid indexes or 1,000 existing
+clips reject atomically. Save after checking `{updated:true, outputDuration}`;
+after a lost response, inspect the array before retrying to avoid an extra copy.
+See the [complete CLI example](../../../../INTEGRATIONS.md#클립-구간-복제).
+
+
 ## Import SRT/VTT without constructing cue arrays
 
 Use CLI `captions.import` or MCP `moment_captions_import` with required `text` and

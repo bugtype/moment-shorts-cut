@@ -93,6 +93,9 @@ function inputSchema(command) {
     p.document.description = 'Complete moment-template version 1 document, not a project or path. Strict known fields and a 256 KiB pretty-printed UTF-8 limit apply. Its ID becomes project.templateId; no browser-library save, ID reassignment or media access occurs.';
     p.withContent.description = 'Default false preserves title lines, credit text, existing scene cards and captions. Styles, effects, global keywords, speaker names/colors and title/credit timing can change. True also replaces title/credit text and scene cards, never captions. Relative title/credit timing scales when relativeTiming=true; imported card times scale by current output duration whenever content is applied, including supported legacy templates.';
   }
+  if (command.name === 'timeline.duplicate') {
+    p.clipIndex.description = 'Existing zero-based clip occurrence index. Copies its source interval immediately after it, maximum 1,000 clips. No media copy. Source caption occurrences repeat; timeline-basis captions and audioOffset stay absolute before speed. Title/credit/card times scale proportionally with output duration, preserving null ends, exactly as timeline.replace.';
+  }
   if (command.name === 'timeline.split') {
     p.clipIndex.description = 'Zero-based index in the current ordered clips array from project.get. Identifies a specific occurrence when source ranges repeat; must be an existing integer index.';
     p.sourceTime.description = 'Absolute original-media seconds, NOT edited timeline or output seconds. Must leave at least 0.1 source seconds on each side. Adds one clip (maximum 1000), preserving order, caption metadata and output-layer timing.';

@@ -34,6 +34,7 @@ const inputs = {
   'templates.list': {},
   'template.apply.document': {document:createTemplateDocument(saveCustomTemplate('스키마',createDemoProject()))},
   'template.apply': { templateId: 'reference', withContent: false },
+  'timeline.duplicate': {clipIndex:0},
   'timeline.split': {clipIndex:0,sourceTime:6},
   'timeline.replace': { clips: [{ start: 0, end: 12 }] },
   'overlays.move': {id:'schema-card',toIndex:0},

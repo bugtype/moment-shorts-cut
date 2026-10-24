@@ -244,7 +244,7 @@ const app = {
     showHelp: () => showHelp(), toast: message => toast(message),
     modalOpen: (title, body, footer) => modalOpen(title, body, footer),
     confirmReset: () => confirmReset(), download: (blob, name) => download(blob, name),
-    trim: (start, end) => trim(start, end), split: () => split(), undo: redo => undo(redo),
+    trim: (start, end) => trim(start, end), split: () => split(), duplicate: () => editingActions.duplicate(), undo: redo => undo(redo),
     generateCaptions: () => generateCaptions(), downloadSubtitles: format => downloadSubtitles(format),
     importSrt: file => importSrt(file),
     importProjectSettings: file => importProjectSettings(file),

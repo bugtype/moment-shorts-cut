@@ -1,3 +1,4 @@
+import { MAX_CLIPS } from './core/project.mjs';
 export function createInspectorView($, $$) {
     let inspectorTrimContext = null;
     function open(section) {
@@ -38,6 +39,7 @@ export function createInspectorView($, $$) {
         $('#clipIndex').textContent = `클립 ${selected + 1}`;
         $('#undoButton').disabled = !canUndo;
         $('#redoButton').disabled = !canRedo;
+        $('#duplicateClipButton').disabled = state.clips.length >= MAX_CLIPS;
         $('#deleteButton').disabled = state.clips.length <= 1;
         $('#moveLeft').disabled = selected <= 0;
         $('#moveRight').disabled = selected >= state.clips.length - 1;

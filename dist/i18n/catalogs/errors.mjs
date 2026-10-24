@@ -1,5 +1,8 @@
 // Product-owned diagnostics and progress. Project-authored text is never translated.
 const entries = [
+  ["errors.insertCaptionIndex","현재 자막 목록 안의 삽입 위치 또는 맨 끝 위치를 정수로 입력하세요.","Enter an integer insertion position within the current caption list, including its end.","请输入当前字幕列表中的整数插入位置，也可选择列表末尾。"],
+  ["errors.removeCaptionIndex","삭제할 자막의 현재 번호를 정수로 입력하세요.","Enter the current integer index of the caption to remove.","请输入要删除字幕的当前整数索引。"],
+  ["errors.insertCaptionClock","새 자막의 시작·끝을 선택한 배속 전 시간 기준 안에서 확인하세요.","Check the new caption's start and end within its chosen pre-speed clock.","请检查新字幕的起止时间是否在所选变速前时间范围内。"],
   ["errors.captionListOffset","자막 시작 위치는 0~10,000 사이 정수로 입력하세요.","Caption offset must be an integer from 0 to 10,000.","字幕起始位置必须是 0 至 10,000 的整数。"],
   ["errors.captionListLimit","자막 조회 개수는 1~50 사이 정수로 입력하세요.","Caption page size must be an integer from 1 to 50.","字幕查询数量必须是 1 至 50 的整数。"],
   ["errors.value","허용되지 않은 값입니다.","This value is not allowed.","此值不受支持。"],

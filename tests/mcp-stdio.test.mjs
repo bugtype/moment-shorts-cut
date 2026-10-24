@@ -32,7 +32,7 @@ test('stdio negotiates its supported version, waits for initialization and lists
   assert.equal(replies[1].result.protocolVersion, '2025-11-25');
   assert.deepEqual(replies[1].result.capabilities, {tools: {}});
   assert.equal(replies[2].error.code, -32600);
-  assert.equal(replies[3].result.tools.length,29);
+  assert.equal(replies[3].result.tools.length,31);
   assert.ok(replies[3].result.tools.some(tool => tool.name === 'moment_project_import'));
   assert.ok(replies[3].result.tools.every(tool => tool.inputSchema.required.includes('projectId')));
   assert.equal(replies[3].result.resultType, undefined);
@@ -99,4 +99,16 @@ test('stdio reads bounded authored pages from 10000 cues and applies a targeted 
  assert.deepEqual(last.captions,[{captionIndex:9999,caption:{...p.captions[9999],text:'Reviewed'}}]);
  assert.deepEqual(byId.get(7).result.structuredContent.data,{totalCaptions:10000,offset:10000,limit:20,nextOffset:null,captions:[]});
  assert.ok(Buffer.byteLength(JSON.stringify(byId.get(6)))<2000,'Actual returned page stays small for this fixture');
+});
+
+
+test('stdio inserts, removes the final cue and recovers from a stale removal index',()=>{
+ const initial={start:0,end:1,text:'Original'};
+ const replies=run([init,ready,call(2,'captions_replace',{captions:[initial]}),call(3,'captions_insert',{captionIndex:1,caption:{start:1,end:2,text:'Inserted',basis:'timeline',timing:'estimated'}}),call(4,'captions_list'),call(5,'captions_remove',{captionIndex:0}),call(6,'captions_remove',{captionIndex:0}),call(7,'captions_list'),call(8,'captions_remove',{captionIndex:0}),call(9,'captions_insert',{captionIndex:0,caption:initial}),call(10,'captions_list')]);
+ const byId=new Map(replies.map(reply=>[reply.id,reply]));
+ assert.deepEqual(byId.get(3).result.structuredContent.data,{updated:true,captionIndex:1,totalCaptions:2,outputDuration:12});
+ assert.equal(byId.get(4).result.structuredContent.data.captions[1].caption.timing,'estimated');
+ assert.equal(byId.get(6).result.structuredContent.data.totalCaptions,0);assert.deepEqual(byId.get(7).result.structuredContent.data.captions,[]);
+ assert.equal(byId.get(8).result.isError,true);assert.equal(byId.get(8).result.structuredContent.error.code,'INVALID_ARGUMENT');
+ assert.deepEqual(byId.get(10).result.structuredContent.data.captions,[{captionIndex:0,caption:initial}]);
 });

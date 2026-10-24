@@ -178,17 +178,15 @@ export function createCaptionPanel({
         $$('[data-caption-speaker]').forEach(el => el.onchange = () => edit(() => getProject().captions[+el.dataset.captionSpeaker].speaker = el.value));
         $('#generateCaptions').onclick = actions.generate;
         $('#addCaption').onclick = () => {
+            if (composing) return;
             if (getProject().captions.length >= MAX_CAPTIONS) {
                 toast(message('panels.captionLimit'));
                 return;
             }
-            let applied = false;
-            edit(() => {
-                const captionTime = Math.min(sourceTime(), Math.max(0, getProject().duration - .1));
-                getProject().captions.push({ start: captionTime, end: Math.min(getProject().duration, captionTime + 3), text: '새로운 자막을 입력하세요' });
-                applied = true;
-            }, true);
-            if (applied) focusCaption(getProject().captions.length - 1);
+            const project = getProject(), captionIndex = project.captions.length;
+            const captionTime = Math.min(sourceTime(), Math.max(0, project.duration - .1));
+            const caption = { start: captionTime, end: Math.min(project.duration, captionTime + 3), text: '새로운 자막을 입력하세요' };
+            if (execute('captions.insert', { captionIndex, caption })) focusCaption(captionIndex);
         };
         $('#importSrt').onclick = () => $('#srtInput').click();
         $('#captionExportFormat').value = exportFormat;
@@ -218,10 +216,10 @@ export function createCaptionPanel({
             if (result) focusCaption(index);
         });
         $$('[data-delete-caption]').forEach(b => b.onclick = () => {
+            if (composing) return;
             const index = +b.dataset.deleteCaption;
-            let applied = false;
-            edit(() => { getProject().captions.splice(index, 1); applied = true; }, true);
-            if (applied) focusCaption(Math.min(index, getProject().captions.length - 1));
+            if (execute('captions.remove', { captionIndex: index }))
+                focusCaption(Math.min(index, getProject().captions.length - 1));
         });
         $$('[data-caption-text]').forEach(el => el.onchange = () => {
             edit(() => getProject().captions[+el.dataset.captionText].text = el.value);

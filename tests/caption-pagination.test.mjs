@@ -1,3 +1,4 @@
+import {prepareCommand} from '../dist/core/commands.mjs';
 import { formatError } from '../dist/i18n.mjs';
 import test from 'node:test';
 import fs from 'node:fs';
@@ -25,6 +26,12 @@ function fixture(count=101){
  const queryAll=selector=>[...nodes].filter(([key])=>key.startsWith(selector.slice(0,-1)+'=')).map(([,node])=>node);
  let panel;const render=()=>panel.render(target,{},{});
  panel=createCaptionPanel({query,queryAll,getProject:()=>project,getDuration:()=>project.duration,sourceTime:()=>0,
+  execute(name,args){
+   if(blocked)return false;
+   const result=prepareCommand(project,name,args);
+   if(!result.project)return false;
+   history.push(structuredClone(project));project=result.project;log.push(['edit']);render();return true;
+  },
   edit(change,refresh){if(blocked)return;history.push(structuredClone(project));change();log.push(['edit']);if(refresh)render();},refresh:render,toast:message=>log.push(['toast',formatError(message)])});
  render();
  return {panel,query,target,log,history,render,project:()=>project,setProject:p=>{project=p;render();},block:()=>blocked=true,

@@ -192,6 +192,7 @@ Existing output files are protected; use `--overwrite` only when you intend to r
 | Task | Use | Keep in mind |
 |---|---|---|
 | Read nearby authored captions | [`captions.list`](INTEGRATIONS.md#저장된-자막을-나눠-조회) | Read up to 50 exact cues per page, then target a current index with `captions.update`. Pre-speed times; live pages are not snapshots or project backups. |
+| Insert or remove one caption | [`captions.insert` / `captions.remove`](INTEGRATIONS.md#자막-하나를-추가하거나-삭제) | Use the current authored index; no sorting or retiming of other cues. Re-read after uncertain results—blind retries can affect the wrong cue. |
 | Edit one authored caption | [`captions.update`](INTEGRATIONS.md#자막-하나만-수정) | Patch text, timing, speaker or keywords without resending all cues. Read the current array index first; basis and estimated-timing metadata are preserved. |
 | Correct repeated wording | [`captions.text.replace`](INTEGRATIONS.md#자막-문구-일괄-교정) | Literal, case-sensitive, non-overlapping; no regex/Unicode normalization. Preserves timing, speaker/keyword metadata and order. Blank or overlong results reject the whole edit. Browser UI previews occurrence counts and applies one undo step. |
 | Review matches first | Browser previous/next search controls | Wrap through authored rows, including trimmed-out captions; scroll/focus/select each row’s first match and show current/total rows. One row counts once; replace-all counts occurrences. No playback seek, project edit or save. |

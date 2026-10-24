@@ -35,8 +35,8 @@ test('every failed position returns indexed known error and commits none of the 
 });
 test('closed allowlist, envelope bounds and nested arguments prevent imports, reads, jobs and recursion',()=>{
  const p=createDemoProject(),schema=commandDefinition('project.batch').inputSchema;
- assert.equal(schema.properties.operations.items.properties.command.enum.length,21);
- for(const command of ['project.import','project.get','templates.list','captions.export','render.plan','jobs.submit','jobs.cancel','project.batch','unknown'])
+ assert.equal(schema.properties.operations.items.properties.command.enum.length,23);
+ for(const command of ['project.import','project.get','templates.list','captions.list','captions.inspect','captions.export','render.plan','jobs.submit','jobs.cancel','project.batch','unknown'])
   assert.throws(()=>batch(p,[op(command,{})]),e=>e.code==='INVALID_ARGUMENT');
  for(const operations of [[],Array.from({length:21},()=>rename('x')),[{command:'project.update'}],[op('project.update',{patch:{unknown:true}})],[op('project.update',null)]])assert.throws(()=>batch(p,operations));
  assert.equal(batch(p,Array.from({length:20},()=>rename('x'))).data.operationCount,20);

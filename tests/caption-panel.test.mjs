@@ -1,3 +1,4 @@
+import { prepareCommand } from '../dist/core/commands.mjs';
 import { formatError } from '../dist/i18n.mjs';
 import test from 'node:test';
 import vm from 'node:vm';
@@ -8,7 +9,7 @@ import { createDemoProject } from '../dist/core/project.mjs';
 
 function fixture({ blocked = false } = {}) {
   let project = createDemoProject();
-  const nodes = new Map(), log = [];
+  const nodes = new Map(), log = [], commands = [];
   function query(selector) {
     if (!nodes.has(selector)) nodes.set(selector, {
       value: '', dataset: {}, attributes: {}, setAttribute(name, value) { this.attributes[name] = String(value); }, getAttribute(name) { return this.attributes[name] ?? null; }, removeAttribute(name) { delete this.attributes[name]; },
@@ -37,6 +38,15 @@ function fixture({ blocked = false } = {}) {
   const panel = createCaptionPanel({
     query, queryAll, getProject: () => project, getDuration: () => 6, sourceTime: () => 2,
     edit: (change, refresh) => { if (blocked) return; log.push(['edit', refresh]); change(); },
+    execute(name, args) {
+      if (blocked) return false;
+      const result = prepareCommand(project, name, args);
+      commands.push([name, structuredClone(args)]);
+      if (!result.project) return false;
+      log.push(['edit', true]);
+      project = result.project;
+      return true;
+    },
     refresh: () => log.push('refresh'), toast: message => log.push(['toast', formatError(message)]),
   });
   const target = { querySelector: () => ({ open: true }), innerHTML: '' };
@@ -44,7 +54,7 @@ function fixture({ blocked = false } = {}) {
     design: () => log.push('design'), generate: () => log.push('generate'),
     download: format => log.push(['download', format]),
   });
-  return { panel, query, target, log, project: () => project, replace: value => { project = value; } };
+  return { panel, query, target, log, commands, project: () => project, replace: value => { project = value; } };
 }
 
 test('caption row handlers read the current project and preserve field metadata', () => {
@@ -257,4 +267,41 @@ test('search recomputes edited text, missing results and deletion immediately be
   assert.equal(f.query('#previousCaptionMatch').disabled,true);
   replacementInput(f,'','x'); f.query('#nextCaptionMatch').onclick();
   assert.equal(f.log.length,before);
+});
+
+test('caption add and delete dispatch shared commands with source timing and focus only on success', () => {
+  const f = fixture();
+  f.project().captions = [];
+  f.query('#addCaption').onclick();
+  assert.deepEqual(f.commands, [['captions.insert', {
+    captionIndex: 0, caption: { start: 2, end: 5, text: '새로운 자막을 입력하세요' },
+  }]]);
+  f.query('[data-delete-caption]').onclick();
+  assert.deepEqual(f.commands.at(-1), ['captions.remove', { captionIndex: 0 }]);
+  assert.equal(f.project().captions.length, 0);
+  assert.deepEqual(f.log.at(-2), ['focus', '#addCaption', { preventScroll: true }]);
+  assert.equal(f.log.filter(event => event[0] === 'edit').length, 2);
+
+  const blocked = fixture({ blocked: true }), before = structuredClone(blocked.project());
+  blocked.query('#addCaption').onclick();
+  blocked.query('[data-delete-caption]').onclick();
+  assert.deepEqual(blocked.project(), before);
+  assert.deepEqual(blocked.commands, []);
+  assert.deepEqual(blocked.log, []);
+});
+
+test('composition and detached add/delete controls cannot dispatch commands or steal focus', () => {
+  const f = fixture(), before = structuredClone(f.project());
+  const add = f.query('#addCaption').onclick, remove = f.query('[data-delete-caption]').onclick;
+  f.target.oncompositionstart();
+  add(); remove();
+  assert.deepEqual(f.project(), before);
+  assert.deepEqual(f.commands, []);
+  assert.deepEqual(f.log, []);
+  f.target.oncompositionend();
+  f.panel.render(f.target, {}, {});
+  add(); remove();
+  assert.deepEqual(f.project(), before);
+  assert.deepEqual(f.commands, []);
+  assert.deepEqual(f.log, []);
 });

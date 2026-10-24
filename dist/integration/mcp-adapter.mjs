@@ -27,6 +27,8 @@ function dataSchema(command) {
     case 'templates.list': return {
       type: 'array', items: record({ id: text, name: text, category: text, description: text }),
     };
+    case 'captions.insert':
+    case 'captions.remove': return record({updated:{const:true},captionIndex:{type:'integer',minimum:0,maximum:9999},totalCaptions:{type:'integer',minimum:0,maximum:10000},outputDuration:{type:'number',minimum:0}});
     case 'captions.update': return record({updated:{const:true},captionIndex:{type:'integer',minimum:0,maximum:9999},outputDuration:{type:'number',minimum:0}});
     case 'captions.split': return record({updated:{const:true},createdCaptionIndex:{type:'integer',minimum:1,maximum:9999},outputDuration:{type:'number',minimum:0}});
     case 'captions.merge': return record({updated:{const:true},mergedCaptionIndex:{type:'integer',minimum:0,maximum:9998},outputDuration:{type:'number',minimum:0}});
@@ -216,6 +218,15 @@ function inputSchema(command) {
   if (command.name === 'captions.import') {
     p.text.description = 'SRT or plain WebVTT text, not a path. Replaces all captions using the browser parser: clips cue ends to the chosen duration, skips invalid/empty/out-of-range cues, strips tags and decodes supported entities once. Not full subtitle-standard validation. Runtime limit is 100,000 UTF-16 code units plus the parser’s 2 MiB UTF-8 ceiling; each cue is at most 2,000 units and at most 10,000 cues are accepted.';
     p.basis.description = 'Required clock: source means original media seconds; timeline means edited timeline seconds BEFORE speed. No automatic time conversion. captions.export uses output seconds AFTER speed, so importing it as timeline is not a speed-adjusted round trip.';
+  }
+  if (command.name === 'captions.insert') {
+    p.captionIndex.description = 'Required zero-based insertion position in the current authored array, including its length to append. Maximum total 10,000 cues. Existing rows keep order and timing; this does not sort by start time. Non-idempotent: reread captions.list before retrying an uncertain insert.';
+    p.caption.description = 'Complete new authored cue, copied exactly without normalization. Empty text is legal. Missing basis means source; source and timeline times are BEFORE speed. End must exceed start and not exceed the chosen clock duration, with the existing 86,400-second schema ceiling. Does not generate speech alignment.';
+    p.caption.properties.text.description = 'Literal text, maximum 2,000 UTF-16 code units; empty text is allowed. No automatic escaping, trimming or normalization of authored content.';
+    p.caption.properties.basis.description = 'source (default when omitted) uses original media seconds; timeline uses edited seconds BEFORE speed. A source cue can repeat across clips. Ownership is preserved exactly as supplied.';
+  }
+  if (command.name === 'captions.remove') {
+    p.captionIndex.description = 'Required existing zero-based authored caption index from captions.list, not an output occurrence. Removes exactly one cue and may leave an empty array. Remaining indices shift left without retiming. Returned captionIndex is the removed old position. Non-idempotent: reread before retrying an uncertain removal.';
   }
   if (command.name === 'captions.update') {
     p.captionIndex.description = 'Existing zero-based authored cue index, not an output occurrence or stable ID. Read current project before updating; preceding structural edits can shift indices.';

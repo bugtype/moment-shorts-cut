@@ -57,6 +57,8 @@ const definitions=[
   command('captions.import','SRT/VTT 문자열로 자막 전체를 교체합니다. source 또는 배속 전 timeline 시간 기준을 명시하세요.',object({text:string(100000),basis:choice('source','timeline')},['text','basis']),true),
   command('captions.split','자막 하나를 문자 커서 위치에서 나눕니다. 시간은 문자 수 비례 추정이며 음성과 확인해야 합니다.',object({captionIndex:{type:'integer',minimum:0,maximum:9999},textOffset:{type:'integer',minimum:1,maximum:1999}},['captionIndex','textOffset']),true),
   command('captions.merge','인접한 두 자막을 합칩니다. 시간 기준·화자·강조 단어가 같고 시간이 겹치지 않아야 합니다.',object({captionIndex:{type:'integer',minimum:0,maximum:9998}},['captionIndex']),true),
+  command('captions.insert','원본 순서의 지정한 위치에 자막 하나를 삽입합니다. 기존 자막의 상대 순서와 시간은 유지합니다.',object({captionIndex:{type:'integer',minimum:0,maximum:MAX_CAPTIONS},caption:captionSchema},['captionIndex','caption']),true),
+  command('captions.remove','원본 순서의 지정한 자막 하나를 삭제합니다. 나머지 자막과 시간은 유지합니다.',object({captionIndex:{type:'integer',minimum:0,maximum:MAX_CAPTIONS-1}},['captionIndex']),true),
   command('captions.update','지정한 자막 하나의 본문·시간·화자·강조 단어만 수정합니다. 시간 기준과 추정 시간 경고는 유지합니다.',object({captionIndex:{type:'integer',minimum:0,maximum:9999},patch:captionPatchSchema},['captionIndex','patch']),true),
   command('captions.replace','자막을 교체합니다. source는 원본, timeline은 배속 전 편집 시간입니다.',object({captions:array(captionSchema,MAX_CAPTIONS)},['captions']),true),
   command('captions.text.replace','자막 본문에서 대소문자를 구분해 같은 문자열을 모두 바꿉니다. 시간과 메타데이터는 유지합니다.',object({find:{...string(2000),minLength:1},replacement:string(2000)},['find','replacement']),true),
@@ -73,7 +75,7 @@ const batchCommands = [
   'project.update','effects.update','template.apply','template.apply.document',
   'timeline.duplicate','timeline.split','timeline.replace','credit.update','title.update',
   'overlays.move','overlays.add','overlays.remove','overlays.update',
-  'captions.import','captions.split','captions.merge','captions.replace','captions.update',
+  'captions.import','captions.split','captions.merge','captions.replace','captions.update','captions.insert','captions.remove',
   'captions.text.replace','captions.timing.shift','captions.style.update',
 ];
 definitions.push(command('project.batch','최대 20개 편집을 순서대로 검증하고 한 번에 적용합니다. 하나라도 실패하면 적용하지 않습니다.',
@@ -141,6 +143,24 @@ export function prepareCommand(project,name,args={}){
     if(!data.updated)return {data};
     const next=structuredClone(project),[card]=next.overlays.splice(from,1);
     next.overlays.splice(args.toIndex,0,card);validateProject(next);return {project:next,data};
+  }
+  if(name==='captions.insert'){
+    const index=args.captionIndex,caption=args.caption;
+    if(!Number.isInteger(index)||index<0||index>project.captions.length)
+      fail(msg('errors.insertCaptionIndex'),'arguments.captionIndex');
+    if(project.captions.length>=MAX_CAPTIONS)fail(msg('errors.captionLimit'),'project.captions');
+    const total=caption.basis==='timeline'?timelineDuration(project):project.duration;
+    if(caption.end<=caption.start||caption.end>total)
+      fail(msg('errors.insertCaptionClock'),'arguments.caption');
+    const next=structuredClone(project);next.captions.splice(index,0,structuredClone(caption));validateProject(next);
+    return {project:next,data:{updated:true,captionIndex:index,totalCaptions:next.captions.length,outputDuration:outputDuration(next)}};
+  }
+  if(name==='captions.remove'){
+    const index=args.captionIndex;
+    if(!Number.isInteger(index)||index<0||index>=project.captions.length)
+      fail(msg('errors.removeCaptionIndex'),'arguments.captionIndex');
+    const next=structuredClone(project);next.captions.splice(index,1);validateProject(next);
+    return {project:next,data:{updated:true,captionIndex:index,totalCaptions:next.captions.length,outputDuration:outputDuration(next)}};
   }
   if(name==='captions.update'){
     const index=args.captionIndex;

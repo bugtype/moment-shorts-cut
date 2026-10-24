@@ -80,3 +80,68 @@ test('decimal endpoint roundoff snaps only within bounded relative ULPs; true ov
     f.open();f.confirm(.2);assert.equal(f.evaluate('state.overlays[0].start'),.2);assert.equal(f.evaluate('state.overlays[0].end'),.3);
     vm.runInContext('undo()',f.context);f.open();const before=f.snapshot();f.confirm(.200000000000001);assert.deepEqual(f.snapshot(),before);
 });
+
+test('playhead capture is an output-time draft until confirmed, with cancel/no-op and undo',async()=>{
+    for(const speed of [.25,1,4]){
+        const f=await fixture(`state.speed=${speed};current=2;state.overlays[0].end=.5`);
+        f.open();const before=f.snapshot();
+        f.element('#cardMovePlayhead').onclick();
+        assert.equal(Number(f.element('#cardMoveStart').value),2/speed);
+        assert.equal(Number(f.element('#cardMoveEnd').textContent),2/speed+.5);
+        assert.deepEqual(f.snapshot(),before);
+        f.element('#cancelCardMove').onclick();assert.deepEqual(f.snapshot(),before);
+        f.open();f.element('#cardMovePlayhead').onclick();f.element('#confirmCardMove').onclick();
+        assert.equal(f.evaluate('state.overlays[0].start'),2/speed);
+        assert.equal(f.evaluate('state.overlays[0].end-state.overlays[0].start'),.5);
+        assert.equal(f.evaluate('current'),2);assert.equal(f.evaluate('history.length'),1);
+        vm.runInContext('undo()',f.context);assert.deepEqual(f.evaluate('state'),before.state);
+        f.open();vm.runInContext('current=0',f.context);const unchanged=f.snapshot();
+        f.element('#cardMovePlayhead').onclick();f.element('#confirmCardMove').onclick();assert.deepEqual(f.snapshot(),unchanged);
+    }
+});
+
+test('capture rejects invalid playheads without replacing drafts; genuine interval overflow is not clamped',async()=>{
+    const f=await fixture();f.open();f.element('#cardMoveStart').value='1.25';
+    for(const current of ['NaN','Infinity','-Infinity','-1','13']){
+        vm.runInContext(`current=${current}`,f.context);const before=f.snapshot();
+        f.element('#cardMovePlayhead').onclick();
+        assert.equal(f.element('#cardMoveStart').value,'1.25');assert.deepEqual(f.snapshot(),before);
+    }
+    vm.runInContext('current=11',f.context);const before=f.snapshot();
+    f.element('#cardMovePlayhead').onclick();assert.equal(f.element('#cardMoveStart').value,'11');assert.equal(f.element('#cardMoveEnd').textContent,'14');
+    f.element('#confirmCardMove').onclick();assert.deepEqual(f.snapshot(),before);assert.equal(f.element('#modal').open,true);
+    vm.runInContext('current=9',f.context);f.element('#cardMovePlayhead').onclick();f.element('#confirmCardMove').onclick();assert.equal(f.evaluate('state.overlays[0].end'),12);
+});
+
+test('playhead draft handlers respect stale, closed/reopened, busy and IME ownership',async()=>{
+    for(const change of ["selectedCard='other'","state.overlays[0].text='Edited'",'state=structuredClone(state)','sources.videoFile={}','sources.audioFile={}',"switchPanel('text')","effectTab='motion'","modal.close()",'loadingMedia=true','transcribing=true','exporting=true',"persistence.restorePhase='failed';persistence.recoveryValid=false","Object.defineProperty(audioRecording,'requesting',{get:()=>true})","Object.defineProperty(audioRecording,'current',{get:()=>({})})"]){
+        const f=await fixture();f.open();const capture=f.element('#cardMovePlayhead').onclick,input=f.element('#cardMoveStart');input.value='1.25';
+        vm.runInContext(change,f.context);const before=f.snapshot();capture();assert.deepEqual(f.snapshot(),before);assert.equal(input.value,'1.25');
+    }
+    const f=await fixture();f.open();const old=f.element('#cardMovePlayhead').onclick;f.element('#cancelCardMove').onclick();f.open();
+    const input=f.element('#cardMoveStart'),capture=f.element('#cardMovePlayhead').onclick;input.value='1.25';old();assert.equal(input.value,'1.25');
+    capture({isComposing:true});capture({keyCode:229});input.oncompositionstart();capture();assert.equal(input.value,'1.25');
+    input.oncompositionend();capture();assert.equal(input.value,'2');assert.equal(f.evaluate('history.length'),0);
+});
+
+test('playhead draft action has localized visible text in all three locales',async()=>{
+    try {
+        for(const [locale,label] of [['ko','현재 위치를 시작값으로 입력'],['en','Use playhead for start'],['zh-CN','将播放头位置填入开始时间']]){
+            const f=await fixture();setLocale(locale,{persist:false});f.open();assert.ok(f.element('#modal').innerHTML.includes(label));
+            const before=f.snapshot();f.element('#cardMovePlayhead').onclick();assert.deepEqual(f.snapshot(),before);assert.equal(f.element('#cardMoveStart').value,'2');
+        }
+    } finally { initLocale(); }
+});
+
+test('capture reads click-time playhead and locale changes retain the draft and running playback',async()=>{
+    try {
+        const f=await fixture('state.speed=2;state.overlays[0].end=.5;playing=true');f.open();
+        vm.runInContext('current=7',f.context);const before=f.snapshot(),input=f.element('#cardMoveStart');
+        f.element('#cardMovePlayhead').onclick();assert.equal(input.value,'3.5');assert.equal(f.element('#cardMoveEnd').textContent,'4');assert.deepEqual(f.snapshot(),before);
+        for(const locale of ['en','zh-CN','ko']){
+            setLocale(locale,{persist:false});assert.equal(input.value,'3.5');assert.equal(f.element('#cardMoveStart'),input);assert.deepEqual(f.snapshot(),before);
+        }
+        vm.runInContext('current=8',f.context);f.element('#cardMovePlayhead').onclick();assert.equal(input.value,'4');assert.equal(f.evaluate('playing'),true);assert.equal(f.evaluate('history.length'),0);
+        f.element('#cancelCardMove').onclick();assert.equal(f.evaluate('playing'),true);assert.equal(f.evaluate('saves'),before.saves);
+    } finally { initLocale(); }
+});

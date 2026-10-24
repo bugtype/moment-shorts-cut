@@ -551,6 +551,8 @@ changes; valid failed-recovery edits remain in memory and need a settings backup
 Renderers use different anchors and may fit/clamp text, so these percentages do
 not guarantee visible centering, pixel alignment or safe-area containment.
 
+**Use playhead for start** in **Move in time…** fills the draft with the current output time (after speed), then updates the calculated end. Review and choose **Move** to apply; capture alone does not edit, pause, seek, save or add history. Overflow is not cropped.
+
 For example, to move a card from 0–3 to 7–10 seconds, choose **Move in time…**,
 enter `7`, review the calculated end and choose **Move**. Its duration, ID, stacking
 order, content and style remain; other cards are unchanged. A changed move pauses

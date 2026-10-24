@@ -392,6 +392,26 @@ caption** if empty. Playback pauses but keeps its position. Cancel makes no addi
 the dialog may already commit a row edit through the field’s normal blur/change behavior. Re-read positions after structural edits;
 valid failed-recovery edits still need a settings backup, not browser saving.
 
+**Import SRT/VTT in the browser:** back up settings first; confirmation replaces
+**all captions**, not just the visible page. Select the file and its actual clock:
+
+| Import clock | Use for |
+|---|---|
+| **Original media** (default) | Timestamps measured against the original source, before speed |
+| **Edited output** | Timestamps of the current edited result, after speed; each parsed time is converted to stored timeline time using the captured speed |
+
+The file is read only after **Replace**. A successful full replacement is one
+undoable edit and keeps the playhead position. The tolerant parser may clip ends
+to the selected duration or skip invalid/out-of-range cues.
+Choose **Replace** only after checking the clock; no automatic detection or
+existing-cue migration occurs. Exported subtitles already expand repeated cuts;
+output-clock import keeps those as timeline cues, rather than mapping them back to
+source occurrences. Later cuts/speed changes follow existing timeline-caption rules.
+This is not a lossless round trip: exported millisecond rounding, stripped markup
+and missing speaker/style/keyword metadata are not recovered. Cancel or a rejected/
+stale import leaves captions unchanged. CLI/MCP `captions.import` still accepts
+only source or **pre-speed** timeline clocks—not this browser output choice.
+
 **Clips and composition**
 
 | Task | Use | Keep in mind |

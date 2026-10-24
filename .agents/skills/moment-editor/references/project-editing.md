@@ -222,10 +222,23 @@ Use CLI `captions.import` or MCP `moment_captions_import` with required `text` a
 ```
 
 Choose `source` for original media seconds or `timeline` for edited-timeline
-seconds; **both are before playback speed**. There is no output-clock option or
+seconds; **both are before playback speed**. This command has no output-clock option or
 automatic reversal of trim/speed. Do not promise that importing exported subtitles
 restores the original project. The command replaces all captions atomically, so
 retain the prior project when reversibility matters.
+
+The browser's dedicated file dialog separately offers **Original media** (default)
+or **Edited output**, then explicit **Replace**. Output mode parses against current
+output duration and multiplies times by the captured speed into existing timeline
+cues (a parser-clipped final endpoint uses the exact captured timeline end).
+The existing parser may clip ends/skip invalid or out-of-range cues; successful
+replacement is one browser undo step and keeps the playhead position.
+It does not infer a clock or map repeated output occurrences back to source
+cues. Back up settings first: the entire caption array is replaced. Millisecond
+quantization and missing speaker/style/keyword metadata prevent lossless recovery.
+Later cuts/speed follow existing timeline semantics. Legacy `importSrt(file)` and
+the hidden picker remain source-only; no new CLI/MCP basis or schema is introduced.
+
 
 The [CLI args-file recipe](../../../../INTEGRATIONS.md#srt-파일을-명령-인수로-감싸기)
 reads UTF-8 SRT/VTT into `{text,basis}` JSON and protects existing outputs. API text

@@ -6,7 +6,7 @@ import { splitCaptionText } from './effects.mjs';
 import { CAPTION_PAGE_SIZE, captionsPanelMarkup } from './panel-markup.mjs';
 
 export function createCaptionPanel({
-    query: $, queryAll: $$, getProject, getDuration, sourceTime, edit, refresh, toast, execute, inspect, view, overlaps, removeRange, blocked = () => false,
+    query: $, queryAll: $$, getProject, getDuration, sourceTime, edit, refresh, toast, execute, inspect, view, overlaps, removeRange, importFile, blocked = () => false,
 }) {
     const timingFields = { basis: 'source', delta: '0' };
     let exportFormat = 'srt';
@@ -133,7 +133,9 @@ export function createCaptionPanel({
             const caption = { start: captionTime, end: Math.min(project.duration, captionTime + 3), text: '새로운 자막을 입력하세요' };
             if (execute('captions.insert', { captionIndex, caption })) focusCaption(captionIndex);
         };
-        $('#importSrt').onclick = () => $('#srtInput').click();
+        $('#importSrt').onclick = event => {
+            if (!composing && !event?.isComposing && event?.keyCode !== 229) importFile?.();
+        };
         $('#captionExportFormat').value = exportFormat;
         $('#captionExportFormat').onchange = () => {
             const value = $('#captionExportFormat').value;

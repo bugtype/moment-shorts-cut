@@ -36,6 +36,7 @@ function fixture({ blocked = false } = {}) {
     return [];
   }
   const panel = createCaptionPanel({
+    importFile: () => log.push('import-dialog'),
     query, queryAll, getProject: () => project, getDuration: () => 6, sourceTime: () => 2,
     edit: (change, refresh) => { if (blocked) return; log.push(['edit', refresh]); change(); },
     execute(name, args) {
@@ -86,7 +87,7 @@ test('caption delete/add retain focus scrolling and route existing actions', () 
   assert.deepEqual(f.project().captions[0], { start: 2, end: 5, text: '새로운 자막을 입력하세요' });
   assert.deepEqual(f.log.at(-2), ['focus', '[data-caption-text="0"]', { preventScroll: true }]);
   for (const id of ['captionDesignShortcut', 'generateCaptions', 'downloadCaptions', 'importSrt']) f.query('#' + id).onclick();
-  assert.deepEqual(f.log.slice(-4), ['design', 'generate', ['download', 'srt'], ['click', '#srtInput']]);
+  assert.deepEqual(f.log.slice(-4), ['design', 'generate', ['download', 'srt'], 'import-dialog']);
 });
 
 test('caption split preserves a no-op and sends real grapheme splits through edit once', () => {

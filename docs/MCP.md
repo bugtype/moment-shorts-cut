@@ -674,7 +674,7 @@ need a reversible copy. A minimal call’s arguments are:
 | `basis:"source"` | Original media seconds **before speed**; bounded by source duration |
 | `basis:"timeline"` | Edited timeline seconds **before speed**; bounded by the sum of clip durations |
 
-There is **no output-clock import** or automatic inverse speed/trim mapping. An
+This MCP command has **no output-clock import** or automatic inverse speed/trim mapping. An
 exported edited SRT/VTT is not a reversible project backup; choose the intended
 clock explicitly rather than importing final-output times as source times.
 

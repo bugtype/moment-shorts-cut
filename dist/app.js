@@ -292,7 +292,7 @@ const app = {
     bindTrimDrafts: options => editingActions.bindTrimDrafts(options),
     trim: (start, end) => trim(start, end), split: () => split(), duplicate: () => editingActions.duplicate(), undo: redo => undo(redo),
     generateCaptions: () => generateCaptions(), downloadSubtitles: format => downloadSubtitles(format),
-    importSrt: file => importSrt(file),
+    importSrt: (file, options) => importSrt(file, options),
     importProjectSettings: (file, closeOwnedDialog) => importProjectSettings(file, closeOwnedDialog),
     captureSettingsImportClose: () => shellPresentation.captureImportClose(),
     downloadProjectSettings: () => downloadProjectSettings(),

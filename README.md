@@ -323,7 +323,10 @@ enter `7`, review the calculated end and choose **Move**. Its duration, ID, stac
 order, content and style remain; other cards are unchanged. A changed move pauses
 playback but keeps the current playhead time—it does not seek to the card. The whole interval must
 fit within the output: an out-of-range or too-long card is rejected, not cropped.
-Cancel or the same start does not edit, pause, seek, save or add history. Fractional
+Cancel or the same start does not edit, pause, seek, save or add history. Card, title and credit start/end inputs show the stored decimal value without
+two-decimal rounding and accept fractional seconds without a 0.1-second step grid.
+An unset title/credit end stays blank/null; read-only summaries may still be rounded.
+This does not change when edits commit or the existing interval checks. Fractional
 times use ordinary floating-point precision, not sample accuracy. Reopen after
 project, media or selected-card changes. Valid failed-recovery settings remain
 in-memory edits only: browser saving stays blocked, so back up settings separately.

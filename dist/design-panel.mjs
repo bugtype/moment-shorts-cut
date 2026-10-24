@@ -1,3 +1,4 @@
+import { decimalTime } from './ui-format.mjs';
 import { t, text, mark, attrs, setValidity } from './i18n.mjs';
 import { activeSceneLayers } from './effects.mjs';
 const escape = value => String(value).replace(/[&<>"']/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
@@ -9,7 +10,7 @@ export function mountDesignPanel(root, api) {
   const check = (label, path, value) => `<label class="design-check"><input type="checkbox" data-design="${path}" ${value ? 'checked' : ''}>${text(label)}</label>`;
   const range = (label, path, value, min, max, step = 1, unit = '') => `<label class="design-range"><span>${text(label)}<output data-output="${path}">${value}${unit}</output></span><input type="range" data-design="${path}" value="${value}" min="${min}" max="${max}" step="${step}" ${attrs('aria-label', label)} data-unit="${unit}"></label>`;
   const color = (label, path, value, params = {}) => `<label class="design-color">${text(label, params)}<input type="color" data-design="${path}" value="${value}" ${attrs('aria-label', label, params)}></label>`;
-  const timing = target => `<div class="design-divider"></div><span class="field-label">${text('panels.titleTiming')}</span><div class="time-fields"><label>${text('panels.start')}<input type="number" data-design="design.${target}.start" min="0" max="${total}" step=".1" value="${d[target].start}"></label><label>${text('panels.end')}<input type="number" data-design="design.${target}.end" min="0" max="${total}" step=".1" value="${d[target].end ?? ''}" ${attrs('placeholder', 'panels.untilEnd')}></label></div><p class="tiny-note">${text('panels.timingNotice')}</p>`;
+  const timing = target => `<div class="design-divider"></div><span class="field-label">${text('panels.titleTiming')}</span><div class="time-fields"><label>${text('panels.start')}<input type="number" data-design="design.${target}.start" min="0" max="${total}" step="any" value="${decimalTime(d[target].start)}"></label><label>${text('panels.end')}<input type="number" data-design="design.${target}.end" min="0" max="${total}" step="any" value="${d[target].end == null ? '' : decimalTime(d[target].end)}" ${attrs('placeholder', 'panels.untilEnd')}></label></div><p class="tiny-note">${text('panels.timingNotice')}</p>`;
   let controls = '';
   if (layer === 'title') controls = `
     ${timed?`<div class="notice">${text('panels.timedTitleNotice')}<button class="text-button" id="editTimedTitle">${text('panels.editTimedTitle')}</button></div>`:''}

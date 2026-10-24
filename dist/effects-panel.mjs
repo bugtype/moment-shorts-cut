@@ -1,3 +1,4 @@
+import { decimalTime } from './ui-format.mjs';
 import { t, text, mark, attrs, setText, setValidity } from './i18n.mjs';
 const renderOwners = new WeakMap();
 const esc = value => String(value).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -34,7 +35,7 @@ export function mountEffectsPanel(root, api) {
       <label class="panel-label" for="sceneLabel">${text('panels.smallLabel')}</label><input id="sceneLabel" class="panel-input" data-card="label" maxlength="32" value="${esc(card.label)}">
       <label class="panel-label" for="sceneText">${text('panels.cardText')}</label><textarea id="sceneText" class="panel-input" data-card="text" maxlength="90" rows="2">${esc(card.text)}</textarea>
       <label class="panel-label" for="sceneDetail">${text('panels.cardDetail')}</label><textarea id="sceneDetail" class="panel-input" data-card="detail" maxlength="130">${esc(card.detail)}</textarea>
-      <div class="time-fields"><label>${text('panels.startSeconds')}<input type="number" data-card="start" min="0" max="${total}" step=".1" value="${card.start.toFixed(2)}"></label><label>${text('panels.endSeconds')}<input type="number" data-card="end" min="0" max="${total}" step=".1" value="${card.end.toFixed(2)}"></label></div>
+      <div class="time-fields"><label>${text('panels.startSeconds')}<input type="number" data-card="start" min="0" max="${total}" step="any" value="${decimalTime(card.start)}"></label><label>${text('panels.endSeconds')}<input type="number" data-card="end" min="0" max="${total}" step="any" value="${decimalTime(card.end)}"></label></div>
       <button class="button" id="moveSceneTime">${text('panels.moveCardTime')}</button>
       <p class="tiny-note">${text('panels.cardTimingNotice')}</p>
       <label class="panel-label">${text('panels.cardKind')}<select class="panel-select" data-card="kind"><option value="card" ${card.kind==='card'?'selected':''} ${mark('panels.normalCard')}>${esc(t('panels.normalCard'))}</option><option value="countdown" ${card.kind==='countdown'?'selected':''} ${mark('panels.countdown')}>${esc(t('panels.countdown'))}</option></select></label>

@@ -4,6 +4,8 @@ import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
 import { createInterface } from 'node:readline';
 import { fileURLToPath } from 'node:url';
+import {saveCustomTemplate} from '../dist/template-catalog.mjs';
+import {createTemplateDocument} from '../dist/template-library.mjs';
 import { createDemoProject, createProjectDocument } from '../dist/core/project.mjs';
 
 async function withClient(work) {
@@ -69,7 +71,7 @@ async function withClient(work) {
 
 const saved = await withClient(async ({request, call, data}) => {
   const {tools} = await request('tools/list', {});
-  assert.equal(tools.length, 13);
+  assert.equal(tools.length, 14);
   assert.ok(tools.some(tool => tool.name === 'moment_project_import'));
   await data('moment_project_import', {document: createProjectDocument(createDemoProject())});
   await data('moment_project_update', {patch: {name: 'MCP 예제', speed: 2}});
@@ -101,6 +103,10 @@ const saved = await withClient(async ({request, call, data}) => {
   const split = await data('moment_timeline_split', {clipIndex: 0, sourceTime: 4});
   assert.equal(split.outputDuration, 2);
   assert.deepEqual((await data('moment_project_get')).project.clips, [{start: 2, end: 4}, {start: 4, end: 6}]);
+  const portable = createTemplateDocument(saveCustomTemplate('공유 스타일', createDemoProject()));
+  portable.template.settings.captionSize = 40;
+  await data('moment_template_apply_document', {document: portable});
+  assert.equal((await data('moment_project_get')).project.captionSize, 40);
   const plan = await data('moment_render_plan', {quality: 720, format: 'webm'});
   assert.equal(plan.rendered, false);
   assert.equal(plan.output.duration, 2);
@@ -112,4 +118,4 @@ await withClient(async ({data}) => {
   await data('moment_project_import', {document: saved});
   assert.deepEqual(await data('moment_project_get'), saved);
 });
-console.log(JSON.stringify({ok: true, tools: 13, recoveredFromInvalidInput: true, reimported: true, rendered: false}));
+console.log(JSON.stringify({ok: true, tools: 14, recoveredFromInvalidInput: true, reimported: true, rendered: false}));

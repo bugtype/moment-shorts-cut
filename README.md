@@ -72,7 +72,7 @@ Import accepts UTF-8 JSON up to 256 KiB, including an optional leading BOM, and
 requires room in the 20-template library. Invalid files or failed saves leave the
 library and current project unchanged. [File contract and recovery](INTEGRATIONS.md#개별-사용자-템플릿-파일)
 cover format/version checks and concurrent selections. This browser-library
-workflow does not add CLI or MCP access to custom templates.
+workflow remains separate from CLI/MCP: they can [apply an exported template document](INTEGRATIONS.md#내보낸-템플릿을-climcp로-적용) to the current project, but cannot list or save the browser’s custom-template library.
 
 ## Example results
 

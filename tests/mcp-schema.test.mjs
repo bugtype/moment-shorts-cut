@@ -1,3 +1,5 @@
+import {saveCustomTemplate} from '../dist/template-catalog.mjs';
+import {createTemplateDocument} from '../dist/template-library.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { commandDefinitions } from '../dist/core/commands.mjs';
@@ -28,6 +30,7 @@ const inputs = {
   'project.update': { patch: { name: '스키마 검사' } },
   'project.import': { document: createProjectDocument(createDemoProject()) },
   'templates.list': {},
+  'template.apply.document': {document:createTemplateDocument(saveCustomTemplate('스키마',createDemoProject()))},
   'template.apply': { templateId: 'reference', withContent: false },
   'timeline.split': {clipIndex:0,sourceTime:6},
   'timeline.replace': { clips: [{ start: 0, end: 12 }] },

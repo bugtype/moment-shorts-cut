@@ -49,6 +49,7 @@
 | `project.update` | `patch` | 이름·비율·구도·배속·볼륨 수정 |
 | `project.import` | `document` | 설정 교체 |
 | `template.apply` | `templateId`, `withContent` | 기본 템플릿 적용 |
+| `template.apply.document` | `document`, 선택 `withContent` | 내보낸 템플릿 적용; `{updated:true, outputDuration}` |
 
 ### 타임라인과 글자 변경
 
@@ -243,8 +244,9 @@ CLI는 편집 메타데이터와 SRT/VTT를 다룹니다. MP4 파일을 생성�
 | 연속 파일 선택 | 가장 최근 선택한 요청만 적용 가능; 읽기가 끝난 뒤에도 현재 용량 재확인 |
 
 가져오기 중 다른 템플릿이 추가되어도 이전 라이브러리 스냅샷으로 덮어쓰지
-않습니다. 로컬 stdio MCP는 이 브라우저 라이브러리를 읽지 않으며, 이 파일
-공유 기능에 대응하는 도구를 추가하지 않습니다. CLI/MCP의 `templates.list`는 계속 기본 템플릿만 반환합니다.
+않습니다. CLI/MCP의 `templates.list`는 계속 기본 템플릿만 반환합니다. 내보낸
+문서를 현재 프로젝트에 적용하려면 아래 `template.apply.document`를 사용하세요.
+이 명령도 브라우저 라이브러리를 읽거나 저장하지 않습니다.
 
 ### 템플릿 문서 검증 예제
 
@@ -269,6 +271,52 @@ JS
 인코딩까지 검증한 것은 아닙니다. 내보내는 JSON은 들여쓰기 2칸을 사용하며
 그 결과도 256 KiB 이하여야 합니다. 따라서 압축된 입력 파일이 한도 안이어도
 정규 출력 형태가 한도를 넘으면 가져오기를 거절합니다.
+
+## 내보낸 템플릿을 CLI/MCP로 적용
+
+`template.apply.document`는 전달받은 `moment-template` 문서를 현재 프로젝트에
+적용합니다. 기본 템플릿 ID를 받는 `template.apply`와 다르며, 브라우저
+라이브러리에 복사본을 추가하는 가져오기와도 다릅니다.
+
+| 입력·결과 | 계약 |
+|---|---|
+| `document` | 필수 전체 `{format:"moment-template", formatVersion:1, template:{...}}` 문서 |
+| `withContent` | 선택 boolean, 기본 `false` |
+| 성공 | `{updated:true, outputDuration}`; 저장할 프로젝트 문서는 별도 조회 |
+| 검증 | 지원 버전·알려진 필드·중첩 스타일, 들여쓰기 JSON 기준 256 KiB 제한 |
+
+**`false`도 시각 설정은 바꿉니다.** 제목 줄·크레딧 문구·기존 카드·대사 자막은
+유지하지만 디자인·제목/크레딧 시간·효과·공통 키워드·화자 이름과 색상은
+템플릿 설정을 적용합니다. `true`는 제목·크레딧·카드 내용도 교체하며, 대사
+자막은 교체하지 않습니다.
+
+기존 사용자 템플릿 시간 규칙을 그대로 사용합니다. `relativeTiming:true`이면
+제목·크레딧 시간을 현재 출력 길이에 맞추고, 내용까지 적용할 때는 저장된
+정규화 카드 시간을 현재 출력 길이로 변환합니다. 임의로 시간을 다시 조정하지
+마세요. 적용한 문서의 ID는 프로젝트 `templateId`가 되며 새 ID를 발급하거나
+브라우저 라이브러리에 저장하지 않습니다.
+
+### 내보낸 파일에서 명령 인수 만들기
+
+아래 POSIX 셸 예제는 현재 폴더의 `shared-template.json`과 `project.json`을
+사용합니다. 인수 파일을 새로 만들고 결과는 별도 프로젝트 파일로 저장합니다.
+
+```sh
+node --input-type=module <<'JS'
+import { readFile, writeFile } from 'node:fs/promises';
+const bytes = await readFile('shared-template.json');
+if (bytes.byteLength > 256 * 1024) throw new Error('Template exceeds 256 KiB');
+const document = JSON.parse(new TextDecoder('utf-8', {fatal:true}).decode(bytes));
+await writeFile('apply-template.args.json', JSON.stringify({document, withContent:false}), {flag:'wx'});
+JS
+node cli/moment.mjs exec template.apply.document --project project.json --args-file apply-template.args.json --dry-run
+node cli/moment.mjs exec template.apply.document --project project.json --args-file apply-template.args.json --out templated.json
+```
+
+**템플릿 파일을 그대로 `--args-file`에 넣지 마세요.** 명령 인수는 템플릿
+문서를 `document`로 감싼 객체여야 합니다. MCP에도 파일 경로가 아닌 파싱한
+문서를 `document`에 전달합니다. 명령 자체는 파일을 읽거나 미디어를 올리지
+않습니다. 잘못된 문서는 프로젝트 변경 전에 거절하며 원본 파일을 보존하세요.
 
 ## 브라우저와 파일 왕복
 

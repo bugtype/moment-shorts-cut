@@ -135,9 +135,30 @@ The latest file-selection request wins; capacity is checked again after reading.
 
 Review title, credit, timed-card text, global keywords and speaker labels before
 sharing: they travel with saved styles even though video/audio do not. This is
-not a whole-library or project backup. Browser-local templates remain unavailable
-to standalone CLI/MCP; do not invent a template-file import tool or use a file
+not a whole-library or project backup. CLI/MCP cannot list or persist that browser
+library, but can apply an exported document as described below. Never use a file
 path as a template ID.
+
+## Apply a supplied template document
+
+Use CLI `template.apply.document` or MCP `moment_template_apply_document` for an
+exported custom template. Pass the full `moment-template` envelope as `document`,
+not the inner template, file path or a project document. MCP arguments are
+`{projectId:"session", document, withContent:false}` when `document` holds the
+parsed template. See the [runnable CLI wrapper](../../../../INTEGRATIONS.md#내보낸-템플릿을-climcp로-적용):
+`--args-file` needs `{document, withContent}`, not the bare exported template file.
+
+Default `withContent:false` preserves title lines, credit text, existing cards and
+dialogue captions, but applies visual settings, title/credit timing, effects,
+global keywords and speaker labels/colors. Use `true` only when template title,
+credit and cards should replace authored content; dialogue captions remain.
+Relative title/credit timing and normalized card timing follow existing template
+semantics; do not retime them a second time.
+
+Version, known-field, nested-style and 256 KiB pretty-JSON checks precede mutation.
+Success returns `{updated:true, outputDuration}`; retrieve the project to save it.
+The applied ID becomes `templateId`, with no new ID or browser-library entry.
+This metadata edit neither reads files nor imports or encodes media.
 
 ## Time-coordinate example
 

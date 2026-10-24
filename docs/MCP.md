@@ -48,7 +48,7 @@ its supported version, `2025-11-25`, even if the proposed version differs; a cli
 that cannot support that version should disconnect, not continue with another
 wire format. `ping` is supported. Initialize only once per process.
 
-All thirteen tools require **`projectId: "session"`**. Each process owns one independent
+All fourteen tools require **`projectId: "session"`**. Each process owns one independent
 in-memory project, initially the demo. This value is neither a path nor a credential.
 Other project IDs return a tool error. A second client process does not share state.
 
@@ -130,6 +130,7 @@ Save `structuredContent.data.text` as UTF-8 `.vtt`; the server does not save fil
 | `moment_project_update` | `patch` | Update acknowledgment and output duration |
 | `moment_project_import` | `document` | `{imported:true}` |
 | `moment_template_apply` | `templateId`, optional `withContent` | Update acknowledgment and output duration |
+| `moment_template_apply_document` | `document`, optional `withContent` | `{updated:true, outputDuration}` |
 
 ### Timeline and text changes
 
@@ -160,6 +161,36 @@ entire domain validation. Unknown fields are rejected. Changing ratio resets zoo
 Timeline and speed changes retime output layers through the shared command logic.
 There is no arbitrary patch path, multi-command batch tool, file-save tool, media-upload tool,
 transcription tool or video-rendering tool on this host.
+
+### Apply an exported custom template
+
+Use `moment_template_apply_document` with a parsed portable template, not a file
+path or browser-library ID. The required `document` is the full
+`{format:"moment-template", formatVersion:1, template:{...}}` envelope. Optional
+`withContent` defaults to `false`. For a client that already holds `document`:
+
+```js
+const argumentsForTool = {projectId: "session", document, withContent: false};
+// Send argumentsForTool to moment_template_apply_document via tools/call.
+```
+
+| Application mode | Preserved | Applied |
+|---|---|---|
+| `withContent:false` | Title lines, credit text, existing cards, dialogue captions | Visual settings, title/credit timing, effects, global keywords, speaker labels/colors |
+| `withContent:true` | Dialogue captions | The same settings plus template title, credit and cards |
+
+The shared validator checks version, known fields, nested styles and a 256 KiB
+pretty-printed document limit before applying to a project copy. Invalid documents
+leave the project unchanged. Relative title/credit times scale when the template
+sets `relativeTiming:true`; applying content scales stored normalized card times
+to the current output duration. These are existing custom-template semantics,
+not permission to rescale all project times yourself.
+
+The template ID becomes the project’s `templateId`; the command does not allocate
+a fresh library ID, import media or persist a browser-library entry.
+`moment_templates_list` still returns only built-ins. Save the resulting project
+with `moment_project_get`, not the acknowledgment. For protected file-oriented
+work, see the [CLI wrapper example](../INTEGRATIONS.md#내보낸-템플릿을-climcp로-적용).
 
 ### Split one clip occurrence
 

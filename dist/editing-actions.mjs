@@ -1,3 +1,4 @@
+import { hasMinimumDuration } from './core/validation.mjs';
 const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
 
 // Timeline and session editing commands. Validation and history stay shared so
@@ -5,7 +6,7 @@ const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
 export function createEditingActions(app) {
     function trim(start, end) {
         const state = app.state;
-        if (!Number.isFinite(start) || !Number.isFinite(end) || start < 0 || end > state.duration || end - start < .1) {
+        if (start < 0 || end > state.duration || !hasMinimumDuration(start, end)) {
             app.toast('시작·끝을 확인하세요. 클립은 0.1초 이상이어야 합니다.');
             return;
         }

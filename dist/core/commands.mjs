@@ -4,7 +4,7 @@ import { TEMPLATES, applyTemplate } from '../template-catalog.mjs';
 import { retimeOutputLayers } from '../effects.mjs';
 import { MAX_CAPTIONS } from '../captions.mjs';
 import { outputDuration, timelineDuration, validateProject, createProjectDocument, readProjectDocument, projectSubtitles, clipSchema, captionSchema, MAX_CLIPS } from './project.mjs';
-import { object, string, number, choice, boolean, array, validate, assertJson, fail, CommandError } from './validation.mjs';
+import { object, string, number, choice, boolean, array, validate, assertJson, fail, CommandError, hasMinimumDuration } from './validation.mjs';
 
 export const API_VERSION=1;
 const patchSchema=object({name:string(200),ratio:choice('9:16','1:1','16:9'),fit:choice('cover','contain'),zoom:number(1,3),panX:number(-1,1),panY:number(-1,1),speed:number(.25,4),volume:number(0,1),audioVolume:number(0,1)});
@@ -78,9 +78,7 @@ export function prepareCommand(project,name,args={}){
     if(next.clips.length>=MAX_CLIPS)
       fail('클립은 1,000개 이하만 지원합니다. 클립을 삭제한 뒤 다시 분할하세요.','project.clips');
     const clip=next.clips[args.clipIndex];
-    // Permit floating-point roundoff only; keep the caller's exact source time.
-    const tolerance=Number.EPSILON*Math.max(1,Math.abs(clip.start),Math.abs(clip.end))*4;
-    if(args.sourceTime-clip.start+tolerance<.1||clip.end-args.sourceTime+tolerance<.1)
+    if(!hasMinimumDuration(clip.start,args.sourceTime)||!hasMinimumDuration(args.sourceTime,clip.end))
       fail('클립의 시작과 끝에서 0.1초 이상 떨어진 위치를 선택하세요.','arguments.sourceTime');
     next.clips.splice(args.clipIndex,1,{start:clip.start,end:args.sourceTime},{start:args.sourceTime,end:clip.end});
   }

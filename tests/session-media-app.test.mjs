@@ -107,7 +107,12 @@ test('confirmed session video exports through existing recorder flow without sto
 test('session capability enables cut and caption occurrence navigation while init invalidates it',async()=>{
     const f=await fixture();vm.runInContext('state.clips=[{start:0,end:4},{start:4,end:12}];persistence.recoveryBaseline=JSON.stringify(state)',f.context);
     f.open();f.choose();await f.connect();f.element('#nextCutButton').onclick();assert.equal(f.evaluate('current'),4);
-    vm.runInContext("switchPanel('captions');captionRowNavigation.open(2)",f.context);assert.equal(f.evaluate('current'),8);
+    const originalQueryAll=f.doc.querySelectorAll;
+    f.doc.querySelectorAll=selector=>selector==='[data-view-caption]' ? [0,1,2].map(index=>{
+        const node=f.element(`[data-view-caption="${index}"]`);node.dataset.viewCaption=String(index);return node;
+    }) : originalQueryAll(selector);
+    vm.runInContext("switchPanel('captions')",f.context);
+    f.element('[data-view-caption="2"]').onclick();assert.equal(f.evaluate('current'),8);
     await vm.runInContext('init()',f.context);
     assert.equal(f.evaluate('sessionMedia.mediaReady()'),true); // Normal empty-demo restore is independently ready, not a retained capability.
     vm.runInContext("persistence.restorePhase='failed';persistence.recoveryValid=true",f.context);

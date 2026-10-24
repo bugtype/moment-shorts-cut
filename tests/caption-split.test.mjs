@@ -59,7 +59,7 @@ test('actual caret split commits blur text, reveals page50, preserves trim and r
  assert.equal(evaluate('current'),2);assert.equal(doc.activeElement,element('[data-caption-text="50"]'));assert.match(element('#panelContent').innerHTML,/data-caption-text="50"/);
  assert.deepEqual([element('#trimStart').value,element('#trimEnd').value],['1.50','3.50']);oldClick();assert.equal(evaluate('history.length'),h+1);
  vm.runInContext('undo()',context);assert.deepEqual(evaluate('state'),before);vm.runInContext('undo(true)',context);assert.equal(evaluate('state.captions.length'),52);
- vm.runInContext("undo();captionPanel.focus(49)",context);
+ vm.runInContext("undo();app.captionPanel.focus(49)",context);
  const node=element('[data-caption-text="49"]');node.value='Hello world';node.setSelectionRange(1,4);const unchanged=evaluate('({state,current,history})');element('[data-split-caption="49"]').onclick();assert.deepEqual(evaluate('({state,current,history})'),unchanged);
  node.setSelectionRange(6,6);element('#panelContent').oncompositionstart();element('[data-split-caption="49"]').onclick();assert.deepEqual(evaluate('({state,current,history})'),unchanged);element('#panelContent').oncompositionend();
  vm.runInContext('exporting=true',context);element('[data-split-caption="49"]').onclick();assert.deepEqual(evaluate('({state,current,history})'),unchanged);

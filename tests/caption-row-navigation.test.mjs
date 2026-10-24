@@ -1,3 +1,4 @@
+import {createCaptionNavigation} from '../dist/caption-navigation.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
@@ -106,12 +107,18 @@ test('switching to text panel while chooser is open preserves unrelated input dr
     assert.equal(f.doc.activeElement,draft);assert.deepEqual(f.snapshot(),before);
 });
 
-test('invalid authored index and closed/reopened chooser cannot reuse old handlers',async()=>{
+test('closed/reopened chooser cannot reuse old handlers',async()=>{
     const f=await fixture('state.clips.push({start:5,end:10})');
-    vm.runInContext('captionRowNavigation.open(-1);captionRowNavigation.open(999)',f.context);
-    assert.equal(f.element('#modal').open,false);
     f.open();const old=f.element('#captionOccurrence1').onclick;
     f.element('#modal').close();f.open();old();
     assert.equal(f.evaluate('current'),0);assert.equal(f.element('#modal').open,true);
     f.element('#captionOccurrence1').onclick();assert.equal(f.evaluate('current'),6);
+});
+
+
+test('navigation controller ignores invalid authored indices without opening or seeking',()=>{
+    let actions=0;
+    const navigation=createCaptionNavigation({getProject:()=>({captions:[]}),getMedia:()=>[],query:()=>null,
+        modal:{open:false},openModal:()=>actions++,blocked:()=>false,pause:()=>actions++,seek:()=>actions++,toast:()=>actions++});
+    navigation.open(-1);navigation.open(999);assert.equal(actions,0);
 });

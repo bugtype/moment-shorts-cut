@@ -1,18 +1,15 @@
-import { createCaptionOverlapDialog } from './caption-overlap-dialog.mjs';
+import { createCaptionWorkspace } from './caption-workspace.mjs';
 import { createSessionMedia } from './session-media.mjs';
 import { createSessionMediaDialog } from './session-media-dialog.mjs';
 import { createClipMove } from './clip-move.mjs';
 import { createPreviewExport } from './preview-export.mjs';
-import { createCaptionNavigation } from './caption-navigation.mjs';
 import { createSpeedDialog } from './speed-dialog.mjs';
 import {createShellPresentation} from './shell-presentation.mjs';
 import {text, message, formatError, initLocale, getLocale, setLocale, onLocaleChange} from './i18n.mjs';
 import { createSeekDialog } from './seek-dialog.mjs';
-import { createCaptionInspectionDialog } from './caption-inspection-dialog.mjs';
 import { createTextFileWorkflow } from './text-file-workflow.mjs';
 import { createMediaSources } from './media-sources.mjs';
 import { createProjectPersistence } from './project-persistence.mjs';
-import { createCaptionPanel } from './caption-panel.mjs';
 import { createCaptionGeneration } from './caption-generation.mjs';
 import { createInspectorView } from './inspector-view.mjs';
 import { createTemplatePreview } from './template-preview.mjs';
@@ -178,39 +175,6 @@ const speedDialog = createSpeedDialog({
     blocked: () => !editorReady || exporting || loadingMedia || transcribing || (persistence.restorePhase !== 'ready' && !(persistence.restorePhase === 'failed' && persistence.recoveryValid)) || audioRecording.requesting || audioRecording.current,
     execute: runEditorCommand, toast: message => toast(message),
 });
-const captionInspection = createCaptionInspectionDialog({
-    getProject: () => state, query: $, modal,
-    openModal: (...args) => modalOpen(...args),
-    blocked: () => !editorReady || exporting || loadingMedia || transcribing || !sessionMedia.mediaReady() || audioRecording.requesting || audioRecording.current,
-    pause, seek: time => seekTo(time),
-    focusCaption: index => { switchPanel('captions'); focusCaption(index); },
-    toast: message => toast(message),
-});
-const captionRowNavigation = createCaptionNavigation({
-    getProject: () => state, getMedia: () => [sources.videoFile, sources.audioFile], query: $, modal,
-    openModal: (...args) => modalOpen(...args),
-    blocked: () => panel !== 'captions' || !editorReady || exporting || loadingMedia || transcribing || !sessionMedia.mediaReady() || audioRecording.requesting || audioRecording.current,
-    pause, seek: time => seekTo(time), toast: value => toast(value),
-});
-const captionOverlaps = createCaptionOverlapDialog({
-    getProject: () => state, getMedia: () => [sources.videoFile, sources.audioFile], query: $, modal,
-    openModal: (...args) => modalOpen(...args),
-    blocked: () => panel !== 'captions' || !editorReady || exporting || loadingMedia || transcribing || (persistence.restorePhase !== 'ready' && !(persistence.restorePhase === 'failed' && persistence.recoveryValid)) || audioRecording.requesting || audioRecording.current,
-    seekBlocked: () => !sessionMedia.mediaReady(), pause, seek: time => seekTo(time),
-    focusCaption: index => { switchPanel('captions'); focusCaption(index); }, toast: value => toast(value),
-});
-const captionPanel = createCaptionPanel({
-    view: index => captionRowNavigation.open(index),
-    inspect: () => captionInspection.open(), overlaps: () => captionOverlaps.open(),
-    execute: (command, args) => app.runEditorCommand(command, args),
-    query: $, queryAll: $$,
-    getProject: () => state,
-    getDuration: () => duration(),
-    sourceTime: () => locate(current).source,
-    edit: (change, refresh) => edit(change, refresh),
-    refresh: () => renderPanel(),
-    toast: message => toast(message),
-});
 const inputHistory = createInputHistory(snapshot, () => exporting || persistence.restorePhase === 'restoring');
 
 function timelineIndex() {
@@ -295,7 +259,8 @@ const app = {
     get editorReady() { return editorReady; }, set editorReady(value) { editorReady = value; },
 
     query: $, queryAll: $$, document, window, canvas, ctx, video, audio, sample, modal, savePreview,
-    composition, templatePreview, templateWorkspace, captionPanel, projectStore,
+    composition, templatePreview, templateWorkspace, projectStore,
+    get captionPanel() { return captionWorkspace; },
     sources, persistence, videoExport, transcription, captionGeneration, audioRecording,
     inspectorView, timelineView, inputHistory,
     initial, icons, clamp, visualSettings,
@@ -359,6 +324,7 @@ const mediaLoader = createMediaLoader(app, {
     revokeObjectURL: url => URL.revokeObjectURL(url),
     createAudio: () => new Audio(),
 });
+const captionWorkspace = createCaptionWorkspace(app);
 const designWorkspace = createDesignWorkspace(app);
 const workspacePanels = createWorkspacePanels(app);
 const exportFlow = createExportFlow(app, {

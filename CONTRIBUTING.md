@@ -28,6 +28,7 @@ Node.js **20 이상**이면 됩니다. 빌드나 패키지 설치는 필요하�
 | 서비스·MCP 도구 매핑 | `dist/integration/` | 저장소·인증·미디어 런타임은 호스트가 제공 |
 | 파일 CLI·stdio MCP | `cli/` | 세션 처리와 전송·파일 입출력 구분 |
 | 브라우저 작업 연결 | `dist/app.js`와 책임별 모듈 | 실행 취소·미디어 수명·작업 소유권 보존 |
+| 자막 도구 조립·접근 조건 | `dist/caption-workspace.mjs` | 패널·검사·위치 탐색·겹침 보고서 연결만 담당; 화면 처리는 개별 모듈, 상태·저장 권한은 앱 유지 |
 | 패널 HTML | `dist/panel-markup.mjs` | 표시할 값만 전달; 프로젝트·미디어 소유 금지 |
 | 아이콘·이스케이프·시간 표시 | `dist/ui-format.mjs` | 표시 유틸리티 재사용 |
 | 화면 영역별 스타일 | `dist/styles/` | `dist/style.css`의 import 순서 유지 |

@@ -110,3 +110,62 @@ test('output stepping accepts only unmodified punctuation outside editable ances
  }
  blocked=true;assert.equal(press('.'),false);blocked=false;busy=true;assert.equal(press(','),false);assert.deepEqual(calls,[-1,1]);
 });
+
+test('handled keyboard events never trigger global editor shortcuts', () => {
+  let handler;
+  const calls = [];
+  bindEditorKeyboard({ addEventListener: (_, callback) => { handler = callback; } }, {
+    blocked: () => false,
+    togglePlayback: () => calls.push('play'),
+    undo: () => calls.push('undo'),
+    seekBy: () => calls.push('seek'),
+    stepOutput: () => calls.push('step'),
+    navigateCut: () => calls.push('cut'),
+  });
+  for (const key of [' ', 'z', 'ArrowLeft', 'ArrowRight', ',', '.', '[', ']']) {
+    handler({
+      key,
+      code: key === ' ' ? 'Space' : key,
+      ctrlKey: key === 'z',
+      defaultPrevented: true,
+      target: { tagName: 'BODY' },
+      preventDefault: () => calls.push('prevent'),
+    });
+  }
+  assert.deepEqual(calls, []);
+});
+
+test('horizontal tab navigation never falls through to seeking, including nested labels', () => {
+  let handler;
+  const seeks = [];
+  bindEditorKeyboard({ addEventListener: (_, callback) => { handler = callback; } }, {
+    blocked: () => false,
+    seekBy: delta => seeks.push(delta),
+  });
+  const tab = {
+    tagName: 'BUTTON',
+    getAttribute: name => name === 'role' ? 'tab' : null,
+  };
+  const nestedLabel = {
+    tagName: 'SPAN',
+    getAttribute: () => null,
+    closest: selector => selector === '[role="tab"]' ? tab : null,
+  };
+  for (const target of [tab, nestedLabel]) {
+    for (const key of ['ArrowLeft', 'ArrowRight']) {
+      for (const extra of [{}, { isComposing: true }, { keyCode: 229 },
+        { ctrlKey: true }, { metaKey: true }, { altKey: true }, { shiftKey: true }]) {
+        handler({ key, target, ...extra });
+      }
+    }
+  }
+  assert.deepEqual(seeks, []);
+  for (const target of [
+    { tagName: 'BUTTON' },
+    { tagName: 'SPAN', getAttribute: () => null, closest: () => null },
+  ]) {
+    handler({ key: 'ArrowLeft', target });
+    handler({ key: 'ArrowRight', target });
+  }
+  assert.deepEqual(seeks, [-1, 1, -1, 1]);
+});

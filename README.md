@@ -176,6 +176,13 @@ source-frame accuracy or frame-grid snapping—and retains any starting subframe
 offset. It is ignored in editing fields, during IME composition, with modifier
 keys or while busy.
 
+**Text / Effects tabs:** `Tab` enters the active tab; unmodified `←` / `→` wrap
+through tabs and activate them, while `Home` / `End` select the first/last tab.
+Focus follows the selected tab after the panel redraws. `Tab` leaves the tab list;
+`Enter` / `Space` retain native button activation and `↑` / `↓` their native behavior.
+Tab navigation itself does not seek, change playback or edit/save the project;
+preview arrow-key seeking outside tabs is unchanged.
+
 **Review cut boundaries:** use **Previous cut / Next cut** beside the scrubber to
 pause and move to the strictly previous/next edited clip boundary, including the
 start and end. At a boundary, the next action goes to the adjacent boundary, not

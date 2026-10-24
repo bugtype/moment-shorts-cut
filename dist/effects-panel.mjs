@@ -1,3 +1,4 @@
+import { bindPanelTabs } from './panel-tabs.mjs';
 import { decimalTime } from './ui-format.mjs';
 import { t, text, mark, attrs, setText, setValidity } from './i18n.mjs';
 const renderOwners = new WeakMap();
@@ -7,7 +8,7 @@ export function mountEffectsPanel(root, api) {
   const { state, total, tab } = api, effects = state.effects;
   const select=(label,key,value,options)=>`<label class="panel-label" for="effect-${key}">${text(label)}</label><select id="effect-${key}" class="panel-select" data-effect="${key}">${options.map(([v,l])=>`<option value="${v}" ${String(v)===String(value)?'selected':''} ${mark(l)}>${esc(t(l))}</option>`).join('')}</select>`;
   const range=(label,key,value,min,max,step=.01)=>`<label class="design-range"><span>${text(label)}<output data-effect-output="${key}">${value}</output></span><input type="range" data-effect="${key}" value="${value}" min="${min}" max="${max}" step="${step}"></label>`;
-  root.innerHTML=`<h1 class="panel-heading">${text('panels.effects')}</h1><div class="layer-tabs" role="tablist" ${attrs('aria-label', 'panels.effectTools')}><button data-effect-tab="cards" role="tab" aria-selected="${tab==='cards'}" class="${tab==='cards'?'active':''}">${text('panels.timedCards')}</button><button data-effect-tab="motion" role="tab" aria-selected="${tab==='motion'}" class="${tab==='motion'?'active':''}">${text('panels.motionColor')}</button></div><div id="effectControls"></div>`;
+  root.innerHTML=`<h1 class="panel-heading">${text('panels.effects')}</h1><div class="layer-tabs" role="tablist" ${attrs('aria-label', 'panels.effectTools')}><button data-effect-tab="cards" role="tab" aria-selected="${tab==='cards'}" id="effect-tab-cards" aria-controls="effect-panel-cards" tabindex="${tab==='cards'?0:-1}" class="${tab==='cards'?'active':''}">${text('panels.timedCards')}</button><button data-effect-tab="motion" role="tab" aria-selected="${tab==='motion'}" id="effect-tab-motion" aria-controls="effect-panel-motion" tabindex="${tab==='motion'?0:-1}" class="${tab==='motion'?'active':''}">${text('panels.motionColor')}</button></div>${['cards','motion'].map(value=>`<div id="effect-panel-${value}" role="tabpanel" aria-labelledby="effect-tab-${value}"${tab===value?'':' hidden'}>${tab===value?'<div id="effectControls"></div>':''}</div>`).join('')}`;
   const target=root.querySelector('#effectControls');
   if(tab==='motion'){
     target.innerHTML=`${select('panels.cameraMotion','motion',effects.motion,[['none','panels.fixed'],['in','panels.zoomIn'],['out','panels.zoomOut']])}${range('panels.zoomStrength','strength',effects.strength,0,.4)}
@@ -99,5 +100,7 @@ export function mountEffectsPanel(root, api) {
       });
     }
   }
-  root.querySelectorAll('[data-effect-tab]').forEach(button=>button.onclick=()=>api.changeTab(button.dataset.effectTab));
+  bindPanelTabs(root, { selector: '[data-effect-tab]', key: 'effectTab', active: tab, select: api.changeTab,
+    current: () => renderOwners.get(root) === owner && api.current?.() !== false && api.tabCurrent?.() !== false,
+    contextCurrent: () => api.current?.() !== false && api.tabCurrent?.() !== false });
 }

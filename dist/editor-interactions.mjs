@@ -73,6 +73,7 @@ export function bindPreviewDrag(canvas, { getProject, blocked, pause, selection,
 
 export function bindEditorKeyboard(document, { blocked, togglePlayback, undo, seekBy, stepOutput, navigateCut, stepBlocked = () => false }) {
     document.addEventListener('keydown', e => {
+        if (e.defaultPrevented) return;
         if (e.key === '[' || e.key === ']') {
             const target = e.target;
             if (e.defaultPrevented || e.ctrlKey || e.metaKey || e.altKey || e.shiftKey ||
@@ -107,6 +108,9 @@ export function bindEditorKeyboard(document, { blocked, togglePlayback, undo, se
             e.preventDefault();
             undo(e.shiftKey);
         }
+        // Tabs own horizontal navigation, including events their IME/modifier guards ignore.
+        if ((e.key === 'ArrowLeft' || e.key === 'ArrowRight') &&
+            (e.target?.getAttribute?.('role') === 'tab' || e.target?.closest?.('[role="tab"]'))) return;
         if (e.key === 'ArrowLeft') {
             seekBy(-1);
         }

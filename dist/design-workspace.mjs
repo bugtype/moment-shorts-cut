@@ -64,6 +64,8 @@ export function createDesignWorkspace(app) {
         mountDesignPanel(target, {
             state: app.state,
             layer: app.textLayer,
+            current: () => app.panel === 'text' && app.state === project,
+            tabCurrent: () => !app.modal.open,
             position: () => { if (app.panel === 'text' && app.state === project && app.textLayer === layer) position.open(layer); },
             time: app.current / app.state.speed,
             total: app.duration() / app.state.speed,
@@ -103,7 +105,8 @@ export function createDesignWorkspace(app) {
             total: app.duration() / app.state.speed,
             tab: app.effectTab,
             selected: app.selectedCard,
-            current: () => app.state === project,
+            current: () => app.panel === 'effects' && app.state === project,
+            tabCurrent: () => !app.modal.open,
             position: id => { if (app.panel === 'effects' && app.effectTab === 'cards' && app.state === project && (app.selectedCard || app.state.overlays[0]?.id) === id) position.open('card', id); },
             moveTime: id => { if (app.state === project && (app.selectedCard || app.state.overlays[0]?.id) === id) cardTiming.open(id); },
             hasCopiedAppearance: copiedAppearance !== null,

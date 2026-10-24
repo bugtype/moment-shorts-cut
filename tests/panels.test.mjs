@@ -47,7 +47,7 @@ test('design, effects and template panel controls and hierarchy', () => {
   // Primary controls precede composition presets; moving markup keeps existing actions intact.
   const panelActions=[];
   for(const layer of ['title','caption','credit','frame']){
-   const layerButtons=['title','caption','credit','frame'].map(textLayer=>({dataset:{textLayer}}));
+   const layerButtons=['title','caption','credit','frame'].map(textLayer=>({dataset:{textLayer}, getAttribute(name) { return name==='aria-selected' ? String(textLayer===layer) : null; }, focus() {}}));
    const presetButtons=['reference','punch','clean'].map(layoutPreset=>({dataset:{layoutPreset}}));
    const links=Object.fromEntries(['#openTemplateGallery','#openCaptionEditor','#openScreenEditor','#openPosition'].map(id=>[id,{}]));
    const root=panelRoot({'[data-text-layer]':layerButtons,'[data-layout-preset]':presetButtons},links);
@@ -66,15 +66,15 @@ test('design, effects and template panel controls and hierarchy', () => {
    if(layer==='caption')links['#openCaptionEditor'].onclick();
    if(layer==='frame')links['#openScreenEditor'].onclick();
   }
-  assert.deepEqual(panelActions,[['layer','title'],['preset','reference'],['preset','punch'],['preset','clean'],['navigate','templates'],['layer','caption'],['navigate','captions'],['layer','credit'],['layer','frame'],['navigate','settings']]);
+  assert.deepEqual(panelActions,[['preset','reference'],['preset','punch'],['preset','clean'],['navigate','templates'],['navigate','captions'],['navigate','settings']]);
   for(const tab of ['cards','motion']){
-   const tabs=['cards','motion'].map(effectTab=>({dataset:{effectTab}})),selected=[];
+   const tabs=['cards','motion'].map(effectTab=>({dataset:{effectTab}, getAttribute(name) { return name==='aria-selected' ? String(effectTab===tab) : null; }, focus() {}})),selected=[];
    const root=panelRoot({'[data-effect-tab]':tabs},{'#effectControls':tab==='cards'?cardRoot:panelRoot({},{'#resetEffects':{}})});
    mountEffectsPanel(root,{state:panelProject,total:12,tab,selected:testCard.id,input:panelRanges.bind,changeTab(value){selected.push(value);}});
    assert.match(root.innerHTML,/<h1 class="panel-heading"><span[^>]*>연출<\/span><\/h1><div class="layer-tabs" role="tablist" aria-label="연출 도구"[^>]*>/);
    assert.match(root.innerHTML,new RegExp(`data-effect-tab="${tab}" role="tab" aria-selected="true"`));
    assert.equal((root.innerHTML.match(/aria-selected="true"/g)||[]).length,1);assert.ok(!root.innerHTML.includes('STORY & MOTION'));
-   tabs.forEach(button=>button.onclick());assert.deepEqual(selected,['cards','motion']);
+   tabs.forEach(button=>button.onclick());assert.deepEqual(selected,['cards','motion'].filter(value=>value!==tab));
   }
   console.log('PASS: design/effects control-first hierarchy retains selected tabs, preset/navigation actions and essential timing/input instructions.');
   

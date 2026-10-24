@@ -1,3 +1,4 @@
+import { bindPanelTabs } from './panel-tabs.mjs';
 import { decimalTime } from './ui-format.mjs';
 import { t, text, mark, attrs, setValidity } from './i18n.mjs';
 import { activeSceneLayers } from './effects.mjs';
@@ -59,8 +60,8 @@ export function mountDesignPanel(root, api) {
     <div class="notice">${text('panels.marginNotice')}</div>
     <button class="button full subtle" id="openScreenEditor">${text('panels.adjustFrame')}</button>`;
   root.innerHTML = `<h1 class="panel-heading">${text('panels.designHeading')}</h1>
-    <div class="layer-tabs" role="tablist" ${attrs('aria-label', 'panels.textLayers')}>${[['title','panels.title'],['caption','panels.dialogue'],['credit','panels.credit'],['frame','panels.margin']].map(([value,label]) => `<button role="tab" aria-selected="${layer === value}" data-text-layer="${value}" class="${layer === value ? 'active' : ''}">${text(label)}</button>`).join('')}</div>
-    <div class="layer-controls">${controls}</div>
+    <div class="layer-tabs" role="tablist" ${attrs('aria-label', 'panels.textLayers')}>${[['title','panels.title'],['caption','panels.dialogue'],['credit','panels.credit'],['frame','panels.margin']].map(([value,label]) => `<button role="tab" aria-selected="${layer === value}" data-text-layer="${value}" id="text-tab-${value}" aria-controls="text-panel-${value}" tabindex="${layer === value ? 0 : -1}" class="${layer === value ? 'active' : ''}">${text(label)}</button>`).join('')}</div>
+    ${['title','caption','credit','frame'].map(value => `<div id="text-panel-${value}" role="tabpanel" aria-labelledby="text-tab-${value}"${layer === value ? '' : ' hidden'}>${layer === value ? `<div class="layer-controls">${controls}</div>` : ''}</div>`).join('')}
     <p class="tiny-note design-footnote">${text('panels.sizeNotice')}</p>
     <div class="design-presets"><div class="section-label">${text('panels.quickLayout')} <button class="text-button" id="openTemplateGallery">${text('panels.allTemplates')}</button></div><div class="layout-presets"><button data-layout-preset="reference" ${attrs('title', 'panels.referenceTitle')}><span class="preset-art reference"><b>${text('panels.exampleDay')}</b><b>${text('panels.exampleMemory')}</b><i></i><em>${text('panels.exampleStory')}</em><small>${text('panels.exampleSignature')}</small></span><strong>${text('panels.reviewPreset')}</strong></button><button data-layout-preset="punch" ${attrs('title', 'panels.punchTitle')}><span class="preset-art punch"><b>${text('panels.exampleNow')}</b><b>${text('panels.exampleDontMiss')}</b><i></i><em>${text('panels.exampleStory')}</em></span><strong>${text('panels.impactPreset')}</strong></button><button data-layout-preset="clean" ${attrs('title', 'panels.cleanTitle')}><span class="preset-art clean"><b>${text('panels.exampleRecord')}</b><i></i><em>${text('panels.exampleStory')}</em></span><strong>${text('panels.vlogPreset')}</strong></button></div></div>`;
   if (['title','credit','caption'].includes(layer)) {
@@ -72,7 +73,9 @@ export function mountDesignPanel(root, api) {
     };
   }
   root.querySelectorAll('[data-layout-preset]').forEach(button => button.onclick = () => api.preset(button.dataset.layoutPreset));
-  root.querySelectorAll('[data-text-layer]').forEach(button => button.onclick = () => api.select(button.dataset.textLayer));
+  bindPanelTabs(root, { selector: '[data-text-layer]', key: 'textLayer', active: layer, select: api.select,
+    current: () => renderOwners.get(root) === owner && api.current?.() !== false && api.tabCurrent?.() !== false,
+    contextCurrent: () => api.current?.() !== false && api.tabCurrent?.() !== false });
   root.querySelectorAll('[data-caption-preset]').forEach(button => button.onclick = () => api.captionStyle(button.dataset.captionPreset));
   root.querySelectorAll('[data-design]').forEach(input => {
     const path = input.dataset.design;

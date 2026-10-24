@@ -13,6 +13,7 @@ export function createPlayback(app, {
     clock = () => performance.now(),
 } = {}) {
     let audioCtx, videoNode, audioNode, videoGain, audioGain, destination;
+    let audioGraphReady = false;
 
     function paint(target, width, height) {
         const state = app.state, current = app.current;
@@ -50,26 +51,28 @@ export function createPlayback(app, {
     }
 
     async function ensureAudio() {
-        if (!audioCtx) {
-            audioCtx = createAudioContext();
-            destination = audioCtx.createMediaStreamDestination();
-            videoNode = audioCtx.createMediaElementSource(app.video);
-            audioNode = audioCtx.createMediaElementSource(app.audio);
-            videoGain = audioCtx.createGain();
-            audioGain = audioCtx.createGain();
+        if (!audioGraphReady) {
+            // Retry only unfinished setup: a media element cannot acquire a second source node.
+            audioCtx ||= createAudioContext();
+            destination ||= audioCtx.createMediaStreamDestination();
+            videoNode ||= audioCtx.createMediaElementSource(app.video);
+            audioNode ||= audioCtx.createMediaElementSource(app.audio);
+            videoGain ||= audioCtx.createGain();
+            audioGain ||= audioCtx.createGain();
             videoNode.connect(videoGain);
             audioNode.connect(audioGain);
             videoGain.connect(audioCtx.destination);
             audioGain.connect(audioCtx.destination);
             videoGain.connect(destination);
             audioGain.connect(destination);
+            audioGraphReady = true;
         }
         await audioCtx.resume();
         app.renderInspector();
     }
 
     function applyVolumes(muted) {
-        if (!videoGain)
+        if (!audioGraphReady)
             return;
         videoGain.gain.value = muted ? 0 : app.state.volume;
         audioGain.gain.value = muted ? 0 : app.state.audioVolume;

@@ -71,7 +71,7 @@ async function withClient(work) {
 
 const saved = await withClient(async ({request, call, data}) => {
   const {tools} = await request('tools/list', {});
-  assert.equal(tools.length, 14);
+  assert.equal(tools.length, 15);
   assert.ok(tools.some(tool => tool.name === 'moment_project_import'));
   await data('moment_project_import', {document: createProjectDocument(createDemoProject())});
   await data('moment_project_update', {patch: {name: 'MCP 예제', speed: 2}});
@@ -107,6 +107,8 @@ const saved = await withClient(async ({request, call, data}) => {
   portable.template.settings.captionSize = 40;
   await data('moment_template_apply_document', {document: portable});
   assert.equal((await data('moment_project_get')).project.captionSize, 40);
+  await data('moment_effects_update', {patch: {brightness: 1.1, saturation: .8, motion: 'none', transition: 'none'}});
+  assert.equal((await data('moment_project_get')).project.effects.brightness, 1.1);
   const plan = await data('moment_render_plan', {quality: 720, format: 'webm'});
   assert.equal(plan.rendered, false);
   assert.equal(plan.output.duration, 2);
@@ -118,4 +120,4 @@ await withClient(async ({data}) => {
   await data('moment_project_import', {document: saved});
   assert.deepEqual(await data('moment_project_get'), saved);
 });
-console.log(JSON.stringify({ok: true, tools: 14, recoveredFromInvalidInput: true, reimported: true, rendered: false}));
+console.log(JSON.stringify({ok: true, tools: 15, recoveredFromInvalidInput: true, reimported: true, rendered: false}));

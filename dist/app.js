@@ -339,7 +339,7 @@ function commitCommandProject(next, { command } = {}) {
     if (command === 'project.import' && (next.kind !== state.kind || (next.kind === 'video' && (next.fileName !== state.fileName || Math.abs(next.duration - state.duration) > .05)) || next.audioName !== state.audioName))
         throw new CommandError('MEDIA_RELINK_REQUIRED', '설정에 사용된 원본 영상과 오디오를 먼저 같은 이름으로 연결하세요.');
     // Non-timeline commands clone clips without changing the trim draft's target.
-    const preserveTrim = ['project.update', 'title.update', 'captions.replace', 'captions.text.replace', 'captions.style.update'].includes(command) && inspectorView.hasTrimTarget(state.clips[selected]);
+    const preserveTrim = ['project.update', 'effects.update', 'title.update', 'captions.replace', 'captions.text.replace', 'captions.style.update'].includes(command) && inspectorView.hasTrimTarget(state.clips[selected]);
     pause();
     snapshot();
     state = next;

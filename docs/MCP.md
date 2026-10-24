@@ -48,7 +48,7 @@ its supported version, `2025-11-25`, even if the proposed version differs; a cli
 that cannot support that version should disconnect, not continue with another
 wire format. `ping` is supported. Initialize only once per process.
 
-All fourteen tools require **`projectId: "session"`**. Each process owns one independent
+All fifteen tools require **`projectId: "session"`**. Each process owns one independent
 in-memory project, initially the demo. This value is neither a path nor a credential.
 Other project IDs return a tool error. A second client process does not share state.
 
@@ -139,6 +139,7 @@ Save `structuredContent.data.text` as UTF-8 `.vtt`; the server does not save fil
 | `moment_timeline_replace` | `clips: [{start,end}]` | Update acknowledgment and output duration |
 | `moment_timeline_split` | `clipIndex`, `sourceTime` | `{updated:true, outputDuration}` |
 | `moment_title_update` | `patch` | Update acknowledgment and output duration |
+| `moment_effects_update` | `patch` | `{updated:true, outputDuration}` |
 
 ### Caption changes
 
@@ -280,6 +281,46 @@ These existing global settings apply across caption cues in the visual renderer.
 Text, timing and speaker metadata are untouched. Plain SRT/VTT do not carry these
 styles, and this command does not encode video. Retrieve `moment_project_get`
 to save the updated project; `moment_render_plan` remains only a plan.
+
+### Adjust video effects independently
+
+Use `moment_effects_update` with a partial `patch`, for example:
+
+```json
+{"projectId":"session","patch":{"brightness":1.1,"contrast":1.05}}
+```
+
+| Color/frame field | Allowed value (default) |
+|---|---|
+| `brightness` | 0.7–1.3 (1) |
+| `contrast` | 0.7–1.5 (1) |
+| `saturation` | 0–1.6 (1) |
+| `vignette` | 0–0.6 (0) |
+
+| Motion/boundary field | Allowed value (default) |
+|---|---|
+| `motion` | `none`, `in`, `out` (`none`) |
+| `strength` | 0–0.4 (0.12) |
+| `transition` | `none`, `fadeBlack`, `flash` (`none`) |
+| `transitionDuration` | 0.05–0.7 output seconds (0.2) |
+
+| Progress field | Allowed value (default) |
+|---|---|
+| `progress` | Boolean (`false`) |
+| `progressPosition` | `top`, `bottom` (`bottom`) |
+| `progressColor` | `#RRGGBB` or `#RRGGBBAA` (`#b5ff00`) |
+
+`patch` is required, but its fields are optional. An empty patch returns the
+standard `{updated:true, outputDuration}` acknowledgment. Only supplied effects
+fields change; clips, speed, captions, cards, titles, audio and timing stay intact.
+There is no reset tool: send the intended fields with their explicit defaults.
+
+Transitions are black/white overlays at each clip’s start and end, **not overlapping
+clips or crossfades**. Their duration is capped at half that clip’s output duration.
+Motion zoom scales from 1 to `1 + strength` for `in` and reverses for `out`,
+multiplying the existing framing zoom. These are the existing renderer’s effects,
+not new rendering capabilities. Saving a project requires `moment_project_get`;
+plain SRT/VTT do not carry effects, and `moment_render_plan` does not encode video.
 
 ### Time coordinates
 

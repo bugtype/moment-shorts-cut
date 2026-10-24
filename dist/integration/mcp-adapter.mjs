@@ -106,6 +106,21 @@ function inputSchema(command) {
     p.patch.description = 'Only supplied settings change. Changing ratio resets zoom/pan; speed changes retime output text.';
     p.patch.properties.speed.description = 'Playback speed multiplier; output duration is edited timeline duration divided by speed.';
   }
+  if (command.name === 'effects.update') {
+    p.patch.description = 'Partial visual effects update only. Unspecified effect settings, captions, titles/cards, clips, audio and timing stay unchanged. Does not apply a template.';
+    const fields = p.patch.properties;
+    fields.motion.description = 'Per-clip camera zoom: none is fixed; in grows from 1 to 1+strength; out shrinks from 1+strength to 1. Multiplies the existing framing zoom.';
+    fields.strength.description = 'Additional zoom fraction for motion, from 0 to 0.4; 0.12 means up to 12% extra zoom. Has no visible motion effect when motion=none.';
+    fields.transition.description = 'Per-clip start/end overlay: none, fadeBlack (black), or flash (white, up to 75% opacity). NOT a crossfade between adjacent source frames.';
+    fields.transitionDuration.description = 'Overlay duration at each clip edge in output seconds AFTER speed, limited to half that clip’s output duration. Stored range 0.05–0.7 seconds.';
+    fields.brightness.description = 'Source-image brightness multiplier; 1 is unchanged. Does not recolor rendered text.';
+    fields.contrast.description = 'Source-image contrast multiplier; 1 is unchanged.';
+    fields.saturation.description = 'Source-image saturation multiplier; 1 is unchanged and 0 is grayscale.';
+    fields.vignette.description = 'Dark edge overlay strength; 0 disables it. Applied before text and scene cards.';
+    fields.progress.description = 'Whether to draw the output progress bar.';
+    fields.progressPosition.description = 'Progress bar location: top or bottom of the composition.';
+    fields.progressColor.description = 'Progress bar color in #RRGGBB or #RRGGBBAA hexadecimal form.';
+  }
   if (command.name === 'captions.style.update') {
     p.patch.description = 'Partial visual-only update of shared caption styling. Only supplied fields change; no preset side effects. Caption text/timing/metadata and SRT/VTT output stay unchanged.';
     const fields = p.patch.properties;

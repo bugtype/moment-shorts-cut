@@ -58,6 +58,7 @@
 | `timeline.replace` | `clips: [{start,end}]` | 클립 구간/순서 교체 |
 | `timeline.split` | `clipIndex`, `sourceTime` | 지정 클립 구간 분할; `{updated:true, outputDuration}` |
 | `title.update` | `patch` | 기본 제목과 스타일 수정 |
+| `effects.update` | `patch` | 영상 효과 설정; `{updated:true, outputDuration}` |
 
 ### 자막 변경
 
@@ -140,6 +141,46 @@ node cli/moment.mjs exec captions.style.update --project corrected.json --json '
 **화면 적용:** 글자 크기와 외곽선은 캔버스 너비에 비례해 확대·축소하며 글자가 영역을 넘으면 맞춤 처리로 더 작아질 수 있습니다. `highlight`는 어두운 글자·강조색 상자·외곽선 없음으로 표시합니다. 그 외에는 지정 화자 색상이 우선하고, 화자가 없으면 `accent` 스타일은 `captionAccent`, 나머지는 `captionColor`를 사용합니다. 따라서 `captionColor` 수정이 화자·강조 스타일 색상을 덮어쓰지는 않습니다.
 
 스타일은 프로젝트 JSON과 영상 화면에 적용하며 일반 SRT/VTT에는 기록하지 않습니다. 이 명령은 영상을 인코딩하지 않으며 `render.plan`도 계속 계획만 반환합니다.
+
+### 영상 효과 수정
+
+`effects.update`는 기존 렌더러의 효과 설정 중 전달한 필드만 바꿉니다. 클립·
+배속·자막·카드·제목·오디오와 그 시간은 변경하지 않습니다. `patch`는 필수이며
+빈 객체도 표준 `{updated:true, outputDuration}` 응답으로 처리합니다.
+
+| 색상·화면 필드 | 허용 값 |
+|---|---|
+| `brightness` | 0.7–1.3; 기본 1 |
+| `contrast` | 0.7–1.5; 기본 1 |
+| `saturation` | 0–1.6; 기본 1 |
+| `vignette` | 0–0.6; 기본 0 |
+
+| 움직임·경계 필드 | 허용 값 |
+|---|---|
+| `motion` | `none`, `in`, `out`; 기본 `none` |
+| `strength` | 0–0.4; 기본 0.12 |
+| `transition` | `none`, `fadeBlack`, `flash`; 기본 `none` |
+| `transitionDuration` | 출력 시간 0.05–0.7초; 기본 0.2 |
+
+| 진행 표시 필드 | 허용 값 |
+|---|---|
+| `progress` | boolean; 기본 `false` |
+| `progressPosition` | `top`, `bottom`; 기본 `bottom` |
+| `progressColor` | `#RRGGBB` 또는 `#RRGGBBAA`; 기본 `#b5ff00` |
+
+```sh
+node cli/moment.mjs init --out effects-source.json
+node cli/moment.mjs exec effects.update --project effects-source.json --json '{"patch":{"brightness":1.1,"contrast":1.05}}' --dry-run
+node cli/moment.mjs exec effects.update --project effects-source.json --json '{"patch":{"brightness":1.1,"contrast":1.05}}' --out effects-edited.json
+```
+
+**경계 효과는 교차 전환이 아닙니다.** 각 클립의 시작·끝에 검정(`fadeBlack`)
+또는 흰색(`flash`)을 덧씌우며 두 영상을 겹치지 않습니다. 실제 효과 길이는
+해당 클립 출력 길이의 절반 이하로 제한됩니다. 느린 줌은 `in`이면 1배에서
+`1 + strength`배로, `out`이면 그 반대로 변하며 기존 구도 줌에 곱해집니다.
+
+별도 초기화 명령은 없습니다. 필요한 필드에 위 기본값을 명시하세요. 이 명령은
+편집 설정만 수정하며 영상 인코딩을 실행하지 않고 SRT/VTT에 효과를 넣지 않습니다.
 
 ### 결과와 검증
 

@@ -17,10 +17,17 @@ const captionStyleSchema=object({
   captionStroke:number(0,20),captionItalic:boolean,
   captionAnimation:choice('none','fade','slide','pop'),
 });
+const effectsSchema=object({
+  motion:choice('none','in','out'),strength:number(0,.4),
+  transition:choice('none','fadeBlack','flash'),transitionDuration:number(.05,.7),
+  brightness:number(.7,1.3),contrast:number(.7,1.5),saturation:number(0,1.6),vignette:number(0,.6),
+  progress:boolean,progressPosition:choice('top','bottom'),progressColor:captionColorSchema,
+});
 const command=(name,description,inputSchema,mutates=false)=>({name,description,inputSchema,mutates});
 const definitions=[
   command('project.get','편집 설정을 이식 가능한 JSON으로 읽습니다. 미디어 파일은 포함하지 않습니다.',object()),
   command('project.update','이름, 화면 비율, 구도, 배속과 볼륨을 수정합니다.',object({patch:patchSchema},['patch']),true),
+  command('effects.update','움직임·색감·클립 시작과 끝 효과·진행 막대의 지정한 설정만 수정합니다.',object({patch:effectsSchema},['patch']),true),
   command('project.import','검증된 편집 설정 JSON을 적용합니다. 미디어 파일은 별도로 연결해야 합니다.',object({document:{type:'object'}},['document']),true),
   command('templates.list','기본 템플릿 목록을 읽습니다.',object()),
   command('template.apply','기본 템플릿을 적용합니다. withContent=true는 제목과 구간 문구를 예시로 교체합니다.',object({templateId:string(100),withContent:boolean},['templateId']),true),
@@ -77,6 +84,7 @@ export function prepareCommand(project,name,args={}){
       fail('클립의 시작과 끝에서 0.1초 이상 떨어진 위치를 선택하세요.','arguments.sourceTime');
     next.clips.splice(args.clipIndex,1,{start:clip.start,end:args.sourceTime},{start:args.sourceTime,end:clip.end});
   }
+  else if(name==='effects.update')Object.assign(next.effects,args.patch);
   else if(name==='title.update')Object.assign(next.design.title,args.patch);
   else if(name==='captions.style.update')Object.assign(next,args.patch);
   else if(name==='captions.replace'){

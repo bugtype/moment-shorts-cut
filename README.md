@@ -140,6 +140,8 @@ Existing output files are protected; use `--overwrite` only when you intend to r
 
 **Clip splitting:** `timeline.split` divides one indexed clip without replacing the full timeline. It takes original source time, not output time; [the example and limits](INTEGRATIONS.md#클립-구간-분할) explain repeated clips and boundary checks.
 
+**Video effects:** `effects.update` adjusts brightness, contrast, motion, boundary overlays and progress styling without replacing content or timing. [Options and examples](INTEGRATIONS.md#영상-효과-수정) distinguish boundary fades from crossfades.
+
 ### Choose an integration
 
 | Need | Use | Start here |

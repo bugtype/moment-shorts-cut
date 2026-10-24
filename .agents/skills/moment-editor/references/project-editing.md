@@ -108,6 +108,30 @@ Only supplied fields change. These are global caption settings, not per-cue styl
 
 Save the retrieved project JSON, not the acknowledgment. Styling affects the visual renderer and is absent from plain SRT/VTT. CLI/MCP do not render the changed video.
 
+## Adjust video effects without changing content
+
+Use `effects.update` for brightness/contrast and other existing video effects,
+rather than applying a template or importing a reconstructed project:
+
+```sh
+node cli/moment.mjs exec effects.update --project edited.moment.json --json '{"patch":{"brightness":1.1,"contrast":1.05}}' --dry-run
+node cli/moment.mjs exec effects.update --project edited.moment.json --json '{"patch":{"brightness":1.1,"contrast":1.05}}' --out effects-edited.moment.json
+```
+
+MCP `moment_effects_update` takes
+`{"projectId":"session","patch":{"brightness":1.1,"contrast":1.05}}`.
+Only supplied effects fields change. Clips, speed, captions, cards, titles, audio
+and their times remain unchanged. See the [field/default tables](../../../../docs/MCP.md#adjust-video-effects-independently)
+or live schema; there is no reset command, so explicitly supply only the defaults
+you intend to restore. Empty patches are accepted with the standard
+`{updated:true, outputDuration}` acknowledgment, not no-op detection.
+
+Black/white boundary effects are overlays, not crossfades; their effective
+duration is capped at half the clip’s output duration. Motion is a zoom multiplier
+on existing framing. Neither changes the clip sequence or subtitle timing. Save
+the returned project via a separate read; CLI/MCP do not encode video, and plain
+SRT/VTT do not preserve these effects.
+
 ## Replacement operations and styles
 
 - `moment_timeline_replace`: submit the complete desired `clips` list, preserving unrequested clips and their order. Clips may repeat or overlap source ranges. Each must have `end > start` and remain within original media duration; the list must contain 1–1,000 clips.

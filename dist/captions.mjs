@@ -22,7 +22,7 @@ export function captionOccurrences(captions, clips, speed = 1) {
   const out = []; let offset = 0, bytes = 0;
   const textBytes = new Map();
   function append(cap, captionIndex, start, end, clipIndex) {
-    if (out.length >= MAX_CAPTIONS) captionOutputLimit('편집 후 자막은 10,000개까지 표시·SRT 저장할 수 있습니다. 반복 클립이나 자막을 줄여 주세요.');
+    if (out.length >= MAX_CAPTIONS) captionOutputLimit('편집 후 자막은 10,000개까지 표시·자막 파일 저장할 수 있습니다. 반복 클립이나 자막을 줄여 주세요.');
     if (!textBytes.has(captionIndex)) {
       if (cap.text.length > MAX_SUBTITLE_BYTES) captionOutputLimit('편집 후 자막 원문은 UTF-8 2 MiB까지 지원합니다. 반복 클립이나 자막을 줄여 주세요.');
       textBytes.set(captionIndex, encoder.encode(cap.text).byteLength);

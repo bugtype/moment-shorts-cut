@@ -79,11 +79,20 @@ export function readProjectDocument(document){
 }
 export function srtTimestamp(t){const ms=Math.round(t*1000);return `${String(Math.floor(ms/3600000)).padStart(2,'0')}:${String(Math.floor(ms/60000)%60).padStart(2,'0')}:${String(Math.floor(ms/1000)%60).padStart(2,'0')},${String(ms%1000).padStart(3,'0')}`;}
 export function projectSubtitles(p,{format='srt',bom=false}={}){
-  if(!['srt','vtt'].includes(format))fail('자막 출력 형식은 srt 또는 vtt여야 합니다.');
+  if(!['srt','vtt','txt'].includes(format))fail('자막 출력 형식은 srt, vtt 또는 txt여야 합니다.');
   const label=format.toUpperCase(),header=format==='vtt'?'WEBVTT\n\n':'';
   const chunks=[],encoder=new TextEncoder();let bytes=(bom?3:0)+encoder.encode(header).byteLength;
   const timestamp=t=>format==='vtt'?srtTimestamp(t).replace(',','.'):srtTimestamp(t);
   for(const [i,c] of editedCaptions(p.captions,p.clips,p.speed).entries()){
+    if(format==='txt'){
+      const text=c.text.replace(/\r\n?/g,'\n');
+      if(text.includes('\0'))fail(`TXT 출력 ${i+1}번째 자막에 NUL 문자가 있습니다. 제거한 뒤 다시 저장하세요.`);
+      const chunk=text+'\n';
+      bytes+=encoder.encode(chunk).byteLength+(i?1:0);
+      if(bytes>MAX_SUBTITLE_BYTES)captionOutputLimit('TXT 파일은 UTF-8 2 MiB까지 저장할 수 있습니다. 반복 클립이나 자막을 줄여 주세요.');
+      chunks.push(chunk);
+      continue;
+    }
     const start=timestamp(c.start),end=timestamp(c.end);
     if(start===end)fail(`${label} 출력 ${i+1}번째 자막의 시작과 끝이 밀리초 단위에서 같습니다. 자막 구간이나 배속을 조정한 뒤 다시 저장하세요.`);
     const lines=c.text.replace(/\r\n?/g,'\n');

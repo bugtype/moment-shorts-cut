@@ -27,6 +27,7 @@ node cli/moment.mjs exec project.update --project supplied.moment.json --json '{
 node cli/moment.mjs exec project.update --project supplied.moment.json --json '{"patch":{"name":"수정한 쇼츠"}}' --out edited.moment.json
 node cli/moment.mjs exec captions.export --project edited.moment.json --out edited.srt
 node cli/moment.mjs exec captions.export --project edited.moment.json --json '{"format":"vtt"}' --out edited.vtt
+node cli/moment.mjs exec captions.export --project edited.moment.json --json '{"format":"txt"}' --out edited.txt
 ```
 
 These examples use POSIX quoting. For other shells or complex text, use a UTF-8 arguments file with `--args-file args.json` instead of `--json`.
@@ -50,7 +51,7 @@ Call `moment_project_update` and check both `isError === false` and `structuredC
 | Artifact | Retrieve with | Save this field |
 |---|---|---|
 | Edited project JSON | `moment_project_get` | `structuredContent.data` |
-| SRT/VTT text | `moment_captions_export` | `structuredContent.data.text` |
+| SRT/VTT/TXT text | `moment_captions_export` | `structuredContent.data.text` |
 
 For VTT, call `moment_captions_export` with `{"projectId":"session","format":"vtt"}`. Omitting `format` preserves SRT; an output filename does not select the format. Save only the returned text as UTF-8.
 
@@ -298,9 +299,22 @@ The project's `duration` describes the source, not the sum of the clips or final
 
 ## Subtitle format boundaries
 
-Both formats allow at most 10,000 edited occurrences, 2 MiB repeated raw UTF-8 text and 2 MiB completed output (including escaping, timing, separators and any VTT header/BOM). CLI/MCP omit the BOM. Browser SRT downloads include it; browser VTT downloads do not. Do not silently trim authored text to meet the budget.
+All three export formats allow at most 10,000 edited occurrences, 2 MiB repeated raw UTF-8 text and 2 MiB completed output (including escaping, timing, separators and any VTT header/BOM). CLI/MCP omit the BOM. Browser SRT downloads include it; browser VTT/TXT downloads do not. Do not silently trim authored text to meet the budget.
 
-VTT uses a `WEBVTT` header and dot-separated milliseconds. It exports plain captions, not styles, regions or speaker metadata, and rejects NUL characters. Empty VTT returns `WEBVTT\n\n` through CLI/MCP; the browser skips empty downloads. Both formats reject empty/blank-line cues and intervals that collapse after millisecond rounding; correct the requested text/timing rather than discarding cues.
+VTT uses a `WEBVTT` header and dot-separated milliseconds. It exports plain captions, not styles, regions or speaker metadata, and rejects NUL characters. Empty VTT returns `WEBVTT\n\n` through CLI/MCP; the browser skips empty downloads. SRT/VTT reject empty/blank-line cues and intervals that collapse after millisecond rounding; correct the requested text/timing rather than discarding cues.
+
+For plain edited text, call `moment_captions_export` with
+`{"projectId":"session","format":"txt"}` or use the CLI example above. TXT emits
+one paragraph per derived cue in edited output order, so repeated/split clips can
+repeat words. It is not a deduplicated or word-accurate transcript. No timestamps,
+IDs, speaker labels, titles, cards or styles are included. Literal `<>&`, whitespace
+and multiline text remain, with LF normalization, blank-line cue separators and
+a final newline. Empty output is `""`; NUL is rejected. Unlike SRT/VTT, TXT accepts
+blank-line payloads and sub-millisecond cues. It still has the derived-cue/raw-text
+budgets and a 2 MiB actual UTF-8 file budget including separators. Raw-text bytes
+are checked before newline normalization; a smaller final TXT does not bypass
+that limit. TXT cannot be
+reimported as subtitles or recover timing; retain project JSON for reversibility.
 
 ## Recover without losing work
 
@@ -315,7 +329,7 @@ VTT uses a `WEBVTT` header and dot-separated milliseconds. It exports plain capt
 
 **Media relinking:** `MEDIA_RELINK_REQUIRED` means browser import needs the matching originals connected first. Matching uses video name/duration and audio name, not a content hash. Keep the original media; MCP cannot relink it remotely.
 
-**Subtitle limits:** `CAPTION_OUTPUT_LIMIT` affects derived SRT/VTT, not metadata editing or JSON export. Reduce repeated clips/cues only as requested; do not discard the source document.
+**Subtitle limits:** `CAPTION_OUTPUT_LIMIT` affects derived SRT/VTT/TXT, not metadata editing or JSON export. Reduce repeated clips/cues only as requested; do not discard the source document.
 
 | File/session failure | Recovery |
 |---|---|

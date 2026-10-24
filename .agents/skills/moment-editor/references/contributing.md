@@ -8,7 +8,7 @@ Read [CONTRIBUTING.md](../../../../CONTRIBUTING.md) for repository conventions. 
 
 | Change | Owner |
 |---|---|
-| Document validation, source/timeline/output time rules, SRT/VTT | `dist/core/project.mjs`, `dist/captions.mjs` |
+| Document validation, source/timeline/output time rules, SRT/VTT/TXT export | `dist/core/project.mjs`, `dist/captions.mjs` |
 | Public editing input schemas and copy-before-commit commands | `dist/core/commands.mjs` |
 | Serialized execution, commit port, sanitized errors, optional jobs | `dist/integration/editor-service.mjs` |
 | Tool naming, project resolution, MCP result mapping | `dist/integration/mcp-adapter.mjs` |

@@ -36,8 +36,8 @@ function dataSchema(command) {
       updated: { enum: [true] }, importedCaptions: { type: 'integer', minimum: 1, maximum: 10000 },
       outputDuration: { type: 'number', minimum: 0 },
     });
-    case 'captions.export': return record({ format: { enum: ['srt', 'vtt'] }, text: {
-      type: 'string', description: 'SRT or plain WebVTT in final output seconds after clips and speed; save this string, not the result envelope.',
+    case 'captions.export': return record({ format: { enum: ['srt', 'vtt', 'txt'] }, text: {
+      type: 'string', description: 'SRT/WebVTT uses final output seconds; TXT contains literal edited cue paragraphs without timestamps. Repeated or cut cues may repeat text. Save this string, not the result envelope.',
     } });
     case 'render.plan': return record({
       planVersion: { enum: [1] }, project: documentSchema,
@@ -172,7 +172,7 @@ function inputSchema(command) {
   }
   if (p.quality) p.quality.description = 'Output short edge in pixels; defaults to 1080. Creates a plan only.';
   if (p.format) p.format.description = command.name === 'captions.export'
-    ? 'Subtitle format: srt (default) or plain vtt. The destination filename does not select the format.'
+    ? 'Format: srt (default), plain vtt, or txt (edited cue paragraphs, no timestamps/speaker labels). TXT preserves literal text and LF line breaks, rejects NUL, and shares the 2 MiB UTF-8 and 10,000 occurrence limits. The destination filename does not select the format.'
     : 'Planned output container; defaults to mp4, without checking local codec support.';
   return schema;
 }

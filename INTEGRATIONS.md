@@ -6,7 +6,7 @@
 
 | 하려는 일 | 사용할 인터페이스 | 먼저 확인할 것 |
 |---|---|---|
-| JSON·SRT·VTT 파일 편집 | [CLI](#실제-cli-사용) | 원본을 보존할 출력 경로, `--dry-run` |
+| 프로젝트 JSON 편집·자막 파일 출력 | [CLI](#실제-cli-사용) | 원본을 보존할 출력 경로, `--dry-run` |
 | AI 클라이언트로 메타데이터 편집 | [stdio MCP](docs/MCP.md) | `session`은 임시 프로젝트, 종료 전 문서 저장 |
 | 열린 브라우저 프로젝트 편집 | [같은 페이지 API](#브라우저와-파일-왕복) | `window.moment.ready`, 현재 작업의 `BUSY` 상태 |
 | 별도 저장소·미디어 작업 연결 | [호스트 확장](#mcp-어댑터와-호스트-확장) | 인증·원자적 저장·실제 제공자는 호스트 책임 |
@@ -19,7 +19,7 @@
 
 | 구성 | 파일 | 역할 |
 |---|---|---|
-| 프로젝트 모델 | `dist/core/project.mjs` | 기본값, 저장 문서 v1, 상태 검증, 시간 기준, SRT/VTT |
+| 프로젝트 모델 | `dist/core/project.mjs` | 기본값, 저장 문서 v1, 상태 검증, 시간 기준, SRT/VTT/TXT |
 | 편집 명령 | `dist/core/commands.mjs` | 입력 JSON Schema, 복사본 변경, 검증 후 결과 반환 |
 | 공통 서비스 | `dist/integration/editor-service.mjs` | 명령 직렬 실행, 저장 포트, 공통 결과·오류, 미디어 작업 포트 |
 
@@ -28,10 +28,10 @@
 | 구성 | 파일 | 역할 |
 |---|---|---|
 | 브라우저 | `dist/app.js`의 `window.moment` | 현재 프로젝트 접근, 실행 취소, 편집 중 상태 확인, 화면 갱신 |
-| CLI | `cli/moment.mjs` | JSON 파일 읽기·쓰기, SRT/VTT 저장, 기존 파일 보호 |
+| CLI | `cli/moment.mjs` | JSON 파일 읽기·쓰기, SRT/VTT/TXT 저장, 기존 파일 보호 |
 | MCP 어댑터 | `dist/integration/mcp-adapter.mjs` | 명령을 도구 목록/호출 결과로 변환, 프로젝트별 서비스 조회 |
 
-화면 비율·배속·기본 템플릿·트림·SRT/VTT 출력은 기존 UI도 공통 로직을 사용합니다. 타이틀/자막 등의 명령은 동일한 프로젝트 모델을 수정합니다. 미디어 디코딩·녹음·브라우저 인코딩은 기존 브라우저 구현에 남아 있습니다. 모든 화면 이벤트를 서버 코드로 옮긴 구조는 아닙니다.
+화면 비율·배속·기본 템플릿·트림·SRT/VTT/TXT 출력은 기존 UI도 공통 로직을 사용합니다. 타이틀/자막 등의 명령은 동일한 프로젝트 모델을 수정합니다. 미디어 디코딩·녹음·브라우저 인코딩은 기존 브라우저 구현에 남아 있습니다. 모든 화면 이벤트를 서버 코드로 옮긴 구조는 아닙니다.
 
 ## 명령 v1
 
@@ -43,7 +43,7 @@
 |---|---|---|
 | `project.get` | 없음 | 편집 설정 문서 |
 | `templates.list` | 없음 | 기본 템플릿 목록 |
-| `captions.export` | 선택 `format: "srt"` 또는 `"vtt"` | 편집 구간·배속을 반영한 `{format, text}`; 기본 SRT |
+| `captions.export` | 선택 `format: "srt"`, `"vtt"`, `"txt"` | 편집 구간·배속을 반영한 `{format, text}`; 기본 SRT |
 | `render.plan` | `quality`, `format` | 출력 설정·프로젝트·필요한 미디어 목록; **파일 생성 아님** |
 
 ### 프로젝트와 템플릿 변경
@@ -370,6 +370,7 @@ node cli/moment.mjs exec template.apply --project project.json --args-file examp
 node cli/moment.mjs exec title.update --project edited.json --json '{"patch":{"lines":["첫 번째 제목","두 번째 제목"]}}' --out titled.json
 node cli/moment.mjs exec captions.export --project titled.json --out captions.srt
 node cli/moment.mjs exec captions.export --project titled.json --json '{"format":"vtt"}' --out captions.vtt
+node cli/moment.mjs exec captions.export --project titled.json --json '{"format":"txt"}' --out captions.txt
 node cli/moment.mjs exec render.plan --project titled.json --json '{"quality":1080,"format":"mp4"}' --out render-plan.json
 ```
 
@@ -395,7 +396,7 @@ node cli/moment.mjs exec render.plan --project titled.json --json '{"quality":10
 
 ### SRT 출력 제한
 
-**SRT와 VTT 모두 아래 한도를 적용합니다.** `format` 생략 시 기존 SRT 출력을 유지합니다. VTT는 `{"format":"vtt"}`를 명시해야 하며 출력 확장자로 형식을 추측하지 않습니다.
+**SRT·VTT·TXT 모두 아래 한도를 적용합니다.** `format` 생략 시 기존 SRT 출력을 유지합니다. VTT는 `{"format":"vtt"}`를 명시해야 하며 출력 확장자로 형식을 추측하지 않습니다.
 
 VTT는 UTF-8 일반 WebVTT로 `WEBVTT` 헤더와 점 단위 밀리초를 사용합니다. 편집 구간·반복·배속과 문구 이스케이프는 SRT와 동일합니다. 꾸밈 스타일·영역·화자 메타데이터는 내보내지 않습니다. NUL 문자는 VTT에서 거부합니다. 자막이 없으면 CLI/서비스는 `WEBVTT\n\n`을 반환하고 브라우저는 빈 자막 파일을 내려받지 않습니다.
 
@@ -403,11 +404,30 @@ VTT는 UTF-8 일반 WebVTT로 `WEBVTT` 헤더와 점 단위 밀리초를 사용�
 |---|---|
 | 편집 후 출력 자막 | 10,000개 |
 | 반복분을 포함한 원문 UTF-8 | 2 MiB |
-| 완성된 SRT 또는 VTT | 2 MiB |
+| 완성된 SRT, VTT 또는 TXT | 2 MiB |
 
-`captions.export`는 이 세 제한을 각각 적용합니다. 파일 크기는 이스케이프·시간·구분자·VTT 헤더(해당 시)를 포함하며 CLI/서비스는 BOM을 출력하지 않습니다. 브라우저는 SRT에만 BOM을 넣고 그 3바이트도 계산하며, VTT에는 넣지 않습니다. 초과 시 `CAPTION_OUTPUT_LIMIT`로 전체 출력을 거절하고 CLI는 기존 출력 파일을 보존합니다. 원본 프로젝트 검증·JSON·편집·`render.plan`에는 이 파생 출력 제한을 적용하지 않습니다. 반복 클립이나 자막을 줄여 재시도할 수 있습니다.
+`captions.export`는 이 세 제한을 각각 적용합니다. 파일 크기는 이스케이프·시간·구분자·VTT 헤더(해당 시)를 포함하며 CLI/서비스는 BOM을 출력하지 않습니다. 브라우저는 SRT에만 BOM을 넣고 그 3바이트도 계산하며, VTT/TXT에는 넣지 않습니다. 초과 시 `CAPTION_OUTPUT_LIMIT`로 전체 출력을 거절하고 CLI는 기존 출력 파일을 보존합니다. 원본 프로젝트 검증·JSON·편집·`render.plan`에는 이 파생 출력 제한을 적용하지 않습니다. 반복 클립이나 자막을 줄여 재시도할 수 있습니다.
 
-CLI는 편집 메타데이터와 SRT/VTT를 다룹니다. MP4 파일을 생성하거나 브라우저 IndexedDB의 원본 파일을 직접 가져오지 않습니다.
+CLI는 편집 메타데이터와 SRT/VTT/TXT 출력을 다룹니다. MP4 파일을 생성하거나 브라우저 IndexedDB의 원본 파일을 직접 가져오지 않습니다.
+
+### 편집 후 자막을 일반 TXT로 저장
+
+`captions.export`에 `{"format":"txt"}`를 전달하면 `{format:"txt", text}`를
+반환합니다. 위 CLI 예제처럼 별도 `.txt` 파일로 저장하세요. 확장자만 바꾸면
+형식이 바뀌지 않으며 기본 SRT는 그대로입니다.
+
+| TXT 내용 | 경계 |
+|---|---|
+| 파생 자막마다 한 문단 | 클립·반복·원본/타임라인 기준·배속을 적용한 출력 순서, 중복 제거 없음 |
+| 원문 보존 | `<>&`·공백·여러 줄 보존, LF로 정규화; 구간 사이 빈 줄과 마지막 줄바꿈 |
+| 포함하지 않는 것 | 시간·ID·화자 이름·제목·카드·스타일; 단어별 정확한 녹취나 프로젝트 백업 아님 |
+| 예외·한도 | 빈 줄·밀리초 미만 구간 허용, NUL 거부, 자막 없으면 `""`; 실제 UTF-8 구분자 포함 2 MiB |
+
+10,000개 파생 구간·반복 원문 2 MiB 한도도 적용합니다. 원문 바이트 검사는
+줄바꿈 정규화 전이므로 최종 TXT가 작아져도 원문 한도 초과는 거절합니다. 분할이나 반복 클립은
+같은 자막 단어를 여러 번 출력할 수 있습니다. TXT는 SRT/VTT 가져오기 형식이
+아니며 시간 정보를 복원할 수 없습니다. 브라우저는 형식 선택 후 하나의 저장
+버튼을 사용하고 SRT만 BOM을 붙입니다. 빈 결과는 내려받지 않습니다.
 
 ## 개별 사용자 템플릿 파일
 

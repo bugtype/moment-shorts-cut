@@ -187,3 +187,10 @@ body.restore-failed #saveStatus i {
 .caption-pages[hidden] {
   display:none;
 }
+
+.caption-workspace #captionExportFormat {
+  margin:0;
+  width:auto;
+  flex:1;
+  min-width:0;
+}

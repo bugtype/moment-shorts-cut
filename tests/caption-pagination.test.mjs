@@ -123,3 +123,10 @@ test('page-boundary navigation focuses the remaining enabled pager control',()=>
  f.query('#previousCaptionPage').onclick();assert.equal(f.query('#previousCaptionPage').disabled,true);
  assert.deepEqual(f.log.at(-1),['focus','#nextCaptionPage']);
 });
+
+test('export format persists through paging while detached selector cannot override it',()=>{
+ const f=fixture(101),select=f.query('#captionExportFormat');select.value='txt';select.onchange();
+ f.query('#nextCaptionPage').onclick();assert.equal(f.query('#captionExportFormat').value,'txt');
+ select.value='vtt';select.onchange();f.render();assert.equal(f.query('#captionExportFormat').value,'txt');
+ assert.equal(f.history.length,0);assert.ok(!f.log.some(e=>e[0]==='edit'));
+});

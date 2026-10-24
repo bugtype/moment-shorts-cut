@@ -9,7 +9,7 @@
 
 Moment is a local-first video editor with a Korean interface. Trim a clip, choose a template, add captions or narration, and export a short without uploading your media to an app server. No account or API key is required.
 
-The editor also exposes a shared command core, a project JSON/SRT/VTT CLI, and a local stdio MCP server for AI clients. This is an early-stage project; see [tested behavior and remaining gaps](docs/BROWSER_QA.md) before relying on a particular browser or codec.
+The editor also exposes a shared command core, a project JSON CLI with SRT/VTT/TXT export, and a local stdio MCP server for AI clients. This is an early-stage project; see [tested behavior and remaining gaps](docs/BROWSER_QA.md) before relying on a particular browser or codec.
 
 ![Moment editor with a template gallery, vertical video preview, and editing timeline](docs/editor-desktop.png)
 
@@ -54,7 +54,7 @@ keys or while busy.
 | --- | --- | --- |
 | Video and timing | Trim, split, reorder, delete, speed, pan/zoom, undo/redo; brightness, contrast, saturation, vignette, slow zoom and progress bar | One source video and one video track; boundary fades/flash do not overlap clips |
 | Layout and text | 10 built-in templates, search/favorites, up to 20 local custom templates with individual JSON import/export, title/credit styling and 12 timed text layers | Style-only preserves authored text; example content replaces title, credit and timed cards |
-| Captions and audio | SRT/VTT import, edited SRT/VTT export, literal find/replace-all, highlighting, effects, two manual speakers; one added audio file or microphone narration | On-device ASR uses Transformers.js 3.8.1 + `Xenova/whisper-tiny`; recognition and estimated split timing need review |
+| Captions and audio | SRT/VTT import, edited SRT/VTT/TXT export, literal find/replace-all, highlighting, effects, two manual speakers; one added audio file or microphone narration | On-device ASR uses Transformers.js 3.8.1 + `Xenova/whisper-tiny`; recognition and estimated split timing need review |
 | Save and automate | Browser storage, project JSON, CLI, repository skill and stdio MCP; Canvas/Web Audio → MediaRecorder export | Project JSON contains no media; CLI/MCP do not encode video |
 
 The built-in templates cover review stories, bold opening lines, vlogs, explainers, interviews, recipes, rankings, product reviews, quizzes, and cinematic moments. Preview each with its animated sample. Quiz choices and countdowns are video graphics, not interactive polls.
@@ -79,6 +79,7 @@ dialog open for retry.
 | Project JSON | Editing settings, timeline and captions | Embed source media |
 | Single-template JSON | Saved styles, title/credit/card text, keywords and speaker labels | Back up the whole library or current project |
 | SRT/VTT | Edited subtitle text and timing | Preserve visual styling or media |
+| TXT | Edited caption text in output order | Recover timing or act as a project backup |
 
 **Review saved wording before sharing a template.** There is no video/audio in the
 file, but titles, credits, cards, global keywords and speaker labels can be private.
@@ -135,6 +136,7 @@ node cli/moment.mjs exec template.apply --project project.json --args-file examp
 # Export captions with edits and playback speed reflected in the timestamps.
 node cli/moment.mjs exec captions.export --project edited.json --out captions.srt
 node cli/moment.mjs exec captions.export --project edited.json --json '{"format":"vtt"}' --out captions.vtt
+node cli/moment.mjs exec captions.export --project edited.json --json '{"format":"txt"}' --out captions.txt
 
 # Replace matching caption text without changing timing or speaker metadata.
 node cli/moment.mjs exec captions.text.replace --project edited.json --json '{"find":"하루","replacement":"하루의 기록"}' --out corrected.json
@@ -178,7 +180,7 @@ retain the whole project’s clip/speed rules, not just the visible page. Existi
 
 | Need | Use | Start here |
 | --- | --- | --- |
-| Edit JSON/SRT/VTT files | Node CLI; existing outputs are protected | [Command contracts and file workflow](INTEGRATIONS.md) |
+| Edit project JSON or export caption files | Node CLI; existing outputs are protected | [Command contracts and file workflow](INTEGRATIONS.md) |
 | Give an AI agent project guidance | Repository skill, no global installation | [Moment editor skill](.agents/skills/moment-editor/SKILL.md) |
 | Connect an AI client | Local stdio MCP server: `node cli/mcp.mjs` | [Client setup, tools, errors and recovery](docs/MCP.md) |
 | Integrate with your own code | Same-page `window.moment` or the reusable service/adapter | `node examples/use-editor-service.mjs` |
@@ -224,7 +226,11 @@ At 1,000 clips, delete a clip before splitting another.
 
 **Text imports:** save project JSON and SRT/VTT files as UTF-8; a leading UTF-8 BOM is supported. Subtitle LF, CRLF and CR line endings are normalized to LF while preserving payload line breaks. Invalid UTF-8 is rejected without replacing the current project or captions. Other encodings are not detected or converted automatically.
 
-**Plain WebVTT:** choose **VTT** next to **SRT** in the caption panel, or pass `format: "vtt"` to the CLI/MCP export command. Omitting `format` still exports SRT; a `.vtt` filename alone does not select it. VTT uses a `WEBVTT` header and dot-separated milliseconds, with the same edited timing and text escaping. Rich styles, regions and speaker metadata are not exported. VTT rejects NUL characters. With no cues, CLI/MCP return `WEBVTT\n\n`; the browser does not download an empty caption file.
+**Caption files:** select **SRT**, **VTT** or **TXT** and use the caption panel’s single save button. SRT is the default; the selection survives paging.
+
+**Plain WebVTT:** select **VTT**, or pass `format: "vtt"` to the CLI/MCP export command. Omitting `format` still exports SRT; a `.vtt` filename alone does not select it. VTT uses a `WEBVTT` header and dot-separated milliseconds, with the same edited timing and text escaping. Rich styles, regions and speaker metadata are not exported. VTT rejects NUL characters. With no cues, CLI/MCP return `WEBVTT\n\n`; the browser does not download an empty caption file.
+
+**Plain TXT:** one paragraph per derived cue, ordered using clips, repetitions and source/timeline captions after speed. Repeated or split clips can repeat words; this is not a deduplicated or word-accurate transcript. No timestamps, IDs, speakers, titles, cards or styling are included. Literal `<>&`, whitespace and multiline text are preserved, with LF line endings, a blank line between cues and a final newline. Blank lines and sub-millisecond cues are allowed; NUL is rejected. Empty export returns `""`. TXT cannot be imported by SRT/VTT import or recover cue timing.
 
 **SRT/VTT text:** blank lines separate cues. Export rejects empty cues or blank lines inside an exported caption instead of dropping paragraphs or assigning new times. Remove the blank lines to export SRT/VTT; project JSON retains the original text. Ordinary multiline captions are supported, with CRLF/CR normalized to LF in output. Subtitle-player markup support varies; universal compatibility is not claimed.
 
@@ -235,7 +241,7 @@ At 1,000 clips, delete a clip before splitting another.
 <details>
 <summary>Derived caption budgets and long-caption splitting</summary>
 
-**Derived caption limits:** the timeline caption lane and SRT/VTT export support at most 10,000 edited occurrences and 2 MiB of UTF-8 caption text, counting each clip repetition. Each completed subtitle file has a separate 2 MiB limit including escaping, timing, separators, the VTT header when present and any emitted BOM (browser SRT exports include a BOM; browser VTT and CLI/service exports do not). Exceeding a limit rejects the entire derived output, including for older projects; reduce repeated clips or captions to restore it. Original caption editing, project JSON, undo and saving remain available. These budgets do not guarantee UI responsiveness or available memory.
+**Derived caption limits:** the timeline caption lane and SRT/VTT/TXT export support at most 10,000 edited occurrences and 2 MiB of UTF-8 caption text, counting each clip repetition. Each completed caption file has a separate 2 MiB limit including escaping, timing, separators, the VTT header when present and any emitted BOM (browser SRT exports include a BOM; browser VTT/TXT and CLI/service exports do not). Exceeding a limit rejects the entire derived output, including for older projects; reduce repeated clips or captions to restore it. Original caption editing, project JSON, undo and saving remain available. These budgets do not guarantee UI responsiveness or available memory.
 
 **Long-caption splitting:** the 12/18/24-character targets and estimated timing weights count grapheme clusters, keeping combining marks and joined emoji together without Unicode normalization. Whitespace at split boundaries is removed as whole clusters. This action requires native `Intl.Segmenter`; unsupported runtimes show an error and leave captions unchanged. The separate 2,000 UTF-16 code-unit input limit and UTF-8 byte budgets still apply. Segmentation depends on the runtime’s Unicode data, and estimated timing still needs review against the audio.
 
@@ -268,7 +274,7 @@ Storage tests inject synthetic transaction failures to check cancellation, queue
 dist/               Browser UI, rendering, captions, and local persistence
   core/             DOM-free project model, validation, and editing commands
   integration/      Editor service and MCP adapter
-cli/                Node.js JSON/SRT/VTT CLI, stdio MCP session and transport
+cli/                Node.js project/caption CLI, stdio MCP session and transport
 scripts/            Local preview server
 examples/           Command arguments and runnable service/MCP examples
 tests/              Node test suites

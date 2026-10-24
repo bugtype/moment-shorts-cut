@@ -87,7 +87,7 @@ A successful mutation returns an acknowledgment such as
 | Needed result | Tool | Field to save |
 |---|---|---|
 | Project JSON | `moment_project_get` | `structuredContent.data` |
-| SRT/VTT text | `moment_captions_export` | `structuredContent.data.text` |
+| SRT/VTT/TXT text | `moment_captions_export` | `structuredContent.data.text` |
 
 Do not save the JSON-RPC envelope as either artifact.
 
@@ -112,7 +112,7 @@ ranges at runtime. Schema discovery does not bypass that validation.
 |---|---|---|
 | `moment_project_get` | none | Full portable project document |
 | `moment_templates_list` | none | Built-in template summaries: `id`, `name`, `category`, `description` |
-| `moment_captions_export` | optional `format: "srt"` or `"vtt"` | `{format:"srt", text:"..."}` or `{format:"vtt", text:"..."}` |
+| `moment_captions_export` | optional `format: "srt"`, `"vtt"` or `"txt"` | `{format, text}` with the selected format |
 | `moment_render_plan` | optional `quality`, `format` | Plan, project snapshot, output settings, required media and `rendered:false` |
 
 Omitting `format` preserves the existing SRT output. To request plain WebVTT, call
@@ -123,6 +123,25 @@ Omitting `format` preserves the existing SRT output. To request plain WebVTT, ca
 ```
 
 Save `structuredContent.data.text` as UTF-8 `.vtt`; the server does not save files.
+
+For edited caption text without timing, call the same tool with:
+
+```json
+{"projectId":"session","format":"txt"}
+```
+
+Save `structuredContent.data.text` as UTF-8 `.txt`. TXT emits one paragraph per
+derived cue in clip/repetition/source-or-timeline/speed-adjusted output order.
+Repeated or split clips can repeat words: this is not a deduplicated or word-accurate
+transcript. Timestamps, IDs, speaker labels, titles, cards and styling are omitted.
+Literal `<>&`, whitespace and multiline text are preserved, CR/CRLF become LF,
+cues are separated by a blank line, and nonempty output ends in a newline.
+Blank-line payloads and sub-millisecond intervals are allowed; NUL is rejected.
+Empty output is `""`. TXT is not accepted by subtitle import and cannot restore
+cue timing. The same 10,000-derived-cue/raw-text budget applies; complete UTF-8
+output including separators must fit 2 MiB. The raw-text budget is checked before
+newline normalization, so a smaller normalized TXT can still fail that guard.
+The service emits no BOM.
 
 ### Project and template changes
 
@@ -502,7 +521,7 @@ project before repeating a mutation.
 | Tool `INVALID_ARGUMENT` | Input validation failed; correct the field indicated by `path`. |
 | Tool `NOT_FOUND` | Check `session`, rediscover built-in template IDs, or read `project.overlays` for the exact existing card ID. Do not recreate a missing card or silently target another one. |
 | Tool `UNSUPPORTED_VERSION` | Preserve the document and use a compatible editor; do not falsify its version. |
-| Tool `CAPTION_OUTPUT_LIMIT` | Derived SRT/VTT exceeds its cue/byte budget; keep the project and reduce output only as requested. |
+| Tool `CAPTION_OUTPUT_LIMIT` | Derived SRT/VTT/TXT exceeds its cue/byte budget; keep the project and reduce output only as requested. |
 
 Tool **`INTERNAL_ERROR`** does not establish atomic failure in every custom host.
 Inspect the session before retrying.
@@ -523,9 +542,9 @@ chunked import. Malformed frames receive parse errors and do not become tool cal
 Notifications never execute tools; cancellation notifications do not cancel work.
 The host handles short metadata requests serially, not background media tasks.
 
-SRT and VTT export are each limited to 10,000 resulting cues, 2 MiB of repeated raw
+SRT, VTT and TXT export are each limited to 10,000 resulting cues, 2 MiB of repeated raw
 caption UTF-8 text and 2 MiB of the complete file, including escaping, timing,
-separators and the VTT header where present. The service emits neither format with
+separators and the VTT header where present. The service emits none of these formats with
 a BOM. A source project can still be valid for JSON export when subtitle output
 exceeds these limits.
 
@@ -533,8 +552,8 @@ VTT is plain UTF-8 WebVTT with a `WEBVTT` header and dot-separated milliseconds.
 It uses the same clip/speed mapping and text escaping as SRT, not rich styles,
 regions or speaker metadata. NUL characters are rejected for VTT. Empty VTT
 export returns valid `WEBVTT\n\n`; the browser instead skips empty downloads.
-Blank cues/paragraphs and intervals that collapse when rounded to milliseconds
-are rejected rather than silently dropped or retimed.
+SRT/VTT reject blank cues/paragraphs and intervals that collapse when rounded to
+milliseconds rather than silently dropping or retiming them; TXT permits them.
 
 ## Boundaries and extension points
 

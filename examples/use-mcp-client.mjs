@@ -94,6 +94,9 @@ const saved = await withClient(async ({request, call, data}) => {
   assert.equal(invalidFormat.isError, true);
   assert.equal(invalidFormat.structuredContent.error.code, 'INVALID_ARGUMENT');
   assert.deepEqual(await data('moment_captions_export'), srt);
+  const transcript = await data('moment_captions_export', {format: 'txt'});
+  assert.equal(transcript.format, 'txt');
+  assert.equal(transcript.text, '안녕하세요\n');
   const corrected = await data('moment_captions_text_replace', {find: '안녕하세요', replacement: '안녕 세상'});
   assert.deepEqual(corrected, {updated: true, matches: 1, changedCaptions: 1});
   const noChange = await data('moment_captions_text_replace', {find: '없는 말', replacement: '교정'});

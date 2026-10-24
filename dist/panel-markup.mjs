@@ -11,8 +11,8 @@ export function captionsPanelMarkup({ captions, speakerLabels }, { toolsOpen, tr
         `\n <h1 class="panel-heading">자막 ${captions.length}개</h1>` +
         `\n <div class="panel-actions">` +
         `<button class="button" id="addCaption">+ 직접 추가</button>` +
-        `<button class="button" id="downloadSrt">SRT 저장</button>` +
-        `<button class="button" id="downloadVtt">VTT 저장</button>` +
+        `<select class="panel-select" id="captionExportFormat" aria-label="자막 저장 형식"><option value="srt">SRT</option><option value="vtt">VTT</option><option value="txt">TXT 대본</option></select>` +
+        `<button class="button" id="downloadCaptions">저장</button>` +
         `</div>` +
         `\n <div id="captionRows" role="region" aria-label="자막 목록" tabindex="0">${rows || '<p class="empty-text">자동으로 만들거나<br>첫 자막을 직접 추가해 보세요.</p>'}</div>` +
         `<nav class="panel-actions caption-pages" aria-label="자막 페이지" ${captions.length <= CAPTION_PAGE_SIZE ? 'hidden' : ''}>` +

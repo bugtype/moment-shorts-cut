@@ -74,7 +74,7 @@ test('subtitle downloads use the latest project, edited timing and format-specif
   }
 });
 
-for (const format of ['srt', 'vtt']) {
+for (const format of ['srt', 'vtt', 'txt']) {
   test(`${format} download refuses empty edited output and invalid captions without partial files`, () => {
     const f = fixture();
     f.project.clips = [{ start: 8, end: 12 }];
@@ -82,7 +82,7 @@ for (const format of ['srt', 'vtt']) {
     f.workflow.downloadSubtitles(format);
     assert.equal(f.downloads.length, 0);
     assert.equal(f.messages.at(-1), '저장할 자막이 없습니다.');
-    f.project.captions = [{ start: 8, end: 10, text: 'first\n\nsecond' }];
+    f.project.captions = [{ start: 8, end: 10, text: format === 'txt' ? 'bad\0text' : 'first\n\nsecond' }];
     const before = structuredClone(f.project);
     f.workflow.downloadSubtitles(format);
     assert.equal(f.downloads.length, 0);
@@ -110,9 +110,18 @@ test('caption panel VTT action reaches the app export workflow', async () => {
   const downloads = [];
   context.collectSubtitle = (blob, name) => downloads.push({ blob, name });
   vm.runInContext("download = (blob, name) => collectSubtitle(blob, name); state.name = '패널 저장'; switchPanel('captions');", context);
-  element('#downloadVtt').onclick({ type: 'click' });
+  element('#captionExportFormat').value='vtt';element('#captionExportFormat').onchange();
+  element('#downloadCaptions').onclick({ type: 'click' });
   assert.equal(downloads.length, 1);
   assert.equal(downloads[0].name, '패널 저장.vtt');
   assert.equal(downloads[0].blob.type, 'text/vtt;charset=utf-8');
   assert.ok((await downloads[0].blob.text()).startsWith('WEBVTT\n\n'));
+});
+
+
+test('TXT workflow saves literal latest edited text without BOM and correct MIME/name',async()=>{
+ const f=fixture();f.project.name='새 대본';f.project.captions=[{start:0,end:1,text:'<대사> & 한글\n\n다음'}];
+ f.workflow.downloadSubtitles('txt');assert.equal(f.downloads[0].name,'새 대본.txt');
+ assert.equal(f.downloads[0].blob.type,'text/plain;charset=utf-8');assert.equal(await f.downloads[0].blob.text(),'<대사> & 한글\n\n다음\n');
+ assert.notDeepEqual([...new Uint8Array(await f.downloads[0].blob.arrayBuffer())].slice(0,3),[239,187,191]);
 });

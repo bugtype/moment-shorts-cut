@@ -6,6 +6,7 @@ import { CAPTION_PAGE_SIZE, captionsPanelMarkup } from './panel-markup.mjs';
 export function createCaptionPanel({
     query: $, queryAll: $$, getProject, getDuration, sourceTime, edit, refresh, toast,
 }) {
+    let exportFormat = 'srt';
     let page = 0, composing = false, renderGeneration = 0;
     const lastPage = () => Math.max(0, Math.ceil(getProject().captions.length / CAPTION_PAGE_SIZE) - 1);
     const replacementFields = { find: '', replacement: '' };
@@ -165,8 +166,12 @@ export function createCaptionPanel({
             if (applied) focusCaption(getProject().captions.length - 1);
         };
         $('#importSrt').onclick = () => $('#srtInput').click();
-        $('#downloadSrt').onclick = () => actions.download('srt');
-        $('#downloadVtt').onclick = () => actions.download('vtt');
+        $('#captionExportFormat').value = exportFormat;
+        $('#captionExportFormat').onchange = () => {
+            const value = $('#captionExportFormat').value;
+            if (['srt', 'vtt', 'txt'].includes(value)) exportFormat = value;
+        };
+        $('#downloadCaptions').onclick = () => actions.download(exportFormat);
         $$('[data-delete-caption]').forEach(b => b.onclick = () => {
             const index = +b.dataset.deleteCaption;
             let applied = false;
@@ -197,7 +202,7 @@ export function createCaptionPanel({
             ...$$('[data-caption-keywords]'), ...$$('[data-caption-speaker]'), ...$$('[data-delete-caption]'),
             ...['captionFind', 'captionReplacement', 'previousCaptionPage', 'nextCaptionPage',
                 'previousCaptionMatch', 'nextCaptionMatch', 'replaceAllCaptions', 'splitLongCaptions',
-                'addCaption', 'importSrt', 'downloadSrt', 'downloadVtt', 'generateCaptions',
+                'addCaption', 'importSrt', 'captionExportFormat', 'downloadCaptions', 'generateCaptions',
                 'captionDesignShortcut'].map(id => $('#' + id)),
         ];
         for (const control of controls) for (const event of ['onclick', 'onchange', 'oninput']) {

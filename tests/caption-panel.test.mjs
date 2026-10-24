@@ -74,7 +74,7 @@ test('caption delete/add retain focus scrolling and route existing actions', () 
   f.query('#addCaption').onclick();
   assert.deepEqual(f.project().captions[0], { start: 2, end: 5, text: '새로운 자막을 입력하세요' });
   assert.deepEqual(f.log.at(-2), ['focus', '[data-caption-text="0"]', { preventScroll: true }]);
-  for (const id of ['captionDesignShortcut', 'generateCaptions', 'downloadSrt', 'importSrt']) f.query('#' + id).onclick();
+  for (const id of ['captionDesignShortcut', 'generateCaptions', 'downloadCaptions', 'importSrt']) f.query('#' + id).onclick();
   assert.deepEqual(f.log.slice(-4), ['design', 'generate', ['download', 'srt'], ['click', '#srtInput']]);
 });
 
@@ -94,13 +94,17 @@ test('caption split preserves a no-op and sends real grapheme splits through edi
 });
 
 
-test('caption export buttons pass formats rather than click events', () => {
+test('caption export selection passes a format, persists rerenders and never edits', () => {
   const f = fixture();
-  const event = { type: 'click' };
-  f.query('#downloadSrt').onclick(event);
-  f.query('#downloadVtt').onclick(event);
-  assert.deepEqual(f.log, [['download', 'srt'], ['download', 'vtt']]);
-  assert.match(f.target.innerHTML, /id="downloadSrt">SRT 저장<\/button><button class="button" id="downloadVtt">VTT 저장/);
+  f.query('#downloadCaptions').onclick({type:'click'});
+  for(const format of ['vtt','txt']){
+    f.query('#captionExportFormat').value=format;f.query('#captionExportFormat').onchange();
+    f.panel.render(f.target,{}, {download:value=>f.log.push(['download',value])});
+    assert.equal(f.query('#captionExportFormat').value,format);
+    f.query('#downloadCaptions').onclick({type:'click'});
+  }
+  assert.deepEqual(f.log,[['download','srt'],['download','vtt'],['download','txt']]);
+  assert.match(f.target.innerHTML,/aria-label="자막 저장 형식"/);
 });
 
 function replacementInput(f, find, replacement) {

@@ -194,3 +194,9 @@ body.restore-failed #saveStatus i {
   flex:1;
   min-width:0;
 }
+
+#captionShiftBasis, #captionShiftDelta {
+  min-width:0;
+  flex:1;
+  width:0;
+}

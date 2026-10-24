@@ -1,3 +1,4 @@
+import { shiftCaptionTiming } from './core/caption-timing.mjs';
 import { replaceCaptionText } from './core/caption-text.mjs';
 import { MAX_CAPTIONS } from './captions.mjs';
 import { splitCaptionText } from './effects.mjs';
@@ -6,6 +7,7 @@ import { CAPTION_PAGE_SIZE, captionsPanelMarkup } from './panel-markup.mjs';
 export function createCaptionPanel({
     query: $, queryAll: $$, getProject, getDuration, sourceTime, edit, refresh, toast,
 }) {
+    const timingFields = { basis: 'source', delta: '0' };
     let exportFormat = 'srt';
     let page = 0, composing = false, renderGeneration = 0;
     const lastPage = () => Math.max(0, Math.ceil(getProject().captions.length / CAPTION_PAGE_SIZE) - 1);
@@ -80,6 +82,21 @@ export function createCaptionPanel({
             toast(error.message);
         }
     }
+    function shiftTiming() {
+        if (composing) return;
+        try {
+            if (!timingFields.delta.trim()) throw new Error('이동할 초를 입력하세요.');
+            const project = getProject(), basis = timingFields.basis;
+            const result = shiftCaptionTiming(project.captions, { basis, delta: Number(timingFields.delta) },
+                basis === 'source' ? project.duration : getDuration());
+            if (!result.shiftedCaptions) return;
+            let applied = false;
+            edit(() => { getProject().captions = result.captions; applied = true; }, true);
+            if (!applied) return;
+            $('#shiftCaptionTiming').focus({ preventScroll: true });
+            toast(`${result.shiftedCaptions}개 자막의 시간을 이동했습니다.`);
+        } catch (error) { toast(error.message); }
+    }
     function splitLongCaptions() {
         const limit = Number($('#captionChunkSize').value), captions = [];
         try {
@@ -142,6 +159,12 @@ export function createCaptionPanel({
                 searchResults();
             };
         }
+        for (const [id, key] of [['captionShiftBasis', 'basis'], ['captionShiftDelta', 'delta']]) {
+            const field = $('#' + id);
+            field.value = timingFields[key];
+            field.onchange = () => { timingFields[key] = field.value; };
+        }
+        $('#shiftCaptionTiming').onclick = shiftTiming;
         $('#previousCaptionMatch').onclick = () => navigateSearch(-1);
         $('#nextCaptionMatch').onclick = () => navigateSearch(1);
         searchResults();
@@ -203,7 +226,7 @@ export function createCaptionPanel({
             ...['captionFind', 'captionReplacement', 'previousCaptionPage', 'nextCaptionPage',
                 'previousCaptionMatch', 'nextCaptionMatch', 'replaceAllCaptions', 'splitLongCaptions',
                 'addCaption', 'importSrt', 'captionExportFormat', 'downloadCaptions', 'generateCaptions',
-                'captionDesignShortcut'].map(id => $('#' + id)),
+                'captionDesignShortcut', 'captionShiftBasis', 'captionShiftDelta', 'shiftCaptionTiming'].map(id => $('#' + id)),
         ];
         for (const control of controls) for (const event of ['onclick', 'onchange', 'oninput']) {
             const handler = control?.[event];

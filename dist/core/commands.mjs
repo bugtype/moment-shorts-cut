@@ -1,3 +1,4 @@
+import { shiftCaptionTiming } from './caption-timing.mjs';
 import { readTemplateDocument } from '../template-library.mjs';
 import { replaceCaptionText } from './caption-text.mjs';
 import { TEMPLATES, applyTemplate } from '../template-catalog.mjs';
@@ -49,6 +50,7 @@ const definitions=[
   command('captions.import','SRT/VTT 문자열로 자막 전체를 교체합니다. source 또는 배속 전 timeline 시간 기준을 명시하세요.',object({text:string(100000),basis:choice('source','timeline')},['text','basis']),true),
   command('captions.replace','자막을 교체합니다. source는 원본, timeline은 배속 전 편집 시간입니다.',object({captions:array(captionSchema,MAX_CAPTIONS)},['captions']),true),
   command('captions.text.replace','자막 본문에서 대소문자를 구분해 같은 문자열을 모두 바꿉니다. 시간과 메타데이터는 유지합니다.',object({find:{...string(2000),minLength:1},replacement:string(2000)},['find','replacement']),true),
+  command('captions.timing.shift','선택한 시간 기준의 자막 전체를 배속 전 초 단위로 이동합니다. 범위를 벗어나면 변경하지 않습니다.',object({basis:choice('source','timeline'),delta:{type:'number'}},['basis','delta']),true),
   command('captions.style.update','자막의 공통 크기·위치·색상·표현만 수정합니다. 본문·시간과 SRT/VTT 내용은 유지합니다.',object({patch:captionStyleSchema},['patch']),true),
   command('captions.export','편집 구간과 배속을 반영한 SRT, WebVTT 또는 시간표시 없는 TXT 대본을 반환합니다.',object({format:choice('srt','vtt','txt')})),
   command('render.plan','렌더러가 사용할 프로젝트 스냅샷과 출력 설정을 반환합니다. 영상을 생성하지 않습니다.',object({quality:choice(720,1080),format:choice('mp4','webm')})),
@@ -69,6 +71,13 @@ export function prepareCommand(project,name,args={}){
     captions=captions.map(caption=>({...caption,basis:args.basis}));
     const prepared=prepareCommand(project,'captions.replace',{captions});
     return {...prepared,data:{...prepared.data,importedCaptions:captions.length}};
+  }
+  if(name==='captions.timing.shift'){
+    const result=shiftCaptionTiming(project.captions,args,args.basis==='source'?project.duration:timelineDuration(project));
+    const data={updated:result.shiftedCaptions>0,shiftedCaptions:result.shiftedCaptions,outputDuration:outputDuration(project)};
+    if(!data.updated)return {data};
+    const next=structuredClone(project);next.captions=structuredClone(result.captions);
+    validateProject(next);return {project:next,data};
   }
   if(name==='captions.text.replace'){
     const result=replaceCaptionText(project.captions,args);

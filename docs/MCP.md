@@ -49,7 +49,7 @@ its supported version, `2025-11-25`, even if the proposed version differs; a cli
 that cannot support that version should disconnect, not continue with another
 wire format. `ping` is supported. Initialize only once per process.
 
-All nineteen tools require **`projectId: "session"`**. Each process owns one independent
+All twenty tools require **`projectId: "session"`**. Each process owns one independent
 in-memory project, initially the demo. This value is neither a path nor a credential.
 Other project IDs return a tool error. A second client process does not share state.
 
@@ -177,6 +177,7 @@ The service emits no BOM.
 | `moment_captions_import` | `text`, `basis` | `{updated:true, outputDuration, importedCaptions}` |
 | `moment_captions_text_replace` | `find`, `replacement` | `{updated:boolean, matches:number, changedCaptions:number}` |
 | `moment_captions_style_update` | `patch` | `{updated:true, outputDuration}` |
+| `moment_captions_timing_shift` | `basis`, `delta` | `{updated:boolean, shiftedCaptions:number, outputDuration}` |
 
 `moment_timeline_replace`, `moment_captions_replace` and `moment_captions_import` replace the **entire array**. Preserve unrequested clips/captions
 rather than sending only the changed entry. `withContent:true` applies example title, credit
@@ -312,6 +313,37 @@ Title, credit and timed-card text are not searched.
 Read `moment_project_get` to save the resulting document. MCP has no undo tool;
 retain a prior export when reversibility matters. The browser groups an applied
 replace-all into one undo step, but is a separate session.
+
+### Shift caption timing without replacing text
+
+Call `moment_captions_timing_shift` after checking the current cue bounds:
+
+```json
+{"projectId":"session","basis":"source","delta":0.25}
+```
+
+| Required input | Meaning |
+|---|---|
+| `basis:"source"` | Original media clock; includes existing cues with omitted basis |
+| `basis:"timeline"` | Edited-timeline clock, bounded by the sum of clip durations |
+| `delta` | Finite signed seconds **before speed**; positive delays, negative advances |
+
+Every cue in that basis is shifted, not only visible rows or search matches.
+The whole edit fails if any resulting interval is out of bounds or nonpositive;
+the existing 86,400-second caption endpoint cap also applies. Cues are not cropped
+or dropped to fit; tiny floating-point roundoff at an endpoint is corrected.
+Text, speaker/keyword metadata, basis, order,
+other project fields and audio offset remain unchanged. Source-clock shifts
+across trim boundaries may change which occurrences appear in output. This is
+a constant timing offset, not automatic speech alignment or speed correction.
+
+The result is `{updated, shiftedCaptions, outputDuration}`; `shiftedCaptions` counts
+cues whose times actually changed. A zero delta or no
+matching cues returns `updated:false, shiftedCaptions:0` without a commit. Read
+`moment_project_get` to save the project. Browser UI applies a real change as one
+undo step; MCP has no undo tool. The [complete CLI example](../INTEGRATIONS.md#자막-시간을-앞뒤로-이동)
+uses an imported cue with room to move; the default demo spans the full duration
+and cannot necessarily be shifted without hitting a boundary.
 
 ### Adjust global caption appearance
 

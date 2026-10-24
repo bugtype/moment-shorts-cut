@@ -80,6 +80,7 @@
 | `captions.import` | `text`, `basis` | 전체 교체; `{updated:true, outputDuration, importedCaptions}` |
 | `captions.text.replace` | `find`, `replacement` | 문구 모두 바꾸기; `{updated, matches, changedCaptions}` |
 | `captions.style.update` | `patch` | 공통 자막 스타일; `{updated:true, outputDuration}` |
+| `captions.timing.shift` | `basis`, `delta` | 시간 일괄 이동; `{updated, shiftedCaptions, outputDuration}` |
 
 ### SRT/VTT 본문을 명령으로 가져오기
 
@@ -181,6 +182,38 @@ node cli/moment.mjs exec captions.text.replace --project edited.json --json '{"f
 ```
 
 `matches`는 일치 횟수, `changedCaptions`는 실제 문구가 바뀐 자막 수입니다. 동일한 문구로 바꾸면 일치가 있어도 변경 수는 0입니다. CLI에서 저장한 출력 파일은 편집 프로젝트 문서이며, 변경 없음 응답도 파일 쓰기 자체를 금지하는 뜻은 아닙니다. UI에서는 미리 표시한 개수를 확인하고 모두 바꾸며, 반영된 변경은 한 번에 실행 취소합니다. MCP에는 실행 취소 도구가 없으므로 이전 문서를 보관하세요.
+
+### 자막 시간을 앞뒤로 이동
+
+`captions.timing.shift`는 선택한 시간 기준의 **모든 자막** 시작·끝에 같은 값을
+더합니다. 현재 페이지나 검색 결과만 바꾸는 기능이 아닙니다.
+
+| 필수 입력 | 의미 |
+|---|---|
+| `basis:"source"` | 원본 영상 시계; `basis`가 생략된 기존 자막도 포함 |
+| `basis:"timeline"` | 편집 타임라인 시계; 클립 길이 합계 기준 |
+| `delta` | 유한한 부호 있는 초; 양수는 늦게, 음수는 일찍. 두 기준 모두 **배속 적용 전** |
+
+이동 결과 하나라도 기준 길이 밖이거나 양수 길이 구간이 아니면 전체를 거절합니다.
+기존 자막 끝점의 86,400초 상한도 적용합니다.
+범위에 맞추려고 시간을 자르거나 자막을 삭제하지 않으며, 끝점의 미세한 부동소수점 오차만 보정합니다. 문구·화자·키워드·기준·순서와
+다른 프로젝트 설정은 유지하며 오디오 오프셋도 바꾸지 않습니다. 원본 시계의
+이동은 자르기 경계를 넘을 수 있어 출력에 보이는 구간이 달라질 수 있습니다.
+
+```sh
+node cli/moment.mjs init --out shift-source.json
+node cli/moment.mjs exec captions.import --project shift-source.json --json '{"basis":"source","text":"1\n00:00:01,000 --> 00:00:02,000\nHello\n"}' --out shift-ready.json
+node cli/moment.mjs exec captions.timing.shift --project shift-ready.json --json '{"basis":"source","delta":0.25}' --dry-run
+node cli/moment.mjs exec captions.timing.shift --project shift-ready.json --json '{"basis":"source","delta":0.25}' --out shifted.json
+```
+
+성공 결과는 `{updated, shiftedCaptions, outputDuration}`이며 `shiftedCaptions`는
+실제 시간이 바뀐 자막 수입니다. 0초 이동이나
+해당 기준의 자막이 없으면 `updated:false`, `shiftedCaptions:0`이며 편집을
+반영하지 않습니다. CLI에서 명시한 출력 파일 쓰기와는 별개입니다.
+브라우저 자막 도구에서는 기준·부호 있는 초를 정하고 적용하며 실제 변경은
+한 단계 실행 취소됩니다. 자동 음성 동기화·속도 보정이 아닌 일정 시간 이동이고
+MCP에는 실행 취소 도구가 없으므로 이전 프로젝트를 보관하세요.
 
 ### 자막 스타일 수정
 

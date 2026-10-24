@@ -59,6 +59,10 @@ export function captionsPanelMarkup({ captions, speakerLabels }, { toolsOpen, tr
         `<input class="panel-input" id="captionReplacement" type="text" maxlength="2000" autocomplete="off" spellcheck="false">` +
         `<button class="button full" id="replaceAllCaptions" aria-live="polite" disabled>모두 바꾸기</button>` +
         `</section>` +
+        `<div class="panel-actions" role="group" aria-label="자막 시간 이동">` +
+        `<select id="captionShiftBasis" aria-label="이동할 자막 시간 기준"><option value="source">원본 시간</option><option value="timeline">편집 시간</option></select>` +
+        `<input id="captionShiftDelta" type="number" step="any" value="0" aria-label="배속 전 이동할 초, 양수는 나중, 음수는 이전">` +
+        `<button class="button" id="shiftCaptionTiming">시간 이동</button></div>` +
         `<div class="caption-split-tool">` +
         `<select id="captionChunkSize" aria-label="자막 분할 길이">` +
         `<option value="12">짧게 · 12자</option>` +

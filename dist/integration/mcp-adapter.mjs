@@ -26,6 +26,7 @@ function dataSchema(command) {
     case 'templates.list': return {
       type: 'array', items: record({ id: text, name: text, category: text, description: text }),
     };
+    case 'captions.timing.shift': return record({updated:{type:'boolean'},shiftedCaptions:{type:'integer',minimum:0,maximum:10000},outputDuration:{type:'number',minimum:0}});
     case 'captions.text.replace': return record({
       updated: {type: 'boolean'}, matches: {type: 'integer', minimum: 0},
       changedCaptions: {type: 'integer', minimum: 0, maximum: 10000},
@@ -165,6 +166,10 @@ function inputSchema(command) {
   if (command.name === 'captions.import') {
     p.text.description = 'SRT or plain WebVTT text, not a path. Replaces all captions using the browser parser: clips cue ends to the chosen duration, skips invalid/empty/out-of-range cues, strips tags and decodes supported entities once. Not full subtitle-standard validation. Runtime limit is 100,000 UTF-16 code units plus the parser’s 2 MiB UTF-8 ceiling; each cue is at most 2,000 units and at most 10,000 cues are accepted.';
     p.basis.description = 'Required clock: source means original media seconds; timeline means edited timeline seconds BEFORE speed. No automatic time conversion. captions.export uses output seconds AFTER speed, so importing it as timeline is not a speed-adjusted round trip.';
+  }
+  if (command.name === 'captions.timing.shift') {
+    p.basis.description = 'Required scope and clock: source includes cues with omitted basis; timeline includes edited-timeline cues. Both are BEFORE speed. Other-basis cues are unchanged.';
+    p.delta.description = 'Finite signed seconds: positive moves later, negative earlier. All matching cues must stay within their clock duration; no clipping, deletion, media shift or basis conversion. Zero/no matches is a no-op. Text, metadata and order are preserved.';
   }
   if (command.name === 'captions.text.replace') {
     p.find.description = 'Nonempty literal, case-sensitive text. No regex or Unicode normalization; matches do not overlap.';

@@ -140,6 +140,28 @@ project/history/saved state or playback position. Search, replace-all and long-
 caption splitting still use the full authored list; exports retain full-project
 clip/speed behavior, not visible-page scope. The existing cue/byte limits remain.
 
+## Shift a constant subtitle delay
+
+Read the current cue times, then use `captions.timing.shift` or MCP
+`moment_captions_timing_shift` with `{"basis":"source","delta":0.25}`
+(and `projectId:"session"` for MCP). Positive seconds delay, negative seconds
+advance; both `source` and `timeline` use **pre-speed** time. Missing cue basis
+counts as source. See the [complete CLI example](../../../../INTEGRATIONS.md#자막-시간을-앞뒤로-이동)
+for a cue that can safely move within the source duration.
+
+All cues with the chosen basis move, including off-page/search-hidden cues.
+If any resulting interval is invalid or outside that clock’s duration, the whole
+edit fails: no cropping, deletion or partial application. Tiny floating-point
+roundoff at an endpoint is corrected. The existing 86,400-second caption endpoint
+cap still applies. Metadata, order, other
+project content and audio offset stay unchanged. Source shifts across trim gaps
+can alter visible output occurrences; this is not automatic sync or speed correction.
+
+Check `{updated, shiftedCaptions, outputDuration}`. Zero delta or no matching cues
+means `updated:false, shiftedCaptions:0` and no commit. Save via a separate project
+read. Browser UI offers basis/seconds/apply and one undo step for real changes;
+standalone MCP has no undo tool.
+
 ## Adjust shared caption styling
 
 For “larger captions,” use `captions.style.update` rather than rewriting the project:

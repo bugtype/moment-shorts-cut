@@ -43,6 +43,7 @@ const inputs = {
   'captions.import': {text:'1\n00:00:00,000 --> 00:00:01,000\n자막',basis:'source'},
   'captions.replace': { captions: [{ start: 0, end: 1, text: '자막' }] },
   'captions.text.replace': {find:'자막',replacement:'교정'},
+  'captions.timing.shift': {basis:'source',delta:.1},
   'captions.style.update': {patch:{captionSize:44,captionY:.8}},
   'captions.export': {},
   'effects.update': {patch:{brightness:1.1}},

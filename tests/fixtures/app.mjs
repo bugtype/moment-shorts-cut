@@ -1,3 +1,4 @@
+import { shiftCaptionTiming } from '../../dist/core/caption-timing.mjs';
 import { replaceCaptionText } from '../../dist/core/caption-text.mjs';
 import { createTemplateWorkspace } from '../../dist/template-workspace.mjs';
 import { createMediaSources } from '../../dist/media-sources.mjs';
@@ -144,7 +145,7 @@ export async function createAppFixture() {
       createFile: (chunks, name, options) => new context.File(chunks, name, options),
       setTimer: (callback, delay) => context.setInterval(callback, delay),
       clearTimer: timer => context.clearInterval(timer),
-    }), mountDesignPanel, ...panelMarkup, icon, esc, fmt,
+    }), shiftCaptionTiming, mountDesignPanel, ...panelMarkup, icon, esc, fmt,
   });
   // Keep the existing split-helper fault injection in this VM without a production test hook.
   const captionPanelSource=fs.readFileSync(new URL('../../dist/caption-panel.mjs',import.meta.url),'utf8');

@@ -1,3 +1,4 @@
+import { createClipDuplicateDialog } from './clip-duplicate-dialog.mjs';
 import { createClipComplementDialog } from './clip-complement-dialog.mjs';
 import { createFramingDialog } from './framing-dialog.mjs';
 import { downloadBlob } from './download.mjs';
@@ -291,6 +292,7 @@ const app = {
     modalOpen: (title, body, footer) => modalOpen(title, body, footer),
     confirmReset: () => confirmReset(), download: (blob, name) => download(blob, name),
     openClipRange: trigger => clipRange.open(trigger),
+    openClipDuplicate: (trigger, event) => clipDuplicate.open(trigger, event),
     openClipMove: trigger => clipMove.open(trigger), moveClip: index => clipMove.move(index),
     bindTrimDrafts: options => editingActions.bindTrimDrafts(options),
     trim: (start, end) => trim(start, end), split: () => split(), duplicate: () => editingActions.duplicate(), undo: redo => undo(redo),
@@ -347,6 +349,7 @@ const exportFlow = createExportFlow(app, {
 const editingActions = createEditingActions(app);
 const clipMove = createClipMove(app);
 const clipRange = createClipRange(app);
+const clipDuplicate = createClipDuplicateDialog(app);
 const captionFlow = createCaptionFlow(app);
 
 sample.onload = () => {

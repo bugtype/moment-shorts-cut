@@ -330,7 +330,7 @@ JavaScript에서 직접 호출할 때도 JSON으로 왕복 가능한 값을 전�
 | `timeline.replace` | `clips: [{start,end}]` | 클립 구간/순서 교체 |
 | `timeline.split` | `clipIndex`, `sourceTime` | 지정 클립 구간 분할; `{updated:true, outputDuration}` |
 | `timeline.move` | `clipIndex`, `toIndex` | 최종 배열 위치로 이동; `{updated:boolean, outputDuration}` |
-| `timeline.duplicate` | `clipIndex` | 선택 구간 바로 뒤에 복제; `{updated:true, outputDuration}` |
+| `timeline.duplicate` | `clipIndex`, 선택 `count`(기본 1) | 원래 연속 구간 묶음 바로 뒤에 한 번 복제; `{updated:true, outputDuration}` |
 | `title.update` | `patch` | 기본 제목과 스타일 수정 |
 | `credit.update` | `patch` | 출처 크레딧 수정; `{updated:true, outputDuration}` |
 | `effects.update` | `patch` | 영상 효과 설정; `{updated:true, outputDuration}` |
@@ -610,29 +610,38 @@ node cli/moment.mjs exec timeline.move --project move-three.json --json '{"clipI
 
 ### 클립 구간 복제
 
-`timeline.duplicate`는 현재 `clips` 배열의 구간을 복사해 **바로 뒤**에 넣습니다.
-필수 `clipIndex`는 기존 위치를 가리키는 0–999 정수입니다. 같은 원본을 반복
-사용해도 위치로 구분하므로 먼저 `project.get`으로 배열을 확인하세요.
+`timeline.duplicate`는 현재 `clips` 배열의 연속 구간을 순서대로 한 번 복사해
+**원래 묶음 바로 뒤**에 넣습니다. 같은 원본을 반복 사용해도 배열 위치로 구분하므로
+먼저 `timeline.list` 또는 `project.get`으로 확인하세요.
+
+| 입력 | 범위 |
+|---|---|
+| `clipIndex` | 필수 0부터 시작하는 기존 위치, 정수 0–999 |
+| `count` | 선택 정수 1–1,000, 생략하면 기존처럼 한 구간 |
+| 묶음/결과 | `clipIndex + count`가 현재 길이를 넘지 않고, 복제 후 총 1,000개 이하 |
 미디어 파일은 복사하지 않으며 클립별 별도 효과도 만들지 않습니다.
 
 ```sh
 node cli/moment.mjs init --out repeat-source.json
 node cli/moment.mjs exec project.get --project repeat-source.json
 node cli/moment.mjs exec timeline.duplicate --project repeat-source.json --json '{"clipIndex":0}' --out repeated.json
+node cli/moment.mjs exec timeline.duplicate --project repeated.json --json '{"clipIndex":0,"count":2}' --out repeated-block.json
 ```
 
-기본 샘플은 12초에서 24초가 됩니다. 기존 프로젝트에서는 선택 구간 길이와
-배속으로 증가량이 결정됩니다. 없는 위치나 이미 1,000개인 배열은
-`INVALID_ARGUMENT`로 거절하며 프로젝트는 그대로입니다.
+첫 복제는 기본 샘플을 12초에서 24초로, 다음 두 구간 묶음 복제는 48초로 만듭니다.
+기존 프로젝트에서는 선택한 묶음 길이와 배속으로 증가량이 결정됩니다. 없는 위치,
+잘못된 `count`·범위 초과·결과 개수 초과는 `INVALID_ARGUMENT`로 전체 거절하며
+프로젝트는 그대로입니다. `count` 오류 경로는 `arguments.count`, 결과 개수 초과는
+`project.clips`입니다. 여러 단일 복제를 반복하는 대신 타임라인 교체를 한 번 실행합니다.
 
 | 함께 달라지는 것 | 동작 |
 |---|---|
 | 원본 기준 자막 | 새 구간에서도 나타남; 저장된 자막 배열 자체를 복제하지 않음 |
 | 타임라인 기준 자막 | 배속 전 절대 시간을 유지; 새 위치에 자동 복제·밀어내기 없음 |
-| 제목·크레딧·시간별 카드 | 기존 타임라인 교체 규칙대로 출력 길이에 비례해 시간 조정; `null` 끝점은 유지 |
+| 제목·크레딧·시간별 카드 | 기존 타임라인 교체 규칙대로 출력 길이에 비례해 시간을 한 번 조정; 레이어 복제 아님, `null` 끝점은 유지 |
 | 배속·미디어·오디오 오프셋·공통 효과 | 유지 |
 
-UI의 복제는 새로 넣은 구간을 선택하고 그 시작 위치로 이동하며, 한 번에 실행
+UI의 범위 복제는 첫 사본을 선택하고 그 시작 위치로 이동하며, 한 번에 실행
 취소합니다. MCP에는 선택·재생 위치·실행 취소 기능이 없고, 성공 결과
 `{updated:true, outputDuration}` 확인 후 `project.get`으로 문서를 저장해야 합니다.
 응답을 놓치면 현재 배열부터 확인하세요. 무조건 재시도하면 구간이 다시 늘어납니다.

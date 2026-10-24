@@ -215,3 +215,21 @@ test('stdio scopes literal replacement to authored ranges and preserves error re
   assert.equal(replies[3].result.structuredContent.error.code,'INVALID_ARGUMENT');
   assert.deepEqual(replies[4].result.structuredContent.data.captions.map(row => row.caption.text),['aa','$&','aa']);
 });
+
+test('stdio duplicates a contiguous clip block with optional count and preserves old default', () => {
+  const p = createDemoProject();
+  p.clips = [{start: 0, end: 1}, {start: 2, end: 3}, {start: 4, end: 5}];
+  const replies = run([init, ready,
+    call(2, 'project_import', {document: createProjectDocument(p)}),
+    call(3, 'timeline_duplicate', {clipIndex: 0, count: 3}),
+    call(4, 'project_get'),
+    call(5, 'timeline_duplicate', {clipIndex: 5, count: 2}),
+    call(6, 'timeline_duplicate', {clipIndex: 5}),
+    call(7, 'project_get'),
+  ]);
+  const response = id => replies.find(reply => reply.id === id).result;
+  assert.equal(response(3).isError, false);
+  assert.deepEqual(response(4).structuredContent.data.project.clips.map(clip => clip.start), [0, 2, 4, 0, 2, 4]);
+  assert.equal(response(5).isError, true);
+  assert.equal(response(7).structuredContent.data.project.clips.length, 7);
+});

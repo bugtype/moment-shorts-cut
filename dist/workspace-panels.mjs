@@ -328,6 +328,12 @@ export function createWorkspacePanels(app) {
                     $('#panelMoveClip') === moveClipButton && app.selected === trimIndex && app.state.clips[trimIndex] === trimClip)
                     app.openClipMove(moveClipButton);
             };
+            const duplicateRangeButton = $('#panelDuplicateClipRange');
+            duplicateRangeButton.onclick = event => {
+                if (app.panel === 'settings' && renderGeneration === generation &&
+                    $('#panelDuplicateClipRange') === duplicateRangeButton && app.selected === trimIndex && app.state.clips[trimIndex] === trimClip)
+                    app.openClipDuplicate(duplicateRangeButton, event);
+            };
             const removeRangeButton = $('#panelRemoveClipRange');
             removeRangeButton.disabled = app.state.clips.length <= 1;
             removeRangeButton.onclick = event => {

@@ -30,6 +30,7 @@ const entries = [
   ["errors.batchCommand","묶음에서 지원하지 않는 편집 명령입니다.","This editing command is not supported in a batch.","批量操作不支持此编辑命令。"],
   ["errors.subtitleText","자막 문자열을 확인하세요.","Check the subtitle text.","请检查字幕文本。"],
   ["errors.duplicateClipIndex","복제할 클립의 인덱스를 확인하세요.","Check the clip index to duplicate.","请检查要复制的片段索引。"],
+  ["errors.duplicateClipCount","복제할 연속 클립 수는 1~1,000이며 기존 클립 범위 안이어야 합니다.","The number of consecutive clips to copy must be 1–1,000 and fit the existing clip range.","要复制的连续片段数必须为 1–1,000，且不能超出现有片段范围。"],
   ["errors.clipLimit","클립은 1,000개 이하만 지원합니다.","Up to 1,000 clips are supported.","最多支持 1,000 个片段。"],
   ["errors.moveCardId","이동할 장면 카드 ID를 입력하세요.","Enter the scene-card ID to move.","请输入要移动的场景卡片 ID。"],
   ["errors.cardMissing","장면 카드를 찾을 수 없습니다.","The scene card was not found.","找不到场景卡片。"],

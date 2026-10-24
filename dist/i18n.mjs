@@ -1,3 +1,4 @@
+import {messages as duplicateRange} from './i18n/catalogs/duplicate-range.mjs';
 import {messages as sourceVideo} from './i18n/catalogs/source-video.mjs';
 import {messages as audioMix} from './i18n/catalogs/audio-mix.mjs';
 import {messages as guides} from './i18n/catalogs/guides.mjs';
@@ -19,7 +20,7 @@ import {messages as templates} from './i18n/catalogs/templates.mjs';
 export const SUPPORTED_LOCALES = Object.freeze(['ko', 'en', 'zh-CN']);
 export const LOCALE_STORAGE_KEY = 'moment-ui-locale-v1';
 const catalogs = Object.fromEntries(SUPPORTED_LOCALES.map(locale =>
-    [locale, Object.assign({}, shell[locale], panels[locale], errors[locale], templates[locale], session[locale], graphics[locale], collections[locale], speakers[locale], review[locale], keywords[locale], stacking[locale], scenePng[locale], importReview[locale], replaceRange[locale], guides[locale], audioMix[locale], sourceVideo[locale])]));
+    [locale, Object.assign({}, shell[locale], panels[locale], errors[locale], templates[locale], session[locale], graphics[locale], collections[locale], speakers[locale], review[locale], keywords[locale], stacking[locale], scenePng[locale], importReview[locale], replaceRange[locale], guides[locale], audioMix[locale], sourceVideo[locale], duplicateRange[locale])]));
 const attributes = ['aria-label', 'title', 'placeholder', 'alt', 'aria-valuetext', 'content', 'data-label'];
 const subscribers = new Set();
 let locale = 'ko', storage, root;

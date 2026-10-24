@@ -267,7 +267,7 @@ Exceeding an output budget returns `CAPTION_OUTPUT_LIMIT`.
 | `moment_timeline_replace` | `clips: [{start,end}]` | Update acknowledgment and output duration |
 | `moment_timeline_split` | `clipIndex`, `sourceTime` | `{updated:true, outputDuration}` |
 | `moment_timeline_move` | `clipIndex`, `toIndex` | `{updated:boolean, outputDuration}` |
-| `moment_timeline_duplicate` | `clipIndex` | `{updated:true, outputDuration}` |
+| `moment_timeline_duplicate` | `clipIndex`, optional `count` (default 1) | `{updated:true, outputDuration}` |
 | `moment_title_update` | `patch` | Update acknowledgment and output duration |
 | `moment_credit_update` | `patch` | `{updated:true, outputDuration}` |
 | `moment_effects_update` | `patch` | `{updated:true, outputDuration}` |
@@ -723,31 +723,35 @@ to other clips. In `project.batch`, each operation uses the preceding step’s c
 indices; the maximum remains 20 operations. Save using `moment_project_get` afterward.
 [Executable CLI sequence](../INTEGRATIONS.md#클립을-지정한-위치로-이동) demonstrates setup and saving.
 
-### Repeat one clip occurrence
+<a id="repeat-one-clip-occurrence"></a>
+### Repeat a clip or contiguous block
 
 Read `moment_project_get` and inspect the current `project.clips` before calling
 `moment_timeline_duplicate`:
 
 ```json
-{"projectId":"session","clipIndex":0}
+{"projectId":"session","clipIndex":0,"count":2}
 ```
 
-The required `clipIndex` is an integer `0..999` selecting an existing occurrence.
-Its source interval is inserted **immediately after it**, not copied to a new media
-file. The initial 12-second demo becomes 24 seconds. An absent index or an already
-1,000-clip array returns `INVALID_ARGUMENT` without mutation.
+This example requires at least two current clips. The required `clipIndex` is an integer `0..999` selecting an existing occurrence.
+Optional `count` is an integer `1..1000`, default **1** for backward-compatible
+single-clip duplication. The full range must exist and the resulting timeline must
+contain at most 1,000 clips. One ordered copy is inserted **immediately after the
+original block**, not copied to a new media file. Invalid input rejects atomically
+with `INVALID_ARGUMENT`; count/range failures use `arguments.count`, result-cap
+failures `project.clips`. The initial 12-second demo duplicated once becomes 24 seconds.
 
 | Project content | Effect of duplication |
 |---|---|
 | Source-clock captions | Appear again in the new occurrence; authored cue array is not copied |
 | Timeline-clock captions | Stay at absolute pre-speed times; not duplicated or shifted after insertion |
-| Title, credit and timed cards | Timing scales proportionally with output duration; null ends stay null, using existing timeline replacement rules |
+| Title, credit and timed cards | Timing scales once proportionally with output duration via timeline replacement; layers are not copied and null ends stay null |
 | Speed, media, audio offset, global effects | Unchanged; no new per-clip effect state |
 
 The result is `{updated:true, outputDuration}`; retrieve the document separately
 to save it. A lost response requires re-reading the clip array before retrying:
 a second successful call inserts another occurrence. Browser duplication selects
-the inserted clip, seeks its start and is one undo step; MCP does not control the
+the first inserted clip, seeks its start and is one undo step; MCP does not control the
 browser selection/playhead or provide undo.
 
 ### Import subtitle text with an explicit clock

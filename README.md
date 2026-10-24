@@ -503,13 +503,22 @@ before opening may already commit a draft. Existing whole-list shift remains ava
 | Apply related edits together | [`project.batch`](INTEGRATIONS.md#여러-편집을-한-번에-반영) | Validate 1–20 supported edits in sequence, then commit once; a rejected step leaves the project unchanged. Not a JSON-RPC batch or a cross-host storage transaction. |
 | Keep source sections currently omitted | Desktop Frame inspector or **Frame** panel → **Keep gaps…** | Review the remaining source intervals and confirm a full timeline replacement; source order, not current order/repeats. |
 | Remove consecutive clips | Clip inspector or **Frame** → **Remove clip range…** | Enter inclusive first/last positions (1-based); at least one clip must remain. One undoable edit. |
-| Repeat a clip | [`timeline.duplicate`](INTEGRATIONS.md#클립-구간-복제) | Inserts the same source interval immediately after the selected occurrence, not a media-file copy. Source captions repeat; timed output layers rescale. |
+| Repeat consecutive clips | Clip inspector or **Frame** → **Duplicate clip range…**, or [`timeline.duplicate`](INTEGRATIONS.md#클립-구간-복제) | UI uses inclusive 1-based first/last positions; API uses 0-based `clipIndex` plus optional `count` (default 1). |
 | Split one clip | [`timeline.split`](INTEGRATIONS.md#클립-구간-분할) | Original source time, not output time; identify the intended occurrence and check boundaries. No full-timeline replacement. |
 | Adjust video effects | [`effects.update`](INTEGRATIONS.md#영상-효과-수정) | Brightness, contrast, motion, boundary overlays and progress styling without replacing content or timing. Boundary overlays are not crossfades. |
 | Set a source credit | [`credit.update`](INTEGRATIONS.md#출처-크레딧-수정) | Text, appearance and output-time visibility without changing title/captions/cards. Maximum 100 UTF-16 code units; not included in subtitle files. |
 | Set text coordinates | Title, credit, shared caption or selected card → **Position…** | Enter horizontal/vertical percentages and Apply together; unchanged axes retain their stored values. |
 | Move a card without resizing | Selected card → **Move in time…** | Enter a new start in output seconds **after speed**; both endpoints update together as one undoable edit. |
 | Script timed cards | [`overlays.add`, `overlays.update`, `overlays.remove`](INTEGRATIONS.md#스크립트에-맞춰-카드-추가삭제) | Individual IDs and output time **after speed**, without replacing the project. Additions append; `overlays.move` changes card stacking. In the selected card’s stacking controls, **Bring forward / Send backward** moves one stored-card position (including disabled/off-time cards); **Bring to front / Send to back** jumps to an edge. One undo step, no timing/content change; only card order, not its layer relationship to captions. |
+
+**Duplicate clip range…** starts with the selected clip as both bounds. It inserts
+one ordered copy immediately after the original block, selects the first copy and
+seeks its start, with one Undo. The whole range must exist and the result must stay
+within 1,000 clips; invalid ranges/capacity reject without a partial copy. Cancel
+makes no additional edit. Source captions recur in the copies; timeline captions
+and audio offset keep their numeric values. Title/credit/card times scale once
+with the new output duration—they are not copied. This copies source intervals,
+not media files; it does not create a persistent multi-clip selection.
 
 **Position…** edits the layer's normalized anchor, not its rendered bounding box.
 Changed title coordinates accept X **5–95%**, Y **6–93%**; credit, shared captions

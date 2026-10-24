@@ -186,7 +186,8 @@ function inputSchema(command) {
     p.toIndex.description = 'Final zero-based position after removal and insertion, within the current clip array. Same index is a no-op. Source intervals, captions, audio offsets and numeric output-layer times stay unchanged; no proportional retiming.';
   }
   if (command.name === 'timeline.duplicate') {
-    p.clipIndex.description = 'Existing zero-based clip occurrence index. Copies its source interval immediately after it, maximum 1,000 clips. No media copy. Source caption occurrences repeat; timeline-basis captions and audioOffset stay absolute before speed. Title/credit/card times scale proportionally with output duration, preserving null ends, exactly as timeline.replace.';
+    p.count.description = 'Number of consecutive original clips to copy, default 1; not a repetition count. Integer 1–1,000, the full source range must exist and the resulting total must not exceed 1,000. Preserves block order, including repeated source ranges.';
+    p.clipIndex.description = 'Existing zero-based clip occurrence index. Copies count consecutive source intervals once immediately after the original block, maximum 1,000 total clips. No media copy. Source caption occurrences repeat; timeline-basis captions and audioOffset stay absolute before speed. Title/credit/card times scale proportionally with output duration, preserving null ends, exactly as timeline.replace.';
   }
   if (command.name === 'timeline.split') {
     p.clipIndex.description = 'Zero-based index in the current ordered clips array from project.get. Identifies a specific occurrence when source ranges repeat; must be an existing integer index.';

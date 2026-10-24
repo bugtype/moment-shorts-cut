@@ -116,9 +116,13 @@ export function prepareCommand(project,name,args={}){
   if(name==='timeline.duplicate'){
     if(!Number.isInteger(args.clipIndex)||args.clipIndex<0||args.clipIndex>=project.clips.length)
       fail(msg('errors.duplicateClipIndex'),'arguments.clipIndex');
-    if(project.clips.length>=MAX_CLIPS)fail(msg('errors.clipLimit'),'project.clips');
+    const count=Object.hasOwn(args,'count')?args.count:1;
+    if(!Number.isInteger(count)||count<1||count>MAX_CLIPS||args.clipIndex+count>project.clips.length)
+      fail(msg('errors.duplicateClipCount'),'arguments.count');
+    if(project.clips.length+count>MAX_CLIPS)fail(msg('errors.clipLimit'),'project.clips');
     const clips=structuredClone(project.clips);
-    clips.splice(args.clipIndex+1,0,{...clips[args.clipIndex]});
+    const copies=structuredClone(clips.slice(args.clipIndex,args.clipIndex+count));
+    clips.splice(args.clipIndex+count,0,...copies);
     return prepareCommand(project,'timeline.replace',{clips});
   }
   if(name==='overlays.move'){

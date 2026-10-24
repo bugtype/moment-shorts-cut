@@ -129,8 +129,8 @@ const definitions = [
   ),
   command(
     'timeline.duplicate',
-    '선택한 클립의 원본 구간을 바로 뒤에 복제합니다. 출력 글자 시간은 편집 길이에 비례 조정됩니다.',
-    object({clipIndex: {type: 'integer', minimum: 0, maximum: MAX_CLIPS-1}}, ['clipIndex']),
+    '선택한 연속 클립 구간을 원래 구간 바로 뒤에 한 번 복제합니다. count 생략 시 클립 하나이며, 출력 글자 시간은 편집 길이에 비례 조정됩니다.',
+    object({clipIndex: {type: 'integer', minimum: 0, maximum: MAX_CLIPS-1}, count: {type: 'integer', minimum: 1, maximum: MAX_CLIPS}}, ['clipIndex']),
     true
   ),
   command(

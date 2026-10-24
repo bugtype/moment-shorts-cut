@@ -201,13 +201,14 @@ uncertain results instead of replaying stale indices. Batch indices are sequenti
 See [move contract and executable recipe](../../../../INTEGRATIONS.md#클립을-지정한-위치로-이동).
 
 To repeat rather than split, use `timeline.duplicate` / `moment_timeline_duplicate`
-with `{clipIndex:0}` (and MCP `projectId:"session"`). Inspect the actual index first.
-It inserts a copy of that source interval immediately after it, not a media-file
-copy. Source captions repeat in the added occurrence; timeline captions keep
+with `{clipIndex:0}` or `{clipIndex:0,count:2}` (plus MCP `projectId:"session"`).
+Inspect current positional indexes first; the second example requires two clips.
+Optional `count` defaults to 1; integer 1–1,000 must fit the current array and leave
+at most 1,000 clips after insertion. One ordered copy of the contiguous block is
+inserted immediately after the original block, not a media-file copy. Source captions repeat in the added occurrence; timeline captions keep
 absolute pre-speed times and are not duplicated. Title/credit/card times scale
-with output length through the existing timeline replacement rules; speed, media,
-audio offset and global effects remain unchanged. Invalid indexes or 1,000 existing
-clips reject atomically. Save after checking `{updated:true, outputDuration}`;
+once with output length through existing timeline replacement rules (layers are not copied); speed, media,
+audio offset and global effects remain unchanged. Invalid indexes, count, range overflow or result-cap overflow reject atomically. Save after checking `{updated:true, outputDuration}`;
 after a lost response, inspect the array before retrying to avoid an extra copy.
 See the [complete CLI example](../../../../INTEGRATIONS.md#클립-구간-복제).
 

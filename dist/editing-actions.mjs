@@ -6,6 +6,7 @@ const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
 // Timeline and session editing commands. Validation and history stay shared so
 // trim, split, undo and reset never bypass the project command boundary.
 export function createEditingActions(app) {
+    let resetGeneration = 0;
     // Capture source time into one draft only; Apply remains the mutation boundary.
     function bindTrimDrafts({ start, end, startButton, endButton, current = () => true }) {
         const fields = [app.query(start), app.query(end)];
@@ -111,10 +112,29 @@ export function createEditingActions(app) {
         if (resetBlocked())
             return;
         app.modalOpen(message("shell.resetTitle"), `<p class="modal-copy">${text("shell.resetNotice")}</p>`, `<div class="modal-foot"><button class="button" id="cancelReset">${text("shell.cancel")}</button><button class="button primary" id="confirmReset">${text("shell.resetConfirm")}</button></div>`);
-        app.query('#cancelReset').onclick = () => app.modal.close();
-        app.query('#confirmReset').onclick = () => {
-            if (resetBlocked())
-                return;
+        const owner = ++resetGeneration;
+        const cancel = app.query('#cancelReset');
+        const confirm = app.query('#confirmReset');
+        const ownsDialog = () => resetGeneration === owner && app.modal.open &&
+            app.query('#cancelReset') === cancel && app.query('#confirmReset') === confirm;
+        const invalidate = () => {
+            if (resetGeneration === owner) resetGeneration++;
+        };
+        const composing = event => event?.isComposing || event?.keyCode === 229;
+        app.modal.onreplace = invalidate;
+        app.modal.onclose = () => {
+            // A queued close event must not invalidate a newly opened dialog.
+            if (!app.modal.open) invalidate();
+        };
+        cancel.onclick = event => {
+            if (!ownsDialog() || composing(event)) return;
+            invalidate();
+            app.modal.close();
+        };
+        confirm.onclick = event => {
+            if (!ownsDialog() || composing(event) || resetBlocked()) return;
+            // Busy refusals keep ownership for retry; accepted reset is one-shot.
+            invalidate();
             app.pause();
             app.state = app.initial();
             app.timelineCache = null;

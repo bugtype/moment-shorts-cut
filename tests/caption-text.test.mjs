@@ -65,3 +65,91 @@ test('CLI dry-run previews correction, save round-trips, and invalid changes lea
   result=run(['--json','{"find":"이름 이름","replacement":""}','--out',output,'--overwrite']);assert.equal(result.status,1);assert.equal(await fs.readFile(output,'utf8'),saved);assert.equal(await fs.readFile(input,'utf8'),original);
  }finally{await fs.rm(dir,{recursive:true,force:true});}
 });
+
+test('replacement inspection matches application without returning caption data', async () => {
+  const { inspectCaptionTextReplacement } = await import('../dist/core/caption-text.mjs');
+  for (const [text, find, replacement, expected] of [
+    ['aaa', 'aa', 'X', 'Xa'],
+    ['aaaaa', 'aa', 'aa', 'aaaaa'],
+    ['a a', 'a', '$&$$$`', '$&$$$` $&$$$`'],
+    ['가🙂가🙂', '가🙂', 'e\u0301', 'e\u0301e\u0301'],
+    ['hello', 'absent', 'x', 'hello'],
+    [' a b ', 'a', '', '  b '],
+    ['\r\na\r\n', 'a', 'b', '\r\nb\r\n'],
+  ]) {
+    const captions = [{ start: 1, end: 2, text, speaker: '0', basis: 'timeline', timing: 'estimated' }];
+    const before = structuredClone(captions);
+    const preview = inspectCaptionTextReplacement(captions, { find, replacement });
+    const applied = replaceCaptionText(captions, { find, replacement });
+    assert.deepEqual(preview, { matches: applied.matches, changedCaptions: applied.changedCaptions });
+    assert.equal(applied.captions[0].text, expected);
+    assert.deepEqual(captions, before);
+    assert.equal(Object.hasOwn(preview, 'captions'), false);
+    if (!preview.changedCaptions) assert.equal(applied.captions, captions);
+  }
+  assert.deepEqual(inspectCaptionTextReplacement([], { find: 'a', replacement: '' }), {
+    matches: 0, changedCaptions: 0,
+  });
+});
+
+test('replacement inspection preserves validation order and global cue error paths', async () => {
+  const { inspectCaptionTextReplacement } = await import('../dist/core/caption-text.mjs');
+  const cases = [
+    { find: '', replacement: 'x' },
+    { find: null, replacement: 'x' },
+    { find: 'a'.repeat(2001), replacement: 'x' },
+    { find: 'a', replacement: null },
+    { find: 'a', replacement: 'x'.repeat(2001) },
+    { find: 'a', replacement: 'x'.repeat(2000) },
+    { find: 'a', replacement: ' \n' },
+  ];
+  const captions = [{ start: 0, end: 1, text: 'untouched' }, { start: 1, end: 2, text: 'aa' }];
+  const before = structuredClone(captions);
+  function failure(fn) {
+    let caught;
+    try { fn(); } catch (error) { caught = error; }
+    assert.ok(caught, 'Expected validation failure');
+    return { code: caught.code, path: caught.path, message: caught.message };
+  }
+  for (const options of cases) {
+    assert.deepEqual(
+      failure(() => inspectCaptionTextReplacement(captions, options)),
+      failure(() => replaceCaptionText(captions, options)),
+    );
+    assert.deepEqual(captions, before);
+  }
+  const result = failure(() => inspectCaptionTextReplacement(captions, { find: 'a', replacement: '' }));
+  assert.equal(result.code, 'INVALID_ARGUMENT');
+  assert.equal(result.path, 'project.captions[1].text');
+});
+
+test('inspection and application agree with the original split/join model for seeded literal cases', async () => {
+  const { inspectCaptionTextReplacement } = await import('../dist/core/caption-text.mjs');
+  let seed = 1729;
+  const random = max => { seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0; return seed % max; };
+  const characters = ['a', 'b', ' ', '\n', '$', '&', '가', '🙂', '\u0301'];
+  const word = length => Array.from({ length }, () => characters[random(characters.length)]).join('');
+  for (let run = 0; run < 200; run++) {
+    const captions = Array.from({ length: 5 }, (_, index) => ({ start: index, end: index + 1, text: word(20) }));
+    const find = word(1 + random(3));
+    const replacement = run % 5 === 0 ? find : word(random(5));
+    let matches = 0, changedCaptions = 0;
+    const expected = captions.map(caption => {
+      const parts = caption.text.split(find);
+      matches += parts.length - 1;
+      if (parts.length === 1 || find === replacement) return caption;
+      changedCaptions++;
+      return { ...caption, text: parts.join(replacement) };
+    });
+    assert.deepEqual(inspectCaptionTextReplacement(captions, { find, replacement }), { matches, changedCaptions });
+    const result = replaceCaptionText(captions, { find, replacement });
+    assert.deepEqual(result.captions, expected);
+    for (let index = 0; index < captions.length; index++) {
+      if (expected[index] === captions[index]) assert.equal(result.captions[index], captions[index]);
+    }
+  }
+  const blank = [{ start: 0, end: 1, text: '   ' }];
+  assert.deepEqual(inspectCaptionTextReplacement(blank, { find: ' ', replacement: ' ' }), {
+    matches: 3, changedCaptions: 0,
+  });
+});

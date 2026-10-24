@@ -1,19 +1,10 @@
 import {setText, message, formatError} from './i18n.mjs';
-import {replaceCaptionText} from './core/caption-text.mjs';
+import {replaceCaptionText, inspectCaptionTextReplacement} from './core/caption-text.mjs';
 
 // Authored-text review owns only its search cursor/drafts, never project state.
 export function createCaptionSearch({query:$, getProject, focusCaption, edit, execute, toast, blocked}) {
     const fields = {find:'', replacement:''};
     let project = null, query = '', selected = null, anchor = null;
-    function* matches() {
-        if (!query || query.length > 2000) return;
-        const captions = getProject().captions;
-        for (let index=0; index<captions.length; index++) {
-            const caption=captions[index];
-            for (let start=caption.text.indexOf(query); start>=0; start=caption.text.indexOf(query,start+query.length))
-                yield {caption,index,start,text:caption.text};
-        }
-    }
     function sync() {
         if (project!==getProject() || query!==fields.find) {
             project=getProject(); query=fields.find; selected=null; anchor=null;
@@ -24,9 +15,19 @@ export function createCaptionSearch({query:$, getProject, focusCaption, edit, ex
     function update() {
         sync();
         let count=0, current=0;
-        for (const match of matches()) {
-            count++;
-            if (selected?.caption===match.caption && selected.start===match.start) { current=count; selected=match; }
+        if (query && query.length <= 2000) {
+            const captions = project.captions;
+            for (let index = 0; index < captions.length; index++) {
+                const caption = captions[index];
+                for (let start = caption.text.indexOf(query); start >= 0;
+                    start = caption.text.indexOf(query, start + query.length)) {
+                    count++;
+                    if (selected?.caption === caption && selected.start === start) {
+                        current = count;
+                        selected.index = index;
+                    }
+                }
+            }
         }
         if (!current) selected=null;
         setText($('#captionSearchStatus'),'panels.searchStatus',{current,count});
@@ -36,7 +37,7 @@ export function createCaptionSearch({query:$, getProject, focusCaption, edit, ex
         const button=$('#replaceAllCaptions');
         setText(button,'panels.replaceAll'); button.disabled=!fields.find;
         if (fields.find) try {
-            const result=replaceCaptionText(getProject().captions,fields);
+            const result=inspectCaptionTextReplacement(getProject().captions,fields);
             setText(button,'panels.replaceMatches',{count:result.matches}); button.disabled=!result.changedCaptions;
         } catch { button.disabled=false; }
     }
@@ -45,15 +46,34 @@ export function createCaptionSearch({query:$, getProject, focusCaption, edit, ex
         sync();
         const index=selected ? project.captions.indexOf(selected.caption) : anchor?.index;
         const start=selected?.start ?? anchor?.start;
-        let first=null,last=null,target=null;
-        for (const match of matches()) {
-            first ||= match; last=match;
-            const ahead=index===undefined || match.index>index || (match.index===index && (anchor ? match.start>=start : match.start>start));
-            const behind=index===undefined || match.index<index || (match.index===index && match.start<start);
-            if (direction>0 && !target && ahead) target=match;
-            if (direction<0 && behind) target=match;
+        // Keep positions only: dense matches must not allocate one object each.
+        let firstIndex = -1, firstStart = 0, lastIndex = -1, lastStart = 0;
+        let targetIndex = -1, targetStart = 0;
+        if (query && query.length <= 2000) {
+            for (let captionIndex = 0; captionIndex < project.captions.length; captionIndex++) {
+                const text = project.captions[captionIndex].text;
+                for (let offset = text.indexOf(query); offset >= 0; offset = text.indexOf(query, offset + query.length)) {
+                    if (firstIndex < 0) { firstIndex = captionIndex; firstStart = offset; }
+                    lastIndex = captionIndex;
+                    lastStart = offset;
+                    const ahead = index === undefined || captionIndex > index ||
+                        (captionIndex === index && (anchor ? offset >= start : offset > start));
+                    const behind = index === undefined || captionIndex < index ||
+                        (captionIndex === index && offset < start);
+                    if ((direction > 0 && targetIndex < 0 && ahead) || (direction < 0 && behind)) {
+                        targetIndex = captionIndex;
+                        targetStart = offset;
+                    }
+                }
+            }
         }
-        selected=target || (direction>0 ? first : last); anchor=null;
+        if (targetIndex < 0) {
+            targetIndex = direction > 0 ? firstIndex : lastIndex;
+            targetStart = direction > 0 ? firstStart : lastStart;
+        }
+        const caption = project.captions[targetIndex];
+        selected = caption ? {caption, index: targetIndex, start: targetStart, text: caption.text} : null;
+        anchor = null;
         update();
         if (!selected) return;
         const match=selected;

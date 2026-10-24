@@ -152,6 +152,24 @@ project/history/saved state or playback position. Search, replace-all and long-
 caption splitting still use the full authored list; exports retain full-project
 clip/speed behavior, not visible-page scope. The existing cue/byte limits remain.
 
+## Split one caption at the caret boundary
+
+Use `captions.split` / `moment_captions_split` with `{captionIndex, textOffset}`
+(and MCP `projectId:"session"`) after reading the current authored row/text.
+`textOffset` is an internal UTF-16 code-unit offset, not a grapheme count; it must
+coincide with an `Intl.Segmenter` grapheme boundary. Do not cut an emoji or combined
+character. Literal substrings keep spaces/newlines; whitespace-only sides reject.
+Both cues retain metadata and receive `timing:"estimated"`. The inner timestamp
+uses proportional grapheme counts, not audio/word alignment; outer bounds stay fixed.
+
+A full 10,000-cue array, invalid index/boundary or missing safe segmentation support
+rejects atomically. Check `{updated:true, outputDuration, createdCaptionIndex}`;
+the second cue is inserted immediately after the first. Re-read after a lost
+response before retrying, then save the document. Existing export rounding, blank-line,
+byte and derived-cue limits still apply. Browser caret splitting is one undo step,
+not the separate bulk long-caption split. See the [CLI example](../../../../INTEGRATIONS.md#자막-하나를-커서-위치에서-분할);
+its caption replacement is for a new demo, not a prerequisite for editing real cues.
+
 ## Merge adjacent authored captions
 
 Use `captions.merge` / `moment_captions_merge` with `{captionIndex:0}` (plus MCP

@@ -474,3 +474,5 @@ body.exporting .workspace,body.exporting .topbar {
     line-height:1.7
   }
 }
+
+.caption-row-actions { display:flex; flex-wrap:wrap; align-items:center; gap:5px; }

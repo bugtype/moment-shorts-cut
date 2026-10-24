@@ -81,6 +81,7 @@
 |---|---|---|
 | `captions.replace` | `captions` | 대사 자막 교체 |
 | `captions.merge` | `captionIndex` | 다음 저장 행과 병합; `{updated:true, outputDuration, mergedCaptionIndex}` |
+| `captions.split` | `captionIndex`, `textOffset` | 지정 자막을 둘로 분할; `{updated:true, outputDuration, createdCaptionIndex}` |
 | `captions.import` | `text`, `basis` | 전체 교체; `{updated:true, outputDuration, importedCaptions}` |
 | `captions.text.replace` | `find`, `replacement` | 문구 모두 바꾸기; `{updated, matches, changedCaptions}` |
 | `captions.style.update` | `patch` | 공통 자막 스타일; `{updated:true, outputDuration}` |
@@ -195,6 +196,46 @@ UI의 복제는 새로 넣은 구간을 선택하고 그 시작 위치로 이동
 취소합니다. MCP에는 선택·재생 위치·실행 취소 기능이 없고, 성공 결과
 `{updated:true, outputDuration}` 확인 후 `project.get`으로 문서를 저장해야 합니다.
 응답을 놓치면 현재 배열부터 확인하세요. 무조건 재시도하면 구간이 다시 늘어납니다.
+
+### 자막 하나를 커서 위치에서 분할
+
+`captions.split`은 저장된 자막 하나를 지정한 문구 위치에서 둘로 나눕니다.
+먼저 `project.get`의 `project.captions`에서 행과 원문을 확인하세요. 긴 자막을
+전체적으로 나누는 기존 UI 작업과는 별도이며 음성·단어별 정렬은 하지 않습니다.
+
+| 필수 입력·조건 | 의미 |
+|---|---|
+| `captionIndex` | 정수 `0..9999`; 현재 저장 배열의 기존 행 |
+| `textOffset` | 정수 `1..1999`; 원문 내부의 **UTF-16 코드 단위 위치** |
+| 분할 경계 | `Intl.Segmenter`가 구분한 문자소 경계여야 함; 이모지·결합 문자 내부는 거절 |
+| 양쪽 문구 | 원문 그대로 분리, 공백 제거 없음; 어느 한쪽이라도 공백뿐이면 거절 |
+| 용량 | 이미 10,000행이면 거절; 부분 변경 없음 |
+
+문자소 경계인지 검증하지만 `textOffset` 자체는 문자소 번호가 아닙니다. JS
+문자열 인덱스나 textarea 커서 위치와 같은 단위입니다. 양쪽에 메타데이터를
+유지하고 `timing:"estimated"`를 표시합니다. 첫 시작·마지막 끝은 유지하며 내부
+시간은 양쪽 문자소 수에 비례해 추정합니다. 분할 문구에 공백이 남으면 그 공백도
+문자소 수에 포함됩니다. `Intl.Segmenter`가 없으면 안전하지 않은 대체 분할 대신
+거절합니다. 계산한 내부 시간이 부동소수점 정밀도 때문에 원래 시작·끝
+사이에 놓이지 못해도 거절하며 별도의 최소 초 단위는 강제하지 않습니다.
+
+```sh
+node cli/moment.mjs init --out cue-split-source.json
+node cli/moment.mjs exec captions.replace --project cue-split-source.json --json '{"captions":[{"start":1,"end":12,"text":"Hello world"}]}' --out cue-split-ready.json
+node cli/moment.mjs exec captions.split --project cue-split-ready.json --json '{"captionIndex":0,"textOffset":6}' --out cue-split.json
+```
+
+예제는 샘플 자막을 의도적으로 교체한 뒤 `Hello `와 `world`로 분할하며 경계는
+7초입니다. 실제 프로젝트에서는 교체 없이 현재 행·문구를 조회하세요. 실패는
+`INVALID_ARGUMENT`이며 기존 프로젝트를 유지합니다. 성공 결과의
+`createdCaptionIndex`는 바로 뒤에 추가한 둘째 행의 위치입니다.
+
+원본 기준 자막은 교차하는 편집 구간마다 파생될 수 있고 타임라인 기준은 배속 전
+시계를 유지합니다. 짧은 구간은 SRT/VTT 밀리초 반올림에서 길이가 0이 되어 출력이
+거절될 수 있으며 기존 빈 줄·바이트·파생 구간 한도도 그대로입니다. 응답을 놓치면
+배열부터 확인하세요. 같은 요청 재시도는 이미 나눈 행을 다시 나눌 수 있습니다.
+UI에서는 선택 범위가 아닌 커서 하나를 두고 **나누기**를 누르면 둘째 행에 초점을 옮기고
+한 번에 실행 취소합니다. MCP에는 실행 취소가 없으므로 이전 문서를 보관하세요.
 
 ### 인접한 자막 합치기
 

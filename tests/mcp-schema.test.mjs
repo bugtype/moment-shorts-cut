@@ -34,6 +34,7 @@ const inputs = {
   'templates.list': {},
   'template.apply.document': {document:createTemplateDocument(saveCustomTemplate('스키마',createDemoProject()))},
   'template.apply': { templateId: 'reference', withContent: false },
+  'captions.split': {captionIndex:0,textOffset:1},
   'captions.merge': {captionIndex:0},
   'timeline.duplicate': {clipIndex:0},
   'timeline.split': {clipIndex:0,sourceTime:6},

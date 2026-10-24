@@ -177,10 +177,13 @@ function captionRowMarkup(c, i, speakerLabels, last) {
         `<input type="number" min="0" step="0.1" value="${c.start.toFixed(1)}" data-caption-start="${i}" aria-label="자막 ${i + 1} 시작 초">` +
         `<span class="muted">–</span>` +
         `<input type="number" min="0" step="0.1" value="${c.end.toFixed(1)}" data-caption-end="${i}" aria-label="자막 ${i + 1} 끝 초">` +
+        `</div>` +
+        `<textarea data-caption-text="${i}" aria-label="자막 ${i + 1} 내용">${esc(c.text)}</textarea>` +
+        `<div class="caption-row-actions" role="group" aria-label="자막 ${i + 1} 편집">` +
+        `<button class="text-button" data-split-caption="${i}" aria-label="자막 ${i + 1} 커서 위치에서 나누기" title="커서 위치에서 나누기">나누기</button>` +
         `<button class="text-button" data-merge-caption="${i}" aria-label="자막 ${i + 1} 다음 자막과 합치기" title="다음 자막과 합치기" ${last ? 'disabled' : ''}>합치기</button>` +
         `<button class="icon-button" data-delete-caption="${i}" aria-label="자막 ${i + 1} 삭제">${icon('trash')}</button>` +
         `</div>` +
-        `<textarea data-caption-text="${i}" aria-label="자막 ${i + 1} 내용">${esc(c.text)}</textarea>` +
         `<div class="caption-extra">` +
         `<input data-caption-keywords="${i}" value="${esc(c.keywords || '')}" maxlength="150" placeholder="강조 단어, 쉼표로 구분" aria-label="자막 ${i + 1} 강조 단어">` +
         `<select data-caption-speaker="${i}" aria-label="자막 ${i + 1} 화자">` +

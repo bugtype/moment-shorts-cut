@@ -2,7 +2,7 @@ import { shiftCaptionTiming } from './caption-timing.mjs';
 import { readTemplateDocument } from '../template-library.mjs';
 import { replaceCaptionText } from './caption-text.mjs';
 import { TEMPLATES, applyTemplate } from '../template-catalog.mjs';
-import { newCard, retimeOutputLayers } from '../effects.mjs';
+import { newCard, retimeOutputLayers, splitCaptionAtOffset } from '../effects.mjs';
 import { MAX_CAPTIONS, parseSubtitles } from '../captions.mjs';
 import { outputDuration, timelineDuration, validateProject, createProjectDocument, readProjectDocument, projectSubtitles, clipSchema, captionSchema, MAX_CLIPS } from './project.mjs';
 import { object, string, number, choice, boolean, array, validate, assertJson, fail, CommandError, hasMinimumDuration } from './validation.mjs';
@@ -52,6 +52,7 @@ const definitions=[
   command('overlays.remove','지정한 ID의 장면 카드 하나를 삭제합니다.',object({id:{...string(2000),minLength:1}},['id']),true),
   command('overlays.update','기존 장면 카드의 지정한 문구·스타일·출력 표시 시간만 수정합니다. 카드 ID와 순서는 유지합니다.',object({id:{...string(2000),minLength:1},patch:overlayPatchSchema},['id','patch']),true),
   command('captions.import','SRT/VTT 문자열로 자막 전체를 교체합니다. source 또는 배속 전 timeline 시간 기준을 명시하세요.',object({text:string(100000),basis:choice('source','timeline')},['text','basis']),true),
+  command('captions.split','자막 하나를 문자 커서 위치에서 나눕니다. 시간은 문자 수 비례 추정이며 음성과 확인해야 합니다.',object({captionIndex:{type:'integer',minimum:0,maximum:9999},textOffset:{type:'integer',minimum:1,maximum:1999}},['captionIndex','textOffset']),true),
   command('captions.merge','인접한 두 자막을 합칩니다. 시간 기준·화자·강조 단어가 같고 시간이 겹치지 않아야 합니다.',object({captionIndex:{type:'integer',minimum:0,maximum:9998}},['captionIndex']),true),
   command('captions.replace','자막을 교체합니다. source는 원본, timeline은 배속 전 편집 시간입니다.',object({captions:array(captionSchema,MAX_CAPTIONS)},['captions']),true),
   command('captions.text.replace','자막 본문에서 대소문자를 구분해 같은 문자열을 모두 바꿉니다. 시간과 메타데이터는 유지합니다.',object({find:{...string(2000),minLength:1},replacement:string(2000)},['find','replacement']),true),
@@ -95,6 +96,17 @@ export function prepareCommand(project,name,args={}){
     if(!data.updated)return {data};
     const next=structuredClone(project),[card]=next.overlays.splice(from,1);
     next.overlays.splice(args.toIndex,0,card);validateProject(next);return {project:next,data};
+  }
+  if(name==='captions.split'){
+    const index=args.captionIndex;
+    if(!Number.isInteger(index)||index<0||index>=project.captions.length)
+      fail('나눌 자막의 위치를 확인하세요.','arguments.captionIndex');
+    if(project.captions.length>=MAX_CAPTIONS)fail('자막은 10,000개 이하만 지원합니다.','project.captions');
+    let parts;
+    try{parts=splitCaptionAtOffset(project.captions[index],args.textOffset);}
+    catch(error){fail(error.message,'arguments.textOffset');}
+    const next=structuredClone(project);next.captions.splice(index,1,...parts);validateProject(next);
+    return {project:next,data:{updated:true,outputDuration:outputDuration(next),createdCaptionIndex:index+1}};
   }
   if(name==='captions.merge'){
     const index=args.captionIndex;

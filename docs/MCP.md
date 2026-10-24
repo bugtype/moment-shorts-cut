@@ -49,7 +49,7 @@ its supported version, `2025-11-25`, even if the proposed version differs; a cli
 that cannot support that version should disconnect, not continue with another
 wire format. `ping` is supported. Initialize only once per process.
 
-All twenty-four tools require **`projectId: "session"`**. Each process owns one independent
+All twenty-five tools require **`projectId: "session"`**. Each process owns one independent
 in-memory project, initially the demo. This value is neither a path nor a credential.
 Other project IDs return a tool error. A second client process does not share state.
 
@@ -178,6 +178,7 @@ The service emits no BOM.
 |---|---|---|
 | `moment_captions_replace` | `captions` | Update acknowledgment and output duration |
 | `moment_captions_merge` | `captionIndex` | `{updated:true, outputDuration, mergedCaptionIndex}` |
+| `moment_captions_split` | `captionIndex`, `textOffset` | `{updated:true, outputDuration, createdCaptionIndex}` |
 | `moment_captions_import` | `text`, `basis` | `{updated:true, outputDuration, importedCaptions}` |
 | `moment_captions_text_replace` | `find`, `replacement` | `{updated:boolean, matches:number, changedCaptions:number}` |
 | `moment_captions_style_update` | `patch` | `{updated:true, outputDuration}` |
@@ -318,6 +319,41 @@ alongside `updated:true` and `outputDuration`.
 The tool does not read files or upload media. Use the [CLI args-file recipe](../INTEGRATIONS.md#srt-파일을-명령-인수로-감싸기)
 for local files, or pass already-read text through your client. Save the edited
 document using `moment_project_get`; the acknowledgment is not the project.
+
+### Split one caption at a text boundary
+
+Read the current `project.captions` and its literal text, then call
+`moment_captions_split`. For a cue containing `Hello world`, these arguments keep
+`Hello ` (including its trailing space) and `world` as separate cues:
+
+```json
+{"projectId":"session","captionIndex":0,"textOffset":6}
+```
+
+| Required input/constraint | Meaning |
+|---|---|
+| `captionIndex` | Existing authored row index, integer `0..9999`, not a visible output occurrence |
+| `textOffset` | Internal UTF-16 code-unit offset, integer `1..1999`; not a grapheme ordinal |
+| Boundary | Must lie between complete graphemes according to `Intl.Segmenter`; no splitting emoji/combining sequences |
+| Text/capacity | Literal substrings, no trimming; neither side may be whitespace-only. At most 10,000 resulting authored cues |
+
+Metadata is retained on both cues, with `timing:"estimated"`. Original outer
+start/end are retained; the inner time is proportional to grapheme counts on each
+side, including preserved spaces. This is not word/speech alignment. Missing
+`Intl.Segmenter`, invalid boundaries/indexes, blank sides or capacity violations
+return `INVALID_ARGUMENT` without mutation; no unsafe segmentation fallback is used.
+There is no arbitrary minimum duration, but computed split times must remain
+strictly between the original endpoints despite numeric precision.
+
+The result is `{updated:true, outputDuration, createdCaptionIndex}`, where the
+new second cue is immediately after the original. Source-clock text can recur in
+intersecting clips; timeline-clock cues retain pre-speed timing. Existing export
+limits still apply: very short intervals can collapse on SRT/VTT millisecond
+rounding, and literal blank lines or byte/derived-cue limits can still reject export.
+After a lost response, re-read before retrying because the original row may already
+be split. Save via a separate project read. The browser uses a collapsed textarea
+caret and **나누기** action, focuses the new row and offers one undo step; bulk long-caption splitting
+remains separate. See the [runnable CLI example](../INTEGRATIONS.md#자막-하나를-커서-위치에서-분할).
 
 ### Merge two adjacent authored captions
 

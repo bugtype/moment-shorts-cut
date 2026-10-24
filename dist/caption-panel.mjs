@@ -195,6 +195,20 @@ export function createCaptionPanel({
             if (['srt', 'vtt', 'txt'].includes(value)) exportFormat = value;
         };
         $('#downloadCaptions').onclick = () => actions.download(exportFormat);
+        $$('[data-split-caption]').forEach(button => button.onclick = () => {
+            if (composing) return;
+            const index = +button.dataset.splitCaption, input = $(`[data-caption-text="${index}"]`);
+            if (!input || input.selectionStart !== input.selectionEnd) {
+                toast('선택 영역 없이 나눌 커서 위치를 지정하세요.');
+                return;
+            }
+            if (input.value !== getProject().captions[index]?.text) {
+                toast('자막 입력을 마친 뒤 다시 나누세요.');
+                return;
+            }
+            if (execute('captions.split', { captionIndex: index, textOffset: input.selectionStart }))
+                focusCaption(index + 1);
+        });
         $$('[data-merge-caption]').forEach(button => button.onclick = () => {
             if (composing) return;
             const index = +button.dataset.mergeCaption;
@@ -228,7 +242,7 @@ export function createCaptionPanel({
         // Detached controls no longer own the rendered row indices or pager state.
         const controls = [
             ...$$('[data-caption-text]'), ...$$('[data-caption-start]'), ...$$('[data-caption-end]'),
-            ...$$('[data-merge-caption]'), ...$$('[data-caption-keywords]'), ...$$('[data-caption-speaker]'), ...$$('[data-delete-caption]'),
+            ...$$('[data-split-caption]'), ...$$('[data-merge-caption]'), ...$$('[data-caption-keywords]'), ...$$('[data-caption-speaker]'), ...$$('[data-delete-caption]'),
             ...['captionFind', 'captionReplacement', 'previousCaptionPage', 'nextCaptionPage',
                 'previousCaptionMatch', 'nextCaptionMatch', 'replaceAllCaptions', 'splitLongCaptions',
                 'addCaption', 'importSrt', 'captionExportFormat', 'downloadCaptions', 'generateCaptions',

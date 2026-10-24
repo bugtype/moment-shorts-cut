@@ -453,3 +453,42 @@ input[type=range] {
 }
 .cut-seek-group .icon-button { flex-shrink:0; }
 .cut-seek-group #seek { width:0; max-width:none; }
+
+/* View-only composition aid: never part of any exported canvas. */
+.thirds-guide {
+  position:absolute;
+  inset:0;
+  z-index:2;
+  pointer-events:none
+}
+.thirds-guide[hidden],body.exporting .thirds-guide {
+  display:none
+}
+.thirds-guide i {
+  position:absolute;
+  display:block;
+  pointer-events:none;
+  background:#ffffffb3;
+  box-shadow:0 0 0 1px #00000059
+}
+.thirds-guide i:nth-child(1),.thirds-guide i:nth-child(2) {
+  top:0;
+  bottom:0;
+  width:1px
+}
+.thirds-guide i:nth-child(1) {left:33.333333%}
+.thirds-guide i:nth-child(2) {left:66.666667%}
+.thirds-guide i:nth-child(3),.thirds-guide i:nth-child(4) {
+  left:0;
+  right:0;
+  height:1px
+}
+.thirds-guide i:nth-child(3) {top:33.333333%}
+.thirds-guide i:nth-child(4) {top:66.666667%}
+.preview-guide-option {
+  display:flex;
+  align-items:center;
+  gap:8px;
+  min-height:38px;
+  cursor:pointer
+}

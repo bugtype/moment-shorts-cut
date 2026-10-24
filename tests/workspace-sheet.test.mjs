@@ -4,6 +4,7 @@ import { createWorkspacePanels } from '../dist/workspace-panels.mjs';
 
 function createSheetApp() {
   const classes = new Set();
+  const thirdsGrid = { checked: false }, thirdsGuide = { hidden: true };
   const library = { hidden: false, style: { removeProperty(name) { if (name === 'max-height') delete this.maxHeight; } } };
   const canvas = { getBoundingClientRect: () => ({ top: 76, bottom: 400 }) };
   const railRect = { getBoundingClientRect: () => ({ top: 786 }) };
@@ -26,7 +27,8 @@ function createSheetApp() {
     },
     window: { matchMedia: query => ({ matches: String(query).includes('max-height:720px') ? short : compact }) },
     query: selector => selector === '#libraryPanel' ? library : selector === '#panelClose' ? close
-      : selector === '#canvasWrap' ? canvas : selector === '.rail' ? railRect : null,
+      : selector === '#canvasWrap' ? canvas : selector === '.rail' ? railRect
+      : selector === '#thirdsGridDesktop' ? thirdsGrid : selector === '#thirdsGuide' ? thirdsGuide : null,
     queryAll: () => rail,
   };
   return {

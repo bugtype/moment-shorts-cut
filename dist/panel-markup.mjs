@@ -158,6 +158,7 @@ export function settingsPanelMarkup({ ratio, fit, zoom, captionSize, captionY, v
         `<input id="mobileZoom" type="range" min="1" max="3" step=".01" value="${zoom}" style="width:100%">` +
         `<button class="button" id="keepPanelGaps">${text('panels.keepGaps')}</button>` +
         `<button class="button" id="openPanelFraming">${text('panels.framing')}</button>` +
+        `<label class="preview-guide-option"><input id="thirdsGridPanel" type="checkbox" aria-controls="thirdsGuide">${text('guides.thirds')}</label>` +
         `<p class="tiny-note">${text('panels.dragFrame')}</p>` +
         `<div class="panel-actions"><button class="button" id="savePreviewPng">${text('shell.savePreviewPng')}</button><button class="button" id="openScenePng">${text('scenePng.title')}</button></div>` +
         `<button class="button full" id="resetPosition">${icon('reset')} ${text('panels.resetPosition')}</button>` +

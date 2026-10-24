@@ -240,6 +240,8 @@ This edits metadata even without ready media, so a missing source may show no vi
 change. Offsets are not source-pixel coordinates or necessarily whole-canvas
 percentages; clipping and uncovered space are possible, with no safe-area guarantee.
 
+**View-only framing aid:** enable **Thirds grid** in desktop **Frame** or its compact-screen panel; both controls stay synchronized. It divides the whole composition into thirds, not a source-video crop or platform-safe area. Default off; the choice survives panel/project changes in this session and resets on reload. It does not snap objects, change playback/project/history/storage, or appear in preview PNG, output PNG or video exports.
+
 ### Edit timing from the preview
 
 **Fill trim values from the playhead:** select a clip and move playback inside that

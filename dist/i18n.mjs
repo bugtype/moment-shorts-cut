@@ -1,3 +1,4 @@
+import {messages as guides} from './i18n/catalogs/guides.mjs';
 import {messages as replaceRange} from './i18n/catalogs/replace-range.mjs';
 import {messages as importReview} from './i18n/catalogs/import-review.mjs';
 import {messages as scenePng} from './i18n/catalogs/scene-png.mjs';
@@ -16,7 +17,7 @@ import {messages as templates} from './i18n/catalogs/templates.mjs';
 export const SUPPORTED_LOCALES = Object.freeze(['ko', 'en', 'zh-CN']);
 export const LOCALE_STORAGE_KEY = 'moment-ui-locale-v1';
 const catalogs = Object.fromEntries(SUPPORTED_LOCALES.map(locale =>
-    [locale, Object.assign({}, shell[locale], panels[locale], errors[locale], templates[locale], session[locale], graphics[locale], collections[locale], speakers[locale], review[locale], keywords[locale], stacking[locale], scenePng[locale], importReview[locale], replaceRange[locale])]));
+    [locale, Object.assign({}, shell[locale], panels[locale], errors[locale], templates[locale], session[locale], graphics[locale], collections[locale], speakers[locale], review[locale], keywords[locale], stacking[locale], scenePng[locale], importReview[locale], replaceRange[locale], guides[locale])]));
 const attributes = ['aria-label', 'title', 'placeholder', 'alt', 'aria-valuetext', 'content', 'data-label'];
 const subscribers = new Set();
 let locale = 'ko', storage, root;

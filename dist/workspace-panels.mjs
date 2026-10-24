@@ -10,6 +10,26 @@ const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
 export function createWorkspacePanels(app) {
     const { query: $, queryAll: $$ } = app;
     let sheetOpen = false, renderGeneration = 0;
+    let thirdsGrid = false;
+    const desktopGrid = $('#thirdsGridDesktop');
+    function syncThirdsGrid() {
+        $('#thirdsGuide').hidden = !thirdsGrid;
+        desktopGrid.checked = thirdsGrid;
+        if (app.panel === 'settings') $('#thirdsGridPanel').checked = thirdsGrid;
+    }
+    function changeThirdsGrid(input, event) {
+        if (app.modal.open || event?.isComposing || event?.keyCode === 229) {
+            input.checked = thirdsGrid;
+            return;
+        }
+        thirdsGrid = !!input.checked;
+        syncThirdsGrid();
+    }
+    desktopGrid.checked = false;
+    $('#thirdsGuide').hidden = true;
+    desktopGrid.onchange = event => {
+        if ($('#thirdsGridDesktop') === desktopGrid) changeThirdsGrid(desktopGrid, event);
+    };
     const scenePng = createScenePngDialog(app, createScenePngExport(app));
 
     // Compact layouts keep the preview visible and turn the side panel into a
@@ -224,6 +244,12 @@ export function createWorkspacePanels(app) {
             framing.onclick = event => {
                 if (app.panel === 'settings' && app.state === framingProject && framingGeneration === renderGeneration && $('#openPanelFraming') === framing &&
                     !event?.isComposing && event?.keyCode !== 229) app.openFraming('openPanelFraming');
+            };
+            const grid = $('#thirdsGridPanel'), gridGeneration = renderGeneration;
+            syncThirdsGrid();
+            grid.onchange = event => {
+                if (app.panel === 'settings' && gridGeneration === renderGeneration && $('#thirdsGridPanel') === grid)
+                    changeThirdsGrid(grid, event);
             };
             const sceneButton = $('#openScenePng'), sceneGeneration = renderGeneration;
             sceneButton.onclick = event => {

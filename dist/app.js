@@ -130,6 +130,7 @@ const templateWorkspace = createTemplateWorkspace({
     preview: template => { pause(); templatePreview.open(template); },
     refresh: () => renderPanel(),
     navigate: next => switchPanel(next),
+    download: (blob, name) => download(blob, name),
     toast: message => toast(message),
 });
 const captionPanel = createCaptionPanel({

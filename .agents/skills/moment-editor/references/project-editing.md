@@ -92,6 +92,27 @@ Save the retrieved project JSON, not the acknowledgment. Styling affects the vis
 
 Live schemas are authoritative. Examples do not extend the supported fields: there is no arbitrary patch path, multi-command batch tool or server-side file-save tool.
 
+## Share one browser custom template
+
+Use the gallery’s import button or an individual custom card’s export action,
+not MCP `moment_project_import`. A template file is
+`{format:"moment-template", formatVersion:1, template:{...}}`, not a
+`moment-project` document. The browser accepts UTF-8 JSON up to 256 KiB including
+an optional leading BOM and validates format, version and nested template styles.
+
+Import adds a new unique-ID copy under `내 템플릿` to the current library (maximum
+20). It does not overwrite existing templates, change favorites, apply the
+template or modify the current project. Preview the imported template and choose
+style-only versus example-content application deliberately. Failed reads,
+validation, capacity checks or saves leave the existing library/project intact.
+The latest file-selection request wins; capacity is checked again after reading.
+
+Review title, credit, timed-card text, global keywords and speaker labels before
+sharing: they travel with saved styles even though video/audio do not. This is
+not a whole-library or project backup. Browser-local templates remain unavailable
+to standalone CLI/MCP; do not invent a template-file import tool or use a file
+path as a template ID.
+
 ## Time-coordinate example
 
 With source clips `[2,6]` then `[8,12]`, the pre-speed edited timeline is 8 seconds. At `speed: 2`, output duration is 4 seconds.

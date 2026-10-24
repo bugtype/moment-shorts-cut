@@ -1,0 +1,35 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { mountTemplateGallery } from '../dist/template-gallery.mjs';
+import { saveCustomTemplate } from '../dist/template-catalog.mjs';
+import { createDemoProject } from '../dist/core/project.mjs';
+
+test('gallery imports selected files, resets the picker and exports only custom cards', async () => {
+  const item = saveCustomTemplate('<내 스타일>', createDemoProject());
+  const nodes = new Map(), events = [];
+  const query = key => {
+    if (!nodes.has(key)) nodes.set(key, {innerHTML:'', value:'', click:()=>events.push('picker')});
+    return nodes.get(key);
+  };
+  const exportButton = {dataset:{exportTemplate:item.id}};
+  const root = {
+    innerHTML: '', querySelector: query,
+    querySelectorAll: selector => selector === '[data-export-template]' ? [exportButton] : [],
+  };
+  mountTemplateGallery(root, {
+    ui:{query:'',category:'전체'},custom:[item],favorites:[],
+    save:()=>events.push('save'), import:async file=>events.push(file), export:id=>events.push(id),
+  });
+  assert.match(root.innerHTML,/id="importMyTemplate">불러오기/);
+  assert.match(root.innerHTML,/id="templateFileInput" type="file"[^>]*hidden/);
+  const cards = query('#templateGrid').innerHTML;
+  assert.equal([...cards.matchAll(/data-export-template=/g)].length,1);
+  assert.match(cards,/&lt;내 스타일&gt; 템플릿 파일 저장/);
+  exportButton.onclick();
+  query('#importMyTemplate').onclick();
+  const file = new Blob(['{}']), picker=query('#templateFileInput');
+  picker.files=[file]; picker.value='chosen.json'; await picker.onchange();
+  assert.equal(picker.value,'');
+  picker.files=[]; await picker.onchange();
+  assert.deepEqual(events,[item.id,'picker',file]);
+});

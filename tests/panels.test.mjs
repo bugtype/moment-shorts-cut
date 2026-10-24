@@ -79,10 +79,10 @@ test('design, effects and template panel controls and hierarchy', () => {
   const categories=['전체','리뷰','정보','라이프','대화','참여','즐겨찾기','내 템플릿'].map(category=>({dataset:{category},classList:{toggle(){}},setAttribute(name,value){this[name]=value;}}));
   const previewButton={dataset:{previewTemplate:'recipe'}},favoriteButton={dataset:{favorite:'recipe'}},removeButton={dataset:{removeTemplate:custom.id}};
   const galleryActions=[];
-  const galleryRoot=panelRoot({'[data-category]':categories,'[data-preview-template]':[previewButton],'[data-favorite]':[favoriteButton],'[data-remove-template]':[removeButton]}, {'#templateSearch':search,'#templateGrid':grid,'#templateCount':count,'#saveMyTemplate':saveButton});
+  const galleryRoot=panelRoot({'[data-category]':categories,'[data-preview-template]':[previewButton],'[data-favorite]':[favoriteButton],'[data-remove-template]':[removeButton]}, {'#templateSearch':search,'#templateGrid':grid,'#templateCount':count,'#saveMyTemplate':saveButton,'#importMyTemplate':{},'#templateFileInput':{}});
   const galleryState={query:'',category:'전체'},galleryApi={ui:galleryState,custom:[],favorites:['recipe'],active:'reference',save(){galleryActions.push('save');},preview(item){galleryActions.push(['preview',item.id]);},favorite(id){galleryActions.push(['favorite',id]);},remove(id){galleryActions.push(['remove',id]);}};
   mountTemplateGallery(galleryRoot,galleryApi);assert.equal(count.textContent,'10개의 구성');
-  assert.match(galleryRoot.innerHTML,/<div class="gallery-heading"><h1 class="panel-heading">템플릿<\/h1><button[^>]*id="saveMyTemplate"/);
+  assert.match(galleryRoot.innerHTML,/<div class="gallery-heading"><h1 class="panel-heading">템플릿<\/h1><button[^>]*id="importMyTemplate"/);
   assert.ok(galleryRoot.innerHTML.indexOf('id="saveMyTemplate"')<galleryRoot.innerHTML.indexOf('id="templateSearch"'));
   assert.match(galleryRoot.innerHTML,/role="group" aria-label="템플릿 분류"/);
   assert.match(galleryRoot.innerHTML,/role="group" aria-label="개인 템플릿"/);

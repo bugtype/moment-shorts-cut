@@ -46,11 +46,33 @@ Use **사용 가이드 (Help) → 편집 설정 저장 (Save editing settings)**
 | Work on | Available tools | Important boundary |
 | --- | --- | --- |
 | Video and timing | Trim, split, reorder, delete, speed, pan/zoom, undo/redo; brightness, contrast, saturation, vignette, slow zoom and progress bar | One source video and one video track; boundary fades/flash do not overlap clips |
-| Layout and text | 10 built-in templates, search/favorites, up to 20 local custom templates, title/credit styling and 12 timed text layers | Style-only preserves authored text; example content replaces title, credit and timed cards |
+| Layout and text | 10 built-in templates, search/favorites, up to 20 local custom templates with individual JSON import/export, title/credit styling and 12 timed text layers | Style-only preserves authored text; example content replaces title, credit and timed cards |
 | Captions and audio | SRT/VTT import, edited SRT/VTT export, literal find/replace-all, highlighting, effects, two manual speakers; one added audio file or microphone narration | On-device ASR uses Transformers.js 3.8.1 + `Xenova/whisper-tiny`; recognition and estimated split timing need review |
 | Save and automate | Browser storage, project JSON, CLI, repository skill and stdio MCP; Canvas/Web Audio → MediaRecorder export | Project JSON contains no media; CLI/MCP do not encode video |
 
 The built-in templates cover review stories, bold opening lines, vlogs, explainers, interviews, recipes, rankings, product reviews, quizzes, and cinematic moments. Preview each with its animated sample. Quiz choices and countdowns are video graphics, not interactive polls.
+
+### Share a custom template
+
+Export an individual custom-template card in the gallery, then use the gallery’s
+import button in another browser. Import adds a **new copy** under **내 템플릿**,
+with a new ID; it does not replace a saved template, change favorites or apply
+the template to the current project. Preview it, then choose style-only or
+example-content application as usual.
+
+| File | What it carries | What it does not do |
+|---|---|---|
+| Project JSON | Editing settings, timeline and captions | Embed source media |
+| Single-template JSON | Saved styles, title/credit/card text, keywords and speaker labels | Back up the whole library or current project |
+| SRT/VTT | Edited subtitle text and timing | Preserve visual styling or media |
+
+**Review saved wording before sharing a template.** There is no video/audio in the
+file, but titles, credits, cards, global keywords and speaker labels can be private.
+Import accepts UTF-8 JSON up to 256 KiB, including an optional leading BOM, and
+requires room in the 20-template library. Invalid files or failed saves leave the
+library and current project unchanged. [File contract and recovery](INTEGRATIONS.md#개별-사용자-템플릿-파일)
+cover format/version checks and concurrent selections. This browser-library
+workflow does not add CLI or MCP access to custom templates.
 
 ## Example results
 

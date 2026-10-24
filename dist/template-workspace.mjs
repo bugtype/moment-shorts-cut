@@ -1,4 +1,4 @@
-import { readTemplateLibrary, validateTemplateLibrary } from './template-library.mjs';
+import { readTemplateLibrary, validateTemplateLibrary, createTemplateDocument, readTemplateDocument, MAX_TEMPLATE_FILE_BYTES } from './template-library.mjs';
 import { saveCustomTemplate } from './template-catalog.mjs';
 import { mountTemplateGallery } from './template-gallery.mjs';
 import { esc } from './ui-format.mjs';
@@ -6,12 +6,14 @@ import { esc } from './ui-format.mjs';
 // Own the template library independently of project state and project persistence.
 export function createTemplateWorkspace({
     getProject, query: $, modal, openModal: modalOpen,
-    thumbnail, preview, refresh, navigate, toast,
+    thumbnail, preview, refresh, navigate, toast, download,
 }, {
     readStorage = key => localStorage.getItem(key),
     writeStorage = (key, value) => localStorage.setItem(key, value),
     mount = mountTemplateGallery,
+    makeId = () => `custom-${globalThis.crypto?.randomUUID?.() || `${Date.now()}-${Math.random().toString(36).slice(2)}`}`,
 } = {}) {
+    let importRequest = 0;
     const galleryUI = { query: '', category: '전체' };
     let savedTemplates = [], favoriteTemplates = [], templateLibraryError = '';
     try {
@@ -42,6 +44,58 @@ export function createTemplateWorkspace({
             return false;
         }
     }
+    async function importTemplate(file) {
+        const request = ++importRequest;
+        if (templateLibraryBlocked())
+            return;
+        try {
+            if (file.size > MAX_TEMPLATE_FILE_BYTES)
+                throw new Error('템플릿 파일은 256 KiB 이하만 불러올 수 있습니다.');
+            const bytes = await file.arrayBuffer();
+            if (request !== importRequest)
+                return;
+            if (bytes.byteLength > MAX_TEMPLATE_FILE_BYTES)
+                throw new Error('템플릿 파일은 256 KiB 이하만 불러올 수 있습니다.');
+            let text;
+            try { text = new TextDecoder('utf-8', { fatal: true }).decode(bytes); }
+            catch { throw new Error('템플릿 파일을 UTF-8로 저장한 뒤 다시 불러오세요.'); }
+            const template = readTemplateDocument(JSON.parse(text));
+            if (savedTemplates.length >= 20)
+                throw new Error('내 템플릿은 20개까지 저장할 수 있습니다.');
+            template.id = makeId();
+            template.category = '내 템플릿';
+            const next = [...savedTemplates, template];
+            validateTemplateLibrary(next, favoriteTemplates);
+            const previous = savedTemplates;
+            savedTemplates = next;
+            if (!persistTemplateLibrary('moment-templates-v1', next)) {
+                savedTemplates = previous;
+                return;
+            }
+            galleryUI.category = '내 템플릿';
+            refresh();
+            toast('내 템플릿으로 불러왔습니다.');
+        }
+        catch (error) {
+            if (request === importRequest)
+                toast(error.message || '템플릿 파일을 확인하세요.');
+        }
+    }
+    function exportTemplate(id) {
+        try {
+            const template = savedTemplates.find(item => item.id === id);
+            if (!template)
+                throw new Error('내보낼 템플릿을 찾을 수 없습니다.');
+            const text = JSON.stringify(createTemplateDocument(template), null, 2);
+            const blob = new Blob([text], { type: 'application/json' });
+            if (blob.size > MAX_TEMPLATE_FILE_BYTES)
+                throw new Error('템플릿 파일은 256 KiB 이하만 저장할 수 있습니다.');
+            download(blob, `${template.name}.moment-template.json`);
+        }
+        catch (error) {
+            toast(error.message || '템플릿을 저장하지 못했습니다.');
+        }
+    }
     function renderGallery(target) {
         mount(target, {
             ui: galleryUI,
@@ -51,6 +105,8 @@ export function createTemplateWorkspace({
             error: templateLibraryError,
             thumbnail, preview,
             save: saveTemplateDialog,
+            import: importTemplate,
+            export: exportTemplate,
             favorite(id) {
                 if (templateLibraryBlocked())
                     return;

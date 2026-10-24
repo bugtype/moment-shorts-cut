@@ -185,6 +185,61 @@ VTT는 UTF-8 일반 WebVTT로 `WEBVTT` 헤더와 점 단위 밀리초를 사용�
 
 CLI는 편집 메타데이터와 SRT/VTT를 다룹니다. MP4 파일을 생성하거나 브라우저 IndexedDB의 원본 파일을 직접 가져오지 않습니다.
 
+## 개별 사용자 템플릿 파일
+
+브라우저 갤러리는 사용자 템플릿 한 개를 JSON으로 내보내고 가져올 수 있습니다.
+프로젝트 JSON, 라이브러리 전체 백업, CLI/MCP의 기본 템플릿 목록과는 별도입니다.
+
+| 항목 | 계약 |
+|---|---|
+| 문서 | `{format:"moment-template", formatVersion:1, template:{...}}` |
+| 입력 | UTF-8 JSON, 파일 시작 BOM 하나 허용, BOM 포함 최대 256 KiB(262,144바이트) |
+| 검증 | 지원 형식·버전과 템플릿 구조·중첩 스타일 검증 |
+| 가져오기 | 현재 라이브러리에 새 고유 ID로 추가, 카테고리 `내 템플릿`, 최대 20개 |
+
+갤러리에서 가져올 파일을 선택하면 현재 라이브러리에 **복사본을 추가할 뿐**,
+기존 템플릿·즐겨찾기·현재 프로젝트를 덮어쓰거나 자동 적용하지 않습니다.
+미리보기 후 스타일만 적용 또는 예시 내용까지 적용을 선택하세요.
+
+**공유 범위:** 스타일과 저장된 제목·크레딧·시간별 문구·공통 키워드·화자 이름을
+포함할 수 있습니다. 영상·오디오 원본은 포함하지 않으며 전체 프로젝트 문서도
+아닙니다. 미디어가 없다는 이유로 파일에 개인정보가 없다고 판단하지 마세요.
+
+| 실패·경합 | 처리와 복구 |
+|---|---|
+| 잘못된 형식·버전·UTF-8·중첩 스타일 또는 크기 초과 | 라이브러리와 프로젝트 유지; 지원 파일을 다시 선택 |
+| 사용자 템플릿 20개 | 추가 거절; 필요한 템플릿을 먼저 보관한 뒤 의도한 항목만 삭제 |
+| 저장 실패 | 기존 라이브러리와 프로젝트 유지; 저장소 문제를 해결한 뒤 다시 시도 |
+| 연속 파일 선택 | 가장 최근 선택한 요청만 적용 가능; 읽기가 끝난 뒤에도 현재 용량 재확인 |
+
+가져오기 중 다른 템플릿이 추가되어도 이전 라이브러리 스냅샷으로 덮어쓰지
+않습니다. 로컬 stdio MCP는 이 브라우저 라이브러리를 읽지 않으며 도구는
+그대로 12개입니다. CLI/MCP의 `templates.list`는 계속 기본 템플릿만 반환합니다.
+
+### 템플릿 문서 검증 예제
+
+아래 예제는 저장소 루트에서 실행하며 메모리에서 문서를 생성·검증합니다.
+파일이나 브라우저 라이브러리에 쓰지 않습니다. 가져올 때의 ID 재발급과
+라이브러리 추가는 별도의 브라우저 가져오기 흐름이 담당합니다.
+
+```sh
+node --input-type=module <<'JS'
+import { createDemoProject } from './dist/core/project.mjs';
+import { saveCustomTemplate } from './dist/template-catalog.mjs';
+import { createTemplateDocument, readTemplateDocument } from './dist/template-library.mjs';
+const template = saveCustomTemplate('공유 예시', createDemoProject());
+const document = createTemplateDocument(template);
+const restored = readTemplateDocument(JSON.parse(JSON.stringify(document)));
+console.log({format: document.format, version: document.formatVersion, name: restored.name});
+JS
+```
+
+이 함수들은 파싱된 JSON 객체를 검증합니다. 파일 바이트·UTF-8 검사는 브라우저
+파일 읽기 단계의 책임이며, 이미 파싱한 객체에 검증 함수를 호출했다고 파일
+인코딩까지 검증한 것은 아닙니다. 내보내는 JSON은 들여쓰기 2칸을 사용하며
+그 결과도 256 KiB 이하여야 합니다. 따라서 압축된 입력 파일이 한도 안이어도
+정규 출력 형태가 한도를 넘으면 가져오기를 거절합니다.
+
 ## 브라우저와 파일 왕복
 
 사이트 상단 사용 가이드에서 **편집 설정 저장 / 편집 설정 불러오기**를 사용할 수 있습니다. 문서 형식은 `{format:"moment-project", formatVersion:1, project:{...}}`이며, 내부 편집 상태 버전은 현재 4입니다. 지원하는 이전 상태만 마이그레이션하며 미래 버전은 거부합니다. 현재 상태 버전의 잘못되거나 누락된 필드는 기본값으로 조용히 교체하지 않고 거부합니다.

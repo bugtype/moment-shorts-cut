@@ -4,14 +4,14 @@ import { createTemplateWorkspace } from '../dist/template-workspace.mjs';
 import { createDemoProject } from '../dist/core/project.mjs';
 import { saveCustomTemplate } from '../dist/template-catalog.mjs';
 
-function workspace(templates = []) {
-  const stored = new Map([['moment-templates-v1', JSON.stringify(templates)]]);
+function workspace(templates = [], options = {}) {
+  const stored = new Map([['moment-templates-v1', options.raw ?? JSON.stringify(templates)]]);
   const controls = new Map();
   const query = selector => {
     if (!controls.has(selector)) controls.set(selector, { value: '', focus() { this.focused = true; } });
     return controls.get(selector);
   };
-  const result = { project: createDemoProject(), events: [], writes: [], failKey: '', query, stored };
+  const result = { project: createDemoProject(), events: [], writes: [], failKey: '', downloads: [], query, stored };
   const controller = createTemplateWorkspace({
     getProject: () => result.project,
     query,
@@ -21,6 +21,7 @@ function workspace(templates = []) {
     refresh: () => controller.render({}),
     navigate: panel => { result.events.push(panel); controller.render({}); },
     toast: message => result.events.push(message),
+    download: (blob, name) => result.downloads.push({ blob, name }),
   }, {
     readStorage: key => stored.get(key) ?? null,
     writeStorage: (key, value) => {
@@ -29,6 +30,7 @@ function workspace(templates = []) {
       stored.set(key, value);
     },
     mount: (_, options) => { result.api = options; },
+    ...(options.makeId ? { makeId: options.makeId } : {}),
   });
   result.render = () => controller.render({});
   result.render();
@@ -122,4 +124,85 @@ test('failed template deletion remains intact in storage and on screen, then ret
   a.query('#confirmRemoveTemplate').onclick();
   assert.deepEqual(a.api.custom, []);
   assert.deepEqual(JSON.parse(a.stored.get('moment-templates-v1')), []);
+});
+
+
+const templateFile = template => new Blob([JSON.stringify({format: 'moment-template', formatVersion: 1, template})]);
+function pendingFile() {
+  let finish;
+  return { size: 1, arrayBuffer: () => new Promise(resolve => { finish = resolve; }), resolve: bytes => finish(bytes) };
+}
+
+test('template file round trip adds a fresh copy without replacing project or favorites', async () => {
+  const item = saveCustomTemplate('공유 스타일', createDemoProject());
+  const a = workspace([item]), original = structuredClone(a.project);
+  a.api.favorite('clean');
+  a.api.export(item.id);
+  assert.equal(a.downloads[0].name, '공유 스타일.moment-template.json');
+  assert.equal(a.downloads[0].blob.type, 'application/json');
+  await a.api.import(a.downloads[0].blob);
+  assert.equal(a.api.custom.length, 2);
+  assert.notEqual(a.api.custom[1].id, item.id);
+  assert.deepEqual(a.api.custom[1], {...item, id: a.api.custom[1].id, category: '내 템플릿'});
+  assert.deepEqual(a.api.favorites, ['clean']);
+  assert.deepEqual(a.project, original);
+  assert.deepEqual(a.writes, ['moment-favorites-v1', 'moment-templates-v1']);
+});
+
+test('template import rejects encoding, version, actual byte budget and ID collisions without writes', async () => {
+  const item = saveCustomTemplate('스타일', createDemoProject());
+  const a = workspace([item], { makeId: () => item.id });
+  const inputs = [new Blob([new Uint8Array([0xff])]), new Blob(['{']),
+    new Blob([JSON.stringify({format:'moment-template',formatVersion:99,template:item})]),
+    {size:1,arrayBuffer:async()=>new ArrayBuffer(256*1024+1)},
+    {size:256*1024+1,arrayBuffer:()=>{throw Error('must not read')}}, templateFile(item)];
+  for (const file of inputs) await a.api.import(file);
+  a.render();
+  assert.equal(a.events.length, inputs.length);
+  assert.deepEqual(a.api.custom, [item]);
+  assert.deepEqual(a.writes, []);
+});
+
+test('latest template selection wins while completed local saves remain in the merged library', async () => {
+  const item = saveCustomTemplate('가져온 스타일', createDemoProject()), a = workspace();
+  const first = pendingFile(), second = pendingFile();
+  const p1 = a.api.import(first), p2 = a.api.import(second);
+  a.api.save(); a.query('#customTemplateName').value = '대기 중 저장'; a.query('#saveCustomTemplate').onclick();
+  second.resolve(await templateFile(item).arrayBuffer()); await p2;
+  first.resolve(await templateFile({...item,name:'오래된 요청'}).arrayBuffer()); await p1;
+  assert.deepEqual(a.api.custom.map(t=>t.name), ['대기 중 저장','가져온 스타일']);
+  assert.equal(a.writes.length, 2);
+});
+
+test('template import rechecks capacity after reading and rolls back a failed storage write', async () => {
+  const item = saveCustomTemplate('스타일', createDemoProject());
+  const a = workspace(Array.from({length:19}, (_,i)=>({...item,id:'custom-'+i})));
+  const file = pendingFile(), pending = a.api.import(file);
+  a.api.save(); a.query('#customTemplateName').value='마지막 자리'; a.query('#saveCustomTemplate').onclick();
+  file.resolve(await templateFile(item).arrayBuffer()); await pending;
+  assert.equal(a.api.custom.length,20); assert.equal(a.writes.length,1);
+  assert.match(a.events.at(-1),/20개/);
+  const b = workspace(); b.failKey='moment-templates-v1';
+  await b.api.import(templateFile(item)); b.render();
+  assert.deepEqual(b.api.custom,[]); assert.deepEqual(JSON.parse(b.stored.get('moment-templates-v1')),[]);
+  b.failKey=''; await b.api.import(templateFile(item)); assert.equal(b.api.custom.length,1);
+});
+
+test('unreadable template recovery blocks import without reading or writing', async () => {
+  const a = workspace([], {raw:'invalid JSON'});
+  await a.api.import({arrayBuffer:()=>{throw Error('must not read')}});
+  assert.match(a.events.at(-1),/차단/);
+  assert.deepEqual(a.writes,[]);
+});
+
+test('template export refuses missing IDs and oversized UTF-8 output without partial downloads', () => {
+  const item = saveCustomTemplate('큰 스타일', createDemoProject());
+  item.flow = Array.from({length:1000},()=> '가'.repeat(100));
+  const a = workspace([item]);
+  a.api.export('missing');
+  a.api.export(item.id);
+  assert.deepEqual(a.downloads,[]);
+  assert.equal(a.events.length,2);
+  assert.match(a.events.at(-1),/256 KiB/);
+  assert.deepEqual(a.writes,[]);
 });

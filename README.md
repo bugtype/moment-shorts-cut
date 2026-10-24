@@ -68,6 +68,7 @@ Settings files must fit **10 MiB (10,485,760 UTF-8 bytes)** for both save and re
 | Navigate the preview | [Fine steps, cut boundaries and exact output time](#navigate-the-preview) |
 | Edit timing | [Capture trim values and set an exact speed](#edit-timing-from-the-preview) |
 | Save an image | [Click-time preview PNG and bitmap dimensions](#save-a-preview-image) |
+| Back up added audio | [Original audio file, not an edited mix](#back-up-added-audio) |
 | Repeat playback | [Session-only loop, card preview and export boundaries](#repeat-the-full-preview) |
 
 ## Features
@@ -219,6 +220,18 @@ not rerender at 1080p, seek, pause or change project/history. No media is upload
 This works independently of MediaRecorder; it is not source-frame-accurate export.
 Busy states and recovery without session media access block capture; a newer request or project/media change cancels
 an outdated pending download. Normal playback advancing does not change the snapshot.
+
+### Back up added audio
+
+In **Audio**, choose **Download original audio** beside the attached asset to save
+the original added file, including microphone narration. It downloads the full
+original bytes, name and media type—not an edited mix or the source video's audio.
+Offset, volumes, speed and clips do not alter this backup; no codec conversion,
+pause, seek, project edit or history entry occurs. Project JSON still contains no media.
+
+The file must be available in a ready project or a confirmed session-only media
+connection. Busy states, unavailable recovery media and stale actions are blocked;
+this does not repair storage or re-enable browser saving.
 
 ## Example results
 

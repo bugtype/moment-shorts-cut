@@ -1,5 +1,7 @@
 // Flat semantic keys; keep each Korean, English and Simplified Chinese entry aligned.
 const entries = {
+  "panels.downloadOriginalAudio": ["원본 오디오 다운로드","Download original audio","下载原始音频"],
+  "panels.originalAudioDownloadFailed": ["원본 오디오를 다운로드하지 못했습니다. 다시 시도해 주세요.","Could not download the original audio. Try again.","无法下载原始音频。请重试。"],
   "panels.removeClipRange": ["클립 범위 삭제…","Remove clip range…","删除片段范围…"],
   "panels.firstClip": ["첫 클립 (포함)","First clip (inclusive)","首个片段（包含）"],
   "panels.lastClip": ["마지막 클립 (포함)","Last clip (inclusive)","末个片段（包含）"],

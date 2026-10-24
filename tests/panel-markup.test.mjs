@@ -108,10 +108,12 @@ test('audio workspace groups connected controls before replacement actions witho
     if (hasAudio) {
       assert.ok(html.indexOf('id="audioVolume"') < html.indexOf('id="chooseAudio"'));
       assert.match(html, /오디오 교체/);
+      assert.match(html, /id="downloadOriginalAudio"/);
+      assert.ok(html.indexOf('id="downloadOriginalAudio"') < html.indexOf('id="removeAudio"'));
       assert.match(html, /aria-label="추가 오디오 볼륨"/);
     } else {
       assert.match(html, /오디오 선택/);
-      assert.doesNotMatch(html, /id="removeAudio"|id="audioVolume"/);
+      assert.doesNotMatch(html, /id="removeAudio"|id="audioVolume"|id="downloadOriginalAudio"/);
     }
     const ids = [...html.matchAll(/\bid="([^"]+)"/g)].map(match => match[1]);
     assert.equal(new Set(ids).size, ids.length);

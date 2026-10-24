@@ -7,7 +7,7 @@ const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
 // media lifetime stay in the app; this module only wires the current panel controls.
 export function createWorkspacePanels(app) {
     const { query: $, queryAll: $$ } = app;
-    let sheetOpen = false;
+    let sheetOpen = false, renderGeneration = 0;
 
     // Compact layouts keep the preview visible and turn the side panel into a
     // sheet above the bottom tool rail. Desktop keeps the panel permanently docked.
@@ -119,6 +119,7 @@ export function createWorkspacePanels(app) {
     }
 
     function renderPanel() {
+        const generation = ++renderGeneration;
         const target = $('#panelContent');
         if (app.panel === 'templates') {
             app.templateWorkspace.render(target);
@@ -154,6 +155,21 @@ export function createWorkspacePanels(app) {
             $('#chooseAudio').onclick = () => $('#audioInput').click();
             $('#recordButton').onclick = app.toggleRecording;
             if (app.sources.audioFile) {
+                const file = app.sources.audioFile, project = app.state, audioURL = app.sources.audioURL;
+                const button = $('#downloadOriginalAudio');
+                let composing = false;
+                target.oncompositionstart = () => { composing = true; };
+                target.oncompositionend = () => { composing = false; };
+                button.disabled = !app.mediaReady();
+                button.onclick = event => {
+                    if (composing || event?.isComposing || event?.keyCode === 229 || generation !== renderGeneration ||
+                        app.panel !== 'audio' || $('#downloadOriginalAudio') !== button || app.state !== project ||
+                        app.sources.audioFile !== file || app.sources.audioURL !== audioURL || app.modal.open ||
+                        !app.editorReady || !app.mediaReady() || app.exporting || app.loadingMedia || app.transcribing ||
+                        app.audioRecording.current || app.audioRecording.requesting) return;
+                    try { app.download(file, file.name); }
+                    catch { app.toast(message('panels.originalAudioDownloadFailed')); }
+                };
                 $('#removeAudio').onclick = () => {
                     if (app.recoveryBlocked() || app.audioRecording.current || app.audioRecording.requesting || app.loadingMedia)
                         return;

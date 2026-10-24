@@ -179,3 +179,12 @@ test('relinked current-scene template comparison remains read-only while storage
     await vm.runInContext('saveProject(true);scheduleSave();',f.context);
     assert.deepEqual(f.writes,[]);assert.equal(f.evaluate('persistence.restorePhase'),'failed');
 });
+
+test('verified relinked original audio can be downloaded without authorizing storage or edits',async()=>{
+    const f=await fixture({audio:true});f.open();f.choose();await f.connect();const before=f.snapshot();
+    vm.runInContext("switchPanel('audio');",f.context);
+    const original=vm.runInContext('sources.audioFile',f.context);
+    f.element('#downloadOriginalAudio').onclick({});
+    assert.equal(f.downloads.length,1);assert.equal(f.downloads[0].blob,original);assert.equal(f.downloads[0].name,'music.wav');
+    assert.deepEqual(f.snapshot(),before);assert.deepEqual(f.writes,[]);
+});

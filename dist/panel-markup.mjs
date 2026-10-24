@@ -203,7 +203,7 @@ function captionRowMarkup(c, i, speakerLabels, last) {
 }
 
 function audioConnectionMarkup({ audioName, audioOffset, audioVolume, speed }, timelineDuration) {
-    return `<div class="audio-file">${icon('audio')} ${esc(audioName)}<button class="text-button" id="removeAudio">${text('panels.disconnect')}</button>` +
+    return `<div class="audio-file">${icon('audio')} ${esc(audioName)}<div class="panel-actions"><button class="text-button" id="downloadOriginalAudio">${text('panels.downloadOriginalAudio')}</button><button class="text-button" id="removeAudio">${text('panels.disconnect')}</button></div>` +
         `</div>` +
         `<label class="panel-label" for="audioOffset">${text('panels.audioStart')}</label>` +
         `<input class="panel-input" id="audioOffset" type="number" min="0" max="${timelineDuration / speed}" step="0.1" value="${audioOffset / speed}">` +

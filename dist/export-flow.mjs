@@ -48,6 +48,14 @@ export function createExportFlow(app, {
             app.exporting = true;
             app.exportCancelled = false;
             body().classList.add('exporting');
+            // Preparation can wait on audio, fonts or seeking. Keep cancellation reachable
+            // before those native promises settle; late continuations lose this request.
+            const cancel = () => {
+                if (request === videoExport.request)
+                    stopExport(true);
+            };
+            modal.innerHTML = '<div class="modal-head"><h2>내보내기 준비 중…</h2></div><button class="button full" id="cancelRunningExport">내보내기 취소</button>';
+            $('#cancelRunningExport').onclick = cancel;
             await app.ensureAudio();
             if (request !== videoExport.request)
                 return;
@@ -83,10 +91,7 @@ export function createExportFlow(app, {
                 },
             });
             modal.innerHTML = '<div class="modal-head"><h2>순간을 담는 중…</h2><strong id="exportPercent">0%</strong></div><p class="modal-copy">이 탭을 열어두면 완성된 영상이 다운로드됩니다.</p><div class="progress"><i id="exportProgress"></i></div><button class="button full" id="cancelRunningExport">내보내기 취소</button>';
-            $('#cancelRunningExport').onclick = () => {
-                if (request === videoExport.request)
-                    stopExport(true);
-            };
+            $('#cancelRunningExport').onclick = cancel;
             app.muted = false;
             app.renderInspector();
             recorder.start(250);

@@ -271,6 +271,22 @@ test('media persistence, recording and export ownership', async () => {
   assert.equal(evaluate('exporting'),false);assert.equal(evaluate('playing'),false);
   vm.runInContext('delete globalThis.preparationAudio;',context);
   
+  // Follow the visible settings dialog entry point, not only startExport's internal API.
+  vm.runInContext('globalThis.dialogAudio=ensureAudio;canvas.captureStream=()=>({});state=initial();',context);
+  let finishDialogAudio;context.dialogAudioWait=()=>new Promise(resolve=>{finishDialogAudio=resolve;});
+  vm.runInContext('ensureAudio=dialogAudioWait;exportDialog();',context);
+  assert.equal(evaluate('modal.open'),true);
+  element('#exportFormat').value='0';element('#exportQuality').value='720';
+  const dialogCounts=[recorderStarts,downloads],dialogExport=element('#startExport').onclick();
+  assert.equal(evaluate('exporting'),true);assert.equal(evaluate('modal.open'),true);
+  assert.match(element('#modal').innerHTML,/내보내기 준비 중/);
+  element('#cancelRunningExport').onclick();
+  assert.equal(evaluate('exporting'),false);assert.equal(evaluate('modal.open'),false);
+  finishDialogAudio();await dialogExport;
+  assert.deepEqual([recorderStarts,downloads],dialogCounts);
+  assert.equal(evaluate('videoExport.canvas'),null);assert.equal(evaluate('videoExport.recorder'),null);
+  vm.runInContext('ensureAudio=dialogAudio;delete globalThis.dialogAudio;',context);
+
   vm.runInContext('globalThis.savedExportPreparation={ensureAudio,seekVideo};',context);
   const savedFontReady=doc.fonts.ready;
   for(const stage of ['audio','fonts','seek'])for(const outcome of ['resolve','reject'])for(const retry of [false,true]){
@@ -281,10 +297,21 @@ test('media persistence, recording and export ownership', async () => {
    else vm.runInContext(stage==='audio'?'ensureAudio=exportWait':'seekVideo=exportWait',context);
    const old=vm.runInContext('startExport({mime:"video/webm;codecs=vp8,opus",ext:"webm"},720)',context);
    for(let i=0;i<5;i++)await Promise.resolve();assert.equal(entered,true,stage+' await reached');
-   vm.runInContext('stopExport(true);ensureAudio=async()=>{};seekVideo=async()=>{};',context);doc.fonts.ready=Promise.resolve();
+   assert.match(element('#modal').innerHTML,/내보내기 준비 중/);
+   assert.match(element('#modal').innerHTML,/id="cancelRunningExport"/);
+   const staleCancel=element('#cancelRunningExport').onclick;
+   const cancelledCounts=[recorderStarts,downloads];
+   staleCancel();
+   assert.equal(evaluate('exporting'),false,stage+' visible Cancel unlocks editor');
+   assert.equal(evaluate('videoExport.canvas'),null);
+   assert.equal(evaluate('videoExport.recorder'),null);
+   assert.deepEqual([recorderStarts,downloads],cancelledCounts);
+   vm.runInContext('ensureAudio=async()=>{};seekVideo=async()=>{};',context);doc.fonts.ready=Promise.resolve();
    if(retry)await vm.runInContext('startExport({mime:"video/webm;codecs=vp8,opus",ext:"webm"},1080)',context);
    const active=vm.runInContext('videoExport.recorder',context),before=evaluate('({state,exporting,exportCancelled,playing})'),counts=[recorderStarts,stoppedExportTracks,downloads];
    element('#toast').textContent='current state';
+   staleCancel();
+   assert.deepEqual(evaluate('({state,exporting,exportCancelled,playing})'),before,'old visible Cancel cannot cancel retry');
    if(outcome==='reject')fail(new Error('old preparation'));else finish();await old;
    assert.deepEqual(evaluate('({state,exporting,exportCancelled,playing})'),before,`${stage} ${outcome} after cancel/retry`);
    assert.equal(vm.runInContext('videoExport.recorder',context),active);assert.deepEqual([recorderStarts,stoppedExportTracks,downloads],counts);

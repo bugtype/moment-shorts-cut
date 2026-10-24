@@ -38,7 +38,7 @@ function fixture() {
   const target = { querySelector: () => ({ open: true }), innerHTML: '' };
   panel.render(target, { transcribing: false, hasAudio: false, transcriptionStatus: '' }, {
     design: () => log.push('design'), generate: () => log.push('generate'),
-    download: () => log.push('download'),
+    download: format => log.push(['download', format]),
   });
   return { panel, query, target, log, project: () => project, replace: value => { project = value; } };
 }
@@ -72,7 +72,7 @@ test('caption delete/add retain focus scrolling and route existing actions', () 
   assert.deepEqual(f.project().captions[0], { start: 2, end: 5, text: '새로운 자막을 입력하세요' });
   assert.deepEqual(f.log.at(-2), ['focus', '[data-caption-text="0"]', { preventScroll: true }]);
   for (const id of ['captionDesignShortcut', 'generateCaptions', 'downloadSrt', 'importSrt']) f.query('#' + id).onclick();
-  assert.deepEqual(f.log.slice(-4), ['design', 'generate', 'download', ['click', '#srtInput']]);
+  assert.deepEqual(f.log.slice(-4), ['design', 'generate', ['download', 'srt'], ['click', '#srtInput']]);
 });
 
 test('caption split preserves a no-op and sends real grapheme splits through edit once', () => {
@@ -88,4 +88,14 @@ test('caption split preserves a no-op and sends real grapheme splits through edi
   assert.equal(f.project().captions.length, 2);
   assert.ok(f.project().captions.every(caption => caption.text === 'e\u0301'.repeat(12) && caption.speaker === '1'));
   assert.equal(f.log.filter(event => event[0] === 'edit').length, 1);
+});
+
+
+test('caption export buttons pass formats rather than click events', () => {
+  const f = fixture();
+  const event = { type: 'click' };
+  f.query('#downloadSrt').onclick(event);
+  f.query('#downloadVtt').onclick(event);
+  assert.deepEqual(f.log, [['download', 'srt'], ['download', 'vtt']]);
+  assert.match(f.target.innerHTML, /id="downloadSrt">SRT 저장<\/button><button class="button" id="downloadVtt">VTT 저장/);
 });

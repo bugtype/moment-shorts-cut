@@ -33,6 +33,8 @@ test('caption markup preserves text whitespace, escaping, indices and accessible
   assert.match(html, /value="audio" disabled/);
   assert.match(html, /id="captionTools" open/);
   assert.match(html, /class="estimated-timing"/);
+  assert.match(html, /id="downloadSrt">SRT 저장/);
+  assert.match(html, /id="downloadVtt">VTT 저장/);
   assert.match(html, /role="status" aria-live="polite" hidden>&lt;status&gt;/);
   const ids = [...html.matchAll(/\bid="([^"]+)"/g)].map(match => match[1]);
   assert.equal(new Set(ids).size, ids.length);

@@ -86,7 +86,7 @@ export function createWorkspacePanels(app) {
                 switchPanel('text');
             },
             generate: app.generateCaptions,
-            download: app.downloadSrt,
+            download: format => app.downloadSubtitles(format),
         });
     }
 

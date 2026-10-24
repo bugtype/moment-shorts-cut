@@ -22,6 +22,7 @@ The file envelope is `{format:"moment-project", formatVersion:1, project:{...}}`
 node cli/moment.mjs exec project.update --project supplied.moment.json --json '{"patch":{"name":"수정한 쇼츠"}}' --dry-run
 node cli/moment.mjs exec project.update --project supplied.moment.json --json '{"patch":{"name":"수정한 쇼츠"}}' --out edited.moment.json
 node cli/moment.mjs exec captions.export --project edited.moment.json --out edited.srt
+node cli/moment.mjs exec captions.export --project edited.moment.json --json '{"format":"vtt"}' --out edited.vtt
 ```
 
 These examples use POSIX quoting. For other shells or complex text, use a UTF-8 arguments file with `--args-file args.json` instead of `--json`.
@@ -45,7 +46,9 @@ Call `moment_project_update` and check both `isError === false` and `structuredC
 | Artifact | Retrieve with | Save this field |
 |---|---|---|
 | Edited project JSON | `moment_project_get` | `structuredContent.data` |
-| SRT text | `moment_captions_export` | `structuredContent.data.text` |
+| SRT/VTT text | `moment_captions_export` | `structuredContent.data.text` |
+
+For VTT, call `moment_captions_export` with `{"projectId":"session","format":"vtt"}`. Omitting `format` preserves SRT; an output filename does not select the format. Save only the returned text as UTF-8.
 
 Do not save the JSON-RPC envelope, text-content wrapper or mutation acknowledgment as a project document.
 
@@ -69,9 +72,15 @@ With source clips `[2,6]` then `[8,12]`, the pre-speed edited timeline is 8 seco
 | Timeline-basis caption | `[2,4]` | `[1,2]`, independent of removed source gaps |
 | Title/card | `[1,2]` | `[1,2]`, already output time |
 
-Source captions repeat when their range occurs in several clips. SRT export handles trimming, repetition and speed; do not offset it again.
+Source captions repeat when their range occurs in several clips. SRT/VTT export handles trimming, repetition and speed; do not offset it again.
 
 The project's `duration` describes the source, not the sum of the clips or final video length. Derive edited duration from the clips; derive output duration by dividing by speed. Do not infer whether a timeline caption is linked to an audio track from `basis` alone.
+
+## Subtitle format boundaries
+
+Both formats allow at most 10,000 edited occurrences, 2 MiB repeated raw UTF-8 text and 2 MiB completed output (including escaping, timing, separators and any VTT header/BOM). CLI/MCP omit the BOM. Browser SRT downloads include it; browser VTT downloads do not. Do not silently trim authored text to meet the budget.
+
+VTT uses a `WEBVTT` header and dot-separated milliseconds. It exports plain captions, not styles, regions or speaker metadata, and rejects NUL characters. Empty VTT returns `WEBVTT\n\n` through CLI/MCP; the browser skips empty downloads. Both formats reject empty/blank-line cues and intervals that collapse after millisecond rounding; correct the requested text/timing rather than discarding cues.
 
 ## Recover without losing work
 
@@ -86,7 +95,7 @@ The project's `duration` describes the source, not the sum of the clips or final
 
 **Media relinking:** `MEDIA_RELINK_REQUIRED` means browser import needs the matching originals connected first. Matching uses video name/duration and audio name, not a content hash. Keep the original media; MCP cannot relink it remotely.
 
-**SRT limits:** `CAPTION_OUTPUT_LIMIT` affects derived SRT, not metadata editing or JSON export. Reduce repeated clips/cues only as requested; do not discard the source document.
+**Subtitle limits:** `CAPTION_OUTPUT_LIMIT` affects derived SRT/VTT, not metadata editing or JSON export. Reduce repeated clips/cues only as requested; do not discard the source document.
 
 | File/session failure | Recovery |
 |---|---|

@@ -183,7 +183,7 @@ const editorService = createEditorService({
     },
     commitProject: commitCommandProject,
 });
-const { importProjectSettings, downloadProjectSettings, importSrt, downloadSrt } = createTextFileWorkflow({
+const { importProjectSettings, downloadProjectSettings, importSrt, downloadSrt, downloadSubtitles } = createTextFileWorkflow({
     getProject: () => state,
     execute: (...args) => editorService.execute(...args),
     query: $,
@@ -244,7 +244,7 @@ const app = {
     modalOpen: (title, body, footer) => modalOpen(title, body, footer),
     confirmReset: () => confirmReset(), download: (blob, name) => download(blob, name),
     trim: (start, end) => trim(start, end), split: () => split(), undo: redo => undo(redo),
-    generateCaptions: () => generateCaptions(), downloadSrt: () => downloadSrt(),
+    generateCaptions: () => generateCaptions(), downloadSubtitles: format => downloadSubtitles(format),
     importSrt: file => importSrt(file),
     importProjectSettings: file => importProjectSettings(file),
     downloadProjectSettings: () => downloadProjectSettings(),

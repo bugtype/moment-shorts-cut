@@ -26,8 +26,8 @@ function dataSchema(command) {
     case 'templates.list': return {
       type: 'array', items: record({ id: text, name: text, category: text, description: text }),
     };
-    case 'captions.export': return record({ format: { enum: ['srt'] }, text: {
-      type: 'string', description: 'SRT in final output seconds after clips and speed; save this string, not the result envelope.',
+    case 'captions.export': return record({ format: { enum: ['srt', 'vtt'] }, text: {
+      type: 'string', description: 'SRT or plain WebVTT in final output seconds after clips and speed; save this string, not the result envelope.',
     } });
     case 'render.plan': return record({
       planVersion: { enum: [1] }, project: documentSchema,
@@ -79,7 +79,7 @@ function inputSchema(command) {
   }
   if (p.captions) {
     p.captions.description = 'Replace the entire caption list; [] clears it. Each interval must fit its time basis.';
-    p.captions.items.properties.basis.description = 'Default source: original media seconds. timeline: edited timeline seconds BEFORE speed. SRT export converts to output seconds.';
+    p.captions.items.properties.basis.description = 'Default source: original media seconds. timeline: edited timeline seconds BEFORE speed. SRT/VTT export converts to output seconds.';
     p.captions.items.properties.text.description = 'Authored caption text, at most 2,000 UTF-16 code units in runtime validation; do not silently truncate.';
     p.captions.items.properties.start.description = 'Start in the selected basis, not final output seconds.';
     p.captions.items.properties.end.description = 'End in the selected basis; must exceed start.';
@@ -95,7 +95,9 @@ function inputSchema(command) {
     p.patch.properties.speed.description = 'Playback speed multiplier; output duration is edited timeline duration divided by speed.';
   }
   if (p.quality) p.quality.description = 'Output short edge in pixels; defaults to 1080. Creates a plan only.';
-  if (p.format) p.format.description = 'Planned output container; defaults to mp4, without checking local codec support.';
+  if (p.format) p.format.description = command.name === 'captions.export'
+    ? 'Subtitle format: srt (default) or plain vtt. The destination filename does not select the format.'
+    : 'Planned output container; defaults to mp4, without checking local codec support.';
   return schema;
 }
 

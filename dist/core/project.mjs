@@ -78,18 +78,24 @@ export function readProjectDocument(document){
   return validateProject(project.schemaVersion===DESIGN_VERSION?project:migrateProject(project,createDemoProject()));
 }
 export function srtTimestamp(t){const ms=Math.round(t*1000);return `${String(Math.floor(ms/3600000)).padStart(2,'0')}:${String(Math.floor(ms/60000)%60).padStart(2,'0')}:${String(Math.floor(ms/1000)%60).padStart(2,'0')},${String(ms%1000).padStart(3,'0')}`;}
-export function projectSrt(p,{bom=false}={}){
-  const chunks=[],encoder=new TextEncoder();let bytes=bom?3:0;
+export function projectSubtitles(p,{format='srt',bom=false}={}){
+  if(!['srt','vtt'].includes(format))fail('자막 출력 형식은 srt 또는 vtt여야 합니다.');
+  const label=format.toUpperCase(),header=format==='vtt'?'WEBVTT\n\n':'';
+  const chunks=[],encoder=new TextEncoder();let bytes=(bom?3:0)+encoder.encode(header).byteLength;
+  const timestamp=t=>format==='vtt'?srtTimestamp(t).replace(',','.'):srtTimestamp(t);
   for(const [i,c] of editedCaptions(p.captions,p.clips,p.speed).entries()){
-    const start=srtTimestamp(c.start),end=srtTimestamp(c.end);
-    if(start===end)fail(`SRT 출력 ${i+1}번째 자막의 시작과 끝이 밀리초 단위에서 같습니다. 자막 구간이나 배속을 조정한 뒤 다시 저장하세요.`);
+    const start=timestamp(c.start),end=timestamp(c.end);
+    if(start===end)fail(`${label} 출력 ${i+1}번째 자막의 시작과 끝이 밀리초 단위에서 같습니다. 자막 구간이나 배속을 조정한 뒤 다시 저장하세요.`);
     const lines=c.text.replace(/\r\n?/g,'\n');
-    if(/^[ \t]*$/m.test(lines))fail(`SRT 출력 ${i+1}번째 자막에 빈 줄이 있습니다. 빈 줄을 제거한 뒤 다시 저장하세요.`);
+    if(/^[ \t]*$/m.test(lines))fail(`${label} 출력 ${i+1}번째 자막에 빈 줄이 있습니다. 빈 줄을 제거한 뒤 다시 저장하세요.`);
+    if(format==='vtt'&&lines.includes('\0'))fail(`VTT 출력 ${i+1}번째 자막에 NUL 문자가 있습니다. 제거한 뒤 다시 저장하세요.`);
     const text=lines.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\u00a0/g,'&nbsp;');
     const chunk=`${i+1}\n${start} --> ${end}\n${text}\n`;
     bytes+=encoder.encode(chunk).byteLength+(i?1:0);
-    if(bytes>MAX_SUBTITLE_BYTES)captionOutputLimit('SRT 파일은 UTF-8 2 MiB까지 저장할 수 있습니다. 반복 클립이나 자막을 줄여 주세요.');
+    if(bytes>MAX_SUBTITLE_BYTES)captionOutputLimit(`${label} 파일은 UTF-8 2 MiB까지 저장할 수 있습니다. 반복 클립이나 자막을 줄여 주세요.`);
     chunks.push(chunk);
   }
-  return chunks.length?(bom?'\ufeff':'')+chunks.join('\n'):'';
+  return chunks.length||header?(bom?'\ufeff':'')+header+chunks.join('\n'):'';
 }
+
+export function projectSrt(p,options={}){return projectSubtitles(p,{...options,format:'srt'});}

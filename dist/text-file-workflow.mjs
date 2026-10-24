@@ -1,4 +1,4 @@
-import { createProjectDocument, projectSrt } from './core/project.mjs';
+import { createProjectDocument, projectSubtitles } from './core/project.mjs';
 import { CommandError } from './core/validation.mjs';
 import { parseSubtitles, MAX_SUBTITLE_BYTES } from './captions.mjs';
 
@@ -49,21 +49,24 @@ export function createTextFileWorkflow({
             return;
         download(new Blob([JSON.stringify(createProjectDocument(getProject()), null, 2)], { type: 'application/json' }), `${getProject().name || 'moment'}.moment.json`);
     }
-    function downloadSrt() {
+    function downloadSubtitles(format = 'srt') {
         if (settingsUnavailable())
             return;
         try {
-            const srt = projectSrt(getProject(), { bom: true });
-            if (!srt) {
+            const project = getProject();
+            const text = projectSubtitles(project, { format, bom: format === 'srt' });
+            if (!text || (format === 'vtt' && text === 'WEBVTT\n\n')) {
                 toast('저장할 자막이 없습니다.');
                 return;
             }
-            download(new Blob([srt], { type: 'text/plain;charset=utf-8' }), getProject().name + '.srt');
+            const type = format === 'vtt' ? 'text/vtt;charset=utf-8' : 'text/plain;charset=utf-8';
+            download(new Blob([text], { type }), `${project.name}.${format}`);
         }
         catch (error) {
             toast(error.message || '자막을 저장하지 못했습니다.');
         }
     }
+    function downloadSrt() { downloadSubtitles('srt'); }
     async function importSrt(file) {
         try {
             const beforeCommit = guardTextImport();
@@ -84,5 +87,5 @@ export function createTextFileWorkflow({
             $('#srtInput').value = '';
         }
     }
-    return { importProjectSettings, downloadProjectSettings, importSrt, downloadSrt };
+    return { importProjectSettings, downloadProjectSettings, importSrt, downloadSrt, downloadSubtitles };
 }

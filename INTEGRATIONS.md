@@ -6,7 +6,7 @@
 
 | 하려는 일 | 사용할 인터페이스 | 먼저 확인할 것 |
 |---|---|---|
-| JSON·SRT 파일 편집 | [CLI](#실제-cli-사용) | 원본을 보존할 출력 경로, `--dry-run` |
+| JSON·SRT·VTT 파일 편집 | [CLI](#실제-cli-사용) | 원본을 보존할 출력 경로, `--dry-run` |
 | AI 클라이언트로 메타데이터 편집 | [stdio MCP](docs/MCP.md) | `session`은 임시 프로젝트, 종료 전 문서 저장 |
 | 열린 브라우저 프로젝트 편집 | [같은 페이지 API](#브라우저와-파일-왕복) | `window.moment.ready`, 현재 작업의 `BUSY` 상태 |
 | 별도 저장소·미디어 작업 연결 | [호스트 확장](#mcp-어댑터와-호스트-확장) | 인증·원자적 저장·실제 제공자는 호스트 책임 |
@@ -15,7 +15,7 @@
 
 | 구성 | 파일 | 역할 |
 |---|---|---|
-| 프로젝트 모델 | `dist/core/project.mjs` | 기본값, 저장 문서 v1, 상태 검증, 시간 기준, SRT |
+| 프로젝트 모델 | `dist/core/project.mjs` | 기본값, 저장 문서 v1, 상태 검증, 시간 기준, SRT/VTT |
 | 편집 명령 | `dist/core/commands.mjs` | 입력 JSON Schema, 복사본 변경, 검증 후 결과 반환 |
 | 공통 서비스 | `dist/integration/editor-service.mjs` | 명령 직렬 실행, 저장 포트, 공통 결과·오류, 미디어 작업 포트 |
 
@@ -24,10 +24,10 @@
 | 구성 | 파일 | 역할 |
 |---|---|---|
 | 브라우저 | `dist/app.js`의 `window.moment` | 현재 프로젝트 접근, 실행 취소, 편집 중 상태 확인, 화면 갱신 |
-| CLI | `cli/moment.mjs` | JSON 파일 읽기·쓰기, SRT 저장, 기존 파일 보호 |
+| CLI | `cli/moment.mjs` | JSON 파일 읽기·쓰기, SRT/VTT 저장, 기존 파일 보호 |
 | MCP 어댑터 | `dist/integration/mcp-adapter.mjs` | 명령을 도구 목록/호출 결과로 변환, 프로젝트별 서비스 조회 |
 
-화면 비율·배속·기본 템플릿·트림·SRT 출력은 기존 UI도 공통 로직을 사용합니다. 타이틀/자막 등의 명령은 동일한 프로젝트 모델을 수정합니다. 미디어 디코딩·녹음·브라우저 인코딩은 기존 브라우저 구현에 남아 있습니다. 모든 화면 이벤트를 서버 코드로 옮긴 구조는 아닙니다.
+화면 비율·배속·기본 템플릿·트림·SRT/VTT 출력은 기존 UI도 공통 로직을 사용합니다. 타이틀/자막 등의 명령은 동일한 프로젝트 모델을 수정합니다. 미디어 디코딩·녹음·브라우저 인코딩은 기존 브라우저 구현에 남아 있습니다. 모든 화면 이벤트를 서버 코드로 옮긴 구조는 아닙니다.
 
 ## 명령 v1
 
@@ -39,7 +39,7 @@
 |---|---|---|
 | `project.get` | 없음 | 편집 설정 문서 |
 | `templates.list` | 없음 | 기본 템플릿 목록 |
-| `captions.export` | 없음 | 편집 구간·배속을 반영한 SRT |
+| `captions.export` | 선택 `format: "srt"` 또는 `"vtt"` | 편집 구간·배속을 반영한 `{format, text}`; 기본 SRT |
 | `render.plan` | `quality`, `format` | 출력 설정·프로젝트·필요한 미디어 목록; **파일 생성 아님** |
 
 ### 프로젝트와 템플릿 변경
@@ -78,7 +78,7 @@ JavaScript에서 직접 호출할 때도 JSON으로 왕복 가능한 값을 전�
 | 클립 `start/end`, 자막 `basis: "source"` 또는 생략 | 원본 영상의 초 |
 | 자막 `basis: "timeline"` | 배속 적용 **전** 편집 타임라인의 초 |
 | 제목·크레딧·구간 문구 | 배속 적용 **후** 출력 영상의 초 |
-| SRT | 편집 구간·반복·배속을 반영한 최종 출력 시간 |
+| SRT/VTT | 편집 구간·반복·배속을 반영한 최종 출력 시간 |
 
 배속이나 편집 길이 변경 시 출력 글자의 시간은 **한 번만** 비례 조정합니다.
 
@@ -93,6 +93,7 @@ node cli/moment.mjs init --out project.json
 node cli/moment.mjs exec template.apply --project project.json --args-file examples/explainer.json --out edited.json
 node cli/moment.mjs exec title.update --project edited.json --json '{"patch":{"lines":["첫 번째 제목","두 번째 제목"]}}' --out titled.json
 node cli/moment.mjs exec captions.export --project titled.json --out captions.srt
+node cli/moment.mjs exec captions.export --project titled.json --json '{"format":"vtt"}' --out captions.vtt
 node cli/moment.mjs exec render.plan --project titled.json --json '{"quality":1080,"format":"mp4"}' --out render-plan.json
 ```
 
@@ -118,15 +119,19 @@ node cli/moment.mjs exec render.plan --project titled.json --json '{"quality":10
 
 ### SRT 출력 제한
 
+**SRT와 VTT 모두 아래 한도를 적용합니다.** `format` 생략 시 기존 SRT 출력을 유지합니다. VTT는 `{"format":"vtt"}`를 명시해야 하며 출력 확장자로 형식을 추측하지 않습니다.
+
+VTT는 UTF-8 일반 WebVTT로 `WEBVTT` 헤더와 점 단위 밀리초를 사용합니다. 편집 구간·반복·배속과 문구 이스케이프는 SRT와 동일합니다. 꾸밈 스타일·영역·화자 메타데이터는 내보내지 않습니다. NUL 문자는 VTT에서 거부합니다. 자막이 없으면 CLI/서비스는 `WEBVTT\n\n`을 반환하고 브라우저는 빈 자막 파일을 내려받지 않습니다.
+
 | 제한 대상 | 상한 |
 |---|---|
 | 편집 후 출력 자막 | 10,000개 |
 | 반복분을 포함한 원문 UTF-8 | 2 MiB |
-| 완성된 SRT | 2 MiB |
+| 완성된 SRT 또는 VTT | 2 MiB |
 
-`captions.export`는 이 세 제한을 각각 적용합니다. SRT 크기는 이스케이프·시간·구분자를 포함하며 CLI/서비스는 BOM을 출력하지 않습니다(브라우저는 BOM 3바이트도 계산합니다). 초과 시 `CAPTION_OUTPUT_LIMIT`로 전체 출력을 거절하고 CLI는 기존 출력 파일을 보존합니다. 원본 프로젝트 검증·JSON·편집·`render.plan`에는 이 파생 출력 제한을 적용하지 않습니다. 반복 클립이나 자막을 줄여 재시도할 수 있습니다.
+`captions.export`는 이 세 제한을 각각 적용합니다. 파일 크기는 이스케이프·시간·구분자·VTT 헤더(해당 시)를 포함하며 CLI/서비스는 BOM을 출력하지 않습니다. 브라우저는 SRT에만 BOM을 넣고 그 3바이트도 계산하며, VTT에는 넣지 않습니다. 초과 시 `CAPTION_OUTPUT_LIMIT`로 전체 출력을 거절하고 CLI는 기존 출력 파일을 보존합니다. 원본 프로젝트 검증·JSON·편집·`render.plan`에는 이 파생 출력 제한을 적용하지 않습니다. 반복 클립이나 자막을 줄여 재시도할 수 있습니다.
 
-CLI는 편집 메타데이터와 SRT를 다룹니다. MP4 파일을 생성하거나 브라우저 IndexedDB의 원본 파일을 직접 가져오지 않습니다.
+CLI는 편집 메타데이터와 SRT/VTT를 다룹니다. MP4 파일을 생성하거나 브라우저 IndexedDB의 원본 파일을 직접 가져오지 않습니다.
 
 ## 브라우저와 파일 왕복
 
@@ -209,6 +214,6 @@ const jobs = {
 
 ## 검증
 
-`npm test`는 기존 편집기 회귀 검사와 새 통합 테스트를 실행합니다. 실제 CLI 프로세스의 JSON/SRT 파일 생성, 덮어쓰기 방지, 실패 시 원본 보존, 명령 직렬화, MCP 권한 조회·오류 매핑, 모의 작업 제공자, 브라우저 API의 실행 취소·작업 중 차단을 확인합니다.
+`npm test`는 기존 편집기 회귀 검사와 새 통합 테스트를 실행합니다. 실제 CLI 프로세스의 JSON/SRT/VTT 파일 생성, 덮어쓰기 방지, 실패 시 원본 보존, 명령 직렬화, MCP 권한 조회·오류 매핑, 모의 작업 제공자, 브라우저 API의 실행 취소·작업 중 차단을 확인합니다.
 
 stdio 프로토콜 테스트는 실제 Node 하위 프로세스를 사용합니다. 외부 MCP 클라이언트 앱 연결, 실제 업로드 제공자, 실제 음성 인식·인코딩, 브라우저 UI의 파일 선택창 동작은 이 자동 테스트 범위에 포함되지 않습니다. 별도 실제 브라우저에서의 파일 가져오기·MP4 출력·저장 복원 결과는 [브라우저 점검](docs/BROWSER_QA.md)에 기록했습니다.

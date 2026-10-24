@@ -52,7 +52,8 @@ export function createCaptionPanel({
             focusCaption(getProject().captions.length - 1);
         };
         $('#importSrt').onclick = () => $('#srtInput').click();
-        $('#downloadSrt').onclick = actions.download;
+        $('#downloadSrt').onclick = () => actions.download('srt');
+        $('#downloadVtt').onclick = () => actions.download('vtt');
         $$('[data-delete-caption]').forEach(b => b.onclick = () => {
             const index = +b.dataset.deleteCaption;
             edit(() => getProject().captions.splice(index, 1), true);

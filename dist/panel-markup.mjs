@@ -9,6 +9,7 @@ export function captionsPanelMarkup({ captions, speakerLabels }, { toolsOpen, tr
         `\n <div class="panel-actions">` +
         `<button class="button" id="addCaption">+ 직접 추가</button>` +
         `<button class="button" id="downloadSrt">SRT 저장</button>` +
+        `<button class="button" id="downloadVtt">VTT 저장</button>` +
         `</div>` +
         `\n <div id="captionRows" role="region" aria-label="자막 목록" tabindex="0">${rows || '<p class="empty-text">자동으로 만들거나<br>첫 자막을 직접 추가해 보세요.</p>'}</div>` +
         `\n <details class="caption-disclosure" id="captionCreate" ${!captions.length || transcribing ? 'open' : ''}>` +

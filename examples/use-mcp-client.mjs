@@ -83,6 +83,13 @@ const saved = await withClient(async ({request, call, data}) => {
   const srt = await data('moment_captions_export');
   assert.match(srt.text, /00:00:00,000 --> 00:00:01,000/);
   assert.match(srt.text, /안녕하세요/);
+  const vtt = await data('moment_captions_export', {format: 'vtt'});
+  assert.equal(vtt.format, 'vtt');
+  assert.equal(vtt.text, 'WEBVTT\n\n1\n00:00:00.000 --> 00:00:01.000\n안녕하세요\n');
+  const invalidFormat = await call('moment_captions_export', {format: 'ass'});
+  assert.equal(invalidFormat.isError, true);
+  assert.equal(invalidFormat.structuredContent.error.code, 'INVALID_ARGUMENT');
+  assert.deepEqual(await data('moment_captions_export'), srt);
   const plan = await data('moment_render_plan', {quality: 720, format: 'webm'});
   assert.equal(plan.rendered, false);
   assert.equal(plan.output.duration, 2);

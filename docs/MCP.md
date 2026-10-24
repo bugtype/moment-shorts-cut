@@ -49,7 +49,7 @@ its supported version, `2025-11-25`, even if the proposed version differs; a cli
 that cannot support that version should disconnect, not continue with another
 wire format. `ping` is supported. Initialize only once per process.
 
-All thirty-six tools require **`projectId: "session"`**. Each process owns one independent
+All thirty-seven tools require **`projectId: "session"`**. Each process owns one independent
 in-memory project, initially the demo. This value is neither a path nor a credential.
 Other project IDs return a tool error. A second client process does not share state.
 
@@ -125,6 +125,7 @@ that validation.
 | `moment_project_preview` | `operations` | Read-only `{operationCount, wouldCommit, changedFields, before, after}` summary |
 | `moment_project_get` | none | Full portable project document |
 | `moment_template_export` | `id`, `name` | Portable `{format:"moment-template", formatVersion:1, template}` document |
+| `moment_template_inspect` | `templateId`, optional `withContent` (default false) | Canonical template metadata and detached application content/timing report |
 | `moment_templates_list` | none | Built-in template summaries: `id`, `name`, `category`, `description` |
 | `moment_captions_export` | optional `format: "srt"`, `"vtt"` or `"txt"` | `{format, text}` with the selected format |
 | `moment_captions_list` | optional `offset`, `limit` | Authored cue page with current array indexes |
@@ -345,7 +346,7 @@ the example. Discover exact input fields in the [tool catalog](#tool-catalog).
 | Captions | [Check overlaps](#check-caption-time-overlaps) · [Inspect timing density](#inspect-caption-timing-density) · [Import](#import-subtitle-text-with-an-explicit-clock) · [Split](#split-one-caption-at-a-text-boundary) · [Merge](#merge-two-adjacent-authored-captions) · [Insert/remove](#insert-one-caption-or-remove-a-range) · [Edit one cue](#edit-one-authored-caption) · [Correct text](#correct-caption-text-without-replacing-cues) · [Shift timing](#shift-caption-timing-without-replacing-text) · [Style](#adjust-global-caption-appearance) |
 | Timeline | [Read clip clocks](#read-timeline-positions-in-pages) · [Split a clip](#split-one-clip-occurrence) · [Repeat a clip](#repeat-one-clip-occurrence) · [Move a clip](#move-one-clip-to-a-final-position) |
 | Composition | [Credit](#set-a-source-credit-independently) · [Effects](#adjust-video-effects-independently) · [Edit a card](#edit-an-existing-timed-card) · [Add/remove cards](#create-scripted-cards-without-importing-a-whole-project) · [Stacking](#change-card-stacking) |
-| Grouped/template edits | [Preview summary](#preview-an-edit-summary-without-committing) · [One commit](#apply-related-edits-in-one-commit) · [Export a composition](#export-the-current-composition-as-a-template) · [Apply a template file](#apply-an-exported-custom-template) |
+| Grouped/template edits | [Preview summary](#preview-an-edit-summary-without-committing) · [One commit](#apply-related-edits-in-one-commit) · [Inspect a built-in](#inspect-a-built-in-template-before-applying) · [Export a composition](#export-the-current-composition-as-a-template) · [Apply a template file](#apply-an-exported-custom-template) |
 
 ### Preview an edit summary without committing
 
@@ -420,6 +421,38 @@ still owe atomic storage and conflict checks; this is not a cross-writer or exte
 storage transaction. An uncertain commit or lost response requires a fresh
 `moment_project_get` before retrying, especially when the batch contains duplication
 or splitting. See the [CLI dry-run and failure example](../INTEGRATIONS.md#여러-편집을-한-번에-반영).
+
+### Inspect a built-in template before applying
+
+Discover an ID with `moment_templates_list`, then call `moment_template_inspect`:
+
+```json
+{"projectId":"session","templateId":"recipe","withContent":true}
+```
+
+`templateId` is a string of at most 100 UTF-16 code units; `withContent` is an
+optional boolean defaulting to false. The tool runs the existing
+validated `template.apply` on a detached project, without committing it.
+
+| Result | Fields and meaning |
+|---|---|
+| `template` | `id`, `name`, `category`, `tag`, `description`, `flow`, `exampleTitle`, `reference` (`{title,url}` or null); canonical Korean catalog metadata |
+| `withContent`, `outputDuration` | Effective content option and after-speed output duration |
+| `title` | `{lines,enabled,start,end}` from the prepared result |
+| `credit` | `{text,enabled,start,end}` from the prepared result |
+| `cards` | Up to 12 `{index,role,text,detail,label,enabled,start,end}` entries in the prepared result’s order, without generated IDs |
+
+All layer times are output seconds **after speed**; nullable title/credit ends
+stay null. False preserves authored title/credit/card text but can change visual
+settings and applicable timing; true reports replacement example content. Neither
+catalog metadata nor authored text is translated. Unknown IDs return `NOT_FOUND`.
+
+This is not a rendered preview, visibility test or media-identity check. It omits
+full styles, captions, clips and media; makes no commit/history/provider/library
+write; and is excluded from `project.batch`. It reserves no state or generated
+IDs. A later `moment_template_apply` validates the then-current project again.
+CLI `--out` saves the report, not a project or portable template document. See the
+[executable inspect→apply recipe](../INTEGRATIONS.md#기본-템플릿-적용-전-점검).
 
 ### Export the current composition as a template
 

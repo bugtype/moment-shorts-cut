@@ -30,6 +30,16 @@ function dataSchema(command) {
     }
     case 'project.batch': return record({updated:{type:'boolean'},operationCount:{type:'integer',minimum:1,maximum:20},outputDuration:{type:'number',minimum:0}});
     case 'project.get': return documentSchema;
+    case 'template.inspect': {
+      const timing={enabled:{type:'boolean'},start:{type:'number',minimum:0},end:{type:['number','null'],minimum:0}};
+      return record({template:record({id:text,name:text,category:text,tag:text,description:text,
+        flow:{type:'array',items:text},exampleTitle:{type:'array',minItems:2,maxItems:2,items:text},
+        reference:{type:['object','null'],properties:{title:text,url:text},required:['title','url'],additionalProperties:false}}),
+        withContent:{type:'boolean'},outputDuration:{type:'number',minimum:0},
+        title:record({lines:{type:'array',minItems:2,maxItems:2,items:text},...timing}),credit:record({text,...timing}),
+        cards:{type:'array',maxItems:12,items:record({index:{type:'integer',minimum:0,maximum:11},role:{enum:['headline','free']},
+          text,detail:text,label:text,enabled:{type:'boolean'},start:{type:'number',minimum:0},end:{type:'number',minimum:0}})}});
+    }
     case 'template.export': return templateDocumentSchema();
     case 'project.import': return record({ imported: { enum: [true] } });
     case 'templates.list': return {
@@ -129,6 +139,9 @@ function inputSchema(command) {
   };
   schema.required = ['projectId', ...schema.required];
   const p = schema.properties;
+  if (command.name === 'template.inspect') {
+    p.withContent.description = 'Default false. Reuses template.apply on detached current state: false preserves authored title/credit/card content according to existing apply semantics; true uses template examples. Reports content and output-second timing after speed, not a full visual/style/render review. No project/library changes, media access, reservation or generated card IDs. Catalog metadata is canonical Korean as in templates.list; returned project text is not translated. Null text-layer end retains existing open-ended meaning.';
+  }
   if (command.name === 'template.export') {
     p.id.description = 'Caller-chosen stable template ID, nonblank, maximum 200 UTF-16 code units; preserved exactly and must not conflict with a built-in template. No browser-library entry is created.';
     p.name.description = 'Required name, maximum 40 UTF-16 code units before trimming; surrounding whitespace is trimmed, blank names rejected. Returns a portable moment-template document in data, not a project or media file. Captures visual settings, title/credit text and cards using existing relative output timing; excludes captions, clips and media. Cards are clipped to the output range and sorted by start. Existing 256 KiB pretty-printed UTF-8 budget applies. Read-only, with no project/history/storage changes.';

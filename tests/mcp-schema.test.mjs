@@ -36,6 +36,7 @@ const inputs = {
   'templates.list': {},
   'template.export': {id:'schema-export',name:'Schema style'},
   'template.apply.document': {document:createTemplateDocument(saveCustomTemplate('스키마',createDemoProject()))},
+  'template.inspect': {templateId:'hook-result',withContent:true},
   'template.apply': { templateId: 'reference', withContent: false },
   'captions.split': {captionIndex:0,textOffset:1},
   'captions.merge': {captionIndex:0},

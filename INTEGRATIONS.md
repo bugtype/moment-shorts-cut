@@ -197,6 +197,7 @@ JavaScript에서 직접 호출할 때도 JSON으로 왕복 가능한 값을 전�
 | `project.get` | 없음 | 편집 설정 문서 |
 | `template.export` | `id`, `name` | 현재 구성의 `moment-template` 문서; 읽기 전용, 라이브러리 저장 아님 |
 | `templates.list` | 없음 | 기본 템플릿 목록 |
+| `template.inspect` | `templateId`, 선택 `withContent`(기본 false) | 적용 전 기본 템플릿 메타데이터·결과 문구/시간 읽기 |
 | `captions.export` | 선택 `format: "srt"`, `"vtt"`, `"txt"` | 편집 구간·배속을 반영한 `{format, text}`; 기본 SRT |
 | `captions.list` | 선택 `offset`, `limit` | 저장된 자막 페이지와 현재 배열 위치; 읽기 전용 |
 | `captions.overlaps` | 선택 `limit` | 출력 시간 겹침의 읽기 전용 보고서; 자막 자동 수정 없음 |
@@ -259,7 +260,7 @@ JavaScript에서 직접 호출할 때도 JSON으로 왕복 가능한 값을 전�
 | 자막 | [시간 겹침](#자막-시간-겹침-점검) · [표시 속도 점검](#편집-후-자막-표시-속도-점검) · [가져오기](#srtvtt-본문을-명령으로-가져오기) · [커서 분할](#자막-하나를-커서-위치에서-분할) · [합치기](#인접한-자막-합치기) · [추가·삭제](#자막-하나-추가연속-범위-삭제) · [개별 수정](#자막-하나만-수정) · [문구 교정](#자막-문구-일괄-교정) · [시간 이동](#자막-시간을-앞뒤로-이동) · [스타일](#자막-스타일-수정) |
 | 타임라인 | [클립 분할](#클립-구간-분할) · [클립 복제](#클립-구간-복제) |
 | 구성 | [크레딧](#출처-크레딧-수정) · [영상 효과](#영상-효과-수정) · [카드 수정](#기존-시간별-카드-수정) · [카드 추가·삭제](#스크립트에-맞춰-카드-추가삭제) · [쌓임 순서](#카드-쌓임-순서-변경) |
-| 묶음·템플릿 | [반영 전 요약](#편집-묶음의-반영-전-요약) · [한 번에 편집](#여러-편집을-한-번에-반영) · [템플릿 파일 관리](#개별-사용자-템플릿-파일) · [현재 구성 내보내기](#현재-구성을-템플릿으로-내보내기) · [파일 적용](#내보낸-템플릿을-climcp로-적용) |
+| 묶음·템플릿 | [반영 전 요약](#편집-묶음의-반영-전-요약) · [한 번에 편집](#여러-편집을-한-번에-반영) · [기본 템플릿 점검](#기본-템플릿-적용-전-점검) · [템플릿 파일 관리](#개별-사용자-템플릿-파일) · [현재 구성 내보내기](#현재-구성을-템플릿으로-내보내기) · [파일 적용](#내보낸-템플릿을-climcp로-적용) |
 
 ### 편집 묶음의 반영 전 요약
 
@@ -1070,6 +1071,37 @@ node cli/moment.mjs exec overlays.update --project cards.json --args-file card-e
 `min(너비/540, 높이/960)`으로 확대·축소하고 글자 맞춤 처리가 추가됩니다.
 위치는 안전 영역에 맞추며, `width:0`은 기존 0.78 기본 폭으로 처리하고 최대
 표시 폭은 캔버스의 0.82입니다. 저장한 숫자가 고정 출력 픽셀을 뜻하지 않습니다.
+
+## 기본 템플릿 적용 전 점검
+
+`templates.list`로 ID를 찾고 `template.inspect`에 `{templateId,withContent?}`를
+보내세요. `templateId`는 최대 100 UTF-16 코드 단위 문자열이고 `withContent`는 선택 불리언(기본 `false`)입니다. 현재 프로젝트 복사본에 기존
+`template.apply`를 적용해 검증한 **결과 문구·출력 시간**을 읽으며 실제 적용은 하지 않습니다.
+
+| 결과 필드 | 내용 |
+|---|---|
+| `template` | `id`, `name`, `category`, `tag`, `description`, `flow`, `exampleTitle`, `reference` (`{title,url}` 또는 null) |
+| `withContent`, `outputDuration` | 사용한 내용 교체 옵션과 배속 후 출력 초 |
+| `title` | `{lines,enabled,start,end}` |
+| `credit` | `{text,enabled,start,end}` |
+| `cards` | 최대 12개 `{index,role,text,detail,label,enabled,start,end}`; 배열 순서, 생성 ID 제외 |
+
+시간은 **배속 후 출력 초**이며 제목/크레딧의 미지정 끝은 null을 유지합니다.
+`false`는 작성한 제목·크레딧·카드 문구를 유지하지만 템플릿의 시각 설정·해당 시간은
+달라질 수 있습니다. `true`는 예시 내용으로 교체할 결과를 보여줍니다. 기본 카탈로그와
+참조 정보는 한국어 원문이며 작성한 내용도 번역하지 않습니다. 알 수 없는 ID는 `NOT_FOUND`입니다.
+
+```sh
+node cli/moment.mjs init --out inspect-source.json
+node cli/moment.mjs exec template.inspect --project inspect-source.json --json '{"templateId":"recipe","withContent":true}' --out inspect-report.json
+node cli/moment.mjs exec template.apply --project inspect-source.json --json '{"templateId":"recipe","withContent":true}' --out inspect-applied.json
+```
+
+보고서를 검토한 뒤 필요할 때만 마지막 적용 명령을 실행하세요. `--out`은 요약 보고서를
+저장하며 프로젝트 백업이나 `moment-template` 파일이 아닙니다. 전체 스타일·자막·클립·
+미디어는 반환하지 않습니다. 렌더링·실제 표시 여부·원본 동일성 검사가 아니며 커밋·기록·
+제공자 호출·브라우저 라이브러리 저장을 하지 않습니다. 상태나 생성 ID를 예약하지 않아
+후속 적용은 현재 프로젝트로 다시 검증합니다. 읽기 전용이므로 `project.batch`에 넣지 않습니다.
 
 ## 개별 사용자 템플릿 파일
 

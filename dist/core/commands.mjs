@@ -4,7 +4,7 @@ import { inspectCaptions } from './caption-inspection.mjs';
 import { shiftCaptionTiming } from './caption-timing.mjs';
 import { readTemplateDocument, createTemplateDocument } from '../template-library.mjs';
 import { replaceCaptionText } from './caption-text.mjs';
-import { TEMPLATES, applyTemplate, saveCustomTemplate } from '../template-catalog.mjs';
+import { TEMPLATES, REFERENCE_SOURCES, applyTemplate, saveCustomTemplate } from '../template-catalog.mjs';
 import { newCard, retimeOutputLayers, splitCaptionAtOffset } from '../effects.mjs';
 import { MAX_CAPTIONS, parseSubtitles } from '../captions.mjs';
 import { outputDuration, timelineDuration, createDemoProject, validateProject, createProjectDocument, readProjectDocument, projectSubtitles, clipSchema, captionSchema, MAX_CLIPS } from './project.mjs';
@@ -45,6 +45,7 @@ const definitions=[
   command('project.import','검증된 편집 설정 JSON을 적용합니다. 미디어 파일은 별도로 연결해야 합니다.',object({document:{type:'object'}},['document']),true),
   command('template.export','현재 스타일·제목·크레딧·장면 카드를 재사용 가능한 템플릿 파일로 읽습니다. 미디어와 자막은 포함하지 않습니다.',object({id:{...string(200),minLength:1},name:{...string(40),minLength:1}},['id','name'])),
   command('templates.list','기본 템플릿 목록을 읽습니다.',object()),
+  command('template.inspect','기본 템플릿을 적용하지 않고 예시 구성과 적용 후 제목·크레딧·카드의 문구와 시간을 읽습니다.',object({templateId:string(100),withContent:boolean},['templateId'])),
   command('template.apply','기본 템플릿을 적용합니다. withContent=true는 제목과 구간 문구를 예시로 교체합니다.',object({templateId:string(100),withContent:boolean},['templateId']),true),
   command('template.apply.document','템플릿 파일의 스타일을 적용합니다. withContent=true는 제목·크레딧·장면 카드도 교체하며 자막은 유지합니다.',object({document:{type:'object'},withContent:boolean},['document']),true),
   command('timeline.list','클립의 원본 구간과 배속 전·후 편집 위치를 제한된 페이지로 읽습니다.',object({offset:{type:'integer',minimum:0,maximum:MAX_CLIPS},limit:{type:'integer',minimum:1,maximum:50}})),
@@ -119,6 +120,20 @@ export function prepareCommand(project,name,args={}){
       }
     }
     return {...(updated?{project:next}:{}),data:{updated,operationCount:args.operations.length,outputDuration:outputDuration(next)}};
+  }
+  if(name==='template.inspect'){
+    const next=prepareCommand(project,'template.apply',args).project;
+    const template=TEMPLATES.find(item=>item.id===args.templateId),title=next.design.title,credit=next.design.credit;
+    return {data:structuredClone({
+      template:{id:template.id,name:template.name,category:template.category,tag:template.tag,
+        description:template.description,flow:template.flow,exampleTitle:template.title,
+        reference:REFERENCE_SOURCES[template.source]||null},
+      withContent:args.withContent===true,outputDuration:outputDuration(next),
+      title:{lines:title.lines,enabled:title.enabled,start:title.start,end:title.end},
+      credit:{text:credit.text,enabled:credit.enabled,start:credit.start,end:credit.end},
+      cards:next.overlays.map((card,index)=>({index,role:card.role,text:card.text,detail:card.detail,
+        label:card.label,enabled:card.enabled,start:card.start,end:card.end})),
+    })};
   }
   if(name==='template.export'){
     if(!args.name.trim())fail(msg('errors.exportTemplateName'),'arguments.name');

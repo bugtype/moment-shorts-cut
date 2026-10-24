@@ -69,7 +69,7 @@ async function withClient(work) {
 
 const saved = await withClient(async ({request, call, data}) => {
   const {tools} = await request('tools/list', {});
-  assert.equal(tools.length, 36);
+  assert.equal(tools.length, 37);
   assert.ok(tools.some(tool => tool.name === 'moment_project_import'));
   await data('moment_project_import', {document: createProjectDocument(createDemoProject())});
   await data('moment_project_update', {patch: {name: 'MCP 예제', speed: 2}});
@@ -182,6 +182,9 @@ const saved = await withClient(async ({request, call, data}) => {
   assert.equal(batch.operationCount, 2);
   assert.equal((await data('moment_project_get')).project.name, 'Atomic edit');
   // Fetch only the authored cue and its neighbor, not the complete project.
+  const templateDetail = await data('moment_template_inspect', {templateId:'hook-result',withContent:true});
+  assert.equal(templateDetail.template.id,'hook-result');
+  assert.ok(templateDetail.cards.length <= 12);
   const beforePreview = await data('moment_project_get');
   const preflight = await data('moment_project_preview', {operations:[{command:'project.update',arguments:{patch:{speed:2}}}]});
   assert.equal(preflight.operationCount,1);
@@ -211,4 +214,4 @@ await withClient(async ({data}) => {
   await data('moment_project_import', {document: saved});
   assert.deepEqual(await data('moment_project_get'), saved);
 });
-console.log(JSON.stringify({ok: true, tools: 36, recoveredFromInvalidInput: true, reimported: true, rendered: false}));
+console.log(JSON.stringify({ok: true, tools: 37, recoveredFromInvalidInput: true, reimported: true, rendered: false}));

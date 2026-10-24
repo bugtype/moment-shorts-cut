@@ -32,7 +32,7 @@ test('stdio negotiates its supported version, waits for initialization and lists
   assert.equal(replies[1].result.protocolVersion, '2025-11-25');
   assert.deepEqual(replies[1].result.capabilities, {tools: {}});
   assert.equal(replies[2].error.code, -32600);
-  assert.equal(replies[3].result.tools.length,36);
+  assert.equal(replies[3].result.tools.length,37);
   assert.ok(replies[3].result.tools.some(tool => tool.name === 'moment_project_import'));
   assert.ok(replies[3].result.tools.every(tool => tool.inputSchema.required.includes('projectId')));
   assert.equal(replies[3].result.resultType, undefined);
@@ -132,4 +132,9 @@ test('stdio metadata preflight returns a report without changing the session pro
  const replies=run([init,ready,call(2,'project_get'),call(3,'project_preview',{operations}),call(4,'project_get'),call(5,'project_batch',{operations}),call(6,'timeline_list')]);
  const preview=replies.find(r=>r.id===3).result.structuredContent.data;assert.equal(preview.wouldCommit,true);assert.equal(preview.after.clipCount,2);
  assert.deepEqual(replies.find(r=>r.id===2).result.structuredContent.data,replies.find(r=>r.id===4).result.structuredContent.data);assert.equal(replies.find(r=>r.id===6).result.structuredContent.data.totalClips,2);
+});
+
+test('stdio inspects hook template content without applying it to the session',()=>{
+ const replies=run([init,ready,call(2,'project_get'),call(3,'template_inspect',{templateId:'hook-result',withContent:true}),call(4,'project_get')]);
+ const detail=replies.find(r=>r.id===3).result.structuredContent.data;assert.equal(detail.template.id,'hook-result');assert.equal(detail.cards.length,4);assert.ok(detail.cards.every(c=>!Object.hasOwn(c,'id')));assert.deepEqual(replies.find(r=>r.id===2).result.structuredContent.data,replies.find(r=>r.id===4).result.structuredContent.data);
 });

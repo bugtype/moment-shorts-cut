@@ -247,13 +247,27 @@ export function srtTimestamp(t) {
   return `${String(Math.floor(ms/3600000)).padStart(2,'0')}:${String(Math.floor(ms/60000)%60).padStart(2,'0')}:${String(Math.floor(ms/1000)%60).padStart(2,'0')},${String(ms%1000).padStart(3,'0')}`;
 }
 
-export function projectSubtitles(p, {format = 'srt', bom = false, review = false} = {}) {
+export function projectSubtitles(p, options = {}) {
+  const {format = 'srt', bom = false, review = false} = options;
   if (!['srt', 'vtt', 'txt'].includes(format))
     fail(msg('errors.subtitleFormat'));
   if (typeof review !== 'boolean')
     fail(msg('review.boolean'), 'arguments.review');
   if (review && format !== 'txt')
     fail(msg('review.txtOnly'), 'arguments.review');
+  // Select authored rows before projection: keep every clip and the full output
+  // clock, including repeated occurrences. The default path retains p itself.
+  const hasIndex = Object.hasOwn(options, 'captionIndex');
+  const hasCount = Object.hasOwn(options, 'count');
+  if (hasIndex || hasCount) {
+    const first = hasIndex ? options.captionIndex : 0;
+    if (hasIndex && (!Number.isInteger(first) || first < 0 || first > 9999 || first >= p.captions.length))
+      fail(msg('errors.replaceCaptionIndex'), 'arguments.captionIndex');
+    const count = hasCount ? options.count : p.captions.length - first;
+    if (hasCount && (!Number.isInteger(count) || count < 1 || count > 10000 || first + count > p.captions.length))
+      fail(msg('errors.replaceCaptionCount'), 'arguments.count');
+    p = {...p, captions: p.captions.slice(first, first + count)};
+  }
   if (review)
     return projectCaptionReview(p, {bom});
   const label = format.toUpperCase(),

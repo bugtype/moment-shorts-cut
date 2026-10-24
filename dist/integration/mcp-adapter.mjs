@@ -205,6 +205,8 @@ function inputSchema(command) {
   }
   if (p.quality) p.quality.description = 'Output short edge in pixels; defaults to 1080. Creates a plan only.';
   if (command.name === 'captions.export') {
+    p.captionIndex.description = 'Optional zero-based first authored caption index; an explicit index must exist. Omitted means zero. Selects rows before edited occurrence projection, retaining all clips, repeats and full output timestamps without rebasing. Not an occurrence index or stable ID.';
+    p.count.description = 'Optional integer 1..10000; the complete authored range must exist. Omitted means through the end; both range fields omitted export all rows. Existing derived and final byte limits apply to the selected export. This is not a full-project backup or a security/redaction boundary.';
     p.review.description = 'Optional boolean, default false. True requires format txt and returns a human review transcript with raw output-second ranges and explicitly assigned nonempty speaker labels. No guessed speakers, no import/visibility/diarization guarantee. Repeated and overlapping edited occurrences remain separate. Metadata uses the active UI locale (default Korean in headless clients); authored text and labels are not translated. Existing derived limits and final 2 MiB UTF-8 limit include metadata. False preserves existing output bytes.';
   }
   if (p.format) p.format.description = command.name === 'captions.export'

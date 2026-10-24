@@ -107,6 +107,38 @@ VTT는 UTF-8 일반 WebVTT로 `WEBVTT` 헤더와 점 단위 밀리초를 사용�
 
 CLI는 편집 메타데이터와 SRT/VTT/TXT 출력을 다룹니다. MP4 파일을 생성하거나 브라우저 IndexedDB의 원본 파일을 직접 가져오지 않습니다.
 
+### 선택한 원본 자막 행만 출력
+
+CLI/MCP `captions.export`의 선택 `captionIndex`/`count`는 **저장된 원본 행**을
+먼저 고릅니다. 출력 등장 횟수나 시간 구간을 선택하는 기능이 아닙니다.
+
+| 범위 입력 | 대상 |
+|---|---|
+| 둘 다 생략 | 기존처럼 전체; 기본 출력 바이트/형식은 그대로 |
+| `captionIndex`만 | 0부터 시작하는 해당 위치부터 마지막까지 |
+| `count`만 | 처음 N행 |
+| 둘 다 | 해당 위치부터 정확히 N행 |
+
+명시 위치는 기존 0–9,999 정수, 개수는 1–10,000 정수이며 전체 범위가 있어야 합니다.
+빈 명시 범위·null·범위 초과는 `INVALID_ARGUMENT`로 거절하고 자르지 않습니다.
+직접 JS 호출의 명시적 `undefined`도 거절합니다. 선택 뒤에도 **모든 클립·배속과
+전체 출력 시간 좌표**를 사용합니다. 반복 원본 자막은 여러 번 나오고 타임라인 자막
+위치는 유지되며, 선택 시작을 0초로 옮기거나 출력 시간 구간을 잘라내지 않습니다.
+
+```sh
+node cli/moment.mjs init --out export-range-source.json
+node cli/moment.mjs exec captions.list --project export-range-source.json --json '{"offset":0,"limit":20}'
+node cli/moment.mjs exec captions.export --project export-range-source.json --json '{"format":"vtt","captionIndex":1,"count":1}' --out selected.vtt
+node cli/moment.mjs exec captions.export --project export-range-source.json --json '{"format":"txt","review":true,"captionIndex":1}' --out selected-review.txt
+```
+
+결과는 기존 `{format, text}`이며 읽기 전용·배치 제외입니다. 전체 프로젝트 검증은
+유지하되 파생 10,000회/원문·완성 파일 2 MiB 및 형식 제한은 선택 출력에 적용합니다.
+검토용 TXT도 선택한 자막의 실제 화자 이름을 사용합니다. 출력은 선택 문구와
+해당 형식의 시간/머리말·사용한 화자 이름만 포함하며 설정 백업이나 개인정보 삭제
+보장이 아닙니다. 저장된 문구/이름 자체에 민감 정보가 있을 수 있으므로 공유 전 검토하세요.
+브라우저 자막 저장은 계속 전체 대상입니다. 수정 뒤에는 행 위치를 다시 조회하세요.
+
 ### 편집 후 자막을 일반 TXT로 저장
 
 `captions.export`에 `{"format":"txt"}`를 전달하면 `{format:"txt", text}`를
@@ -309,7 +341,7 @@ JavaScript에서 직접 호출할 때도 JSON으로 왕복 가능한 값을 전�
 | `template.export` | `id`, `name` | 현재 구성의 `moment-template` 문서; 읽기 전용, 라이브러리 저장 아님 |
 | `templates.list` | 없음 | 기본 템플릿 목록 |
 | `template.inspect` | `templateId`, 선택 `withContent`(기본 false) | 적용 전 기본 템플릿 메타데이터·결과 문구/시간 읽기 |
-| `captions.export` | 선택 `format: "srt"`, `"vtt"`, `"txt"`, `review:boolean` | 편집 구간·배속을 반영한 `{format, text}`; 기본 SRT |
+| `captions.export` | 선택 `format: "srt"`, `"vtt"`, `"txt"`, `review:boolean`, `captionIndex`, `count` | 편집 구간·배속을 반영한 `{format, text}`; 기본 SRT |
 | `captions.list` | 선택 `offset`, `limit` | 저장된 자막 페이지와 현재 배열 위치; 읽기 전용 |
 | `captions.overlaps` | 선택 `limit` | 출력 시간 겹침의 읽기 전용 보고서; 자막 자동 수정 없음 |
 | `captions.inspect` | `maxGraphemesPerSecond`, 선택 `limit` | 편집 후 표시 속도 초과 구간 요약; 프로젝트 변경 없음 |

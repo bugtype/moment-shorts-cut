@@ -289,8 +289,12 @@ const definitions = [
   ),
   command(
     'captions.export',
-    '편집 구간과 배속을 반영한 SRT, WebVTT 또는 TXT 대본을 반환합니다. TXT의 review 옵션은 출력 시간과 지정된 화자명을 포함합니다.',
-    object({format: choice('srt', 'vtt', 'txt'), review: boolean})
+    '편집 구간과 배속을 반영한 SRT, WebVTT 또는 TXT 대본을 반환합니다. 선택한 원본 자막 배열 범위를 내보내며 범위 생략 시 전체를 내보냅니다. TXT의 review 옵션은 출력 시간과 지정된 화자명을 포함합니다.',
+    object({
+      format: choice('srt', 'vtt', 'txt'), review: boolean,
+      captionIndex: {type: 'integer', minimum: 0, maximum: 9999},
+      count: {type: 'integer', minimum: 1, maximum: 10000},
+    })
   ),
   command(
     'render.plan',

@@ -203,7 +203,7 @@ that validation.
 | `moment_template_export` | `id`, `name` | Portable `{format:"moment-template", formatVersion:1, template}` document |
 | `moment_template_inspect` | `templateId`, optional `withContent` (default false) | Canonical template metadata and detached application content/timing report |
 | `moment_templates_list` | none | Built-in template summaries: `id`, `name`, `category`, `description` |
-| `moment_captions_export` | optional `format: "srt"`, `"vtt"` or `"txt"`, `review:boolean` | `{format, text}` with the selected format |
+| `moment_captions_export` | optional `format: "srt"`, `"vtt"` or `"txt"`, `review:boolean`, `captionIndex`, `count` | `{format, text}` with the selected format |
 | `moment_captions_list` | optional `offset`, `limit` | Authored cue page with current array indexes |
 | `moment_captions_overlaps` | optional `limit` | Read-only output-time overlap report |
 | `moment_captions_inspect` | `maxGraphemesPerSecond`, optional `limit` | Read-only output-occurrence rate report |
@@ -236,6 +236,40 @@ cue timing. The same 10,000-derived-cue/raw-text budget applies; complete UTF-8
 output including separators must fit 2 MiB. The raw-text budget is checked before
 newline normalization, so a smaller normalized TXT can still fail that guard.
 The service emits no BOM.
+
+### Export selected authored caption rows
+
+`moment_captions_export` accepts optional `captionIndex` and `count` alongside
+all existing format/review options:
+
+```json
+{"projectId":"session","format":"vtt","captionIndex":1,"count":1}
+```
+
+| Range arguments | Selection |
+|---|---|
+| Neither | All authored cues, preserving existing default output |
+| Index only | That zero-based authored position through the end |
+| Count only | First N authored cues |
+| Both | Exact contiguous authored range |
+
+An explicit index must exist (`0..9999`); count is integer `1..10000` and must fit.
+Invalid/empty explicit ranges or null values reject with `INVALID_ARGUMENT` at
+`arguments.captionIndex`/`arguments.count`, never clamp. Direct JavaScript options
+with an explicitly present `undefined` range field also reject. Existing format/review
+validation still precedes range validation. This selects
+**authored rows before projection**, not output occurrences or a time window.
+All clips and speed still apply: source captions repeat in repeated clips,
+timeline placement remains unchanged, and timestamps keep full-output coordinates.
+There is no rebasing to zero or cropping to a requested time interval.
+
+The response stays `{format,text}`. Review TXT uses the selected cues' actual
+assigned speaker labels. Whole-project validation remains; derived occurrence,
+raw-text, final-file and format limits apply to the selected output. The command
+remains read-only and excluded from batches; browser Save still exports all cues.
+This is neither a backup nor a privacy-redaction guarantee: inspect chosen text
+and used speaker labels before sharing. Re-read positional indexes after edits.
+[Runnable CLI range export](../INTEGRATIONS.md#선택한-원본-자막-행만-출력).
 
 ### Frame ratios and render-plan dimensions
 

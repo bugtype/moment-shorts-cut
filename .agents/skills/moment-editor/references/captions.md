@@ -350,6 +350,22 @@ identity. Re-read after structural edits or uncertain outcomes; save a prior
 project document for recovery because MCP has no undo tool.
 [Executable recipe and bounds](../../../../INTEGRATIONS.md#자막-범위의-화자-배정)
 
+## Export an authored range without rebasing time
+
+`captions.export` / `moment_captions_export` accepts optional `captionIndex`/`count`:
+all if omitted, tail if only index, prefix if only count, exact range if both.
+Explicit index must exist (0–9,999), count1–10,000 must fit; invalid/empty ranges
+reject even if no selected cue would appear. Inspect `captions.list` first.
+
+Selection precedes projection: all clips/speed remain, repeated source cues still
+repeat, and timestamps retain full-output coordinates. This is not a time window,
+occurrence selector or zero-based excerpt. Format/review behavior and `{format,text}`
+remain; selected review TXT retains the proper assigned names. Whole-project
+validation stays; derived export budgets apply to selected output. Browser Save
+still uses all cues. No edit/batch admission; reread indexes after structural edits.
+Not a project backup or guaranteed redaction: inspect selected text and speaker
+labels before sharing. [Executable recipe](../../../../INTEGRATIONS.md#선택한-원본-자막-행만-출력).
+
 ## Subtitle format boundaries
 
 All three export formats allow at most 10,000 edited occurrences, 2 MiB repeated raw UTF-8 text and 2 MiB completed output (including escaping, timing, separators and any VTT header/BOM). CLI/MCP omit the BOM. Browser SRT downloads include it; browser VTT/TXT downloads do not. Do not silently trim authored text to meet the budget.

@@ -9,7 +9,8 @@ Read [CONTRIBUTING.md](../../../../CONTRIBUTING.md) for repository conventions. 
 | Change | Owner |
 |---|---|
 | Document validation, source/timeline/output time rules, SRT/VTT/TXT export | `dist/core/project.mjs`, `dist/captions.mjs` |
-| Public editing input schemas and copy-before-commit commands | `dist/core/commands.mjs` |
+| Ordered command descriptions/input schemas, cloned catalog accessors and batch allowlist | `dist/core/command-catalog.mjs`; no execution or project-state ownership |
+| Copy-before-commit preparation/execution and existing public export façade | `dist/core/commands.mjs`; keep catalog/schema rules in their catalog owner |
 | Serialized execution, commit port, sanitized errors, optional jobs | `dist/integration/editor-service.mjs` |
 | Tool naming, project resolution, MCP result mapping | `dist/integration/mcp-adapter.mjs` |
 

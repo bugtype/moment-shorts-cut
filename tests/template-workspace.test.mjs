@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createTemplateWorkspace } from '../dist/template-workspace.mjs';
 import { createDemoProject } from '../dist/core/project.mjs';
+import { newCard } from '../dist/effects.mjs';
 import { saveCustomTemplate } from '../dist/template-catalog.mjs';
 
 function workspace(templates = [], options = {}) {
@@ -244,4 +245,96 @@ test('rename resolves current library on confirmation and never resurrects a del
   file.resolve(await templateFile(item).arrayBuffer());await pending;
   assert.equal(b.api.custom[0].name,'대기 중 변경');assert.equal(b.api.custom.length,2);
   const blocked=workspace([],{raw:'invalid'});blocked.api.rename(item.id);assert.match(blocked.events.at(-1),/차단/);assert.equal(blocked.writes.length,0);
+});
+
+test('custom update captures confirmation-time composition while preserving identity and full library', async () => {
+  const item = {...saveCustomTemplate('<Saved>', createDemoProject()), tag:'custom tag', description:'my description', flow:['my flow']};
+  const a = workspace(Array.from({length:20},(_,i)=>({...item,id:`custom-${i}`})));
+  a.api.favorite('custom-0');
+  const before = structuredClone(a.api.custom), favorites = [...a.api.favorites];
+  a.api.update('custom-0');
+  assert.match(a.dialog.body,/&lt;Saved&gt;/);
+  assert.match(a.dialog.body,/먼저 파일로 저장/);
+  a.project.speed=2;
+  a.project.captionAccent='#123456';
+  a.project.design.title.lines=['New title','Second line'];
+  a.project.design.title.start=2;
+  a.project.design.title.end=null;
+  a.project.design.credit.text='New credit';
+  a.project.overlays=[{...newCard(6),id:'timed-card',text:'Captured card',start:1,end:5}];
+  const project=structuredClone(a.project), captured=saveCustomTemplate(item.name,project);
+  const confirm=a.query('#confirmUpdateTemplate').onclick;
+  confirm(); confirm();
+  assert.deepEqual(a.project,project);
+  assert.equal(a.api.custom.length,20);
+  assert.deepEqual(a.api.favorites,favorites);
+  assert.deepEqual(a.api.custom.slice(1),before.slice(1));
+  assert.deepEqual(a.api.custom[0],{...before[0],settings:captured.settings,cards:captured.cards,title:captured.title,accent:captured.accent,relativeTiming:true});
+  assert.equal(a.api.custom[0].settings.design.title.start,1/3);
+  assert.equal(a.api.custom[0].settings.design.title.end,null);
+  assert.equal(a.api.custom[0].cards[0].start,1/6);
+  assert.equal(a.api.custom[0].cards[0].end,5/6);
+  assert.notEqual(a.api.custom[0],before[0]);
+  assert.equal(a.writes.filter(key=>key==='moment-templates-v1').length,1);
+  a.api.export('custom-0');
+  assert.deepEqual(JSON.parse(await a.downloads[0].blob.text()).template,a.api.custom[0]);
+});
+
+test('custom update cancel, replaced dialogs and missing targets never overwrite', () => {
+  const item=saveCustomTemplate('Saved',createDemoProject()), a=workspace([item]);
+  a.api.update(item.id); const canceled=a.query('#confirmUpdateTemplate').onclick;
+  a.query('#cancelUpdateTemplate').onclick(); canceled();
+  a.api.update(item.id); const stale=a.query('#confirmUpdateTemplate').onclick;
+  a.api.rename(item.id); stale();
+  assert.deepEqual(a.writes,[]);
+  a.api.remove(item.id); a.query('#confirmRemoveTemplate').onclick();
+  a.api.update(item.id);
+  assert.match(a.events.at(-1),/찾을 수 없습니다/);
+  assert.deepEqual(a.api.custom,[]);
+  const blocked=workspace([],{raw:'broken'});
+  blocked.api.update(item.id);
+  assert.deepEqual(blocked.writes,[]);
+});
+
+test('custom update rolls back failed writes and retries with the latest project', () => {
+  const item=saveCustomTemplate('Saved',createDemoProject()), a=workspace([item]);
+  a.api.update(item.id); const confirm=a.query('#confirmUpdateTemplate').onclick;
+  a.failKey='moment-templates-v1'; a.project.captionAccent='#123456';
+  confirm();
+  assert.deepEqual(a.api.custom,[item]);
+  assert.deepEqual(JSON.parse(a.stored.get('moment-templates-v1')),[item]);
+  assert.ok(!a.events.includes('close'));
+  a.failKey=''; a.project.captionAccent='#654321'; confirm();
+  assert.equal(a.api.custom[0].accent,'#654321');
+  assert.equal(a.events.filter(value=>value==='close').length,1);
+});
+
+test('pending template import merges the newly updated library without reverting its contents', async () => {
+  const {createTemplateDocument}=await import('../dist/template-library.mjs');
+  const item=saveCustomTemplate('Saved',createDemoProject()), a=workspace([item],{makeId:()=> 'custom-imported'});
+  let resolve;
+  const pending=a.api.import({size:10,arrayBuffer:()=>new Promise(done=>{resolve=done;})});
+  a.api.update(item.id); a.project.captionAccent='#987654'; a.query('#confirmUpdateTemplate').onclick();
+  resolve(new TextEncoder().encode(JSON.stringify(createTemplateDocument(item))).buffer);
+  await pending;
+  assert.equal(a.api.custom.length,2);
+  assert.equal(a.api.custom[0].accent,'#987654');
+  assert.equal(a.api.custom[1].id,'custom-imported');
+});
+
+
+test('custom update rejects unexportable saved metadata and invalid captured settings before writing', () => {
+  const item=saveCustomTemplate('Large',createDemoProject());
+  item.flow=Array.from({length:1000},()=> '가'.repeat(100));
+  const a=workspace([item]);
+  a.api.update(item.id); a.query('#confirmUpdateTemplate').onclick();
+  assert.match(a.events.at(-1),/256 KiB/);
+  assert.deepEqual(a.writes,[]);
+  assert.deepEqual(a.api.custom,[item]);
+  const valid=saveCustomTemplate('Valid',createDemoProject()), b=workspace([valid]);
+  b.api.update(valid.id); b.project.captionSize=-1;
+  b.query('#confirmUpdateTemplate').onclick();
+  assert.deepEqual(b.writes,[]);
+  assert.deepEqual(b.api.custom,[valid]);
+  assert.ok(!b.events.includes('close'));
 });

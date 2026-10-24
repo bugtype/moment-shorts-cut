@@ -5,7 +5,7 @@ import { esc } from './ui-format.mjs';
 
 // Own the template library independently of project state and project persistence.
 export function createTemplateWorkspace({
-    getProject, query: $, modal, openModal: modalOpen,
+    getProject, query: $, modal, openModal,
     thumbnail, preview, refresh, navigate, toast, download,
 }, {
     readStorage = key => localStorage.getItem(key),
@@ -13,7 +13,8 @@ export function createTemplateWorkspace({
     mount = mountTemplateGallery,
     makeId = () => `custom-${globalThis.crypto?.randomUUID?.() || `${Date.now()}-${Math.random().toString(36).slice(2)}`}`,
 } = {}) {
-    let importRequest = 0;
+    let importRequest = 0, dialogGeneration = 0;
+    function modalOpen(...args) { dialogGeneration++; openModal(...args); }
     const galleryUI = { query: '', category: '전체' };
     let savedTemplates = [], favoriteTemplates = [], templateLibraryError = '';
     try {
@@ -96,6 +97,47 @@ export function createTemplateWorkspace({
             toast(error.message || '템플릿을 저장하지 못했습니다.');
         }
     }
+    function updateTemplate(id) {
+        if (templateLibraryBlocked()) return;
+        const item = savedTemplates.find(template => template.id === id);
+        if (!item) {
+            toast('업데이트할 템플릿을 찾을 수 없습니다.');
+            return;
+        }
+        modalOpen('현재 구성으로 업데이트할까요?', `<p class="modal-copy">${esc(item.name)}의 저장된 스타일과 문구·장면 카드를 덮어씁니다. 이전 버전이 필요하면 먼저 파일로 저장하세요. 현재 프로젝트와 미디어는 바뀌지 않습니다.</p>`, '<div class="modal-foot"><button class="button" id="cancelUpdateTemplate">취소</button><button class="button primary" id="confirmUpdateTemplate">업데이트</button></div>');
+        const confirm = $('#confirmUpdateTemplate'), generation = dialogGeneration;
+        let active = true;
+        $('#cancelUpdateTemplate').onclick = () => { active = false; modal.close(); };
+        confirm.onclick = () => {
+            if (!active || generation !== dialogGeneration || modal.open === false || $('#confirmUpdateTemplate') !== confirm || templateLibraryBlocked()) return;
+            const current = savedTemplates.find(template => template.id === id);
+            if (!current) {
+                toast('업데이트할 템플릿을 찾을 수 없습니다.');
+                return;
+            }
+            try {
+                // Capture at confirmation, keeping the saved identity and descriptive metadata.
+                const captured = saveCustomTemplate(current.name, getProject());
+                const replacement = readTemplateDocument(createTemplateDocument({
+                    ...current, settings: captured.settings, cards: captured.cards,
+                    title: captured.title, accent: captured.accent, relativeTiming: captured.relativeTiming,
+                }));
+                const previous = savedTemplates;
+                savedTemplates = savedTemplates.map(template => template.id === id ? replacement : template);
+                if (!persistTemplateLibrary('moment-templates-v1', savedTemplates)) {
+                    savedTemplates = previous;
+                    return;
+                }
+                active = false;
+                modal.close();
+                refresh();
+                toast('현재 구성으로 템플릿을 업데이트했습니다.');
+            }
+            catch (error) {
+                toast(error.message || '템플릿을 업데이트하지 못했습니다.');
+            }
+        };
+    }
     function renameTemplate(id) {
         if (templateLibraryBlocked()) return;
         const item = savedTemplates.find(template => template.id === id);
@@ -145,6 +187,7 @@ export function createTemplateWorkspace({
             import: importTemplate,
             export: exportTemplate,
             rename: renameTemplate,
+            update: updateTemplate,
             favorite(id) {
                 if (templateLibraryBlocked())
                     return;

@@ -308,6 +308,18 @@ Cancel, a deleted target, a blocked library recovery state or a write failure
 preserves the original library. A write failure leaves the dialog open to retry.
 This is browser-library management, not a new CLI/MCP rename tool.
 
+To replace a saved custom template’s composition, use **현재 구성으로 업데이트** on its browser gallery card
+and explicitly confirm **업데이트**. It captures the current project **at confirmation**,
+replacing saved styling/settings, title/credit/card content and relative timing while
+retaining ID, name, category, descriptive metadata and favorites. It works at the 20-entry capacity without
+creating a copy. The current project, media and other projects are not changed or
+reapplied. Export the old template first if it must be retained; no version history
+is created. Cancellation or failed validation/storage preserves the original;
+failed storage allows retry. The replacement is validated against the strict portable
+template schema and 256 KiB limit before saving; a deleted target is not recreated.
+This is not a CLI/MCP browser-library operation and
+is distinct from applying an exported template document to a project.
+
 ## Apply a supplied template document
 
 Use CLI `template.apply.document` or MCP `moment_template_apply_document` for an

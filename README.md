@@ -74,6 +74,13 @@ library. Names need not be unique; gallery search and export filenames use the
 new name. Cancel or a failed save keeps the original. A failed save leaves the
 dialog open for retry.
 
+**Update a saved custom template from the current composition** using its card’s **현재 구성으로 업데이트** action, then confirm **업데이트**. The composition is captured when you confirm, replacing
+saved styling/content while keeping the template’s ID, name, category and favorites.
+This works even with 20 templates: it replaces one, not appends a copy. It does not
+change the current project, media or other projects, or automatically apply a template.
+Export the old template first if you need a backup; this is an overwrite, not version history.
+Cancel or a failed save preserves the original; a failed save allows retry.
+
 | File | What it carries | What it does not do |
 |---|---|---|
 | Project JSON | Editing settings, timeline and captions | Embed source media |

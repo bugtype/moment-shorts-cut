@@ -176,6 +176,12 @@ change the current project, media or other projects, or automatically apply a te
 Export the old template first if you need a backup; this is an overwrite, not version history.
 Cancel or a failed save preserves the original; a failed save allows retry.
 
+After a successful custom-template save, duplicate, rename or update, focus moves
+to the current/new template's **name button** while that gallery view is still current.
+Deletion or a filtered-out target returns focus to **template search** instead.
+Failed storage keeps the dialog open for retry without moving focus outside it.
+Cancel, unchanged renames and file imports retain their existing close/focus behavior.
+
 | File | What it carries | What it does not do |
 |---|---|---|
 | Project JSON | Editing settings, timeline and captions | Embed source media |

@@ -61,4 +61,11 @@ export function mountTemplateGallery(root, api) {
   root.querySelector('#importMyTemplate').onclick=()=>fileInput.click();
   fileInput.onchange=()=>{const file=fileInput.files?.[0];fileInput.value='';if(file)return api.import(file);};
   renderCards();
+  return {
+    focusTemplate(id) {
+      if (!current() || root.isConnected === false) return;
+      const name = [...root.querySelectorAll('.template-name')].find(button => button.dataset.previewTemplate === id);
+      (name || root.querySelector('#templateSearch'))?.focus();
+    }
+  };
 }

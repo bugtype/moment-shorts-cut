@@ -19,10 +19,19 @@ export function createTemplateWorkspace({
     mount = mountTemplateGallery,
     makeId = () => `custom-${globalThis.crypto?.randomUUID?.() || `${Date.now()}-${Math.random().toString(36).slice(2)}`}`,
 } = {}) {
-    let importRequest = 0, dialogGeneration = 0;
+    let importRequest = 0, dialogGeneration = 0, galleryGeneration = 0, galleryView;
     function modalOpen(...args) { dialogGeneration++; openModal(...args); }
     const galleryUI = { query: '', category: '전체' };
     let savedTemplates = [], favoriteTemplates = [], templateLibraryError = '';
+    function renderAndFocusTemplate(id, render = refresh) {
+        const previous = galleryGeneration, dialog = dialogGeneration;
+        const query = galleryUI.query, category = galleryUI.category;
+        render();
+        // A newer modal, filter or gallery render owns its own focus.
+        if (galleryGeneration !== previous + 1 || dialogGeneration !== dialog || modal.open ||
+            galleryUI.query !== query || galleryUI.category !== category) return;
+        galleryView?.focusTemplate(id);
+    }
     try {
         const library = readTemplateLibrary(readStorage('moment-templates-v1'), readStorage('moment-favorites-v1'));
         savedTemplates = library.templates;
@@ -175,7 +184,7 @@ export function createTemplateWorkspace({
                 }
                 active = false;
                 modal.close();
-                refresh();
+                renderAndFocusTemplate(id);
                 toast(message('templates.updated'));
             }
             catch (error) {
@@ -219,7 +228,7 @@ export function createTemplateWorkspace({
                 modal.close();
                 galleryUI.category = '전체';
                 galleryUI.query = '';
-                refresh();
+                renderAndFocusTemplate(copy.id);
                 toast(message('templates.duplicated'));
             } catch (error) { toast(errorMessage(error, 'templates.duplicateError')); }
         };
@@ -258,12 +267,13 @@ export function createTemplateWorkspace({
                 return;
             }
             modal.close();
-            refresh();
+            renderAndFocusTemplate(id);
             toast(message('templates.renamed'));
         };
     }
     function renderGallery(target) {
-        mount(target, {
+        const owner = ++galleryGeneration;
+        const view = mount(target, {
             ui: galleryUI,
             active: getProject().templateId,
             custom: savedTemplates,
@@ -302,10 +312,11 @@ export function createTemplateWorkspace({
                         return;
                     }
                     modal.close();
-                    refresh();
+                    renderAndFocusTemplate(id);
                 };
             }
         });
+        if (galleryGeneration === owner) galleryView = view;
     }
     function saveTemplateDialog() {
         if (templateLibraryBlocked())
@@ -329,7 +340,7 @@ export function createTemplateWorkspace({
             }
             modal.close();
             galleryUI.category = '내 템플릿';
-            navigate('templates');
+            renderAndFocusTemplate(item.id, () => navigate('templates'));
             toast(message('templates.saved'));
         };
     }

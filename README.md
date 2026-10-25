@@ -410,7 +410,7 @@ This does not edit, seek, pause, save project settings or add undo history. Revi
 | Find/replace across line breaks | Two-row Find and Replacement fields | Type or paste actual newlines; `\n` stays literal backslash + n. Matching remains case-sensitive and non-overlapping, without regex; replacements preserve cue timing and metadata. |
 | Shift a constant subtitle delay | [`captions.timing.shift`](INTEGRATIONS.md#자막-시간을-앞뒤로-이동) | Choose source/timeline and signed seconds **before speed**. Optional authored-row range, then basis filtering; omitted range moves all matching cues. Any out-of-bounds result rejects the whole edit. Browser caption tools apply a real change as one undo step. |
 | Review overlapping times | **Caption timing overlaps** or [`captions.overlaps`](INTEGRATIONS.md#자막-시간-겹침-점검) | One representative conflict per overlapping output occurrence, not all pairs or a visibility prediction. Read total/flagged/omitted counts. |
-| Review dense caption timing | Browser **Check reading speed** or [`captions.inspect`](INTEGRATIONS.md#편집-후-자막-표시-속도-점검) | Read-only ranking against your chosen non-whitespace-graphemes/second threshold after cuts, repeats and speed. Not a language standard, speech-alignment or export-validity check. |
+| Review caption timing | Browser **Caption review** or [`captions.inspect`](INTEGRATIONS.md#편집-후-자막-표시-속도-점검) | Optional reading-speed/duration thresholds and overlap findings after cuts, repeats and speed. Advisory only; no automatic correction or compliance claim. |
 | Export only selected authored captions | [`captions.export`](INTEGRATIONS.md#선택한-원본-자막-행만-출력) with `captionIndex`/`count` | Browser **Authored row range… → Save**, or CLI/MCP; all clips/speed and full-output timestamps remain, including repetitions. Not a time-window crop or redaction guarantee. |
 | Split long captions in bulk or a range | [`captions.split.long`](INTEGRATIONS.md#긴-자막을-전체-또는-범위로-분할) | 12/18/24-grapheme targets, estimated timing and trimmed split-boundary whitespace. API or browser **Range…** can target authored rows; the original split button still covers all cues. |
 | Split one caption at the caret | [`captions.split`](INTEGRATIONS.md#자막-하나를-커서-위치에서-분할) or the row split action | Keeps literal text and metadata; estimates timing by grapheme counts, not speech alignment. A caret boundary must not cut an emoji/combined character. Separate from bulk long-caption splitting. |
@@ -433,11 +433,20 @@ seeks the overlap, then focuses the first related row without autoplay. Touching
 endpoints do not count. Reopen after project/media changes. Review changes nothing;
 video navigation needs normal or confirmed session-media access. No automatic fix.
 
-In **Check reading speed**, enter your own positive threshold; none is preselected.
-The report shows up to 20 highest-rate occurrences plus total, flagged and omitted
-counts. **Captions** focuses the authored row without seeking; **View range** pauses and
-seeks that specific output occurrence, then focuses its row. Re-run if the project or threshold
-changed since inspection. Inspection/navigation does not edit, save or add undo history.
+In **Caption review**, optionally enter your own positive reading-speed, minimum
+and maximum duration thresholds; blank fields disable those checks. Durations are
+output seconds after speed, with minimum no greater than maximum. Overlaps are
+checked by default. Choose all findings or one type; the report shows at most 20
+matching findings, alongside all-check counts and matched/omitted totals. Repeats
+are separate occurrences; overlap findings represent affected occurrences, not all pairs.
+
+Changed criteria require a new inspection. A filter change recomputes the matching
+report when the previous inspection is current; it does not filter only the first
+20 rows. **Captions** focuses the authored row without seeking; **View range** pauses
+and seeks the occurrence before focusing its row. Reopen after project/media changes.
+Inspection/navigation does not edit, save or add undo history. Thresholds are not
+saved, no automatic fixes or Save findings control are added, and the separate
+**Caption timing overlaps** entry remains available.
 
 For only part of the list, choose **Range…** beside the long-caption split control.
 Enter inclusive first/last authored positions (1-based); both initially point to

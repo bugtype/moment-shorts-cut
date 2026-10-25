@@ -56,7 +56,7 @@ Verified with Python **3.12.14** and `mcp` **1.29.0**. From the repository root:
 python examples/use-mcp-sdk.py
 ```
 
-The script resolves the Node server relative to its own file, launches three actual
+The script resolves the Node server relative to its own file, launches four actual
 stdio sessions and closes their contexts. It has a 10-second SDK response timeout
 and a 45-second cancellation deadline (cleanup can take longer). It installs nothing
 and writes no project files. Run without `-O` or `PYTHONOPTIMIZE`: the script refuses
@@ -71,9 +71,10 @@ example above if you do not want a Python dependency.
 | `project.get` + VTT | Full document handoff, distinct from mutation acknowledgment; subtitle text, not media encoding |
 | Fresh session import | JSON handoff in memory restores the edited demo into a new isolated session |
 | Append and append-mode import | Closed acknowledgments, retained out-of-output cues and metadata, and empty-append error recovery |
+| Advisory caption review | Legacy/review input and closed output-schema branches, combined findings, filtering and invalid-check recovery |
 
 The JSON summary reports `ok`, SDK/protocol versions, tool count, recovered error,
-`handoffVerified`, `subtitleFormat`, `appendVerified` and `filesWritten:false`. **The demo is not your
+`handoffVerified`, `subtitleFormat`, `appendVerified`, `captionReviewVerified` and `filesWritten:false`. **The demo is not your
 browser project.** Use an explicitly supplied project document for real work.
 This is an optional local check, **not part of `npm test` or default CI**; it does
 not verify a desktop client application, browser playback or encoded video.
@@ -207,7 +208,7 @@ that validation.
 | `moment_captions_export` | optional `format: "srt"`, `"vtt"` or `"txt"`, `review:boolean`, `captionIndex`, `count` | `{format, text}` with the selected format |
 | `moment_captions_list` | optional `offset`, `limit` | Authored cue page with current array indexes |
 | `moment_captions_overlaps` | optional `limit` | Read-only output-time overlap report |
-| `moment_captions_inspect` | `maxGraphemesPerSecond`, optional `limit` | Read-only output-occurrence rate report |
+| `moment_captions_inspect` | `maxGraphemesPerSecond` or `review`, optional `limit` | Read-only rate report or unified caption review |
 | `moment_render_plan` | optional `quality`, `format` | Plan, project snapshot, output settings, required media and `rendered:false` |
 
 Omitting `format` preserves the existing SRT output. To request plain WebVTT, call
@@ -1028,6 +1029,7 @@ See the [runnable CLI overlap recipe](../INTEGRATIONS.md#자막-시간-겹침-�
 
 ### Inspect caption timing density
 
+Without `review`, the existing request and response remain unchanged.
 Call `moment_captions_inspect` after editing, with a threshold you choose:
 
 ```json
@@ -1063,6 +1065,41 @@ nonpositive/nonfinite output duration or nonfinite rate is rejected, rather than
 reported as a misleading number. These failures and unavailable safe grapheme segmentation return `INVALID_ARGUMENT`;
 derived cue/byte overflows return `CAPTION_OUTPUT_LIMIT`.
 Save/edit the project only if requested; inspection is not automatic correction.
+
+### Unified advisory caption review
+
+Pass `review` instead of the root `maxGraphemesPerSecond`; supplying both is invalid.
+For example:
+
+```json
+{"projectId":"session","review":{"minDuration":1,"maxDuration":7,"includeOverlaps":true,"filter":"too-short"},"limit":20}
+```
+
+These numbers illustrate the call, not recommended standards. Within `review`,
+`maxGraphemesPerSecond`, `minDuration` and `maxDuration` are optional finite positive
+thresholds; durations use **after-speed output seconds**, with `minDuration <= maxDuration`.
+Only durations strictly outside the bounds are flagged; equality is allowed.
+`includeOverlaps` defaults to `true`, so `review:{}` checks overlaps alone.
+Duration-only review is possible; `includeOverlaps:false` with no numeric check is invalid.
+
+`filter` is `all` (default), `reading-speed`, `too-short`, `too-long` or `overlap`.
+The report has `metric:"caption-review"`, `thresholds`, `filter`, `totalOccurrences`,
+`flaggedOccurrences` (unique occurrences across **all enabled checks**), and
+`counts` with `readingSpeed`, `tooShort`, `tooLong`, `overlap`. `totalFindings` counts
+all findings; `matchedFindings` counts those matching the filter, and
+`omittedFindings` is matched findings beyond `limit` (`1..100`, default `20`).
+Only `issues` is limited. A disabled-check filter matches zero findings without
+changing the all-check counts. One occurrence can have several different findings.
+Issues follow occurrence order, with reading-speed, too-short, too-long, then overlap
+findings within each occurrence—not the legacy highest-rate ranking. Each includes
+`kind`, `occurrenceIndex`, `captionIndex`, optional `clipIndex`, and output `start`/`end`.
+Evidence is `graphemeCount`/`graphemesPerSecond`, `duration`, or the related occurrence
+and overlap range. No full caption text is returned.
+
+Repeated occurrences remain separate. Overlaps report one representative per
+affected occurrence, not every pair. This is advisory metadata, not automatic
+correction, compliance, native text-fit validation or a saved threshold policy.
+CLI/MCP returns structured metadata; this stage adds no browser Save findings control.
 
 ### Split long captions in an authored range
 

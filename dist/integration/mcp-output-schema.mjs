@@ -11,6 +11,41 @@ const record = (properties, required = Object.keys(properties)) => ({
   required,
   additionalProperties: false,
 });
+const occurrenceProperties = {
+  occurrenceIndex: {type: 'integer', minimum: 0, maximum: 9999},
+  captionIndex: {type: 'integer', minimum: 0, maximum: 9999},
+  clipIndex: {type: 'integer', minimum: 0, maximum: 999},
+  start: {type: 'number', minimum: 0}, end: {type: 'number', minimum: 0},
+};
+function captionReviewSchema() {
+  const count = {type: 'integer', minimum: 0, maximum: 10000};
+  const findingCount = {type: 'integer', minimum: 0, maximum: 40000};
+  const positive = {type: 'number', exclusiveMinimum: 0};
+  const issue = (kind, evidence, optional = []) => record({
+    kind: {enum: [kind]}, ...occurrenceProperties, ...evidence,
+  }, ['kind', 'occurrenceIndex', 'captionIndex', 'start', 'end', ...Object.keys(evidence).filter(key => !optional.includes(key))]);
+  return record({
+    metric: {enum: ['caption-review']},
+    thresholds: record({maxGraphemesPerSecond: positive, minDuration: positive, maxDuration: positive,
+      includeOverlaps: {type: 'boolean'}}, ['includeOverlaps']),
+    filter: {enum: ['all', 'reading-speed', 'too-short', 'too-long', 'overlap']},
+    totalOccurrences: count, flaggedOccurrences: count,
+    counts: record({readingSpeed: count, tooShort: count, tooLong: count, overlap: count}),
+    totalFindings: findingCount, matchedFindings: findingCount, omittedFindings: findingCount,
+    issues: {type: 'array', maxItems: 100, items: {anyOf: [
+      issue('reading-speed', {graphemeCount: {type: 'integer', minimum: 0, maximum: 2000},
+        graphemesPerSecond: {type: 'number', minimum: 0}}),
+      issue('too-short', {duration: positive}), issue('too-long', {duration: positive}),
+      issue('overlap', {
+        otherOccurrenceIndex: {type: 'integer', minimum: 0, maximum: 9999},
+        otherCaptionIndex: {type: 'integer', minimum: 0, maximum: 9999},
+        otherClipIndex: {type: 'integer', minimum: 0, maximum: 999},
+        otherStart: {type: 'number', minimum: 0}, otherEnd: {type: 'number', minimum: 0},
+        overlapStart: {type: 'number', minimum: 0}, overlapEnd: {type: 'number', minimum: 0},
+      }, ['otherClipIndex']),
+    ]}},
+  });
+}
 const documentSchema = record({
   format: { enum: [FORMAT] },
   formatVersion: { enum: [FORMAT_VERSION] },
@@ -264,7 +299,8 @@ function dataSchema(command) {
         ])
       },
     });
-    case 'captions.inspect': return record({
+    case 'captions.inspect': return { anyOf: [
+      record({
       metric: { enum: ['non-whitespace-graphemes-per-second'] },
       maxGraphemesPerSecond: { type: 'number', exclusiveMinimum: 0 },
       totalOccurrences: { type: 'integer', minimum: 0, maximum: 10000 },
@@ -283,7 +319,9 @@ function dataSchema(command) {
           graphemesPerSecond: { type: 'number', minimum: 0 },
         }, ['occurrenceIndex', 'captionIndex', 'start', 'end', 'graphemeCount', 'graphemesPerSecond'])
       },
-    });
+    }),
+      captionReviewSchema(),
+    ] };
     case 'captions.export': return record({
       format: { enum: ['srt', 'vtt', 'txt'] },
       text: {

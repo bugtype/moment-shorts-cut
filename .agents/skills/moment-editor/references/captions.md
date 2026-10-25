@@ -245,6 +245,7 @@ and [executable CLI workflow](../../../../INTEGRATIONS.md#자막-시간-겹침-�
 
 ## Inspect caption timing density
 
+Without `review`, the existing request and response remain unchanged.
 After an edit, call `captions.inspect` / `moment_captions_inspect` with required
 `maxGraphemesPerSecond` chosen for the task and optional `limit` (`1..100`, default `20`).
 MCP also needs `projectId:"session"`. This is read-only, outside `project.batch`.
@@ -258,14 +259,49 @@ resolve authored indexes from the current project. Repeated derived occurrences
 are not independent editable cues. Existing derived-cue/raw-byte limits apply.
 See the [CLI workflow and precise metric](../../../../INTEGRATIONS.md#편집-후-자막-표시-속도-점검).
 
-For manual review in the browser, **Check reading speed** starts with a blank required
-positive threshold and reports the worst 20 occurrences plus total/flagged/omitted
-counts. **Captions** focuses the authored row without seeking; **View range** pauses and
-seeks the selected occurrence before focusing that row. Project or threshold
-changes invalidate the report and require a new inspection. Busy/recovery guards still apply. Neither inspection nor navigation
-changes the project, saves it or creates history; CLI/MCP cannot drive this modal
-or the browser playhead.
+In **Caption review**, optionally enter your own positive reading-speed, minimum
+and maximum duration thresholds; blank fields disable those checks. Durations are
+output seconds after speed, with minimum no greater than maximum. Overlaps are
+checked by default. Choose all findings or one type; the report shows at most 20
+matching findings, alongside all-check counts and matched/omitted totals. Repeats
+are separate occurrences; overlap findings represent affected occurrences, not all pairs.
 
+Changed criteria require a new inspection. A filter change recomputes the matching
+report when the previous inspection is current; it does not filter only the first
+20 rows. **Captions** focuses the authored row without seeking; **View range** pauses
+and seeks the occurrence before focusing its row. Reopen after project/media changes.
+Inspection/navigation does not edit, save or add undo history. Thresholds are not
+saved, no automatic fixes or Save findings control are added, and the separate
+**Caption timing overlaps** entry remains available.
+
+Busy, recovery, stale/closed dialog and media/panel guards still apply. CLI/MCP
+cannot drive this modal or the browser playhead.
+
+## Unified advisory caption review
+
+Use `review` instead of the root speed threshold (both together are invalid).
+Optional `review.maxGraphemesPerSecond`, `minDuration`, `maxDuration` must be finite
+positive numbers; durations are after-speed output seconds and minimum cannot
+exceed maximum. Equality at either duration bound is accepted. `includeOverlaps`
+defaults to true: `review:{}` is overlap-only. Duration-only checks are supported;
+disabling overlaps with no numeric check is invalid.
+
+`filter` defaults to `all`; alternatives are `reading-speed`, `too-short`,
+`too-long`, `overlap`. The `metric:"caption-review"` response includes `thresholds`,
+`filter`, `totalOccurrences`, unique `flaggedOccurrences` across all enabled checks,
+and `counts` (`readingSpeed`, `tooShort`, `tooLong`, `overlap`). `totalFindings` counts
+all findings, `matchedFindings` the filtered subset, `omittedFindings` the matched
+findings excluded by `limit` (default 20, 1–100); `issues` contains at most that limit.
+A disabled-check filter yields no findings but does not change all-check counts.
+An occurrence may have multiple finding types; repeats are separate occurrences.
+Overlaps give one representative per affected occurrence, not all pairs.
+Issues follow occurrence order, then reading-speed/too-short/too-long/overlap order,
+not the legacy highest-rate ranking. Each includes kind, authored/occurrence indexes,
+output range and kind-specific evidence; no full caption text is returned.
+
+Keep this advisory: no automatic fixes, saved thresholds, compliance or native
+fit claims. Structured findings are available to CLI/MCP; no Save findings UI is
+added. Legacy speed-only calls above retain their exact response shape.
 
 ## Split long captions in bulk or a range
 

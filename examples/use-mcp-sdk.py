@@ -139,11 +139,52 @@ async def main():
         after = await call(client, "moment_project_get")
         assert after["project"]["captions"][:2] == [original, added]
 
+    # Both inspection modes use disjoint public input/output schema alternatives.
+    async with session() as (client, _, tools):
+        from jsonschema import Draft202012Validator
+        tool = next(tool for tool in tools.tools if tool.name == "moment_captions_inspect")
+        validator = Draft202012Validator(tool.inputSchema)
+        for args in ({"review": {}}, {"maxGraphemesPerSecond": 3},
+                     {"review": {"minDuration": 1, "includeOverlaps": False}}):
+            validator.validate({"projectId": "session", **args})
+        for args in ({}, {"review": None}, {"review": {"includeOverlaps": False}},
+                     {"review": {}, "maxGraphemesPerSecond": 3}):
+            assert not validator.is_valid({"projectId": "session", **args})
+        document = await call(client, "moment_project_get")
+        document["project"]["captions"] = [
+            {"start": 0, "end": 1, "text": "ABCD"},
+            {"start": 0.5, "end": 1, "text": "XY", "basis": "timeline"},
+        ]
+        await call(client, "moment_project_import", {"document": document})
+        before = await call(client, "moment_project_get")
+        legacy = await call(client, "moment_captions_inspect", {"maxGraphemesPerSecond": 3})
+        assert legacy["metric"] == "non-whitespace-graphemes-per-second"
+        review = await call(client, "moment_captions_inspect", {"review": {
+            "maxGraphemesPerSecond": 3, "minDuration": 0.75, "maxDuration": 0.9,
+        }})
+        assert review["metric"] == "caption-review"
+        assert review["counts"] == {"readingSpeed": 2, "tooShort": 1, "tooLong": 1, "overlap": 2}
+        assert review["flaggedOccurrences"] == 2 and review["totalFindings"] == 6
+        assert [issue["kind"] for issue in review["issues"]] == [
+            "reading-speed", "too-long", "overlap", "reading-speed", "too-short", "overlap"]
+        output_validator = Draft202012Validator(tool.outputSchema)
+        invalid = {"ok": True, "apiVersion": 1, "command": "captions.inspect", "data": review}
+        invalid = json.loads(json.dumps(invalid))
+        invalid["data"]["issues"][0]["duration"] = 1
+        assert not output_validator.is_valid(invalid), "Issue evidence must match its kind"
+        invalid["data"] = {**legacy, "thresholds": {"includeOverlaps": True}}
+        assert not output_validator.is_valid(invalid), "Legacy result must stay closed"
+        await call(client, "moment_captions_inspect", {"review": {"includeOverlaps": False}}, error="INVALID_ARGUMENT")
+        filtered = await call(client, "moment_captions_inspect", {
+            "review": {"filter": "overlap"}, "limit": 1})
+        assert filtered["matchedFindings"] == 2 and filtered["omittedFindings"] == 1
+        assert await call(client, "moment_project_get") == before
+
     print(json.dumps({
         "ok": True, "sdk": f"mcp {SDK_VERSION}", "protocol": protocol,
         "tools": tool_count, "recoveredError": failure["code"],
         "handoffVerified": True, "subtitleFormat": subtitles["format"],
-        "filesWritten": False, "appendVerified": True,
+        "filesWritten": False, "appendVerified": True, "captionReviewVerified": True,
     }))
 
 

@@ -290,8 +290,27 @@ const definitions = [
   ),
   command(
     'captions.inspect',
-    '편집·배속 후 자막의 공백 제외 결합 문자 수를 출력 초로 나눠 검사합니다. 호출자가 지정한 기준을 넘는 구간만 반환합니다.',
-    object({maxGraphemesPerSecond: {type: 'number', exclusiveMinimum: 0}, limit: {type: 'integer', minimum: 1, maximum: 100}}, ['maxGraphemesPerSecond'])
+    '편집·배속 후 자막을 읽기 속도 또는 선택한 review의 속도·출력 길이·겹침 기준으로 검사합니다. 프로젝트를 수정하지 않습니다.',
+    {
+      ...object({
+        maxGraphemesPerSecond: {type: 'number', exclusiveMinimum: 0},
+        limit: {type: 'integer', minimum: 1, maximum: 100},
+        review: { ...object({
+          maxGraphemesPerSecond: {type: 'number', exclusiveMinimum: 0},
+          minDuration: {type: 'number', exclusiveMinimum: 0},
+          maxDuration: {type: 'number', exclusiveMinimum: 0},
+          includeOverlaps: boolean,
+          filter: choice('all', 'reading-speed', 'too-short', 'too-long', 'overlap'),
+        }), anyOf: [
+          {not: {required: ['includeOverlaps'], properties: {includeOverlaps: {const: false}}}},
+          {required: ['maxGraphemesPerSecond']}, {required: ['minDuration']}, {required: ['maxDuration']},
+        ] },
+      }),
+      anyOf: [
+        {required: ['maxGraphemesPerSecond'], not: {required: ['review']}},
+        {required: ['review'], not: {required: ['maxGraphemesPerSecond']}},
+      ],
+    }
   ),
   command(
     'captions.export',

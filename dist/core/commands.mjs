@@ -5,7 +5,7 @@ import { outputDimensions } from './aspect-ratio.mjs';
 import { assignCaptionSpeaker } from './caption-speakers.mjs';
 import { inspectCaptionOverlaps } from './caption-overlaps.mjs';
 import { message as msg } from '../i18n.mjs';
-import { inspectCaptions } from './caption-inspection.mjs';
+import { inspectCaptions, inspectCaptionReview } from './caption-inspection.mjs';
 import { shiftCaptionTiming } from './caption-timing.mjs';
 import { readTemplateDocument, createTemplateDocument } from '../template-library.mjs';
 import { replaceCaptionText } from './caption-text.mjs';
@@ -31,7 +31,10 @@ const previewFields = [...new Set([...Object.keys(createDemoProject()), 'templat
 export function prepareCommand(project, name, args = {}) {
   const definition = commandDefinition(name);
   assertJson(args);
-  validate(definition.inputSchema, args);
+  const inspectionLegacy = name === 'captions.inspect' && !(args && Object.hasOwn(args, 'review'));
+  validate(inspectionLegacy ? {...definition.inputSchema, required: ['maxGraphemesPerSecond']} : definition.inputSchema, args);
+  if (name === 'captions.inspect' && !inspectionLegacy && Object.hasOwn(args, 'maxGraphemesPerSecond'))
+    fail(msg('errors.inspectionModes'), 'arguments.review');
   if (name === 'templates.list') return {
     data: TEMPLATES.map(({ id, name, category, description }) => ({ id, name, category, description }))
   };
@@ -184,7 +187,7 @@ export function prepareCommand(project, name, args = {}) {
     };
   }
   if (name === 'captions.overlaps') return { data: inspectCaptionOverlaps(project, args) };
-  if (name === 'captions.inspect') return { data: inspectCaptions(project, args) };
+  if (name === 'captions.inspect') return { data: inspectionLegacy ? inspectCaptions(project, args) : inspectCaptionReview(project, args) };
   if (name === 'captions.export') return {
     data: { format: args.format || 'srt', text: projectSubtitles(project, args) }
   };

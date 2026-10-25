@@ -56,7 +56,7 @@ export function captionsPanelMarkup({ captions, speakerLabels }, { toolsOpen, tr
         `\n  <div class="caption-disclosure-body">` +
         `<button class="button" id="removeCaptionRange" ${captions.length ? '' : 'disabled'}>${text('panels.removeCaptionRange')}</button>` +
         `<button class="button" id="inspectCaptionOverlaps">${text('panels.captionOverlaps')}</button>` +
-        `<button class="button" id="inspectCaptions">${text('panels.inspectCaptions')}</button>` +
+        `<button class="button" id="inspectCaptions">${text('advisory.title')}</button>` +
         `<section ${attrs('aria-label', 'panels.findReplace')}>` +
         `<label class="panel-label" for="captionFind">${text('panels.find')}</label>` +
         `<textarea class="panel-input" id="captionFind" rows="2" maxlength="2000" autocomplete="off" spellcheck="false"></textarea>` +

@@ -1,5 +1,9 @@
 // Product-owned diagnostics and progress. Project-authored text is never translated.
 const entries = [
+  ["errors.inspectionModes","읽기 속도 인수와 review 중 하나만 사용하세요.","Use either the legacy reading-speed argument or review, not both.","请仅使用旧版阅读速度参数或 review，不可同时使用。"],
+  ["errors.inspectionDuration","표시 시간 기준은 유한한 양수의 출력 초여야 합니다.","Duration limits must be finite positive output seconds.","时长限制必须为有限的正数输出秒数。"],
+  ["errors.inspectionDurationOrder","최소 표시 시간은 최대 표시 시간을 넘을 수 없습니다.","Minimum duration must not exceed maximum duration.","最短时长不得超过最长时长。"],
+  ["errors.inspectionChecks","시간 겹침 검사를 켜거나 수치 기준을 하나 이상 입력하세요.","Enable overlaps or provide at least one numeric limit.","请启用重叠检查或填写至少一项数值限制。"],
   ["errors.textUnicode","출력 문구에 짝이 없는 UTF-16 서로게이트가 있습니다. 해당 문구를 수정한 뒤 다시 저장하세요. 프로젝트 JSON은 원문을 보존합니다.","Export text contains an unpaired UTF-16 surrogate. Correct that text before saving. Project JSON preserves the original text.","导出文字包含未配对的 UTF-16 代理码元。请修正该文字后再保存。项目 JSON 会保留原文。"],
   ["errors.graphicsNul","그래픽 문구에 NUL 문자가 있습니다. 제거한 뒤 다시 저장하세요.","Graphics text contains a NUL character. Remove it before saving.","图形文字包含 NUL 字符。请删除后再保存。"],
   ["errors.moveClipIndex","이동할 클립과 대상 위치는 현재 클립 목록의 정수 인덱스여야 합니다.","The clip and destination must be integer indices in the current clip array.","片段和目标位置必须是当前片段数组中的整数索引。"],

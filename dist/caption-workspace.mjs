@@ -26,9 +26,10 @@ export function createCaptionWorkspace(app) {
         focusCaption: index => { app.switchPanel('captions'); app.focusCaption(index); },
         toast: value => app.toast(value),
     };
-    // Reading-speed inspection itself remains readable without media; its controller
+    // Advisory inspection itself remains readable without media; its controller
     // consults blocked only for report navigation, preserving the existing contract.
-    const inspection = createCaptionInspectionDialog({...navigation, blocked: mediaUnavailable});
+    const inspection = createCaptionInspectionDialog({...navigation, blocked: mediaUnavailable,
+        isCurrentPanel: () => app.panel === 'captions'});
     const rowNavigation = createCaptionNavigation({
         ...navigation, blocked: () => app.panel !== 'captions' || mediaUnavailable(),
     });

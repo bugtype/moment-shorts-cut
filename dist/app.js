@@ -1,3 +1,4 @@
+import {createToolFinder} from './tool-finder.mjs';
 import { createClipDuplicateDialog } from './clip-duplicate-dialog.mjs';
 import { createClipComplementDialog } from './clip-complement-dialog.mjs';
 import { createFramingDialog } from './framing-dialog.mjs';
@@ -68,6 +69,7 @@ const editorReadyPromise = new Promise(resolve => {
 const video = $('#sourceVideo'), audio = $('#sourceAudio'), canvas = $('#preview');
 const ctx = canvas.getContext('2d'), sample = new Image(), modal = $('#modal');
 const shellPresentation = createShellPresentation({
+    findTools: () => toolFinder.open(),
     query: $, queryAll: $$, document, modal, openDialog: (...args) => modalOpen(...args),
     downloadSettings: () => downloadProjectSettings(),
     downloadGraphicsText: () => downloadGraphicsText(),
@@ -264,6 +266,7 @@ const app = {
     get selectedCard() { return selectedCard; }, set selectedCard(value) { selectedCard = value; },
     get cardPlaybackEnd() { return cardPlaybackEnd; }, set cardPlaybackEnd(value) { cardPlaybackEnd = value; },
     get editorReady() { return editorReady; }, set editorReady(value) { editorReady = value; },
+    get panelRevision() { return workspacePanels.revision(); },
 
     query: $, queryAll: $$, document, window, canvas, ctx, video, audio, sample, modal, savePreview,
     composition, templatePreview, templateWorkspace, projectStore,
@@ -340,6 +343,7 @@ const designWorkspace = createDesignWorkspace(app);
 const clipComplementDialog = createClipComplementDialog(app);
 const framingDialog = createFramingDialog(app);
 const workspacePanels = createWorkspacePanels(app);
+const toolFinder = createToolFinder(app);
 const exportFlow = createExportFlow(app, {
     isTypeSupported: mime => MediaRecorder.isTypeSupported(mime),
     hasMediaRecorder: () => typeof MediaRecorder !== 'undefined',

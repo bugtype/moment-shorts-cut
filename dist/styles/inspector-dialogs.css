@@ -495,3 +495,6 @@ body.exporting .workspace,body.exporting .topbar {
 .caption-review-fields > div { min-width:0; }
 .caption-review-speed { grid-column:1 / -1; }
 .caption-review-fields input { width:100%; min-width:0; }
+
+.tool-finder-results { display:grid; gap:8px; max-height:50vh; overflow-y:auto; }
+.tool-finder-results .button { min-width:0; white-space:normal; text-align:left; }

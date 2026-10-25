@@ -53,7 +53,19 @@ Select **English** in the language selector. The steps below use English interfa
 4. **Audio:** add an audio file or record narration with microphone permission. Adjust its start time and volume alongside the original audio.
 5. **Export:** choose an available MP4/WebM format and 720p or 1080p. **Keep the tab visible until export finishes**, then play the downloaded file to check the result.
 
-The header folder icon opens **Project files**, including on compact screens. **Help** also provides settings import/save.
+The header folder icon opens **Project files**, including on compact screens. **Guide** also provides settings import/save.
+
+**Guide → Find a tool** searches ten fixed destinations using Korean, English or
+Simplified Chinese keywords—not your authored content. Choose a result to reveal
+and focus an existing control (such as caption review or framing); only output-time
+navigation and Project files open their existing dialogs. This does not activate
+editing, downloads, file pickers, recognition, recording or export for you.
+
+Tab to a result button to activate it; Enter while typing does not choose a result.
+Escape or Cancel returns focus to Guide. Stale project/media/panel results refuse
+to navigate; existing busy/recovery guards apply. There is no new header button or
+keyboard shortcut, and queries/history are not saved. Existing destination behavior
+is unchanged; leaving an input to open Guide can still commit its normal draft.
 
 | Action | Where your work goes |
 |---|---|

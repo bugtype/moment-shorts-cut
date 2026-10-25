@@ -1,0 +1,31 @@
+// Fixed product destinations only. Never index authored project content.
+const entries = [
+ ['finder.title','도구 찾기','Find a tool','查找工具'],
+ ['finder.search','도구 검색','Search tools','搜索工具'],
+ ['finder.count','결과 {count}개','{count} results','{count} 个结果'],
+ ['finder.empty','일치하는 도구가 없습니다.','No matching tools.','没有匹配的工具。'],
+ ['finder.stale','프로젝트나 화면이 바뀌었습니다. 사용 가이드에서 도구 찾기를 다시 여세요.','The project or workspace changed. Reopen Find a tool from Guide.','项目或工作区已更改。请从使用指南重新打开查找工具。'],
+ ['finder.busy','현재 작업이 끝난 뒤 도구를 찾아 주세요.','Wait for the current operation before finding a tool.','请等待当前操作结束后再查找工具。'],
+ ['finder.templates','템플릿 검색','Search templates','搜索模板'],
+ ['finder.templatesKeywords','스타일 갤러리 내 템플릿','style gallery custom templates','样式 模板库 自定义模板'],
+ ['finder.captionReview','자막 검토','Caption review','字幕检查'],
+ ['finder.captionReviewKeywords','읽기 속도 표시 시간 겹침 검사','reading speed duration overlap inspect','阅读速度 时长 重叠 检查'],
+ ['finder.captionFind','자막 찾기 및 바꾸기','Find and replace captions','查找和替换字幕'],
+ ['finder.captionFindKeywords','문구 검색 교정','text search correction','文字 搜索 修正'],
+ ['finder.subtitleImport','자막 가져오기 도구','Subtitle import controls','字幕导入控件'],
+ ['finder.subtitleImportKeywords','SRT VTT 파일 추가 교체','SRT VTT file add replace','SRT VTT 文件 添加 替换'],
+ ['finder.subtitleExport','자막 저장 도구','Subtitle export controls','字幕导出控件'],
+ ['finder.subtitleExportKeywords','SRT VTT TXT 검토 원본 행 범위','SRT VTT TXT review authored rows range save','SRT VTT TXT 审阅 编写行 范围 保存'],
+ ['finder.framing','화면 위치 및 확대','Framing and zoom','画面位置和缩放'],
+ ['finder.framingKeywords','프레임 가로 세로 이동','frame horizontal vertical pan','画面 水平 垂直 平移'],
+ ['finder.moveClip','클립 이동 도구','Move clip controls','移动片段控件'],
+ ['finder.moveClipKeywords','순서 위치 재배치','order position reorder','顺序 位置 重排'],
+ ['finder.audio','오디오 도구','Audio tools','音频工具'],
+ ['finder.audioKeywords','음성 녹음 음악 볼륨','voice record music volume','配音 录音 音乐 音量'],
+ ['finder.seek','출력 시간으로 이동…','Go to output time…','跳转到输出时间…'],
+ ['finder.seekKeywords','탐색 재생 위치 초','seek playback position seconds','定位 播放位置 秒'],
+ ['finder.projectFiles','프로젝트 파일…','Project files…','项目文件…'],
+ ['finder.projectFilesKeywords','설정 JSON 백업 복구','settings JSON backup recovery','设置 JSON 备份 恢复'],
+];
+export const messages = Object.fromEntries(['ko','en','zh-CN'].map((locale,index) =>
+ [locale,Object.fromEntries(entries.map(([key,...values]) => [key,values[index]]))]));

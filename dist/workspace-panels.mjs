@@ -368,5 +368,5 @@ export function createWorkspacePanels(app) {
             syncSheet();
     }
 
-    return { syncPreviewExportLabel, renderPanel, switchPanel, renderCaptionsPanel, navigateCaption, focusCaption, closePanelSheet, togglePanelSheet, syncPanelSheet: syncSheet };
+    return { revision: () => renderGeneration, syncPreviewExportLabel, renderPanel, switchPanel, renderCaptionsPanel, navigateCaption, focusCaption, closePanelSheet, togglePanelSheet, syncPanelSheet: syncSheet };
 }

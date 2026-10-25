@@ -25,6 +25,25 @@ are localized, while existing Korean examples remain authored content. Choose AS
 language independently. API command names, IDs, field names, enums, error codes
 and paths stay unchanged. Use canonical IDs, not translated labels.
 
+## Find an existing browser tool
+
+**Guide → Find a tool** (사용 가이드 → 도구 찾기 / 使用指南 → 查找工具)
+searches ten fixed destinations with keywords in all three interface languages.
+It does not search authored content or persist queries/history. Eight destinations
+reveal and focus an existing control: template search, caption review, caption
+find, subtitle import, subtitle export format, framing, clip move and audio-file
+selection. Focusing a control does not activate it. Only output-time navigation
+and Project files open their existing dialogs; no edit, download, picker,
+recognition, recording or export runs automatically.
+
+Use Tab to reach result buttons; Enter in the search input does not choose one.
+Escape/Cancel returns focus to Guide. State/media/panel changes invalidate results;
+existing busy/recovery guards remain. There is no new header control or shortcut.
+Destination semantics are unchanged, and normal input blur can commit an existing
+draft before Guide opens—do not claim the whole interaction is mutation-free.
+This is browser navigation, not an MCP/API command. Code fixtures do not establish
+native compact-layout or assistive-technology behavior.
+
 ## Browser file handoff
 
 The header folder icon opens **Project files**: **Save settings** downloads a

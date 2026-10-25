@@ -4,7 +4,7 @@ import {icon, esc} from './ui-format.mjs';
 // Own shell feedback and modal markup, not editor state, history or media jobs.
 // Callbacks keep the app's public wrappers interceptable and timers injectable.
 export function createShellPresentation({query: $, queryAll, document, modal,
-    openDialog, downloadSettings, downloadGraphicsText, filesBlocked = () => false, canRelink = () => false, relink, setTimer, clearTimer}) {
+    openDialog, downloadSettings, downloadGraphicsText, findTools, filesBlocked = () => false, canRelink = () => false, relink, setTimer, clearTimer}) {
     let lastSaveStatus = '', toastTimer, fileDialogGeneration = 0, pendingImportClose;
     function bindFileActions(trigger) {
         const generation = ++fileDialogGeneration;
@@ -59,8 +59,13 @@ export function createShellPresentation({query: $, queryAll, document, modal,
     }
 
     function showHelp() {
-        openDialog(message('shell.helpTitle'), `<ol class="guide-steps"><li>${text('shell.help1')}</li><li>${text('shell.help2')}</li><li>${text('shell.help3')}</li></ol><p class="modal-copy"><span class="keyboard-key">Space</span> ${text('shell.playPause')} &nbsp; <span class="keyboard-key">Ctrl Z</span> ${text('shell.undo')} &nbsp; <span class="keyboard-key">, / .</span> ${text('shell.stepOutput')} &nbsp; <span class="keyboard-key">[ / ]</span> ${text('shell.cutNavigation')}</p><div class="notice">${text('shell.settingsNotice')}</div>`, `<div class="modal-foot"><button class="button" id="importProjectSettingsButton">${text('shell.importSettings')}</button><button class="button" id="downloadProjectSettingsButton">${text('shell.saveSettings')}</button></div>`);
+        openDialog(message('shell.helpTitle'), `<button class="button full" id="findToolsButton">${text('finder.title')}</button><ol class="guide-steps"><li>${text('shell.help1')}</li><li>${text('shell.help2')}</li><li>${text('shell.help3')}</li></ol><p class="modal-copy"><span class="keyboard-key">Space</span> ${text('shell.playPause')} &nbsp; <span class="keyboard-key">Ctrl Z</span> ${text('shell.undo')} &nbsp; <span class="keyboard-key">, / .</span> ${text('shell.stepOutput')} &nbsp; <span class="keyboard-key">[ / ]</span> ${text('shell.cutNavigation')}</p><div class="notice">${text('shell.settingsNotice')}</div>`, `<div class="modal-foot"><button class="button" id="importProjectSettingsButton">${text('shell.importSettings')}</button><button class="button" id="downloadProjectSettingsButton">${text('shell.saveSettings')}</button></div>`);
         bindFileActions($('#helpButton'));
+        const finder = $('#findToolsButton'), owner = fileDialogGeneration;
+        finder.onclick = event => {
+            if (owner === fileDialogGeneration && modal.open && $('#findToolsButton') === finder &&
+                !event?.isComposing && event?.keyCode !== 229) findTools?.();
+        };
     }
     function toast(message) {
         const node = $('#toast');

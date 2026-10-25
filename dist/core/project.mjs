@@ -1,3 +1,4 @@
+import { assertUnicodeText } from './unicode-text.mjs';
 import { SUPPORTED_ASPECT_RATIOS } from './aspect-ratio.mjs';
 import { projectCaptionReview } from './caption-review.mjs';
 import { message as msg } from '../i18n.mjs';
@@ -281,6 +282,7 @@ export function projectSubtitles(p, options = {}) {
       const text = c.text.replace(/\r\n?/g, '\n');
       if (text.includes('\0'))
         fail(msg('errors.txtNul', {index: i + 1}));
+      assertUnicodeText(text);
       const chunk = text + '\n';
       bytes += encoder.encode(chunk).byteLength + (i ? 1 : 0);
       if (bytes > MAX_SUBTITLE_BYTES)
@@ -299,6 +301,7 @@ export function projectSubtitles(p, options = {}) {
       fail(msg('errors.srtNul', {index: i + 1}));
     if (format === 'vtt' && lines.includes('\0'))
       fail(msg('errors.vttNul', {index: i + 1}));
+    assertUnicodeText(lines);
     const text = lines.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\u00a0/g, '&nbsp;');
     const chunk = `${i+1}\n${start} --> ${end}\n${text}\n`;
     bytes += encoder.encode(chunk).byteLength + (i ? 1 : 0);

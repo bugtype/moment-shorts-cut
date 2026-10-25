@@ -1,3 +1,4 @@
+import { assertUnicodeText } from './unicode-text.mjs';
 import { t, message } from '../i18n.mjs';
 import { captionOccurrences, MAX_SUBTITLE_BYTES, captionOutputLimit } from '../captions.mjs';
 import { fail } from './validation.mjs';
@@ -22,6 +23,8 @@ export function projectCaptionReview(project, { bom = false } = {}) {
     const text = occurrence.text.replace(/\r\n?/g, '\n');
     const name = label.replace(/\r\n?/g, '\n');
     if (text.includes('\0') || name.includes('\0')) fail(message('review.nul', { index: index + 1 }));
+    assertUnicodeText(text);
+    assertUnicodeText(name);
     const lines = [`[${index + 1}]`, t('review.time', {
       start: String(occurrence.start), end: String(occurrence.end),
     })];

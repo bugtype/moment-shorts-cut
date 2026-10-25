@@ -491,6 +491,17 @@ export returns valid `WEBVTT\n\n`; the browser instead skips empty downloads.
 SRT/VTT reject blank cues/paragraphs and intervals that collapse when rounded to
 milliseconds rather than silently dropping or retiming them; TXT permits them.
 
+UTF-8 text export rejects emitted isolated UTF-16 surrogates rather than silently
+replacing them with `U+FFFD`: SRT/VTT/TXT and review-TXT cue text, used review speaker
+labels, and authored fields emitted by the graphics inventory are checked.
+Trimmed/excluded cues, unused labels and unrelated graphics do not block scoped
+subtitle export. This check does not normalize or repair text; valid paired emoji,
+combining characters and intentionally authored `U+FFFD` remain unchanged.
+Model/import validation is unchanged, and project JSON retains escaped code units
+for recovery. Correct the intended text before retrying.
+
+Background: [RFC 8259 §8.2](https://www.rfc-editor.org/rfc/rfc8259.txt) describes unpaired-surrogate interoperability risks; the [File API Blob processing rules](https://w3c.github.io/FileAPI/#processing-blob-parts) describe their replacement during string encoding.
+
 ## Boundaries and extension points
 
 Supported methods are initialize, ping, tools/list and tools/call plus the initialized

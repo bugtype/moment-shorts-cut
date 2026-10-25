@@ -1,5 +1,6 @@
 // Product-owned diagnostics and progress. Project-authored text is never translated.
 const entries = [
+  ["errors.textUnicode","출력 문구에 짝이 없는 UTF-16 서로게이트가 있습니다. 해당 문구를 수정한 뒤 다시 저장하세요. 프로젝트 JSON은 원문을 보존합니다.","Export text contains an unpaired UTF-16 surrogate. Correct that text before saving. Project JSON preserves the original text.","导出文字包含未配对的 UTF-16 代理码元。请修正该文字后再保存。项目 JSON 会保留原文。"],
   ["errors.graphicsNul","그래픽 문구에 NUL 문자가 있습니다. 제거한 뒤 다시 저장하세요.","Graphics text contains a NUL character. Remove it before saving.","图形文字包含 NUL 字符。请删除后再保存。"],
   ["errors.moveClipIndex","이동할 클립과 대상 위치는 현재 클립 목록의 정수 인덱스여야 합니다.","The clip and destination must be integer indices in the current clip array.","片段和目标位置必须是当前片段数组中的整数索引。"],
   ["errors.exportTemplateName","템플릿 이름을 입력하세요.","Enter a template name.","请输入模板名称。"],

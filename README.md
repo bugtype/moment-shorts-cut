@@ -737,6 +737,12 @@ Review headings follow UI language; authored names/text are not translated. This
 
 **Plain TXT:** one paragraph per derived cue, ordered using clips, repetitions and source/timeline captions after speed. Repeated or split clips can repeat words; this is not a deduplicated or word-accurate transcript. No timestamps, IDs, speakers, titles, cards or styling are included. Literal `<>&`, whitespace and multiline text are preserved, with LF line endings, a blank line between cues and a final newline. Blank lines and sub-millisecond cues are allowed; NUL is rejected. Empty export returns `""`. TXT cannot be imported by SRT/VTT import or recover cue timing.
 
+**UTF-8 export boundary:** emitted isolated UTF-16 surrogates are rejected instead of silently becoming `U+FFFD`. This applies to SRT/VTT/TXT and review-TXT cue text, used review speaker labels, and authored fields emitted in the graphics inventory.
+
+Trimmed/excluded cues, unused labels and unrelated graphics do not block scoped subtitle export. No Unicode normalization or repair is performed; valid paired emoji, combining characters and deliberately authored `U+FFFD` remain unchanged by this check.
+
+Model/import validation is unchanged; project JSON retains escaped code units for recovery. Correct the intended text before retrying.
+
 **SRT/VTT text:** all SRT/VTT/TXT exports reject NUL (`U+0000`) rather than stripping it. Correct/remove that unsupported character and retry; project JSON retains authored text, and a failed export does not overwrite an existing output file. Blank lines separate cues. Export rejects empty cues or blank lines inside an exported caption instead of dropping paragraphs or assigning new times. Remove the blank lines to export SRT/VTT; project JSON retains the original text. Ordinary multiline captions are supported, with CRLF/CR normalized to LF in output. Subtitle-player markup support varies; universal compatibility is not claimed.
 
 **SRT/VTT timing:** timestamps round to milliseconds after trimming and speed changes. Export rejects a cue whose rounded start and end are equal; adjust its interval or playback speed. It does not extend, drop or move cues automatically, and the original project keeps its precise timing.

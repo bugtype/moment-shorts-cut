@@ -1,3 +1,4 @@
+import { assertUnicodeText } from './unicode-text.mjs';
 import { t, message } from '../i18n.mjs';
 import { validateProject, outputDuration } from './project.mjs';
 import { fail } from './validation.mjs';
@@ -8,6 +9,7 @@ export function projectGraphicsText(project) {
   const metadata = (key, value) => `${t(`graphics.${key}`)}: ${String(value)}`;
   function authored(key, value, path) {
     if (value.includes('\0')) fail(message('errors.graphicsNul'), path);
+    assertUnicodeText(value, path);
     // Do not normalize whitespace, line endings, markup or user-authored labels.
     return `${t(`graphics.${key}`)}:\n${value}`;
   }

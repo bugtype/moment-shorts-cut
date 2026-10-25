@@ -232,7 +232,11 @@ Browser **Project files → Graphics text (.txt)** downloads
 card order, including disabled/out-of-range layers. It includes enabled flags,
 raw output-time endpoints (null stays null), and card role/kind; at most 14 text
 layers plus the report header. Headings follow UI locale, authored text/line breaks
-stay untouched. UTF-8 has no BOM; exported NUL text is rejected, not stripped.
+stay untouched. UTF-8 has no BOM; exported NUL text is rejected, not stripped. Exported authored
+fields also reject isolated UTF-16 surrogates instead of replacing them with
+`U+FFFD`. No Unicode normalization or repair occurs; valid paired emoji, combining
+characters and authored `U+FFFD` remain unchanged by this check. Model/import
+validation is unchanged; project JSON retains escaped code units for recovery.
 
 This is human review, not rendered visibility, countdown-number generation, a
 transcript, import format or project backup. Captions, media names/paths, card IDs

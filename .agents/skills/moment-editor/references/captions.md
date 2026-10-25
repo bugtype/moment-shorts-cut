@@ -422,6 +422,15 @@ All three export formats allow at most 10,000 edited occurrences, 2 MiB repeated
 
 VTT uses a `WEBVTT` header and dot-separated milliseconds. It exports plain captions, not styles, regions or speaker metadata, and rejects NUL characters. Empty VTT returns `WEBVTT\n\n` through CLI/MCP; the browser skips empty downloads. All SRT/VTT/TXT exports reject NUL (`U+0000`) in derived output cues; an authored cue wholly outside the cuts is not exported. Correct/remove it with the requested text edit, then retry—never silently strip it. Project JSON can still retain authored text, and failed CLI export preserves existing output files. SRT/VTT reject empty/blank-line cues and intervals that collapse after millisecond rounding; correct the requested text/timing rather than discarding cues.
 
+UTF-8 text export rejects emitted isolated UTF-16 surrogates rather than silently
+replacing them with `U+FFFD`: SRT/VTT/TXT and review-TXT cue text, used review speaker
+labels, and authored fields emitted by the graphics inventory are checked.
+Trimmed/excluded cues, unused labels and unrelated graphics do not block scoped
+subtitle export. This check does not normalize or repair text; valid paired emoji,
+combining characters and intentionally authored `U+FFFD` remain unchanged.
+Model/import validation is unchanged, and project JSON retains escaped code units
+for recovery. Correct the intended text before retrying.
+
 For plain edited text, call `moment_captions_export` with
 `{"projectId":"session","format":"txt"}` or use the CLI example above. TXT emits
 one paragraph per derived cue in edited output order, so repeated/split clips can

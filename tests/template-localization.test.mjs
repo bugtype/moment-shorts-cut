@@ -1,10 +1,11 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { messages } from '../dist/i18n/catalogs/templates.mjs';
+import { messages as presets } from '../dist/i18n/catalogs/template-presets.mjs';
 import { TEMPLATES, templateDisplay, templateSearchText, templateCategoryKey, applyTemplate, saveCustomTemplate } from '../dist/template-catalog.mjs';
 import { createDemoProject } from '../dist/core/project.mjs';
 import { createAppFixture } from './fixtures/app.mjs';
-import { setLocale } from '../dist/i18n.mjs';
+import { setLocale, translateFor } from '../dist/i18n.mjs';
 import { createTemplateDocument } from '../dist/template-library.mjs';
 import { createTemplateWorkspace } from '../dist/template-workspace.mjs';
 
@@ -16,6 +17,22 @@ test('template catalogs have matching keys and interpolation parameters', () => 
       const placeholders=value=>[...value.matchAll(/\{(\w+)\}/g)].map(match=>match[1]).sort();
       assert.deepEqual(placeholders(messages[locale][key]),placeholders(messages.ko[key]),key);
       assert.ok(messages[locale][key].trim(),key);
+    }
+  }
+});
+
+test('template facade appends display metadata in preset order without mixing UI keys', () => {
+  assert.deepEqual(Object.keys(presets), Object.keys(messages));
+  for (const locale of Object.keys(messages)) {
+    const entries = Object.entries(messages[locale]);
+    const presetEntries = Object.entries(presets[locale]);
+    assert.ok(presetEntries.length > 0);
+    assert.ok(presetEntries.every(([key]) => key.startsWith('templates.builtin.')));
+    assert.deepEqual(entries.slice(-presetEntries.length), presetEntries);
+    assert.ok(entries.slice(0, -presetEntries.length)
+      .every(([key]) => !key.startsWith('templates.builtin.')));
+    for (const [key, value] of presetEntries) {
+      assert.equal(translateFor(locale, key), value);
     }
   }
 });

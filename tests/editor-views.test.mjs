@@ -11,6 +11,7 @@ function controls() {
     if (!elements.has(key)) elements.set(key, {
       value: '', style: { setProperty(name, value) { this[name] = value; } },
       classList: { toggle() {} }, clientWidth: 600, attributes: {},
+      querySelectorAll: () => [],
       setAttribute(name, value) { this.attributes[name] = String(value); if (name === 'title') this.title = String(value); },
     });
     return elements.get(key);
@@ -155,7 +156,7 @@ test('timeline presentation retains occurrence nodes and edits only display stat
   const nodes = [...query('#captionTrack').children];
   assert.equal(nodes.length, 2);assert.equal(nodes[1].dataset.captionTime, '5');
   assert.match(query('#videoTrack').innerHTML, /&lt;source&gt;/);
-  assert.match(query('#videoTrack').innerHTML, /class="clip active" data-clip="1"/);
+  assert.match(query('#videoTrack').innerHTML, /class="clip" data-clip="1"/);
   view.render(state, 8, { selected: 1, thumbnail: '', hasAudio: false });
   assert.equal(query('#captionTrack').children[1], nodes[1]);
   assert.deepEqual(state, before);

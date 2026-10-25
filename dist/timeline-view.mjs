@@ -146,12 +146,16 @@ export function createTimelineView($, clock = () => performance.now()) {
         $('#seek').max = len;
         const background = thumbnail ? `background-image:url('${thumbnail}');background-size:auto 100%;` : '';
         const clips = state.clips.map((clip, index) =>
-            `<button class="clip ${index === selected ? 'active' : ''}" data-clip="${index}" ` +
+            `<button class="clip" data-clip="${index}" ` +
             `style="flex:${clip.end - clip.start};${background}" ` +
             `${attrs("title", "shell.clipRange", {index: index + 1, start: fmt(clip.start), end: fmt(clip.end)})}>` +
             `<span>${index === 0 ? esc(state.fileName) : text('shell.clip', {index: index + 1})}</span></button>`
         ).join('');
-        updateTimelineMarkup($('#videoTrack'), clips);
+        const videoTrack = $('#videoTrack');
+        updateTimelineMarkup(videoTrack, clips);
+        // Selection alone must not replace the button receiving native activation.
+        for (const button of videoTrack.querySelectorAll('[data-clip]'))
+            button.classList.toggle('active', +button.dataset.clip === selected);
         renderCaptions(state, len);
         const total = len / state.speed;
         // Aim for a label roughly every 90px; zooming then reveals finer marks,

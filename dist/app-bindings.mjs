@@ -188,7 +188,8 @@ export function bindUi(app) {
         app.selected = +clip.dataset.clip;
         const current = app.state.clips[app.selected], rect = clip.getBoundingClientRect();
         const offset = app.state.clips.slice(0, app.selected).reduce((sum, item) => sum + item.end - item.start, 0);
-        app.seekTo(offset + clamp((event.clientX - rect.left) / rect.width, 0, .999) * (current.end - current.start));
+        const fraction = event.detail === 0 ? 0 : clamp((event.clientX - rect.left) / rect.width, 0, .999);
+        app.seekTo(offset + fraction * (current.end - current.start));
         app.renderInspector();
         app.renderTimeline();
         app.openInspector('clip');

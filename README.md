@@ -204,6 +204,13 @@ CLI/MCP can also [export the current composition as a portable template](docs/MC
 
 ### Navigate the preview
 
+**Select a timeline clip with the keyboard:** focus its video-track button with
+`Tab`, then press `Enter` or `Space` to select it, pause and seek to that occurrence's
+start, regardless of horizontal scrolling. Selection-only updates keep the focused
+button; mouse/touch selection still seeks to the pressed position within the clip.
+Selection itself does not edit, save or add undo history. Content, timing or thumbnail
+changes can still rebuild the track; this is not general focus or draft preservation.
+
 **Preview shortcuts:** unmodified `,` / `.` move backward/forward by 1/30 of an
 output second to inspect cut or caption boundaries. Arrow keys still move one
 pre-speed timeline second. The fine step uses the 30 fps output reference—not

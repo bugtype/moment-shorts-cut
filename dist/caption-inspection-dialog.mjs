@@ -6,7 +6,7 @@ const kinds = ['all', 'reading-speed', 'too-short', 'too-long', 'overlap'];
 
 // Own reviewer inputs, bounded findings and navigation; never edit or save projects.
 export function createCaptionInspectionDialog({getProject, getMedia = () => [], isCurrentPanel = () => true,
-    query: $, modal, openModal, blocked, pause, seek, focusCaption, toast}) {
+    query: $, modal, openModal, blocked, downloadBlocked = blocked, download, pause, seek, focusCaption, toast}) {
     let generation = 0;
     function open() {
         const owner = ++generation;
@@ -67,7 +67,21 @@ export function createCaptionInspectionDialog({getProject, getMedia = () => [], 
                             `<button class="button" id="inspectCaption${index}" ${attrs('aria-label','shell.editCaption',{index:issue.captionIndex+1})}>${text('shell.captions')}</button>` +
                             `<button class="button" id="inspectOccurrence${index}" ${attrs('aria-label','shell.viewOccurrence',{index:issue.occurrenceIndex+1})}>${text('shell.viewRange')}</button></div>` +
                             (issue.kind === 'overlap' ? `<button class="button full" id="inspectOther${index}">${text('advisory.related',{index:issue.otherCaptionIndex+1})}</button>` : '') + '</td></tr>';
-                    }).join('') + '</tbody></table></div>' : `<p>${text('advisory.empty')}</p>`);
+                    }).join('') + '</tbody></table></div>' : `<p>${text('advisory.empty')}</p>`) +
+                    `<button class="button full" id="saveCaptionFindings">${text('advisory.save')}</button>`;
+                const save = $('#saveCaptionFindings');
+                save.onclick = event => {
+                    if (!owns() || reportOwner !== reportGeneration || $('#saveCaptionFindings') !== save || composing(event) || !isCurrentPanel()) return;
+                    if (criteria() !== captured.criteria) { invalidate(); return; }
+                    if (!unchanged(captured)) { stale(); return; }
+                    if (downloadBlocked()) { toast(message('shell.inspectBusy')); return; }
+                    try {
+                        const blob = new Blob([JSON.stringify(report, null, 2) + '\n'], {type:'application/json'});
+                        download(blob, `${project.name || 'moment'}.caption-findings.json`);
+                    } catch {
+                        toast(message('advisory.saveFailed'));
+                    }
+                };
                 report.issues.forEach((issue,index) => {
                     const actions = [['inspectCaption',false,issue.captionIndex],['inspectOccurrence',true,issue.captionIndex]];
                     if (issue.kind === 'overlap') actions.push(['inspectOther',false,issue.otherCaptionIndex]);

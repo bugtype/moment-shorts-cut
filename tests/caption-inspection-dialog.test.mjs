@@ -3,10 +3,11 @@ import assert from 'node:assert/strict';
 import vm from 'node:vm';
 import {createCaptionInspectionDialog} from '../dist/caption-inspection-dialog.mjs';
 import {createDemoProject} from '../dist/core/project.mjs';
+import {prepareCommand} from '../dist/core/commands.mjs';
 import {setLocale, translateFor} from '../dist/i18n.mjs';
 import {createAppFixture} from './fixtures/app.mjs';
 function fixture() {
- let project=createDemoProject(),blocked=false,media=[],panel=true;const nodes=new Map(),events=[];
+ let project=createDemoProject(),blocked=false,downloadBlocked=false,downloadFailure=false,media=[],panel=true;const nodes=new Map(),events=[],downloads=[];
  const mount=(html,root=false)=>{
   if(root)nodes.clear();else for(const key of nodes.keys())if(/^#inspect(Caption|Occurrence)/.test(key))nodes.delete(key);
   for(const match of html.matchAll(/\bid="([^"]+)"/g)){
@@ -17,8 +18,8 @@ function fixture() {
  const query=selector=>nodes.get(selector)||null;
  const modal={open:false,onclose:null,close(){this.open=false;events.push(['close']);this.onclose?.();}};
  const openModal=(title,body)=>{modal.onclose?.();modal.onclose=null;mount(body,true);modal.open=true;events.push(['open',title]);};
- const controller=createCaptionInspectionDialog({getProject:()=>project,getMedia:()=>media,isCurrentPanel:()=>panel,query,modal,openModal,blocked:()=>blocked,pause:()=>events.push(['pause']),seek:t=>events.push(['seek',t]),focusCaption:i=>{assert.equal(modal.open,false);events.push(['caption',i]);},toast:t=>events.push(['toast',t])});
- return {controller,query,modal,events,project:()=>project,set:p=>project=p,block:b=>blocked=b,media:m=>media=m,panel:p=>panel=p,replace:()=>openModal('Other','<button id="other">Other</button>'),run(value='1'){query('#captionInspectionThreshold').value=value;query('#runCaptionInspection').onclick();}};
+ const controller=createCaptionInspectionDialog({getProject:()=>project,getMedia:()=>media,isCurrentPanel:()=>panel,query,modal,openModal,blocked:()=>blocked,downloadBlocked:()=>downloadBlocked,download:(blob,name)=>{if(downloadFailure)throw new Error('blocked');downloads.push({blob,name});},pause:()=>events.push(['pause']),seek:t=>events.push(['seek',t]),focusCaption:i=>{assert.equal(modal.open,false);events.push(['caption',i]);},toast:t=>events.push(['toast',t])});
+ return {controller,query,modal,events,downloads,project:()=>project,set:p=>project=p,block:b=>blocked=b,blockDownload:b=>downloadBlocked=b,failDownload:b=>downloadFailure=b,media:m=>media=m,panel:p=>panel=p,replace:()=>openModal('Other','<button id="other">Other</button>'),run(value='1'){query('#captionInspectionThreshold').value=value;query('#runCaptionInspection').onclick();}};
 }
 test('blank numeric checks are optional; invalid values fail and reports are bounded',()=>{
  const f=fixture();f.project().captions=Array.from({length:30},(_,i)=>({start:i/10,end:(i+1)/10,text:'ABC'}));const before=structuredClone(f.project());f.controller.open();assert.equal(f.query('#captionInspectionThreshold').value,'');
@@ -148,4 +149,87 @@ test('locale changes retain review drafts, callbacks and state while translating
    assert.equal(f.evaluate('JSON.stringify({state,history,future,current})'),before);
   }
  }finally{setLocale('ko',{persist:false});}
+});
+
+test('findings download is the exact bounded filtered report, never authored text or a project backup',async()=>{
+ const f=fixture();f.project().name='Private project 🎬';f.project().duration=30;
+ f.project().clips=[{start:0,end:30},{start:0,end:30}];f.project().speed=2;
+ f.project().captions=Array.from({length:30},(_,i)=>({start:i,end:i+1,text:'PRIVATE e\u0301🎬'}));
+ const before=structuredClone(f.project());f.controller.open();assert.equal(f.query('#saveCaptionFindings'),null);
+ f.query('#captionInspectionMin').value='.75';f.run('1');
+ f.query('#captionInspectionFilter').value='too-short';f.query('#captionInspectionFilter').onchange();
+ const report=prepareCommand(before,'captions.inspect',{review:{maxGraphemesPerSecond:1,minDuration:.75,includeOverlaps:true,filter:'too-short'},limit:20}).data;
+ f.query('#saveCaptionFindings').onclick();
+ assert.equal(f.downloads.length,1);const {blob,name}=f.downloads[0],bytes=await blob.text();
+ assert.equal(name,'Private project 🎬.caption-findings.json');assert.equal(blob.type,'application/json');
+ assert.equal(bytes,JSON.stringify(report,null,2)+'\n');assert.deepEqual(JSON.parse(bytes),report);
+ assert.equal(report.totalOccurrences,60);assert.equal(report.totalFindings,120);
+ assert.equal(report.issues.length,20);assert.equal(report.omittedFindings,40);
+ assert.equal(report.issues[0].captionIndex,0);assert.equal(report.issues[0].start,0);assert.equal(report.issues[0].end,.5);
+ assert.doesNotMatch(bytes,/PRIVATE|Private project|e\u0301🎬/);
+ assert.equal(f.modal.open,true);assert.deepEqual(f.project(),before);
+ assert.ok(!f.events.some(([kind])=>['seek','pause','caption','close'].includes(kind)));
+});
+
+test('empty filtered findings remain exportable with criteria and all-check counts intact',async()=>{
+ const f=fixture();f.controller.open();f.run('1');
+ f.query('#captionInspectionFilter').value='too-short';f.query('#captionInspectionFilter').onchange();
+ f.query('#saveCaptionFindings').onclick();const report=JSON.parse(await f.downloads[0].blob.text());
+ assert.equal(report.filter,'too-short');assert.deepEqual(report.issues,[]);assert.equal(report.matchedFindings,0);
+ assert.ok(report.totalFindings>0);assert.ok(report.counts.readingSpeed>0);
+ f.project().captions=[];f.run('1');f.query('#saveCaptionFindings').onclick();
+ assert.equal(JSON.parse(await f.downloads[1].blob.text()).totalOccurrences,0);
+});
+
+test('old findings download callbacks refuse changed criteria, contexts and dialog ownership',()=>{
+ const changes=[f=>f.query('#captionInspectionMin').oninput(),f=>{f.query('#captionInspectionMin').value='.5';},
+  f=>{f.query('#captionInspectionFilter').value='overlap';f.query('#captionInspectionFilter').onchange();},
+  f=>f.run('2'),f=>{f.project().captions[0].text='changed';},f=>f.set(structuredClone(f.project())),
+  f=>f.media([{}]),f=>f.panel(false),f=>f.modal.close(),f=>f.replace(),f=>f.controller.open()];
+ for(const change of changes){
+  const f=fixture();f.controller.open();f.run('1');const old=f.query('#saveCaptionFindings').onclick;
+  change(f);old();assert.equal(f.downloads.length,0);assert.ok(!f.events.some(([kind])=>kind==='seek'));
+ }
+});
+
+test('findings download preserves IME, metadata guards and retry after download failure',()=>{
+ const f=fixture();f.controller.open();f.run('1');let save=f.query('#saveCaptionFindings').onclick;
+ save({isComposing:true});save({keyCode:229});assert.equal(f.downloads.length,0);
+ f.query('#captionInspectionThreshold').oncompositionstart();save();assert.equal(f.downloads.length,0);
+ f.query('#captionInspectionThreshold').oncompositionend();f.run('1');save=f.query('#saveCaptionFindings').onclick;
+ f.blockDownload(true);save();assert.equal(f.downloads.length,0);assert.equal(f.modal.open,true);
+ f.blockDownload(false);f.failDownload(true);save();assert.equal(f.downloads.length,0);
+ assert.equal(f.events.at(-1)[1].messageKey,'advisory.saveFailed');
+ f.failDownload(false);f.block(true);save();assert.equal(f.downloads.length,1,'missing media blocks navigation, not metadata download');
+ assert.equal(f.modal.open,true);assert.equal(f.query('#saveCaptionFindings').onclick,save);
+});
+
+test('locale changes preserve findings bytes and the same report control without writes',async()=>{
+ const f=fixture();f.controller.open();f.run('1');const save=f.query('#saveCaptionFindings').onclick,before=structuredClone(f.project());
+ try{
+  for(const locale of ['ko','en','zh-CN']){
+   setLocale(locale,{persist:false});save();assert.equal(f.query('#saveCaptionFindings').onclick,save);
+  }
+  const bytes=await Promise.all(f.downloads.map(({blob})=>blob.text()));
+  assert.equal(bytes[0],bytes[1]);assert.equal(bytes[1],bytes[2]);assert.deepEqual(f.project(),before);
+ }finally{setLocale('ko',{persist:false});}
+});
+
+test('actual app findings downloads use metadata recovery guards without project/history/storage/playhead edits',async()=>{
+ for(const [setup,allowed] of [
+  ['',true],["persistence.restorePhase='failed';persistence.recoveryValid=true",true],
+  ["persistence.restorePhase='failed';persistence.recoveryValid=false",false],
+  ["persistence.restorePhase='restoring'",false],['loadingMedia=true',false],['exporting=true',false],
+  ['transcribing=true',false],["Object.defineProperty(audioRecording,'requesting',{get:()=>true})",false],
+  ["Object.defineProperty(audioRecording,'current',{get:()=>({})})",false],
+ ]){
+  const f=await createAppFixture(),downloads=[],writes=[];
+  f.context.collectFindings=(blob,name)=>downloads.push({blob,name});f.context.localStorage.setItem=(...args)=>writes.push(args);
+  vm.runInContext("download=(blob,name)=>collectFindings(blob,name);history=[];future=[];current=2;globalThis.findingSaves=0;scheduleSave=()=>findingSaves++;switchPanel('captions');",f.context);
+  f.element('#inspectCaptions').onclick();f.element('#captionInspectionThreshold').value='1';f.element('#runCaptionInspection').onclick();
+  vm.runInContext(setup,f.context);const before=f.evaluate('({state,history,future,current,playing,findingSaves})');
+  f.element('#saveCaptionFindings').onclick();assert.equal(downloads.length,allowed?1:0,setup);
+  assert.deepEqual(f.evaluate('({state,history,future,current,playing,findingSaves})'),before);assert.deepEqual(writes,[]);
+  assert.equal(f.element('#modal').open,true);
+ }
 });

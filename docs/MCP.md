@@ -1099,7 +1099,13 @@ and overlap range. No full caption text is returned.
 Repeated occurrences remain separate. Overlaps report one representative per
 affected occurrence, not every pair. This is advisory metadata, not automatic
 correction, compliance, native text-fit validation or a saved threshold policy.
-CLI/MCP returns structured metadata; this stage adds no browser Save findings control.
+CLI/MCP returns structured metadata. The browser's
+[Save shown findings (.json)](CAPTION_WORKFLOWS.md#review-timing) downloads this exact
+review-data shape, with at most 20 current filtered issues and full/omitted counts.
+Keys remain canonical, indexes are zero-based and times are after-speed output
+seconds. No authored caption text or project name is included in the contents.
+Use it with unchanged project settings; an empty filtered list is not an all-checks
+pass, and the file is not a project backup or portable set of edit targets.
 
 ### Split long captions in an authored range
 

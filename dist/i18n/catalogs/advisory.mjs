@@ -20,6 +20,8 @@ const entries = [
   ['advisory.rate','{value}자소/초','{value} graphemes/second','{value} 字素/秒'],
   ['advisory.related','관련 자막 {index}','Related caption {index}','相关字幕 {index}'],
   ['advisory.stale','프로젝트나 미디어가 바뀌었습니다. 다시 검사하세요.','The project or media changed. Run inspection again.','项目或媒体已更改，请重新检查。'],
+  ['advisory.save','표시된 결과 저장 (.json)','Save shown findings (.json)','保存所示结果（.json）'],
+  ['advisory.saveFailed','검토 결과를 저장하지 못했습니다. 다시 시도하세요.','Could not save findings. Try again.','无法保存检查结果，请重试。'],
 ];
 export const messages = Object.fromEntries(['ko','en','zh-CN'].map((locale,index) =>
   [locale,Object.fromEntries(entries.map(([key,...values]) => [key,values[index]]))]));

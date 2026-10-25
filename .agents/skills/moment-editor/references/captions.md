@@ -270,9 +270,24 @@ Changed criteria require a new inspection. A filter change recomputes the matchi
 report when the previous inspection is current; it does not filter only the first
 20 rows. **Captions** focuses the authored row without seeking; **View range** pauses
 and seeks the occurrence before focusing its row. Reopen after project/media changes.
-Inspection/navigation does not edit, save or add undo history. Thresholds are not
-saved, no automatic fixes or Save findings control are added, and the separate
-**Caption timing overlaps** entry remains available.
+Inspection/navigation does not edit, save project settings or add undo history.
+Thresholds are not retained in editor settings, no automatic fixes are applied,
+and the separate **Caption timing overlaps** entry remains available.
+
+After inspection, **Save shown findings (.json)** downloads the current report as
+`PROJECT.caption-findings.json`: the chosen thresholds/filter, full counts,
+matched/omitted totals and at most **20 shown findings**. The canonical JSON keys,
+**zero-based indexes** and **after-speed output seconds** match `captions.inspect`;
+no caption text or project name is included in its contents. The filename uses
+the project name. An empty filtered list does not mean all checks passed: inspect
+the filter, enabled checks and full counts.
+
+Saving does not close the dialog, alter the project/playhead, write browser storage
+or add history. It needs no linked source media, but busy/recovery and stale-report
+guards still apply. A download error leaves the report available to retry; the app
+cannot confirm browser download completion. Keep the file with the unchanged
+project settings: its indexes are a snapshot, not a portable project backup or
+proof of compliance, rendered visibility or speech alignment.
 
 Busy, recovery, stale/closed dialog and media/panel guards still apply. CLI/MCP
 cannot drive this modal or the browser playhead.
@@ -299,9 +314,12 @@ Issues follow occurrence order, then reading-speed/too-short/too-long/overlap or
 not the legacy highest-rate ranking. Each includes kind, authored/occurrence indexes,
 output range and kind-specific evidence; no full caption text is returned.
 
-Keep this advisory: no automatic fixes, saved thresholds, compliance or native
-fit claims. Structured findings are available to CLI/MCP; no Save findings UI is
-added. Legacy speed-only calls above retain their exact response shape.
+Keep this advisory: no automatic fixes, threshold persistence in editor settings,
+compliance or native-fit claims. CLI/MCP returns structured findings; the browser
+can download the exact current review report with at most 20 issues through
+[Save shown findings](../../../../docs/CAPTION_WORKFLOWS.md#review-timing). Its snapshot
+indexes are meaningful only with the unchanged project settings, not portable
+editing targets. Legacy speed-only calls above retain their exact response shape.
 
 ## Split long captions in bulk or a range
 

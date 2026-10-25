@@ -29,6 +29,7 @@ export function createCaptionWorkspace(app) {
     // Advisory inspection itself remains readable without media; its controller
     // consults blocked only for report navigation, preserving the existing contract.
     const inspection = createCaptionInspectionDialog({...navigation, blocked: mediaUnavailable,
+        downloadBlocked: metadataUnavailable, download: (blob, name) => app.download(blob, name),
         isCurrentPanel: () => app.panel === 'captions'});
     const rowNavigation = createCaptionNavigation({
         ...navigation, blocked: () => app.panel !== 'captions' || mediaUnavailable(),

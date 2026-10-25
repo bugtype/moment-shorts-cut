@@ -219,6 +219,13 @@ button; mouse/touch selection still seeks to the pressed position within the cli
 Selection itself does not edit, save or add undo history. Content, timing or thumbnail
 changes can still rebuild the track; this is not general focus or draft preservation.
 
+**Text-layer timeline buttons:** ordinary title/credit/card text and timing updates
+keep existing buttons when the displayed layer order and lane structure are unchanged.
+Their text, position and width still update; structural changes or legacy rendering
+fallback can rebuild the lane. Timing edits can move a target under the pointer, so
+clicking immediately after editing is not guaranteed to activate it. Selection/seek
+rules stay unchanged, and this does not save input drafts.
+
 **Preview shortcuts:** unmodified `,` / `.` move backward/forward by 1/30 of an
 output second to inspect cut or caption boundaries. Arrow keys still move one
 pre-speed timeline second. The fine step uses the 30 fps output reference—not

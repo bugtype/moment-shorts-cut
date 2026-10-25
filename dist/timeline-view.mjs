@@ -26,6 +26,39 @@ export function updateTimelineMarkup(track, html) {
   markup.set(track, html);
 }
 
+function updateLayerTrack(track, html, blocks) {
+  if (markup.get(track) === html) return;
+  // Keep both the button and its localized prefix alive across a field commit.
+  // Structural changes, nonfinite geometry and unusual text keep the HTML path.
+  const sameShape = blocks.length > 0 && track.childElementCount === blocks.length &&
+    track.childNodes.length === blocks.length && blocks.every(block =>
+      Number.isFinite(block.left) && Number.isFinite(block.width) && !/[\r\0]/.test(block.content));
+  const buttons = sameShape ? [...track.children] : [];
+  const reusable = sameShape && blocks.every((block, index) => {
+    const button = buttons[index], key = block.layer ? 'trackLayer' : 'trackCard';
+    if (button.tagName !== 'BUTTON' || button.dataset[key] !== (block.layer || block.id) ||
+        Object.hasOwn(button.dataset, block.layer ? 'trackCard' : 'trackLayer') ||
+        button.childNodes.length !== (block.layer ? 2 : 1) || button.lastChild.nodeType !== 3) return false;
+    if (!block.layer) return true;
+    const prefix = button.firstChild;
+    return prefix.tagName === 'SPAN' && prefix.getAttribute('data-i18n') === block.label &&
+      prefix.getAttribute('data-i18n-params') === '{}' && prefix.childNodes.length === 1 &&
+      prefix.firstChild.nodeType === 3;
+  });
+  if (!reusable) {
+    updateTimelineMarkup(track, html);
+    return;
+  }
+  blocks.forEach((block, index) => {
+    const button = buttons[index];
+    button.style.left = `${block.left}%`;
+    button.style.width = `${block.width}%`;
+    if (block.layer) setText(button.firstChild, block.label);
+    button.lastChild.data = (block.layer ? ' · ' : '') + block.content;
+  });
+  markup.set(track, html);
+}
+
 export function renderCaptionTrack(track, occurrences, duration, speed) {
   const previous = new Map([...track.children].map(node => [node.dataset.captionKey, node]));
   occurrences.forEach((caption, index) => {
@@ -124,21 +157,27 @@ export function createTimelineView($, clock = () => performance.now()) {
 
     function renderLayers(state, len) {
         const total = len / state.speed, d = state.design;
+        const blocks = [];
         let html = [['title', d.title, 'shell.title'], ['credit', d.credit, 'shell.credit']]
             .filter(([, layer]) => layer.enabled).map(([key, layer, label]) => {
                 const start = clamp(layer.start, 0, total);
                 const end = clamp(layer.end ?? total, start, total);
+                const left = start / total * 100, width = (end - start) / total * 100;
+                const content = key === 'title' ? layer.lines.filter(Boolean).join(' / ') : layer.text;
+                blocks.push({layer: key, label, content, left, width});
                 return `<button class="title-track-block ${key}" data-track-layer="${key}" ` +
-                    `style="left:${start / total * 100}%;width:${(end - start) / total * 100}%">` +
-                    `${text(label)} · ${esc(key === 'title' ? layer.lines.filter(Boolean).join(' / ') : layer.text)}</button>`;
+                    `style="left:${left}%;width:${width}%">` +
+                    `${text(label)} · ${esc(content)}</button>`;
             }).join('');
         html += (state.overlays || []).filter(card => card.start < total).map(card => {
             const left = clamp(card.start / total * 100, 0, 100);
             const width = clamp((Math.min(total, card.end) - card.start) / total * 100, 0, 100);
+            const content = `${card.label} · ${card.text}`;
+            blocks.push({id: card.id, content, left, width});
             return `<button class="title-track-block scene" data-track-card="${esc(card.id)}" ` +
                 `style="left:${left}%;width:${width}%">${esc(card.label)} · ${esc(card.text)}</button>`;
         }).join('');
-        updateTimelineMarkup($('#titleTrack'), html || `<span class="empty-layer-track">${text('shell.addLayers')}</span>`);
+        updateLayerTrack($('#titleTrack'), html || `<span class="empty-layer-track">${text('shell.addLayers')}</span>`, blocks);
     }
 
     function render(state, len, { selected, thumbnail, hasAudio }) {

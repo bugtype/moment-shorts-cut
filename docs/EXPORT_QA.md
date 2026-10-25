@@ -1,7 +1,7 @@
 # Export validation tools
 
-These tools prepare synthetic inputs and check a detector, a frame schedule and
-cancellation ownership. They do **not** export a Moment project or establish an
+These tools prepare synthetic inputs and check a detector, a frame schedule,
+cancellation ownership and a bounded encoder probe. They do **not** export a Moment project or establish an
 export speed improvement. Browser encoding, compositor pixels, audio mixing,
 pitch, hardware acceleration, memory and native resource release need separate
 measurement. The editor, CLI/MCP render-plan API and MediaRecorder path are unchanged.
@@ -13,6 +13,7 @@ Node 20+ is sufficient. No package installation, browser or FFmpeg is needed:
 ```sh
 npm test
 node --test tests/export-schedule.test.mjs tests/export-ownership.test.mjs tests/export-markers.test.mjs tests/export-matrix.test.mjs
+node --test tests/export-encoder-probe.test.mjs
 ```
 
 - `qa/export-schedule.mjs` computes a bounded, silent 30 fps schedule. An explicit
@@ -33,6 +34,88 @@ node --test tests/export-schedule.test.mjs tests/export-ownership.test.mjs tests
   extra schedule or duration errors in the negative control. They run without codecs.
 - `qa/export-matrix.mjs` uses the existing project validator and `render.plan`.
   Its documents and plans remain metadata with `rendered:false`.
+- `qa/export-encoder-probe.mjs` exercises a silent raw VP8 encoder boundary.
+  Its Node tests inject controlled constructors, clocks and events. They establish
+  orchestration contracts, **not native encoding or browser performance**.
+
+## Silent encoder probe, separate from the editor
+
+`runSilentEncoderProbe` is an opt-in QA function, not a new export mode. Importing
+it performs no encoding. It uses runtime `VideoEncoder`/`VideoFrame` when called,
+or returns `status: 'unsupported'` when the APIs or exact configuration are not
+supported. It does not install a codec, select a fallback, produce a file, retain
+encoded payloads or change the MediaRecorder path.
+
+| Fixed experiment limit | Meaning |
+|---|---|
+| Positive duration ≤12 seconds, 30 fps, ≤360 frames | Reuses the rational frame schedule above, including a clipped final duration |
+| 720/1080, one of the four supported ratios | Caller canvas must exactly match the requested dimensions; resizing during drawing is rejected |
+| Queue threshold 4; 64 MiB observed encoded bytes | Bounds pending requests and scalar byte accounting, **not native encoder memory** |
+| 30-second total watchdog | Includes capability checking, drawing, backpressure and flush; not a performance target |
+
+The requested VP8 configuration uses quality latency and no hardware preference.
+The API's queue size is not completion: the probe awaits `flush()`, checks the
+timestamp/duration set, then closes the encoder before returning completion.
+Quality mode forbids dropping frames to meet bitrate/frame-rate targets, but
+actual runtime support still needs checking. Hardware preference is not evidence
+of the implementation used. [WebCodecs encoder and configuration contracts](https://www.w3.org/TR/webcodecs/#videoencoder-interface),
+[VP8 registration](https://www.w3.org/TR/webcodecs-vp8-codec-registration/).
+
+### Future authorized browser smoke
+
+Use a permitted secure-context QA harness that explicitly serves the QA modules
+and their required `dist/core` imports. The normal `npm start` serves only `dist/`;
+the following is **not** an editor-console command or an already-verified browser
+run. Do not change browser security settings to make a blocked environment work.
+
+Start with one solid-color frame before trying the 12-second schedule:
+
+```js
+import { runSilentEncoderProbe } from '/qa/export-encoder-probe.mjs';
+
+const canvas = document.createElement('canvas');
+canvas.width = 720;
+canvas.height = 1280;
+const context = canvas.getContext('2d');
+const controller = new AbortController();
+const result = await runSilentEncoderProbe({
+  canvas, quality: 720, ratio: '9:16', outputDuration: 1 / 30,
+  signal: controller.signal,
+  drawFrame(target, frame) {
+    context.fillStyle = frame.index % 2 ? '#ffffff' : '#101010';
+    context.fillRect(0, 0, target.width, target.height);
+  },
+});
+console.log(result);
+```
+
+For a subsequent bounded run, change `outputDuration` to `12` and connect a
+separate Cancel action to `controller.abort()`. `drawFrame(canvas, frame)` receives
+a frozen `{index, time, timestampUs, durationUs}` record. It must return
+synchronously and finish promptly. Async callbacks are rejected; the probe cannot
+undo work they independently scheduled. Timer-based yields allow cancellation
+between batches, but no watchdog can preempt a blocked synchronous callback.
+
+Only `status: 'completed'` establishes a complete metadata check for that invocation.
+Unsupported and cancelled results are not passes; timeouts, malformed observations
+and cleanup failures reject. A pre-aborted input reports `not-run`; an interrupted
+attempt reports `not-completed` and may already have submitted frames.
+Input frames close after submission, including failed
+submissions. Abort/deadline/error paths close the encoder and wake pending waits;
+retained callbacks from an old invocation cannot complete a later one. Failed
+cleanup is reported, not proof of native release.
+
+The result retains at most 360 scalar chunk descriptors, not chunks or byte
+buffers. Injected dependencies label verification `injected-contract-only`;
+runtime completion labels it `runtime-encoded-chunk-metadata`. Neither verifies
+decoded pixels, a playable file, audio, compositor parity or export speed. The
+discarded payloads cannot subsequently be decoded from this result.
+
+Record the exact source revision, browser/OS, requested/supported configuration,
+result and cancellation/failure observations. Native execution of this probe is
+still required before using it as encoder evidence. A later compositor caller can
+reuse `createCompositionRenderer().draw`; production integration, muxing, audio
+and default activation remain outside this experiment.
 
 ## Optional file calibration
 

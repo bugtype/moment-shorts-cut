@@ -154,6 +154,14 @@ example-content application as usual.
 - **Validate together:** collection ≤6 MiB, each template ≤256 KiB; the combined library must pass validation and fit 20 entries. Invalid entries or a failed save reject the entire addition.
 - **Not a full restore:** favorites, project and media are excluded. [Collection contract](INTEGRATIONS.md#사용자-템플릿-컬렉션)
 
+**While a template file is loading:** successful single/collection import refreshes
+the gallery only if **Templates** is open when it finishes. On another panel,
+completion does not rebuild that panel or clear its uncommitted inputs. Return to
+Templates to review the updated library; existing search text still applies.
+Changing panels or projects does not itself cancel this library import, and nothing
+is applied to the project. This is not draft autosaving or a change to project/SRT/VTT
+import conflict rules.
+
 **Duplicate a saved custom template** with its **Duplicate…** action. Edit the
 suggested copy name (trimmed, nonblank, at most 40 UTF-16 code units), then confirm.
 The new ID holds an independent copy of the **saved** settings, cards, timing and
@@ -180,7 +188,7 @@ After a successful custom-template save, duplicate, rename or update, focus move
 to the current/new template's **name button** while that gallery view is still current.
 Deletion or a filtered-out target returns focus to **template search** instead.
 Failed storage keeps the dialog open for retry without moving focus outside it.
-Cancel, unchanged renames and file imports retain their existing close/focus behavior.
+This management focus transfer does not apply to cancellations, unchanged renames or file imports.
 
 | File | What it carries | What it does not do |
 |---|---|---|

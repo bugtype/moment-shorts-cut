@@ -160,7 +160,7 @@ const templateWorkspace = createTemplateWorkspace({
     openModal: (title, body, foot) => modalOpen(title, body, foot),
     thumbnail: templatePreview.draw,
     preview: template => { pause(); templatePreview.open(template); },
-    refresh: () => renderPanel(),
+    refresh: () => { if (panel === 'templates') renderPanel(); },
     navigate: next => switchPanel(next),
     download: (blob, name) => download(blob, name),
     toast: message => toast(message),

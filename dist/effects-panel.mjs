@@ -127,7 +127,7 @@ export function mountEffectsPanel(root, api) {
           if (key === 'start' || key === 'end') {
             const start = key === 'start' ? value : card.start;
             const end = key === 'end' ? value : card.end;
-            if (!Number.isFinite(value) || start < 0 || end <= start || end > total) {
+            if (!input.value.trim() || !Number.isFinite(value) || start < 0 || end <= start || end > total) {
               setValidity(input, 'panels.cardTimingInvalid');
               input.reportValidity();
               return;

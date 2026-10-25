@@ -541,6 +541,11 @@ times use ordinary floating-point precision, not sample accuracy. Reopen after
 project, media or selected-card changes. Valid failed-recovery settings remain
 in-memory edits only: browser saving stays blocked, so back up settings separately.
 
+Caption/card start and end fields cannot be blank; enter `0` or fractional seconds
+explicitly within a valid interval. Captions use source/timeline seconds **before
+speed**, cards use output seconds **after speed**; optional title/credit ends still
+accept blank/null for the output end.
+
 Choose **Move clip…**, enter a position from 1 to the clip count and choose **Move**.
 A changed move is one undoable edit: selection follows the moved clip, playback
 pauses and seeks its new start. Existing arrows use the same operation. The moved

@@ -13,7 +13,7 @@ The editor also exposes a shared command core, a project JSON CLI with SRT/VTT/T
 
 ![Moment editor with a template gallery, vertical video preview, and editing timeline](docs/editor-desktop.png)
 
-[Quick start](#quick-start) · [Features](#features) · [Examples](#example-results) · [CLI and integrations](#cli-and-integrations) · [Privacy and limits](#privacy-and-limits) · [Development](#development)
+[Quick start](#quick-start) · [Features](#features) · [Examples](#example-results) · [Workflows](#pick-a-workflow) · [CLI and integrations](#cli-and-integrations) · [Privacy and limits](#privacy-and-limits) · [Development](#development)
 
 ## Quick start
 
@@ -429,9 +429,26 @@ Existing output files are protected; use `--overwrite` only when you intend to r
 
 Generated arguments can be piped as one JSON object with [`--args-file -`](INTEGRATIONS.md#표준-입력으로-json-인수-전달); it waits for EOF and retains the 10 MiB UTF-8 limit. Do not combine it with `--json`.
 
-### Pick a workflow
+### Choose an integration
 
-**Captions**
+| Need | Use | Start here |
+| --- | --- | --- |
+| Edit project JSON or export caption files | Node CLI; existing outputs are protected | [Command contracts and file workflow](INTEGRATIONS.md) |
+| Give an AI agent project guidance | Repository skill, no global installation | [Moment editor skill](.agents/skills/moment-editor/SKILL.md) |
+| Connect an AI client | Local stdio MCP server: `node cli/mcp.mjs` | [Client setup, tools, errors and recovery](docs/MCP.md) |
+| Integrate with your own code | Same-page `window.moment` or the reusable service/adapter | `node examples/use-editor-service.mjs` |
+
+Run `node examples/use-mcp-client.mjs` for an executable handshake → import → edit → SRT → restart/reimport example. It launches local Node processes and keeps its exported document in memory; it does not write your files or connect to a browser.
+
+**Optional smaller MCP tool list:** [`--tools`](docs/MCP.md#choose-a-smaller-tool-list-optional) selects direct commands for one process; default remains all 41. Include import/get for document handoff; if get is omitted, selected `render.plan` can return the document in `data.project` (not the whole plan). This is not a security or read-only boundary: selected batch/preview retains its full nested command set.
+
+**MCP changes disappear when its process exits.** Retrieve `moment_project_get` and save `structuredContent.data` through your client's authorized file workflow. The bundled server has one temporary `session` project, not your open browser project.
+
+**`render.plan` does not produce an MP4.** Neither the CLI nor the bundled MCP server uploads media or encodes video. A custom remote host must supply its own transport, authentication and storage. An external AI client may send project text to its provider; review that client's privacy settings before sharing private captions.
+
+## Pick a workflow
+
+### Captions
 
 | Task | Use | Keep in mind |
 |---|---|---|
@@ -459,7 +476,7 @@ Generated arguments can be piped as one JSON object with [`--args-file -`](INTEG
 
 For browser steps and their warnings, see [Caption workflows](docs/CAPTION_WORKFLOWS.md).
 
-**Clips and composition**
+### Clips and composition
 
 | Task | Use | Keep in mind |
 |---|---|---|
@@ -551,23 +568,6 @@ times rescale with the new duration. It is not lossless rendering or reversible
 history: use Undo/settings backup, rather than expecting a second inversion to
 restore ordering and repeats. Reopen after context changes; valid failed-recovery
 edits still need a settings backup before reloading.
-
-### Choose an integration
-
-| Need | Use | Start here |
-| --- | --- | --- |
-| Edit project JSON or export caption files | Node CLI; existing outputs are protected | [Command contracts and file workflow](INTEGRATIONS.md) |
-| Give an AI agent project guidance | Repository skill, no global installation | [Moment editor skill](.agents/skills/moment-editor/SKILL.md) |
-| Connect an AI client | Local stdio MCP server: `node cli/mcp.mjs` | [Client setup, tools, errors and recovery](docs/MCP.md) |
-| Integrate with your own code | Same-page `window.moment` or the reusable service/adapter | `node examples/use-editor-service.mjs` |
-
-Run `node examples/use-mcp-client.mjs` for an executable handshake → import → edit → SRT → restart/reimport example. It launches local Node processes and keeps its exported document in memory; it does not write your files or connect to a browser.
-
-**Optional smaller MCP tool list:** [`--tools`](docs/MCP.md#choose-a-smaller-tool-list-optional) selects direct commands for one process; default remains all 41. Include import/get for document handoff; if get is omitted, selected `render.plan` can return the document in `data.project` (not the whole plan). This is not a security or read-only boundary: selected batch/preview retains its full nested command set.
-
-**MCP changes disappear when its process exits.** Retrieve `moment_project_get` and save `structuredContent.data` through your client's authorized file workflow. The bundled server has one temporary `session` project, not your open browser project.
-
-**`render.plan` does not produce an MP4.** Neither the CLI nor the bundled MCP server uploads media or encodes video. A custom remote host must supply its own transport, authentication and storage. An external AI client may send project text to its provider; review that client's privacy settings before sharing private captions.
 
 ## Privacy and limits
 

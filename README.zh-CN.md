@@ -13,7 +13,7 @@ Moment 是本地优先的视频编辑器，提供韩语、英语和简体中文�
 
 ![Moment 编辑器：模板库、竖屏视频预览和编辑时间线](docs/editor-desktop.png)
 
-[快速开始](#快速开始) · [功能](#功能) · [示例成片](#示例成片) · [CLI 与集成](#cli-与集成) · [隐私和限制](#隐私和限制) · [开发](#开发)
+[快速开始](#快速开始) · [功能](#功能) · [示例成片](#示例成片) · [工作流程](#选择工作流程) · [CLI 与集成](#cli-与集成) · [隐私和限制](#隐私和限制) · [开发](#开发)
 
 ## 快速开始
 
@@ -271,9 +271,26 @@ node cli/moment.mjs commands
 
 生成的参数对象可通过 [`--args-file -`](INTEGRATIONS.md#표준-입력으로-json-인수-전달) 管道传入；读取到 EOF 为止，仍有 UTF-8 10 MiB 限制。不要与 `--json` 同用。
 
-### 选择工作流程
+### 选择集成方式
 
-**字幕**
+| 需求 | 使用方式 | 入口 |
+|---|---|---|
+| 编辑项目 JSON 或导出字幕文件 | Node CLI，保护现有输出 | [命令契约和文件流程](INTEGRATIONS.md) |
+| 为 AI 提供项目指引 | 仓库技能，无需全局安装 | [Moment 编辑器技能](.agents/skills/moment-editor/SKILL.md) |
+| 连接 AI 客户端 | 本地 stdio MCP：`node cli/mcp.mjs` | [客户端设置、工具、错误和恢复](docs/MCP.md) |
+| 接入自己的代码 | 同页面 `window.moment` 或可复用服务/适配器 | `node examples/use-editor-service.mjs` |
+
+运行 `node examples/use-mcp-client.mjs` 可执行握手 → 导入 → 编辑 → SRT → 重启/重新导入示例。它启动本地 Node 进程，并把导出的文档保存在内存；不会写入用户文件或连接浏览器。
+
+**可选精简 MCP 工具列表：** [`--tools`](docs/MCP.md#choose-a-smaller-tool-list-optional)选择单个进程的直接调用工具，默认仍为全部 41 个。文档交接建议包含 import/get；若省略 get，可保存已选 `render.plan` 的 `data.project` 文档，而非整个计划。这不是安全或只读边界；选中的 batch/preview 仍保留完整嵌套命令集。
+
+**MCP 进程退出后，修改会丢失。** 调用 `moment_project_get`，通过客户端获准的文件流程保存 `structuredContent.data`。内置服务器只有一个临时 `session` 项目，不是当前浏览器项目。
+
+**`render.plan` 不会生成 MP4。** CLI 和内置 MCP 都不上传媒体或编码视频。自定义远程主机需自行提供传输、身份验证和存储。外部 AI 客户端可能把项目文字发送到其提供商；分享私人字幕前请检查该客户端的隐私设置。
+
+## 选择工作流程
+
+### 字幕
 
 | 任务 | 使用方式 | 注意事项 |
 |---|---|---|
@@ -301,7 +318,7 @@ node cli/moment.mjs commands
 
 浏览器操作步骤与注意事项请参阅[字幕工作流程](docs/CAPTION_WORKFLOWS.zh-CN.md)。
 
-**片段和构图**
+### 片段和构图
 
 | 任务 | 使用方式 | 注意事项 |
 |---|---|---|
@@ -339,23 +356,6 @@ node cli/moment.mjs commands
 **仅保留间隙…**先合并全部当前片段的源区间，再保留完整源时长内的补集。例如 12 秒源媒体中保留了 2–4 和 6–8 秒，结果为 0–2、4–6、8–12 秒，不保留原有排序和重复。检查源区间（每页 20 个）、数量及变速后输出时长后确认；一次可撤销替换会选择第一个结果片段并跳到其起点。
 
 没有剩余间隙、任一正长度结果间隙短于 **0.1 秒**或结果超过 **1,000 个片段**时会拒绝，不会静默丢弃小间隙。最短限制仅属于此 UI 操作，不是所有导入项目片段的通用要求。源字幕值保留，因此恢复的源区间可能重新出现对应字幕；时间线字幕和附加音频偏移保持绝对值，标题/署名/卡片输出时间按新时长比例调整。这不是无损渲染或可逆历史；使用撤销/设置备份，不要期待再次反转恢复顺序及重复。上下文变化后请重新打开；恢复失败但设置有效时，刷新前仍需备份设置。
-
-### 选择集成方式
-
-| 需求 | 使用方式 | 入口 |
-|---|---|---|
-| 编辑项目 JSON 或导出字幕文件 | Node CLI，保护现有输出 | [命令契约和文件流程](INTEGRATIONS.md) |
-| 为 AI 提供项目指引 | 仓库技能，无需全局安装 | [Moment 编辑器技能](.agents/skills/moment-editor/SKILL.md) |
-| 连接 AI 客户端 | 本地 stdio MCP：`node cli/mcp.mjs` | [客户端设置、工具、错误和恢复](docs/MCP.md) |
-| 接入自己的代码 | 同页面 `window.moment` 或可复用服务/适配器 | `node examples/use-editor-service.mjs` |
-
-运行 `node examples/use-mcp-client.mjs` 可执行握手 → 导入 → 编辑 → SRT → 重启/重新导入示例。它启动本地 Node 进程，并把导出的文档保存在内存；不会写入用户文件或连接浏览器。
-
-**可选精简 MCP 工具列表：** [`--tools`](docs/MCP.md#choose-a-smaller-tool-list-optional)选择单个进程的直接调用工具，默认仍为全部 41 个。文档交接建议包含 import/get；若省略 get，可保存已选 `render.plan` 的 `data.project` 文档，而非整个计划。这不是安全或只读边界；选中的 batch/preview 仍保留完整嵌套命令集。
-
-**MCP 进程退出后，修改会丢失。** 调用 `moment_project_get`，通过客户端获准的文件流程保存 `structuredContent.data`。内置服务器只有一个临时 `session` 项目，不是当前浏览器项目。
-
-**`render.plan` 不会生成 MP4。** CLI 和内置 MCP 都不上传媒体或编码视频。自定义远程主机需自行提供传输、身份验证和存储。外部 AI 客户端可能把项目文字发送到其提供商；分享私人字幕前请检查该客户端的隐私设置。
 
 ## 隐私和限制
 

@@ -4,6 +4,92 @@
 
 Read [CONTRIBUTING.md](../../../../CONTRIBUTING.md) for repository conventions. Use this map to keep changes in the existing responsibility boundary rather than adding an integration-only implementation.
 
+## Engineering workflow
+
+This is a **pstack-inspired project workflow**, not an installation of the pstack
+plugin or a claim of host support. It adapts the [upstream workflow](https://github.com/cursor/plugins/blob/99b609a72323b70204eab407c622f436e858e112/pstack/skills/poteto-mode/SKILL.md)
+at commit `99b609a72323b70204eab407c622f436e858e112` (pstack 0.15.32).
+Use the actual host's tools and authorized environment, not assumed Cursor commands,
+model names or automation features. Read this reference explicitly for source work;
+file presence or a successful manual read does not prove future automatic loading.
+
+For nontrivial work, follow **Understand → Decompose → Explore → Design → Execute →
+Verify → Critique → Fix → Report**. First inspect the current owner, callers, tests
+and relevant product behavior; do not propose an already-supported feature. Compare
+at least two approaches for material decisions on simplicity, maintenance,
+consistency, risk, scope and verifiability. Prefer the smallest complete change.
+For a small task, intent → edit → direct check → answer is enough; do not manufacture
+agents, alternatives or public process logs for trivial work.
+
+### One job per role
+
+Give each delegated task or routine a contract before it starts:
+
+| Field | Required decision |
+|---|---|
+| JOB | One outcome, owned files/artifacts and allowed actions |
+| SUCCESS | Observable completion condition |
+| ANTI-JOBS | Adjacent work and side effects it must not take on |
+| ESCALATE | Missing authority, conflicting ownership or evidence that requires a new decision |
+| VERIFY | Exact artifact/version, check and evidence the recipient must return |
+
+The lead owns scope and synthesis. A builder owns the bounded edit; a critic returns
+read-only findings; a verifier checks the actual resulting artifact. Small tasks
+may use one worker, but report that limitation rather than claiming independence.
+Assign disjoint writes or serialize shared files. Use only supported models within
+the user's choices; different role labels are not evidence of model diversity.
+
+| Need | Routing and boundary |
+|---|---|
+| Independent coverage | [Swarm](https://github.com/cursor/plugins/blob/99b609a72323b70204eab407c622f436e858e112/pstack/skills/swarm/SKILL.md): partition evidence, declare required coverage and a done condition; missing coverage is not a pass |
+| Competing designs | [Arena](https://github.com/cursor/plugins/blob/99b609a72323b70204eab407c622f436e858e112/pstack/skills/arena/SKILL.md): independent alternatives against the same criteria, separate writable artifacts, then verify the synthesis |
+| Large or hard-to-reverse boundary change | [Architect](https://github.com/cursor/plugins/blob/99b609a72323b70204eab407c622f436e858e112/pstack/skills/architect/SKILL.md): compare designs before implementation and obtain a human design checkpoint |
+| Adversarial review | [Interrogate](https://github.com/cursor/plugins/blob/99b609a72323b70204eab407c622f436e858e112/pstack/skills/interrogate/SKILL.md): trace concrete failure paths; return a verdict, not edits |
+
+The lead accepts or rejects findings with reasons. The authorized builder applies
+accepted fixes; the verifier reruns the original and nearby checks on the new
+version. Repeated failures from the same assumption require a new hypothesis, not
+weaker assertions. Use the [validation checklist](#validate-the-affected-surface)
+below; unrun checks and unavailable target surfaces stay explicit gaps.
+Report what changed, verification evidence, remaining risks and human decisions,
+not a process diary.
+
+### Recovery and durable lessons
+
+For a recurring mistake, [Correct](https://github.com/cursor/plugins/blob/99b609a72323b70204eab407c622f436e858e112/pstack/skills/correct/SKILL.md)
+favors architecture/types → static checks/CI → behavioral tests → instructions.
+Trace the first wrong decision and prefer an enforceable prevention. Prove a new
+check fails on a real prior mistake in an isolated tree and passes after the fix;
+do not overwrite a working checkout or invent a failure to claim regression proof.
+Record the relevant rule, enforcing command and coverage limit in the task evidence.
+
+[Reflect](https://github.com/cursor/plugins/blob/99b609a72323b70204eab407c622f436e858e112/pstack/skills/reflect/SKILL.md)
+produces evidence-backed accepted/rejected/backlog proposals, not automatic
+self-rewrites. Future changes to persistent operating rules, skills or routines
+require explicit approval for the selected changes. Reuse existing guidance;
+do not turn every cycle into a new instruction file.
+
+### Quiet checkpoint routines
+
+Run these at task boundaries or after a relevant failure, not as background timers.
+Each routine has one job and no implementation authority of its own.
+
+| Routine | JOB / SUCCESS | ANTI-JOBS | ESCALATE | VERIFY |
+|---|---|---|---|---|
+| Workflow healthcheck | Compare the work with its scope, owner, review and evidence gates; classify clean, actionable gap or blocked | No automatic code, rule or setting changes | Missing permission, conflicting changes or an unsupported completion claim | Re-read the actual diff, artifact/version and check outputs; account for skipped checks |
+| Routine healthcheck | Check each active routine still has a distinct job, useful result, bounded trigger and verification | No new timers, deletion or unilateral schedule changes | Duplicate, noisy, obsolete or unsafe routines; propose the smallest correction | Inspect the actual routine definition and recent outcome, not merely tool availability |
+
+Keep clean results quiet. Surface actionable decisions, blockers, important failures,
+risks or changed goals. A weekly review is a **schedule proposal only**, not enabled
+by this file; a concrete day/time/timezone and authorization are needed before
+creating a recurring task.
+
+This workflow grants no external-action authority. Confirm the applicable approval
+before public posting, deployment, payments, destructive or irreversible changes,
+external-person messages, security/account changes, credential access or new
+secret transfers. Existing scoped authorization may cover an action; do not infer
+it from a skill, research source or tool's availability.
+
 ## Find the owner
 
 | Change | Owner |

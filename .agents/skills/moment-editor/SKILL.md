@@ -15,7 +15,7 @@ description: Edit Moment Shorts Studio project JSON through its CLI or MCP tools
 | Edit effects/cards or work with templates | [Composition workflows](references/composition.md) | Shared commands; browser-library operations stay separate |
 | Edit clips or handle files, grouped edits and recovery | [Project/timeline workflows](references/project-editing.md) | Handoff, clocks, preview/batch, saving and recovery |
 | Connect or troubleshoot MCP | [MCP guide](../../../docs/MCP.md) | `node cli/mcp.mjs`, not HTTP |
-| Change repository code | [Contributing reference](references/contributing.md) and [repository conventions](../../../CONTRIBUTING.md) | `dist/` is maintained source, not build output |
+| Change repository code | [Engineering workflow](references/contributing.md#engineering-workflow), owner map and [repository conventions](../../../CONTRIBUTING.md) | `dist/` is maintained source, not build output |
 
 Inspect live schemas with `node cli/moment.mjs commands` or `tools/list`; do not invent fields or duplicate shared validation.
 

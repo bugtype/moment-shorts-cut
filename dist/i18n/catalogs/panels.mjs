@@ -171,6 +171,7 @@ const entries = {
   "panels.estimatedTiming": ["시간 추정 · 음성과 확인 필요","Estimated timing · Check against audio","时间为估算值 · 请对照音频检查"],
   "panels.disconnect": ["연결 해제","Disconnect","断开连接"],
   "panels.audioStart": ["시작 위치 (출력 영상 기준 초)","Start position (output seconds)","开始位置（输出视频秒数）"],
+  "panels.audioStartInvalid": ["오디오 시작 위치를 초 단위 숫자로 입력하세요.","Enter an audio start position in seconds.","请输入以秒为单位的音频开始位置。"],
   "panels.audioVolume": ["오디오 볼륨","Audio volume","音频音量"],
   "panels.addedAudioVolume": ["추가 오디오 볼륨","Added audio volume","添加音频的音量"],
   "panels.titleTiming": ["표시 구간 · 출력 영상 기준 초","Display range · Output seconds","显示范围 · 输出视频秒数"],

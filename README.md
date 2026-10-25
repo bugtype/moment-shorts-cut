@@ -617,6 +617,12 @@ At 1,000 clips, delete a clip before splitting another.
 
 Both use 0–100% global gains, not per-clip mixing or new audio processing. A video project does not necessarily contain an audio track. These controls change the recorded mix; the session-only monitor mute below remains separate.
 
+**Audio start position:** enter output seconds, including an explicit `0` to start
+at the beginning. An empty or invalid numeric entry keeps the draft and shows a
+warning without changing the offset, captions or history. Accepted numeric edits
+retain the existing clamping and timeline-caption shift behavior; this does not
+change which captions follow the added audio.
+
 **While added audio loads:** if **Title**, **Effects**, **Templates** or **Frame** is
 open when loading succeeds, completion does not rebuild that pane and erase its
 uncommitted inputs. **Audio**, **Captions** and **Media** still refresh for the new

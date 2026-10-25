@@ -251,13 +251,19 @@ export function createWorkspacePanels(app) {
                     app.changed();
                     renderPanel();
                 };
-                $('#audioOffset').onchange = event => app.edit(() => {
-                    const next = clamp((+event.target.value || 0) * app.state.speed, 0, app.duration()), delta = next - app.state.audioOffset;
-                    app.state.audioOffset = next;
-                    app.state.captions = app.state.captions.map(caption => caption.basis === 'timeline'
-                        ? { ...caption, start: Math.max(0, caption.start + delta), end: Math.max(.001, caption.end + delta) }
-                        : caption);
-                }, true);
+                $('#audioOffset').onchange = event => {
+                    if (!event.target.value.trim() || !Number.isFinite(Number(event.target.value))) {
+                        app.toast(message('panels.audioStartInvalid'));
+                        return;
+                    }
+                    app.edit(() => {
+                        const next = clamp((+event.target.value || 0) * app.state.speed, 0, app.duration()), delta = next - app.state.audioOffset;
+                        app.state.audioOffset = next;
+                        app.state.captions = app.state.captions.map(caption => caption.basis === 'timeline'
+                            ? { ...caption, start: Math.max(0, caption.start + delta), end: Math.max(.001, caption.end + delta) }
+                            : caption);
+                    }, true);
+                };
                 bindAudioGain('audioVolume', 'audioVolume', generation);
             }
         }

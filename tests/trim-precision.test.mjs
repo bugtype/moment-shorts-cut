@@ -24,6 +24,16 @@ test('editable decimal formatter round trips small and precise nonnegative times
   }
 });
 
+test('shared decimal formatter preserves signed framing values outside exponent notation', () => {
+  for (const value of [-1e-7, -1.23456789e-8, -Number.MIN_VALUE, -1e21, -Number.MAX_VALUE,
+    -100, -0.1234567, 0, 1e-7, Number.MAX_VALUE]) {
+    const text = decimalTime(value);
+    assert.match(text, /^-?\d+(?:\.\d+)?$/);
+    assert.equal(Number(text), value);
+  }
+  assert.equal(decimalTime(-0), '0', 'retain existing zero presentation');
+});
+
 test('untouched desktop Apply preserves both precise boundaries and existing history behavior', async () => {
   const f=await fixture();
   assert.deepEqual(values(f),['1.234','11.987']);

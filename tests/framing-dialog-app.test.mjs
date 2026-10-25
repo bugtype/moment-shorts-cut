@@ -41,6 +41,50 @@ test('same/cancel preserve exact tiny coordinates, active playback and drafts; c
     assert.equal(f.element('#trimStart').value,'1.2345');assert.equal(f.element('#panelTrimStart').value,'1.2345');
 });
 
+test('entered tiny negative offsets reopen unchanged and allow an independent zoom edit', async () => {
+    try {
+        for (const locale of ['ko', 'en', 'zh-CN']) for (const mobile of [false, true]) {
+            const f = await fixture(mobile);
+            setLocale(locale, { persist: false });
+            f.open();
+            f.apply({ panX: '-0.00000001', panY: '-0.00000002' });
+            const before = f.evaluate('state');
+            assert.equal(before.panX, -1e-8 / 100);
+            assert.equal(before.panY, -2e-8 / 100);
+            assert.equal(f.evaluate('history.length'), 1);
+            f.open();
+            for (const key of ['panX', 'panY']) {
+                assert.equal(Number(f.element('#framing-' + key).value), before[key] * 100);
+            }
+            f.apply();
+            assert.equal(f.evaluate('modal.open'), false);
+            assert.deepEqual(f.evaluate('state'), before);
+            assert.equal(f.evaluate('history.length'), 1);
+            f.open();
+            f.apply({ zoom: 200 });
+            assert.deepEqual(f.evaluate('state'), { ...before, zoom: 2 });
+            assert.equal(f.evaluate('history.length'), 2);
+            vm.runInContext('undo()', f.context);
+            assert.deepEqual(f.evaluate('state'), before);
+            vm.runInContext('undo(true)', f.context);
+            assert.deepEqual(f.evaluate('state'), { ...before, zoom: 2 });
+        }
+    } finally { initLocale(); }
+});
+
+test('framing preserves untouched negative subnormal model coordinates when zoom changes', async () => {
+    const f = await fixture();
+    vm.runInContext('state.panX=-Number.MIN_VALUE;state.panY=-1e-300;', f.context);
+    const before = f.evaluate('state');
+    f.open();
+    for (const key of ['panX', 'panY']) {
+        assert.equal(Number(f.element('#framing-' + key).value), before[key] * 100);
+    }
+    f.apply({ zoom: 200 });
+    assert.deepEqual(f.evaluate('state'), { ...before, zoom: 2 });
+    assert.equal(f.evaluate('history.length'), 1);
+});
+
 test('framing validates all changed fields atomically without clamping and accepts model endpoints',async()=>{
     const f=await fixture();f.open();const before=f.evaluate('state');
     for(const value of ['', 'Infinity','NaN',-100.0001,100.0001]){

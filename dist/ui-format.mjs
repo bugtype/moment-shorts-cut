@@ -47,13 +47,15 @@ export function fmt(t) {
     return `${Math.floor(t / 60).toString().padStart(2, '0')}:${Math.floor(t % 60).toString().padStart(2, '0')}`;
 }
 
-// Preserve non-negative finite time values without exponent notation or rounding past the end.
+// Preserve finite time/framing values without exponent notation or numeric rounding.
 export function decimalTime(value) {
     const [coefficient, exponent] = String(value).split('e');
     if (exponent === undefined) return coefficient;
-    const [whole, fraction = ''] = coefficient.split('.');
+    const sign = coefficient.startsWith('-') ? '-' : '';
+    const unsigned = sign ? coefficient.slice(1) : coefficient;
+    const [whole, fraction = ''] = unsigned.split('.');
     const digits = whole + fraction, point = whole.length + Number(exponent);
-    if (point <= 0) return '0.' + '0'.repeat(-point) + digits;
-    if (point >= digits.length) return digits + '0'.repeat(point - digits.length);
-    return digits.slice(0, point) + '.' + digits.slice(point);
+    if (point <= 0) return sign + '0.' + '0'.repeat(-point) + digits;
+    if (point >= digits.length) return sign + digits + '0'.repeat(point - digits.length);
+    return sign + digits.slice(0, point) + '.' + digits.slice(point);
 }

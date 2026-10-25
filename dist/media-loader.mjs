@@ -114,7 +114,9 @@ export function createMediaLoader(app, {
             app.state.audioOffset = 0;
             app.persistMedia();
             app.changed();
-            app.renderPanel();
+            // Added audio does not change these controls or own their input drafts.
+            if (!['text', 'effects', 'templates', 'settings'].includes(app.panel))
+                app.renderPanel();
             app.toast(msg('errors.audioLoaded'));
         }
         catch (e) {

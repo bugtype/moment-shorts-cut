@@ -590,6 +590,12 @@ At 1,000 clips, delete a clip before splitting another.
 
 Both use 0–100% global gains, not per-clip mixing or new audio processing. A video project does not necessarily contain an audio track. These controls change the recorded mix; the session-only monitor mute below remains separate.
 
+**While added audio loads:** if **Title**, **Effects**, **Templates** or **Frame** is
+open when loading succeeds, completion does not rebuild that pane and erase its
+uncommitted inputs. **Audio**, **Captions** and **Media** still refresh for the new
+source. Normal pausing, timeline/inspector updates and storage rules are unchanged;
+this adds no draft autosave or preservation through Undo or project replacement.
+
 **Preview mute is not export silence.** The preview speaker button mutes only what
 you hear, including during export; the recorded mix still uses the project's
 source-volume and added-audio-volume settings. Set **both volumes to 0** for a

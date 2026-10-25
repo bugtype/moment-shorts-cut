@@ -50,7 +50,10 @@ export function bindUi(app) {
     $('#srtInput').onchange = event => event.target.files[0] && app.importSrt(event.target.files[0]);
     $('#projectInput').onchange = event => event.target.files[0] && app.importProjectSettings(event.target.files[0], app.captureSettingsImportClose());
     $('#projectInput').oncancel = () => { app.captureSettingsImportClose(); };
-    $('#projectName').onchange = event => app.edit(() => app.state.name = event.target.value.trim() || t('shell.untitled'));
+    $('#projectName').onchange = event => app.edit(() => {
+        app.state.name = event.target.value.trim() || t('shell.untitled');
+        event.target.value = app.state.name;
+    });
     $('#saveButton').onclick = () => app.saveProject(true);
     $('#projectFilesButton').onclick = () => app.showProjectFiles();
     $('#playButton').onclick = () => app.playing ? app.pause() : app.play();

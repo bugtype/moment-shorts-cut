@@ -40,6 +40,19 @@ test('inspector owns trim draft identity while unrelated values and controls syn
   assert.equal(query('#clipSettings').open, false);
 });
 
+test('inspector leaves an unchanged name context untouched and synchronizes a replacement input', () => {
+  const {query,elements}=controls(), inspector=createInspectorView(query,()=>[]), state=createDemoProject();
+  inspector.render(state,0,false,false);
+  const input=query('#projectName');let value=input.value,writes=0;
+  Object.defineProperty(input,'value',{get:()=>value,set:next=>{value=next;writes++;}});
+  input.value='draft';inspector.render(state,0,true,false);inspector.render(state,0,true,false);
+  assert.equal(input.value,'draft');assert.equal(writes,1);
+  const replacement={value:''};elements.set('#projectName',replacement);
+  inspector.render(state,0,true,false);assert.equal(replacement.value,state.name);
+  replacement.value='new-context draft';inspector.render(structuredClone(state),0,true,false);
+  assert.equal(replacement.value,state.name);
+});
+
 test('timeline collapse hands space to the preview and updates its toggle', () => {
   const { query } = controls(), view = createTimelineView(query);
   const toggle = query('#timelineToggle');

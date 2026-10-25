@@ -5,6 +5,7 @@ import { setText, setAttr } from './i18n.mjs';
 import { MAX_CLIPS } from './core/project.mjs';
 export function createInspectorView($, $$) {
     let inspectorTrimContext = null;
+    let inspectorNameContext = null;
     function open(section) {
         for (const name of ['frame', 'clip', 'caption'])
             $('#' + name + 'Settings').open = name === section;
@@ -27,7 +28,12 @@ export function createInspectorView($, $$) {
             $('#trimEnd').value = Number.isInteger(c.end) ? c.end.toFixed(1) : decimalTime(c.end);
             inspectorTrimContext = { clip: c, index: selected, start: c.start, end: c.end };
         }
-        $('#projectName').value = state.name;
+        const nameInput = $('#projectName');
+        // A status refresh does not own the header's uncommitted name draft.
+        if (inspectorNameContext?.project !== state || inspectorNameContext.name !== state.name || inspectorNameContext.input !== nameInput) {
+            if (nameInput.value !== state.name) nameInput.value = state.name;
+            inspectorNameContext = {project:state, name:state.name, input:nameInput};
+        }
         $('#ratioLabel').textContent = state.ratio;
         setAttr($('#ratioShortcut'), 'aria-label', 'panels.ratioCurrent', {ratio:state.ratio});
         const output = outputDimensions(state.ratio, 1080);

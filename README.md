@@ -76,6 +76,13 @@ is unchanged; leaving an input to open Guide can still commit its normal draft.
 
 Settings files must fit **10 MiB (10,485,760 UTF-8 bytes)** for both save and restore; oversized output is rejected, not truncated. Keep your original video and audio separately: **the JSON does not contain media files**.
 
+**Project-name draft:** the header name survives status-only inspector refreshes
+within the same project, including audio setup completion. Leave the field to
+finish editing; accepted changes are trimmed, with blank becoming **Untitled short**.
+Until committed, the draft is not in project settings, backups or browser autosave.
+Changes to the project name value or replacing the project (including import/reset/Undo/Redo)
+resynchronize the field, even when a replacement has the same name.
+
 | Next task | Read only what you need |
 |---|---|
 | Navigate the preview | [Fine steps, cut boundaries and exact output time](#navigate-the-preview) |

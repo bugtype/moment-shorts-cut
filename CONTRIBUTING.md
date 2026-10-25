@@ -16,6 +16,7 @@ Node.js **20 이상**이면 됩니다. 빌드나 패키지 설치는 필요하�
 | 실제 stdio MCP 왕복 예제 | `node examples/use-mcp-client.mjs` |
 | 선택 SDK 소비자 점검 | 기존 Python + `mcp==1.29.0` 환경에서 `python examples/use-mcp-sdk.py`; [전제와 범위](docs/MCP.md#optional-official-python-sdk-smoke-test) |
 | 브라우저 수동 점검 | [기존 점검 기록과 재현 방법](docs/BROWSER_QA.md) |
+| 내보내기 검정 도구 | [합성 파일·시간표·취소 검사와 실행 방법](docs/EXPORT_QA.md); 실제 앱 출력·속도 측정과 구분 |
 
 Python SDK 검사는 기본 `npm test`/CI에 포함되지 않으며 서버 런타임 의존성도 아닙니다.
 SDK 없이 기존 Node 예제를 계속 사용할 수 있습니다.

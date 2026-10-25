@@ -90,7 +90,8 @@ resynchronize the field, even when a replacement has the same name.
 | Edit timing | [Capture trim values and set an exact speed](#edit-timing-from-the-preview) |
 | Save an image | [Preview bitmap or output-size PNG](#save-a-preview-image) |
 | Back up connected media | [Original video and added audio files](#back-up-connected-media) |
-| Balance audio | [Project mix volumes versus preview mute](#audio-mix) |
+| Audio and video export | [Mix volumes, preview mute and recording options](#audio-export) |
+| Troubleshoot or relink | [Storage errors and originals for this tab](#troubleshooting) |
 | Duplicate a clip block | [Copy consecutive clips once, not looping playback](#duplicate-clip-range) |
 | Repeat playback | [Session-only loop, card preview and export boundaries](#repeat-the-full-preview) |
 | Caption workflows | [Import, review, navigate and edit authored rows](docs/CAPTION_WORKFLOWS.md) |
@@ -606,6 +607,10 @@ At 1,000 clips, delete a clip before splitting another.
 
 **Automatic captions:** the original video must be **180 seconds or shorter**, even after trimming. Selected audio is processed for at most 180 seconds. Recognition, manual speaker labels and estimated split timing need review.
 
+<a id="audio-export"></a>
+
+## Audio and video export
+
 <a id="audio-mix"></a>
 
 **Balance the mix in Audio:** both existing project gains are available together when their sources apply.
@@ -635,6 +640,8 @@ source-volume and added-audio-volume settings. Set **both volumes to 0** for a
 silent mix. Preview mute stays as selected through export, cancel and retry, but
 is session-only (reload defaults to unmuted), not a saved project field.
 
+### Recording options
+
 **Video export:** keep the tab visible; hiding it cancels recording. MP4/WebM support depends on the browser. Recording is real-time, with a 30 fps target rather than a fixed-rate guarantee. The historical 4-second Chromium test averaged about 21.7 fps; see [the measured report](docs/BROWSER_QA.md).
 
 Both export options start checked whenever you open the dialog. Their values are
@@ -662,6 +669,8 @@ Caption inclusion affects these outputs:
 
 This does not remove text already present in source pixels or create a switchable
 subtitle track inside MP4/WebM. CLI/MCP `render.plan` has no new toggle and remains a plan, not video encoding.
+
+## Storage and file formats
 
 <details>
 <summary>Storage, pending imports and transcription conflicts</summary>
@@ -715,7 +724,7 @@ Model/import validation is unchanged; project JSON retains escaped code units fo
 
 </details>
 
-### Troubleshooting
+## Troubleshooting
 
 - **The page does not load:** confirm `npm start` is still running. If port 4173 is occupied, stop the other server or set the `PORT` environment variable to an available port; use the address printed by the server.
 - **A video will not open, or export is unavailable:** try an H.264 MP4 or WebM input and another browser with the required media APIs. MOV support depends on the codec inside the file. For export errors, also try 720p.

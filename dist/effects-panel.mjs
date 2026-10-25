@@ -253,7 +253,18 @@ export function mountEffectsPanel(root, api) {
         };
       }
       target.querySelector('#removeSceneCard').onclick = () => api.remove(card.id);
-      target.querySelector('#duplicateSceneCard').onclick = () => api.duplicate(card.id);
+      const duplicate = target.querySelector('#duplicateSceneCard');
+      duplicate.onclick = event => {
+        if (
+          composing || event?.isComposing || event?.keyCode === 229 || duplicate.disabled ||
+          duplicate.isConnected === false || renderOwners.get(root) !== owner ||
+          root.querySelector('#effectControls') !== target || target.querySelector('#duplicateSceneCard') !== duplicate ||
+          api.current?.() === false || api.tabCurrent?.() === false
+        ) return;
+        if (!api.duplicate(card.id) || api.current?.() === false || api.tabCurrent?.() === false) return;
+        const button = root.querySelector('#effectControls')?.querySelector('#duplicateSceneCard');
+        if (button && !button.disabled && button.isConnected !== false) button.focus({ preventScroll: true });
+      };
       target.querySelector('#previewSceneCard').onclick = () => api.play(card.start);
       target.querySelectorAll('[data-card]').forEach(input => {
         const continuous = ['text', 'range', 'color', 'textarea'].includes(input.type);

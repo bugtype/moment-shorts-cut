@@ -103,6 +103,8 @@ export function createDesignWorkspace(app) {
 
     function renderEffects(target) {
         const project = app.state;
+        const duplicateCurrent = id => app.panel === 'effects' && app.effectTab === 'cards' &&
+            app.state === project && (app.selectedCard || project.overlays[0]?.id) === id && !app.modal.open;
         mountEffectsPanel(target, {
             state: app.state,
             total: app.duration() / app.state.speed,
@@ -176,16 +178,24 @@ export function createDesignWorkspace(app) {
                 }, true);
             },
             duplicate(id) {
+                if (!duplicateCurrent(id)) return false;
+                const source = project.overlays.find(item => item.id === id);
+                if (!source) return false;
                 if (app.state.overlays.length >= 12) {
                     app.toast(message('panels.cardLimit'));
-                    return;
+                    return false;
                 }
+                let duplicatedId;
                 app.edit(() => {
-                    const card = structuredClone(app.state.overlays.find(item => item.id === id));
+                    const card = structuredClone(source);
                     card.id = newCard(app.duration() / app.state.speed).id;
                     app.selectedCard = card.id;
                     app.state.overlays.push(card);
+                    duplicatedId = card.id;
                 }, true);
+                // edit returns undefined even on success; only its executed change
+                // can authorize focus, and only while the copy is still current.
+                return !!duplicatedId && duplicateCurrent(duplicatedId);
             },
             play(start) {
                 const card = app.state.overlays.find(item => item.id === app.selectedCard) || app.state.overlays[0];

@@ -20,6 +20,7 @@ export function bindPreviewDrag(canvas, { getProject, blocked, pause, selection,
             mode,
             sceneId: scene?.id,
             project: state,
+            axis: e.shiftKey && !e.ctrlKey && !e.metaKey && !e.altKey ? 'pending' : null,
             changed: false
         };
         canvas.setPointerCapture(e.pointerId);
@@ -33,8 +34,14 @@ export function bindPreviewDrag(canvas, { getProject, blocked, pause, selection,
             return;
         }
         const r = canvas.getBoundingClientRect();
-        const x = drag.px + (e.clientX - drag.x) / r.width;
-        const y = drag.py + (e.clientY - drag.y) / r.height;
+        const dx = e.clientX - drag.x, dy = e.clientY - drag.y;
+        if (drag.axis === 'pending') {
+            if (dx === 0 && dy === 0) return;
+            // Choose the physical direction once; aspect ratio must not bias it.
+            drag.axis = Math.abs(dx) >= Math.abs(dy) ? 'x' : 'y';
+        }
+        const x = drag.px + dx / r.width;
+        const y = drag.py + dy / r.height;
         const mode = drag.mode;
         const target = mode === 'video' || mode === 'caption' ? state
             : mode === 'scene' ? state.overlays.find(c => c.id === drag.sceneId)
@@ -43,8 +50,8 @@ export function bindPreviewDrag(canvas, { getProject, blocked, pause, selection,
             return;
         const xKey = mode === 'video' ? 'panX' : mode === 'caption' ? 'captionX' : 'x';
         const yKey = mode === 'video' ? 'panY' : mode === 'caption' ? 'captionY' : 'y';
-        const nextX = clamp(x, mode === 'video' ? -1 : .1, mode === 'video' ? 1 : .9);
-        const nextY = mode === 'video' ? clamp(y, -1, 1)
+        const nextX = drag.axis === 'y' ? drag.px : clamp(x, mode === 'video' ? -1 : .1, mode === 'video' ? 1 : .9);
+        const nextY = drag.axis === 'x' ? drag.py : mode === 'video' ? clamp(y, -1, 1)
             : mode === 'scene' ? clamp(y, .08, .8)
             : mode === 'caption' ? clamp(y, .1, .9) : clamp(y, .06, .93);
         if (target[xKey] === nextX && target[yKey] === nextY)

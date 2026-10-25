@@ -255,6 +255,16 @@ This edits metadata even without ready media, so a missing source may show no vi
 change. Offsets are not source-pixel coordinates or necessarily whole-canvas
 percentages; clipping and uncovered space are possible, with no safe-area guarantee.
 
+**Axis-locked preview drag:** hold only **Shift before starting** to move the selected
+video, title, credit, shared captions or timed card along one axis. The first nonzero
+screen movement chooses the dominant axis (ties choose horizontal), which stays locked
+even after releasing Shift. The opposite stored coordinate stays exact; the moved axis
+keeps its existing drag bounds. Shift pressed mid-drag, or combined with Ctrl/Meta/Alt
+at the start, leaves free dragging; unmodified mouse/touch dragging is unchanged.
+A real move is one Undo; no motion adds no history. Pointer cancellation or lost capture
+keeps and commits the partial move, rather than rolling it back. Use **Framing…** or
+**Position…** for keyboard/numeric editing. This does not add snapping or centering.
+
 **View-only framing aid:** enable **Thirds grid** in desktop **Frame** or its compact-screen panel; both controls stay synchronized. It divides the whole composition into thirds, not a source-video crop or platform-safe area. Default off; the choice survives panel/project changes in this session and resets on reload. It does not snap objects, change playback/project/history/storage, or appear in preview PNG, output PNG or video exports.
 
 ### Edit timing from the preview

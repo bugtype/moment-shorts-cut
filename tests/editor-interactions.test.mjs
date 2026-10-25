@@ -2,14 +2,16 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { bindPreviewDrag, bindEditorKeyboard } from '../dist/editor-interactions.mjs';
 import { createDemoProject } from '../dist/core/project.mjs';
+import { newCard } from '../dist/effects.mjs';
 
 function fixture(mode = 'video') {
   let project = createDemoProject(), blocked = false;
+  if (mode === 'scene') project.overlays = [newCard(12)];
   const events = [], history = [];
   const canvas = { setPointerCapture: id => events.push(['capture', id]), getBoundingClientRect: () => ({ width: 100, height: 200 }) };
   bindPreviewDrag(canvas, {
     getProject: () => project, blocked: () => blocked,
-    pause: () => events.push('pause'), selection: () => ({ mode }),
+    pause: () => events.push('pause'), selection: () => ({ mode, scene: mode === 'scene' ? project.overlays[0] : null }),
     snapshot: () => history.push(structuredClone(project)),
     preview: () => events.push('preview'), commit: () => events.push('commit'),
   });
@@ -217,4 +219,57 @@ test('plain transport ignores modifiers while Ctrl/Meta Undo and Shift redo reta
   calls.length = 0;
   press(' '); press('ArrowLeft'); press('ArrowRight');
   assert.deepEqual(calls, ['prevent', 'play', ['seek', -1], ['seek', 1]]);
+});
+
+function coordinates(f,mode){
+ const target=mode==='video'||mode==='caption'?f.project:mode==='scene'?f.project.overlays[0]:f.project.design[mode];
+ return {target,xKey:mode==='video'?'panX':mode==='caption'?'captionX':'x',yKey:mode==='video'?'panY':mode==='caption'?'captionY':'y'};
+}
+const shifted=(x,y,extra={})=>({...pointer(x,y),shiftKey:true,...extra});
+
+for(const mode of ['video','title','credit','caption','scene'])test(`${mode}: Shift drag preserves the exact opposite coordinate, including values outside drag bounds`,()=>{
+ for(const locked of [-0,Number.MIN_VALUE,0,1])for(const axis of ['x','y']){
+  const f=fixture(mode),{target,xKey,yKey}=coordinates(f,mode),lockedKey=axis==='x'?yKey:xKey;
+  target[xKey]=target[yKey]=.5;target[lockedKey]=locked;
+  f.canvas.onpointerdown(shifted(0,0));f.canvas.onpointermove(shifted(0,0));
+  assert.equal(f.history.length,0);assert.ok(Object.is(target[lockedKey],locked));
+  f.canvas.onpointermove(shifted(axis==='x'?20:2,axis==='x'?2:20));
+  assert.ok(Object.is(target[lockedKey],locked));assert.equal(target[axis==='x'?xKey:yKey],axis==='x'?.7:.6);
+  f.canvas.onpointermove({...pointer(axis==='x'?30:90,axis==='x'?90:30),shiftKey:false});
+  assert.ok(Object.is(target[lockedKey],locked),'lock survives release and later opposite-direction movement');
+  assert.equal(f.history.length,1);f.canvas.onpointerup(pointer(0,0));
+  assert.equal(f.events.filter(event=>event==='commit').length,1);
+ }
+});
+
+test('Shift lock chooses raw client direction once, ties horizontally, and resets with the next gesture',()=>{
+ const f=fixture();f.canvas.onpointerdown(shifted(0,0));f.canvas.onpointermove(shifted(8,10));
+ assert.equal(f.project.panX,0,'non-square canvas must not choose normalized horizontal dominance');
+ assert.equal(f.project.panY,.05);f.canvas.onpointermove(pointer(80,20));
+ assert.equal(f.project.panX,0);assert.equal(f.project.panY,.1);f.canvas.onpointerup(pointer(0,0));
+ f.canvas.onpointerdown(shifted(0,0));f.canvas.onpointermove(shifted(10,10));
+ assert.equal(f.project.panX,.1);assert.equal(f.project.panY,.1,'equal client deltas choose horizontal');
+ f.canvas.onpointercancel(pointer(0,0));assert.equal(f.history.length,2);
+ f.canvas.onpointerdown(pointer(0,0));f.canvas.onpointermove(pointer(10,20));f.canvas.onpointerup(pointer(0,0));
+ assert.equal(f.project.panX,.2);assert.equal(f.project.panY,.2,'ordinary next drag is free on both axes');
+});
+
+test('only Shift held at gesture start enables the lock; ordinary touch and later modifiers keep free drag',()=>{
+ for(const extra of [{},{ctrlKey:true,shiftKey:true},{metaKey:true,shiftKey:true},{altKey:true,shiftKey:true},{pointerType:'touch'}]){
+  const f=fixture();f.canvas.onpointerdown({...pointer(0,0),...extra});
+  f.canvas.onpointermove(shifted(10,20));f.canvas.onpointerup(pointer(0,0));
+  assert.equal(f.project.panX,.1);assert.equal(f.project.panY,.1);assert.equal(f.history.length,1);
+ }
+});
+
+test('axis gestures retain pointer ownership, no-motion behavior and exactly one cancellation/capture-loss commit',()=>{
+ const f=fixture('title'),{target,xKey,yKey}=coordinates(f,'title');target[xKey]=0;target[yKey]=0;
+ f.canvas.onpointerdown(shifted(0,0));f.canvas.onpointermove(shifted(0,0));
+ f.canvas.onpointercancel(pointer(0,0));f.canvas.onlostpointercapture(pointer(0,0));assert.equal(f.history.length,0);
+ f.canvas.onpointerdown(shifted(0,0));f.canvas.onpointermove({...shifted(1,100),pointerId:8});
+ f.canvas.onpointerup({...pointer(1,100),pointerId:8});f.canvas.onpointermove(shifted(20,1));
+ assert.equal(target[xKey],.2);assert.equal(target[yKey],0);assert.equal(f.history.length,1);
+ f.canvas.onlostpointercapture(pointer(0,0));f.canvas.onpointercancel(pointer(0,0));f.canvas.onpointerup(pointer(0,0));
+ assert.equal(f.events.filter(event=>event==='commit').length,1,'capture loss commits the existing partial edit, not rollback');
+ const before=structuredClone(f.project);f.canvas.onpointermove(shifted(90,90));assert.deepEqual(f.project,before);
 });

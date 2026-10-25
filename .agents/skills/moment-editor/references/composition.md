@@ -36,6 +36,15 @@ forward compatibility. Templates do not carry or apply ratio. Use the
 [dimension table and runnable recipe](../../../../INTEGRATIONS.md#화면-비율과-출력-크기),
 not assumed platform or native-codec compatibility.
 
+Browser-only positioning: start a preview drag with **Shift alone** to lock its
+first nonzero dominant screen-motion axis (ties horizontal). The opposite saved
+coordinate stays exact; the selected axis keeps existing drag limits. Releasing
+Shift does not unlock, and pressing it mid-drag does not enable the lock. Pointer
+cancellation/lost capture commits any partial move, not a rollback; a real drag is
+one Undo. Unmodified mouse/touch dragging is unchanged. Use the existing **Framing…**
+and **Position…** dialogs for keyboard/numeric editing; this adds no CLI/MCP command,
+snapping or pixel-alignment guarantee. See [browser behavior](../../../../README.md#reframe-the-source-video).
+
 ## Adjust video effects without changing content
 
 Use `effects.update` for brightness/contrast and other existing video effects,

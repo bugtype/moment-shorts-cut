@@ -130,3 +130,28 @@ test('tool discovery describes time bases and returns isolated schemas without c
   assert.deepEqual(adapter.listTools(), before);
   assert.deepEqual(commandDefinitions(), original);
 });
+
+test('template inspection discovery retains detached-read semantics beside apply tools', () => {
+  const adapter = fixture();
+  const tools = adapter.listTools().tools;
+  const tool = name => tools.find(item => item.name === `moment_${name}`);
+  const inspection = tool('template_inspect');
+  const description = inspection.inputSchema.properties.withContent.description;
+  assert.match(description, /detached current state/);
+  assert.match(description, /output-second timing after speed/);
+  assert.match(description, /No project\/library changes/);
+  assert.match(description, /not a full visual\/style\/render review/);
+  assert.match(tool('template_apply').inputSchema.properties.withContent.description,
+    /True replaces title, credit and timed card content/);
+  assert.match(tool('template_apply_document').inputSchema.properties.withContent.description,
+    /True also replaces title\/credit text and scene cards, never captions/);
+
+  const selected = createMcpToolAdapter({
+    resolveService: () => assert.fail('discovery must not resolve a project'),
+    commands: ['template.inspect'],
+  });
+  assert.deepEqual(selected.listTools().tools, [inspection]);
+  inspection.inputSchema.properties.withContent.description = 'Changed by consumer';
+  assert.equal(adapter.listTools().tools.find(item => item.name === inspection.name)
+    .inputSchema.properties.withContent.description, description);
+});

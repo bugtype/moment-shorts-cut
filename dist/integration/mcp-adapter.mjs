@@ -14,9 +14,6 @@ function inputSchema(command) {
   };
   schema.required = ['projectId', ...schema.required];
   const p = schema.properties;
-  if (command.name === 'template.inspect') {
-    p.withContent.description = 'Default false. Reuses template.apply on detached current state: false preserves authored title/credit/card content according to existing apply semantics; true uses template examples. Reports content and output-second timing after speed, not a full visual/style/render review. No project/library changes, media access, reservation or generated card IDs. Catalog metadata is canonical Korean as in templates.list; returned project text is not translated. Null text-layer end retains existing open-ended meaning.';
-  }
   if (command.name === 'template.export') {
     p.id.description = 'Caller-chosen stable template ID, nonblank, maximum 200 UTF-16 code units; preserved exactly and must not conflict with a built-in template. No browser-library entry is created.';
     p.name.description = 'Required name, maximum 40 UTF-16 code units before trimming; surrounding whitespace is trimmed, blank names rejected. Returns a portable moment-template document in data, not a project or media file. Captures visual settings, title/credit text and cards using existing relative output timing; excludes captions, clips and media. Cards are clipped to the output range and sorted by start. Existing 256 KiB pretty-printed UTF-8 budget applies. Read-only, with no project/history/storage changes.';
@@ -47,6 +44,9 @@ function inputSchema(command) {
   if (p.document) p.document.description = 'Complete moment-project document from project.get/browser settings export, not a partial patch. Media bytes are not included.';
   if (p.templateId) p.templateId.description = 'An ID from templates.list; browser-local custom templates are not available here.';
   if (p.withContent) p.withContent.description = 'Default false preserves authored content. True replaces title, credit and timed card content with template examples.';
+  if (command.name === 'template.inspect') {
+    p.withContent.description = 'Default false. Reuses template.apply on detached current state: false preserves authored title/credit/card content according to existing apply semantics; true uses template examples. Reports content and output-second timing after speed, not a full visual/style/render review. No project/library changes, media access, reservation or generated card IDs. Catalog metadata is canonical Korean as in templates.list; returned project text is not translated. Null text-layer end retains existing open-ended meaning.';
+  }
   if (p.clips) {
     p.clips.description = 'Replace the entire ordered clip list. Times are source seconds; repeats are allowed. Each end must exceed start and stay within source duration.';
     p.clips.items.properties.start.description = 'Clip start in source seconds, not output seconds.';

@@ -139,6 +139,20 @@ test('stdio inspects hook template content without applying it to the session',(
  const detail=replies.find(r=>r.id===3).result.structuredContent.data;assert.equal(detail.template.id,'hook-result');assert.equal(detail.cards.length,4);assert.ok(detail.cards.every(c=>!Object.hasOwn(c,'id')));assert.deepEqual(replies.find(r=>r.id===2).result.structuredContent.data,replies.find(r=>r.id===4).result.structuredContent.data);
 });
 
+test('stdio discovery distinguishes detached template inspection from application', () => {
+  const replies = run([init, ready, request(2, 'tools/list')]);
+  const tools = replies.find(reply => reply.id === 2).result.tools;
+  const inspect = tools.find(tool => tool.name === 'moment_template_inspect');
+  assert.match(inspect.inputSchema.properties.withContent.description, /detached current state/);
+  assert.match(inspect.inputSchema.properties.withContent.description, /No project\/library changes/);
+  assert.deepEqual(inspect.annotations,
+    { readOnlyHint: true, destructiveHint: false, openWorldHint: false });
+  const apply = tools.find(tool => tool.name === 'moment_template_apply');
+  assert.match(apply.inputSchema.properties.withContent.description,
+    /True replaces title, credit and timed card content/);
+  assert.equal(apply.annotations.readOnlyHint, false);
+});
+
 test('stdio updates speaker presentation without changing cue assignments or text',()=>{
  const patch={speakerLabels:['Host','嘉宾'],speakerColors:['#ffffff','#12345678']};
  const replies=run([init,ready,call(2,'project_get'),call(3,'captions_style_update',{patch}),call(4,'project_get')]);

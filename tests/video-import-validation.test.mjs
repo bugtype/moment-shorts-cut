@@ -248,3 +248,52 @@ for (const failure of ['reload', 'seek']) {
     assert.equal(f.settingsWrites(), 0);
   });
 }
+
+for (const edit of ['timeline', 'speed']) {
+  for (const action of ['undo', 'redo']) {
+    for (const rejectedFirst of [false, true]) {
+      test(`${edit} ${action} during video loading keeps current title timing${rejectedFirst ? ' after rejection and retry' : ''}`, async () => {
+        const f = await fixture(true);
+        vm.runInContext(`
+          state.clips = [{start:0,end:6}]; state.design.title.start = 1.5; state.design.title.end = 3;
+          state.design.credit.start = 3; state.design.credit.end = null;
+          history = []; future = []; timelineCache = null;
+        `, f.context);
+        const command = edit === 'timeline'
+          ? "runEditorCommand('timeline.replace', {clips:[{start:0,end:12}]})"
+          : "runEditorCommand('project.update', {patch:{speed:2}})";
+        assert.equal(vm.runInContext(command, f.context), true);
+        if (action === 'redo') f.element('#undoButton').onclick();
+        const pending = load(f, rejectedFirst ? 86401 : 24, { deferMetadata: true });
+        assert.equal(f.evaluate('loadingMedia'), true);
+        f.element(action === 'undo' ? '#undoButton' : '#redoButton').onclick();
+        assert.equal(f.evaluate('state.design.title.end / (duration() / state.speed)'), .5);
+        const current = snapshot(f);
+        // A save while native loading is pending still belongs to the edited old project.
+        await vm.runInContext('saveProject()', f.context);
+        assert.deepEqual(JSON.parse(f.raw()), current.state);
+        f.pendingMetadata.shift()();
+        await pending;
+        if (rejectedFirst) {
+          assert.deepEqual(snapshot(f), current);
+          assert.deepEqual(JSON.parse(f.raw()), current.state);
+          assert.equal(f.storage.attempts.length, 0);
+          await load(f, 24);
+        }
+        const project = f.evaluate('state');
+        assert.equal(project.duration, 24);
+        assert.equal(project.speed, 1);
+        assert.deepEqual([project.design.title.start, project.design.title.end], [6, 12]);
+        assert.deepEqual([project.design.credit.start, project.design.credit.end], [12, null]);
+        assert.deepEqual(project.design.title.lines, ['Keep my title', '']);
+        await vm.runInContext('saveProject()', f.context);
+        assert.deepEqual(JSON.parse(f.raw()), project);
+        assert.equal(f.storage.records.get('video').duration, 24);
+        assert.equal(f.storage.attempts.length, 1);
+        assert.deepEqual(f.evaluate('history'), []);
+        assert.deepEqual(f.evaluate('future'), []);
+        assert.doesNotThrow(() => readProjectDocument(createProjectDocument(project)));
+      });
+    }
+  }
+}

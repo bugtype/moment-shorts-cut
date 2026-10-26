@@ -28,12 +28,12 @@ export function createMediaLoader(app, {
         app.loadingMedia = true;
         app.pause();
         const old = app.sources.videoFile, oldThumbnail = app.sources.thumbnail;
-        const previousOutput = app.duration() / app.state.speed;
         app.toast(msg('errors.loadingVideo'));
         try {
             await app.sources.setVideoFile(file);
             if (app.recoveryBlocked())
                 return;
+            const previousOutput = app.duration() / app.state.speed;
             const next = {
                 ...app.initial(),
                 ...app.visualSettings(),

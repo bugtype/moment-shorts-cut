@@ -9,17 +9,31 @@ import { createProjectDocument, readProjectDocument, validateProject } from '../
 // Native metadata and IndexedDB are simulated; loader, validation and save owners are real.
 async function fixture(withVideo = false) {
   const f = await createAppFixture(), urls = new Map(), revoked = [], events = new Map(), timers = new Set();
+  const seeks = [], pendingMetadata = [];
   let nextURL = 0, settingsWrites = 0, raw;
   const video = f.element('#sourceVideo'), audio = f.element('#sourceAudio');
   video.addEventListener = (name, callback) => events.set(name, callback);
   video.removeEventListener = name => events.delete(name);
-  let source = '';
+  let source = '', nativeTime = 0, failSeek = false;
+  Object.defineProperty(video, 'currentTime', { configurable: true,
+    get: () => nativeTime,
+    set(value) {
+      if (failSeek) throw new Error('Restoring source time failed');
+      nativeTime = value;
+      seeks.push(value);
+      queueMicrotask(() => events.get('seeked')?.());
+    },
+  });
   Object.defineProperty(video, 'src', { configurable: true,
     get: () => source,
     set(value) {
       source = value;
-      video.duration = urls.get(value).duration;
-      queueMicrotask(() => events.get('loadeddata')?.());
+      const file = urls.get(value);
+      video.duration = file.duration;
+      nativeTime = 0; // The native media load algorithm resets its source clock.
+      const loaded = () => events.get(file.decodeError ? 'error' : 'loadeddata')?.();
+      if (file.deferMetadata) pendingMetadata.push(loaded);
+      else queueMicrotask(loaded);
     },
   });
   video.removeAttribute = name => { if (name === 'src') source = ''; };
@@ -44,7 +58,7 @@ async function fixture(withVideo = false) {
     audio.src = sources.audioURL;
     if (oldVideo) {
       state.kind = 'video'; state.fileName = oldVideo.name; sources.videoFile = oldVideo;
-      sources.sourceURL = URL.createObjectURL(oldVideo); video.src = sources.sourceURL;
+      sources.sourceURL = URL.createObjectURL(oldVideo); video.src = sources.sourceURL; video.currentTime = 4;
     }
     history = [JSON.stringify(state)]; future = [JSON.stringify(state)]; current = 4; selected = 0;
   `, f.context);
@@ -56,13 +70,13 @@ async function fixture(withVideo = false) {
   Object.assign(vm.runInContext('projectStore', f.context), createProjectStore(storage.factory));
   f.context.localStorage.getItem = () => raw;
   f.context.localStorage.setItem = (_key, value) => { raw = value; settingsWrites++; };
-  return { ...f, video, audio, urls, revoked, events, timers, storage,
-    raw: () => raw, settingsWrites: () => settingsWrites };
+  return { ...f, video, audio, urls, revoked, events, timers, storage, seeks, pendingMetadata,
+    failSeek: () => { failSeek = true; }, raw: () => raw, settingsWrites: () => settingsWrites };
 }
 
 const snapshot = f => f.evaluate('({state, history, future, current, selected, videoFile:sources.videoFile, audioFile:sources.audioFile, audioURL:sources.audioURL, thumbnail:sources.thumbnail})');
-async function load(f, duration) {
-  f.context.candidateFile = { name: 'candidate.mp4', type: 'video/mp4', size: 100, duration };
+async function load(f, duration, options = {}) {
+  f.context.candidateFile = { name: 'candidate.mp4', type: 'video/mp4', size: 100, duration, ...options };
   f.element('#videoInput').value = 'chosen-file';
   await vm.runInContext('loadVideo(candidateFile)', f.context);
 }
@@ -165,3 +179,72 @@ test('duration rejection displays the shared supported range in all three locale
     }
   } finally { vm.runInContext("setLocale('ko', {persist: false});", f.context); }
 });
+
+for (const failure of ['metadata', 'decoder']) {
+  for (const reordered of [false, true]) {
+    test(`${failure} rejection restores the ${reordered ? 'reordered' : 'ordered'} source playhead without rebuilding draft controls`, async () => {
+      const f = await fixture(true);
+      vm.runInContext(`
+        ${reordered ? 'state.clips = [{start: 8, end: 12}, {start: 0, end: 4}]; timelineCache = null;' : ''}
+        current = 5; video.currentTime = locate(current).source;
+        switchPanel('text');
+      `, f.context);
+      const field = f.element('#titleFirst');
+      field.value = 'Uncommitted title draft'; field.focus();
+      const before = snapshot(f), expectedSource = vm.runInContext('locate(current).source', f.context);
+      let renders = 0;
+      f.context.countPanelRender = () => renders++;
+      vm.runInContext('renderPanel = countPanelRender; video.addEventListener("seeked", requestDraw);', f.context);
+      await load(f, failure === 'metadata' ? 86401 : 6, { decodeError: failure === 'decoder' });
+      assert.deepEqual(snapshot(f), before);
+      assert.equal(f.video.currentTime, expectedSource);
+      assert.equal(renders, 0);
+      assert.equal(field.value, 'Uncommitted title draft');
+      assert.equal(f.doc.activeElement, field);
+      assert.equal(f.storage.attempts.length, 0);
+      assert.equal(f.settingsWrites(), 0);
+      const frames = [];
+      f.context.observePaint = (_ctx, _width, _height, _project, media) => frames.push([media.sourceTime, media.source.currentTime]);
+      vm.runInContext('composition.draw = observePaint;', f.context);
+      for (const [id, callback] of f.pendingFrames) { f.pendingFrames.delete(id); callback(performance.now()); }
+      assert.deepEqual(frames.at(-1), [expectedSource, expectedSource]);
+    });
+  }
+}
+
+test('rollback follows a newer ruler seek rather than a captured old position', async () => {
+  const f = await fixture(true);
+  vm.runInContext('state.clips = [{start:8,end:12},{start:0,end:4}]; timelineCache = null; current = 1;', f.context);
+  const originalThumbnail = f.evaluate('sources.thumbnail');
+  f.context.oldVideo.deferMetadata = true;
+  const pending = load(f, 86401);
+  for (let i = 0; i < 8 && !f.pendingMetadata.length; i++) await Promise.resolve();
+  assert.equal(f.pendingMetadata.length, 1, 'original source reload is pending');
+  const ruler = f.element('#ruler');
+  ruler.onclick({ currentTarget: ruler, clientX: 540 * 6 / 8 });
+  assert.equal(f.evaluate('current'), 6);
+  const before = snapshot(f);
+  before.thumbnail = originalThumbnail;
+  f.pendingMetadata.shift()();
+  await pending;
+  assert.deepEqual(snapshot(f), before);
+  assert.equal(f.video.currentTime, 2, 'latest timeline position maps into the second source occurrence');
+  assert.equal(f.evaluate('loadingMedia'), false);
+});
+
+for (const failure of ['reload', 'seek']) {
+  test(`rollback ${failure} failure cannot mask the original rejected-import diagnostic`, async () => {
+    const f = await fixture(true), before = snapshot(f);
+    if (failure === 'reload') f.context.oldVideo.decodeError = true;
+    else f.failSeek();
+    await load(f, 86401);
+    // The native File fixture's fault flag is not authored project state.
+    const after = snapshot(f);
+    if (failure === 'reload') delete after.videoFile.decodeError;
+    assert.deepEqual(after, before);
+    assert.equal(f.element('#toast').textContent, vm.runInContext("t('errors.videoDurationLimit')", f.context));
+    assert.equal(f.evaluate('loadingMedia'), false);
+    assert.equal(f.storage.attempts.length, 0);
+    assert.equal(f.settingsWrites(), 0);
+  });
+}

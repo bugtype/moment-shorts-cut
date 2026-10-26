@@ -68,7 +68,9 @@ export function createMediaLoader(app, {
         catch (e) {
             app.sources.videoFile = old;
             if (old)
-                await app.sources.setVideoFile(old).catch(() => {
+                await app.sources.setVideoFile(old).then(() => {
+                    app.video.currentTime = app.locate(app.current).source;
+                }).catch(() => {
                 });
             else {
                 if (app.sources.sourceURL)

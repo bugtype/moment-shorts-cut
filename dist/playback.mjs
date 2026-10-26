@@ -195,7 +195,16 @@ export function createPlayback(app, {
                     if (old.index + 1 < state.clips.length) {
                         app.current = old.offset + clip.end - clip.start;
                         app.video.currentTime = state.clips[old.index + 1].start;
+                        const request = app.playRequest;
                         app.video.play().catch(() => {
+                            // A cancelled cut must not stop a newer preview or export.
+                            if (request !== app.playRequest)
+                                return;
+                            if (app.exporting)
+                                app.stopExport(true);
+                            else
+                                pause();
+                            app.toast(message('shell.playError'));
                         });
                     }
                     else

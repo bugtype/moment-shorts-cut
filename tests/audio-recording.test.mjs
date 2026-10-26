@@ -98,3 +98,34 @@ test('native failure releases tracks once and explicit retry ignores stale callb
   assert.equal(f.events.filter(event => event[0] === 'error').length, 1);
   current.onerror();
 });
+
+for (const [mimeType, extension] of [
+  ['audio/ogg', 'oga'],
+  ['audio/ogg;codecs=opus', 'oga'],
+  [' Audio/Ogg ; codecs=vorbis', 'oga'],
+  ['audio/webm;codecs=opus', 'webm'],
+  ['audio/mp4;codecs=mp4a.40.2', 'm4a'],
+  ['video/mp4', 'm4a'],
+  ['audio/unknown', 'webm'],
+  ['', 'webm'],
+]) {
+  test(`recording MIME ${JSON.stringify(mimeType)} uses the expected filename without changing data`, async () => {
+    const f = fixture();
+    await f.session.start(() => true);
+    const recorder = f.session.current, chunk = { size: 5 };
+    recorder.mimeType = mimeType;
+    recorder.ondataavailable({ data: chunk });
+    f.session.stop();
+    await recorder.onstop();
+    const files = f.events.filter(event => event[0] === 'file');
+    assert.equal(files.length, 1);
+    assert.equal(files[0][1].name, `내 목소리.${extension}`);
+    assert.equal(files[0][1].type, mimeType, 'Do not rewrite MIME parameters');
+    assert.equal(files[0][1].parts[0], chunk, 'Do not read or transcode chunks');
+    assert.equal(f.track.stops, 1);
+    assert.equal(f.timers.size, 0);
+    assert.equal(f.session.current, null);
+    assert.equal(f.session.requesting, false);
+    assert.equal(f.events.filter(event => event[0] === 'error').length, 0);
+  });
+}

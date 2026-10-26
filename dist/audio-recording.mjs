@@ -76,7 +76,10 @@ export function createAudioRecording({ prepare, onProgress, onReady, onError, on
                         return;
                     }
                     const mime = recorder.mimeType;
-                    const file = createFile(chunks, `내 목소리.${mime.includes('mp4') ? 'm4a' : 'webm'}`, { type: mime });
+                    // Name Ogg audio by its container without guessing a codec or changing bytes.
+                    const extension = mime.split(';', 1)[0].trim().toLowerCase() === 'audio/ogg'
+                        ? 'oga' : mime.includes('mp4') ? 'm4a' : 'webm';
+                    const file = createFile(chunks, `내 목소리.${extension}`, { type: mime });
                     await onReady(file, recorder);
                 }
                 catch {

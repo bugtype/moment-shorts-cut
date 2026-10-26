@@ -93,6 +93,17 @@ export function mapAudioCaptions(captions, offset, total) {
 
 // File size is checked before reading in the UI; keep the parser bounded for callers too.
 const subtitleReferences = {amp:'&',lt:'<',gt:'>',lrm:'\u200e',rlm:'\u200f',nbsp:'\u00a0'};
+function decodeSubtitleReference(literal, reference) {
+  if (reference[0] !== '#') return subtitleReferences[reference];
+  const hex = reference[1] === 'x' || reference[1] === 'X';
+  const code = Number.parseInt(reference.slice(hex ? 2 : 1), hex ? 16 : 10);
+  // A conservative scalar subset, not HTML error repair or control remapping.
+  // Keep unsupported spellings literal rather than introducing line structure.
+  if (code < 0x20 || code > 0x10ffff || (code >= 0x7f && code <= 0x9f) ||
+      code === 0x2028 || code === 0x2029 || (code >= 0xd800 && code <= 0xdfff) ||
+      (code >= 0xfdd0 && code <= 0xfdef) || (code & 0xffff) >= 0xfffe) return literal;
+  return String.fromCodePoint(code);
+}
 export function parseSubtitles(text, duration) {
   return parseSubtitlesWithReport(text, duration).captions;
 }
@@ -124,7 +135,7 @@ export function parseSubtitlesWithReport(text, duration) {
     }
     // Decode once after removing markup, so escaped literal tags remain text.
     const text = lines.slice(first, last).join('\n')
-      .replace(/&(amp|lt|gt|lrm|rlm|nbsp);/g, (_, name) => subtitleReferences[name]);
+      .replace(/&(amp|lt|gt|lrm|rlm|nbsp|#\d+|#[xX][\da-fA-F]+);/g, decodeSubtitleReference);
     if (text.length > 2000) throw new LocalizedError(msg('errors.cueLength'));
     if (captions.length >= MAX_CAPTIONS) throw new LocalizedError(msg('errors.captionLimit'));
     captions.push({start, end, text});

@@ -947,6 +947,17 @@ conformance validator. Success includes `importedCaptions`, the applied cue coun
 alongside `updated:true` and `outputDuration`, with no append-specific result fields.
 Import append is also non-idempotent; a repeated successful call adds duplicates.
 
+Complete decimal `&#54620;` and hexadecimal `&#x4E2D;`/`&#X4E2D;` references
+are decoded once after tag removal (for example, `한中`). Supported numeric values
+are U+0020–U+10FFFF except DEL/C1 (U+007F–009F), U+2028/U+2029, surrogates,
+U+FDD0–FDEF and each plane's U+FFFE/U+FFFF. Unsupported/malformed spellings,
+including TAB/LF/FF/CR references, stay literal: no HTML error repair or control
+remapping. Valid format/spacing characters can be invisible; this is not a
+visibility guarantee. Escaped `&amp;#54620;` remains literal `&#54620;`, and encoded
+tags remain text. Decoded whitespace is not trimmed; a whitespace-only cue may
+still fail subtitle export. The 2,000 UTF-16-unit cue limit applies after decoding;
+raw input byte/command-length limits remain unchanged.
+
 Add `"report":true` to a **direct** import to receive an optional `data.report`:
 
 ```json

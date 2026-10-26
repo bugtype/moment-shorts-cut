@@ -105,6 +105,17 @@ are preserved, including at cue boundaries; boundary blank lines are removed.
 Preserved whitespace counts toward the cue-length limit. No speaker/style/keyword metadata
 is imported. Empty/no-valid input fails without replacing the existing captions.
 The permissive parser may skip malformed cues; it is not a full standard validator.
+
+Complete decimal `&#54620;` and hexadecimal `&#x4E2D;`/`&#X4E2D;` references
+are decoded once after tag removal (for example, `한中`). Supported numeric values
+are U+0020–U+10FFFF except DEL/C1 (U+007F–009F), U+2028/U+2029, surrogates,
+U+FDD0–FDEF and each plane's U+FFFE/U+FFFF. Unsupported/malformed spellings,
+including TAB/LF/FF/CR references, stay literal: no HTML error repair or control
+remapping. Valid format/spacing characters can be invisible; this is not a
+visibility guarantee. Escaped `&amp;#54620;` remains literal `&#54620;`, and encoded
+tags remain text. Decoded whitespace is not trimmed; a whitespace-only cue may
+still fail subtitle export. The 2,000 UTF-16-unit cue limit applies after decoding;
+raw input byte/command-length limits remain unchanged.
 Default/`report:false` success remains exactly `{updated:true, outputDuration, importedCaptions}`.
 For diagnostic counts, add `report:true` to the direct import. Its optional
 `data.report` contains `acceptedCaptions` (equal to `importedCaptions`, not the

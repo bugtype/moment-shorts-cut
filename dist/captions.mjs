@@ -110,13 +110,20 @@ export function parseSubtitlesWithReport(text, duration) {
     const start = (+match[1] || 0) * 3600 + (+match[2]) * 60 + (+match[3]) + (+match[4]) / 1000;
     const rawEnd = (+match[5] || 0) * 3600 + (+match[6]) * 60 + (+match[7]) + (+match[8]) / 1000;
     const end = Math.min(rawEnd, duration);
-    // Decode once after removing markup, so escaped literal tags remain text.
-    const text = match[9].replace(/<[^>]*>/g, '').trim()
-      .replace(/&(amp|lt|gt|lrm|rlm|nbsp);/g, (_, name) => subtitleReferences[name]);
-    if (!text || end <= start) {
+    // Remove structural/boundary blank lines, not spacing on nonblank text lines.
+    // Markup-only wrapping lines retain their existing normalization. Check empty
+    // payloads before decoding so an explicit &nbsp; keeps its existing meaning.
+    const lines = match[9].replace(/<[^>]*>/g, '').split('\n');
+    let first = 0, last = lines.length;
+    while (first < last && !lines[first].trim()) first++;
+    while (last > first && !lines[last - 1].trim()) last--;
+    if (first === last || end <= start) {
       discardedRecognizedEntries++;
       continue;
     }
+    // Decode once after removing markup, so escaped literal tags remain text.
+    const text = lines.slice(first, last).join('\n')
+      .replace(/&(amp|lt|gt|lrm|rlm|nbsp);/g, (_, name) => subtitleReferences[name]);
     if (text.length > 2000) throw new LocalizedError(msg('errors.cueLength'));
     if (captions.length >= MAX_CAPTIONS) throw new LocalizedError(msg('errors.captionLimit'));
     captions.push({start, end, text});

@@ -938,7 +938,9 @@ This is existing browser behavior, not a new MCP import option.
 
 The existing plain subtitle parser clamps cue ends to the chosen duration and
 drops out-of-range or nonpositive intervals. It removes markup and decodes known
-character references once; speaker/style/keyword metadata are not imported.
+character references once. Spaces/tabs on nonblank text lines are preserved, even
+at cue boundaries; boundary blank lines are removed. Preserved whitespace counts
+toward the cue-length limit. Speaker/style/keyword metadata are not imported.
 Empty input or no valid cues returns an error without replacing current captions.
 This permissive parser may skip malformed cues; it is not a full SRT/WebVTT
 conformance validator. Success includes `importedCaptions`, the applied cue count,

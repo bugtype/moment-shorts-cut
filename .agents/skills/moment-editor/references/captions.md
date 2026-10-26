@@ -98,7 +98,9 @@ reads UTF-8 SRT/VTT into `{text,basis}` JSON and protects existing outputs. API 
 is limited to 100,000 UTF-16 code units; browser file import remains 2 MiB. The
 shared parser also limits output to 10,000 cues and 2,000 code units per cue.
 It clamps ends to the chosen clock duration, drops out-of-range/nonpositive cues,
-strips markup and decodes known entities once. No speaker/style/keyword metadata
+strips markup and decodes known entities once. Spaces/tabs on nonblank text lines
+are preserved, including at cue boundaries; boundary blank lines are removed.
+Preserved whitespace counts toward the cue-length limit. No speaker/style/keyword metadata
 is imported. Empty/no-valid input fails without replacing the existing captions.
 The permissive parser may skip malformed cues; it is not a full standard validator.
 Success returns `{updated:true, outputDuration, importedCaptions}`; the last field

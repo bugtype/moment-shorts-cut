@@ -130,8 +130,10 @@ test('browser command API, imports and subtitle output guards', async () => {
    vm.runInContext('persistence.restorePhase="failed";persistence.recoveryValid=false;',context);
    await vm.runInContext(`${entry.handler}(utf8File)`,context);unchanged();
    vm.runInContext('persistence.restorePhase="ready";',context);
-   // Exact limits include the BOM; trailing JSON/subtitle whitespace is valid.
+   // Exact limits include the BOM; padding is outside the subtitle payload.
+   // Spaces on its nonblank final line are authored text, not file padding.
    const atLimit=Buffer.alloc(entry.limit,0x20);validBytes.copy(atLimit);
+   if(entry.handler==='importSrt')atLimit.write('\n\n',validBytes.length);
    context.utf8File=new Blob([atLimit]);
    await vm.runInContext(`${entry.handler}(utf8File)`,context);
    assert.equal(evaluate(entry.handler==='importSrt'?'state.captions[0].text':'state.name'),authored);

@@ -169,3 +169,138 @@ for (const type of ['versionchange', 'close']) {
     assert.deepEqual(writes[1], ['moment-state-v1',project]);
   });
 }
+
+function persistenceFixture(storage, video = null, audio = null) {
+  const sources = {videoFile:video, audioFile:audio}, settings = [], statuses = [], notices = [], timers = [];
+  const project = {...createDemoProject(), ...(video ? {kind:'video', fileName:video.name} : {}), audioName:audio?.name || ''};
+  const persistence = createProjectPersistence({
+    store:storage.store, sources, getProject:() => project,
+    saveStatus:(value, ok) => statuses.push([value, ok]), toast:value => notices.push(value), pause() {},
+  }, {
+    clearTimer() {}, setTimer:callback => { timers.push(callback); return callback; },
+    writeSettings:(key,value) => settings.push([key,JSON.parse(value)]),
+  });
+  persistence.restorePhase = 'ready';
+  return {persistence, sources, project, settings, statuses, notices, timers};
+}
+const statusKey = f => f.statuses.at(-1)?.[0].messageKey;
+
+for (const type of ['versionchange', 'close']) for (const kind of ['video', 'audio', 'both']) {
+  test(`${type}: ${kind} metadata autosave warns without repopulating invalidated media; explicit Save repairs it`, async () => {
+    const storage = fixture(), [video,audio] = media();
+    const f = persistenceFixture(storage, kind === 'audio' ? null : video, kind === 'video' ? null : audio);
+    await f.persistence.saveProject(true);
+    assert.equal(statusKey(f), 'errors.saved');
+    storage.invalidate(type); storage.records.clear(); f.project.name = 'Edited after invalidation';
+    f.notices.length = 0;
+    f.persistence.scheduleSave(); await f.timers.at(-1)();
+    assert.equal(f.settings.at(-1)[1].name, f.project.name, 'metadata edits still persist');
+    assert.equal(statusKey(f), 'errors.checkStorage');
+    assert.equal(f.statuses.at(-1)[1], false);
+    await f.persistence.saveProject();
+    assert.equal(statusKey(f), 'errors.checkStorage');
+    assert.equal(storage.opens, 1, 'metadata autosave must not reopen browser media storage');
+    assert.equal(storage.writes.length, 1);
+    assert.equal(storage.records.size, 0, 'cleared media must not be silently repopulated');
+    assert.deepEqual(f.notices, [], 'background autosaves do not create repeated toasts');
+    await f.persistence.saveProject(true);
+    assert.equal(statusKey(f), 'errors.saved');
+    assert.equal(f.notices.at(-1).messageKey, 'errors.savedNotice');
+    assert.equal(storage.opens, 2);
+    assert.deepEqual(Object.fromEntries(storage.records), {
+      ...(f.sources.videoFile ? {video} : {}), ...(f.sources.audioFile ? {audio} : {}),
+    });
+    await f.persistence.saveProject();
+    assert.equal(statusKey(f), 'errors.saved');
+    assert.equal(storage.writes.length, 2, 'healthy metadata autosave still does not rewrite media');
+  });
+}
+
+for (const show of [false, true]) {
+  test(`late old media commit cannot report saved after invalidation (explicit=${show})`, async () => {
+    const storage = fixture(), [video,audio] = media(), f = persistenceFixture(storage, video);
+    await f.persistence.saveProject(true);
+    f.sources.audioFile = audio; f.project.audioName = audio.name; f.notices.length = 0;
+    storage.hold();
+    if (!show) f.persistence.persistMedia();
+    const saving = f.persistence.saveProject(show); await settle();
+    const pending = storage.transactions.at(-1); storage.invalidate('versionchange');
+    pending.finish(); storage.records.clear(); await saving;
+    assert.equal(statusKey(f), 'errors.checkStorage');
+    assert.equal(f.statuses.at(-1)[1], false);
+    assert.equal(f.settings.length, 2, 'completed metadata write is retained');
+    assert.equal(storage.opens, 1); assert.equal(storage.records.size, 0);
+    assert.deepEqual(f.notices.map(value => value.messageKey), show ? ['errors.checkStorage'] : []);
+  });
+}
+
+test('late old read cannot confirm media for metadata autosave after invalidation', async () => {
+  const storage = fixture(), [video] = media(), f = persistenceFixture(storage, video);
+  await f.persistence.saveProject(true);
+  storage.hold(); const reading = storage.store.get('video'); await settle();
+  const pending = storage.transactions.at(-1); storage.invalidate('versionchange'); pending.finish();
+  f.sources.videoFile = await reading; storage.records.clear();
+  await f.persistence.saveProject();
+  assert.equal(statusKey(f), 'errors.checkStorage');
+  assert.equal(storage.opens, 1); assert.equal(storage.records.size, 0);
+});
+
+test('reopening and reading only one file cannot confirm all attached media', async () => {
+  const storage = fixture(), [video,audio] = media(), f = persistenceFixture(storage, video, audio);
+  await f.persistence.saveProject(true); storage.invalidate('close');
+  f.sources.videoFile = await storage.store.get('video');
+  await f.persistence.saveProject();
+  assert.equal(statusKey(f), 'errors.checkStorage');
+  f.sources.audioFile = await storage.store.get('audio');
+  await f.persistence.saveProject();
+  assert.equal(statusKey(f), 'errors.saved', 'both current-connection restored references are confirmed');
+  assert.equal(storage.writes.length, 1, 'read-only reconfirmation does not rewrite media');
+});
+
+test('a stale close notification cannot replace a repaired save status with a warning', async () => {
+  const storage = fixture(), [video,audio] = media(), f = persistenceFixture(storage, video, audio);
+  await f.persistence.saveProject(true); const oldClose = storage.connections[0].onclose;
+  storage.invalidate('versionchange'); storage.records.clear(); await f.persistence.saveProject(true);
+  oldClose(); await f.persistence.saveProject();
+  assert.equal(statusKey(f), 'errors.saved');
+  assert.equal(storage.opens, 2); assert.equal(storage.writes.length, 2);
+});
+
+for (const previouslyOpened of [false, true]) {
+  test(`media-free demo metadata save needs no media connection (previously opened=${previouslyOpened})`, async () => {
+    const storage = fixture(), f = persistenceFixture(storage);
+    if (previouslyOpened) { await storage.store.setMedia(null, null); storage.invalidate('close'); }
+    await f.persistence.saveProject(); await f.persistence.saveProject(true);
+    assert.equal(statusKey(f), 'errors.saved');
+    assert.equal(storage.opens, Number(previouslyOpened));
+    assert.equal(storage.writes.length, Number(previouslyOpened));
+    assert.equal(f.settings.length, 2);
+  });
+}
+
+test('failed explicit repair keeps the warning and a later explicit Save can recover', async () => {
+  const storage = fixture(), [video] = media(), f = persistenceFixture(storage, video);
+  await f.persistence.saveProject(true); storage.invalidate('versionchange'); storage.records.clear();
+  await f.persistence.saveProject(); f.notices.length = 0;
+  storage.openFailures.push(new DOMException('Storage unavailable', 'UnknownError'));
+  await f.persistence.saveProject(true);
+  assert.equal(statusKey(f), 'errors.checkStorage');
+  assert.equal(f.notices.at(-1).messageKey, 'errors.storageBlocked');
+  assert.equal(storage.records.size, 0);
+  await f.persistence.saveProject(true);
+  assert.equal(statusKey(f), 'errors.saved');
+  assert.deepEqual(storage.records.get('video'), video);
+});
+
+test('metadata autosave still waits for the newest queued media replacement before confirming storage', async () => {
+  const storage = fixture(), [video,audio] = media(), f = persistenceFixture(storage, video);
+  await f.persistence.saveProject(true); storage.hold();
+  f.sources.audioFile = audio; f.project.audioName = audio.name; f.persistence.persistMedia();
+  const saving = f.persistence.saveProject(); await settle();
+  const first = storage.transactions.at(-1), latest = {name:'latest.wav'};
+  f.sources.audioFile = latest; f.project.audioName = latest.name; f.persistence.persistMedia();
+  first.finish(); storage.hold(false); await saving;
+  assert.equal(statusKey(f), 'errors.saved');
+  assert.equal(f.settings.at(-1)[1].audioName, latest.name);
+  assert.deepEqual(storage.records.get('audio'), latest);
+});

@@ -52,5 +52,9 @@ export function createProjectStore(factory = globalThis.indexedDB) {
     });
     return queue;
   }
-  return { get, setMedia };
+  function hasStoredMedia(video, audio) {
+    // Confirm attached files only; metadata-only projects need no media connection.
+    return (!video || stored.get('video') === video) && (!audio || stored.get('audio') === audio);
+  }
+  return { get, setMedia, hasStoredMedia };
 }

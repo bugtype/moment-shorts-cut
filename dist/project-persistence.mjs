@@ -52,6 +52,13 @@ export function createProjectPersistence({ store, sources, getProject, replacePr
                     return;
             } while (saving !== persistence.pendingSave);
             writeSettings('moment-state-v1', JSON.stringify(getProject()));
+            // Keep metadata autosave, but never repopulate invalidated media implicitly.
+            if (store.hasStoredMedia?.(sources.videoFile, sources.audioFile) === false) {
+                saveStatus(msg('errors.checkStorage'), false);
+                if (show)
+                    toast(msg('errors.checkStorage'));
+                return;
+            }
             saveStatus(msg('errors.saved'));
             if (show)
                 toast(msg('errors.savedNotice'));

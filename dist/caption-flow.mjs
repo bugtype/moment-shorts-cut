@@ -1,4 +1,6 @@
 import { message as msg, text, setText } from './i18n.mjs';
+import { LocalizedError } from './core/validation.mjs';
+import { icon } from './ui-format.mjs';
 // Recognition orchestration for the caption panel. Worker lifecycle and provider
 // validation stay in caption-generation/transcription-client; this only maps the
 // current project and panel status onto those services.
@@ -24,6 +26,7 @@ export function createCaptionFlow(app) {
             app.toast(msg('errors.recognitionDuration'));
             return;
         }
+        let applied = false;
         try {
             await app.captionGeneration.generate(source, file, language, {
                 start: () => {
@@ -47,7 +50,9 @@ export function createCaptionFlow(app) {
                     }
                 },
                 apply: (captions, count) => {
-                    app.edit(() => app.state.captions = captions);
+                    if (app.panel === 'captions' && app.captionPanel.hasPendingEdits())
+                        throw new LocalizedError(msg('errors.transcriptionConflict'));
+                    app.edit(() => { app.state.captions = captions; applied = true; });
                     app.toast(msg('errors.captionsGenerated',{count}));
                 },
             });
@@ -59,8 +64,15 @@ export function createCaptionFlow(app) {
             app.transcribing = false;
             if (app.panel === 'captions') {
                 const restoreFocus = app.document.activeElement?.id === 'generateCaptions';
-                app.renderPanel();
-                if (restoreFocus)
+                if (applied) app.captionPanel.refreshAfterRecognition(app.document.activeElement);
+                else {
+                    // Failed/cancelled recognition owns its status, not live editor inputs.
+                    const button = app.query('#generateCaptions');
+                    button.disabled = false;
+                    button.innerHTML = icon('sparkle') + ' ' + text('panels.generateCaptions');
+                    app.query('#asrStatus').hidden = true;
+                }
+                if (applied && restoreFocus)
                     app.query('#captionCreate summary').focus();
             }
         }

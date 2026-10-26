@@ -77,9 +77,11 @@ test('caption workspace, budgets and asynchronous recognition lifecycle', async 
   assert.ok(captionMarkup().includes('최대 3분의 원본'));
   element('#generateCaptions').id='generateCaptions';element('#generateCaptions').focus();
   await element('#generateCaptions').onclick();releaseCaptionAudio(new ArrayBuffer(0));await pendingCaptionGeneration;
-  assert.equal(evaluate('transcribing'),false);assert.equal(createIsOpen(),false);
+  assert.equal(evaluate('transcribing'),false);assert.equal(createIsOpen(),true);
   assert.deepEqual(evaluate('state.captions'),beforeCaptionGeneration);
-  assert.equal(doc.activeElement,element('#captionCreate summary'));
+  // Cancellation restores the live button without replacing users' input controls.
+  assert.equal(doc.activeElement,element('#generateCaptions'));
+  assert.match(element('#generateCaptions').innerHTML,/data-i18n="panels.generateCaptions"/);
   vm.runInContext('sources.videoFile=null;state=initial();timelineCache=null;renderPanel()',context);
   delete context.captionTestFile;delete context.AudioContext;delete context.OfflineAudioContext;
   console.log('PASS: captions-first layout, empty/add/delete/import focus, timing notices and running/cancelled generation without a model download.');

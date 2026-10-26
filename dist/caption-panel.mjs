@@ -11,10 +11,47 @@ export function createCaptionPanel({
     const timingFields = { basis: 'source', delta: '0' };
     let exportFormat = 'srt', exportScope = 'all';
     let page = 0, composing = false, renderGeneration = 0;
+    let renderedRows = [];
+    const rowFields = ['text', 'start', 'end', 'keywords', 'speaker'];
     const lastPage = () => Math.max(0, Math.ceil(getProject().captions.length / CAPTION_PAGE_SIZE) - 1);
     const search = createCaptionSearch({query:$,getProject,focusCaption,edit,execute,toast,
         blocked: () => composing || blocked(),
         replaceRange: options => replaceRange?.({...options,index:options.index ?? page * CAPTION_PAGE_SIZE})});
+    // Recognition may finish without a blur/change event. A current row draft
+    // belongs to the user, not to the asynchronously generated replacement.
+    function hasPendingEdits() {
+        if (composing) return true;
+        const captions = getProject().captions;
+        return renderedRows.some(({ input, field, index, displayed, model }) => {
+            const caption = captions[index];
+            if (!caption) return true;
+            // Parsed controls can normalize authored CR/LF. An untouched display
+            // is clean only while its corresponding model value is unchanged.
+            if (caption[field] === model && input.value === displayed) return false;
+            return field === 'start' || field === 'end'
+                ? !input.value.trim() || Number(input.value) !== caption[field]
+                : input.value !== String(caption[field] ?? '');
+        });
+    }
+    function refreshAfterRecognition(activeElement) {
+        // A successful result replaces rows, but does not own tool drafts or
+        // recognition choices. Composition is rejected before reaching here.
+        const ids = ['captionShiftDelta', 'captionShiftBasis', 'captionChunkSize',
+            'captionSource', 'language', 'captionFind', 'captionReplacement',
+            'captionExportFormat', 'captionExportScope'];
+        const values = new Map(ids.map(id => [id, $('#' + id).value]));
+        const pageInput = $('#captionPageNumber');
+        if (pageInput.value !== String(page + 1)) values.set('captionPageNumber', pageInput.value);
+        const focused = ids.includes(activeElement?.id) || activeElement?.id === 'captionPageNumber'
+            ? { id: activeElement.id, start: activeElement.selectionStart, end: activeElement.selectionEnd } : null;
+        refresh();
+        for (const [id, value] of values) $('#' + id).value = value;
+        if (focused) {
+            const input = $('#' + focused.id);
+            input.focus({ preventScroll: true });
+            if (typeof focused.start === 'number') input.setSelectionRange(focused.start, focused.end);
+        }
+    }
     function shiftTiming() {
         if (composing) return;
         try {
@@ -65,6 +102,10 @@ export function createCaptionPanel({
         const toolsOpen = target.querySelector('#captionTools')?.open;
         page = Math.min(page, lastPage());
         target.innerHTML = captionsPanelMarkup(getProject(), { toolsOpen, ...status, page });
+        renderedRows = rowFields.flatMap(field => $$(`[data-caption-${field}]`).map(input => {
+            const index = +input.dataset['caption' + field[0].toUpperCase() + field.slice(1)];
+            return { input, field, index, displayed: input.value, model: getProject().captions[index]?.[field] };
+        }));
         // Click follows the native blur/change boundary; never replace rows on mousedown.
         for (const [id, delta] of [['previousCaptionPage', -1], ['nextCaptionPage', 1]]) {
             $('#' + id).onclick = () => {
@@ -240,5 +281,5 @@ export function createCaptionPanel({
         field.focus({ preventScroll: true });
         field.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: 'instant' });
     }
-    return { render, focus: focusCaption };
+    return { render, focus: focusCaption, hasPendingEdits, refreshAfterRecognition };
 }

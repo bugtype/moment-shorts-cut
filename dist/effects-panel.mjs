@@ -13,6 +13,7 @@ const esc = value => String(value).replace(/[&<>"']/g, c => ({
 
 export function mountEffectsPanel(root, api) {
   const owner = {};
+  const pending = [];
   renderOwners.set(root, owner);
   const { state, total, tab } = api;
   const effects = state.effects;
@@ -306,8 +307,28 @@ export function mountEffectsPanel(root, api) {
           const output = target.querySelector(`[data-card-output="${key}"]`);
           if (output) output.textContent = input.value;
         };
-        if (continuous) api.input(input, () => card[input.dataset.card], update, current);
-        else input.onchange = update;
+        let composing;
+        if (continuous) composing = api.input(input, () => card[input.dataset.card], update, current);
+        else {
+          input.onchange = update;
+          if (input.type === 'number') {
+            let active = false;
+            input.oncompositionstart = () => { if (current()) active = true; };
+            input.oncompositionend = () => { if (current()) active = false; };
+            composing = () => active;
+          }
+        }
+        if (['text', 'textarea', 'number'].includes(input.type)) {
+          const key = input.dataset.card, initial = card[key], displayed = input.value;
+          pending.push(() => {
+            if (!current()) return false;
+            const value = card[key], numeric = input.type === 'number';
+            if (composing?.() || (numeric && (input.validity?.badInput || input.value === ''))) return true;
+            if (value === initial && input.value === displayed) return false;
+            if (numeric) return !Number.isFinite(input.valueAsNumber) || input.valueAsNumber !== value;
+            return input.value !== value;
+          });
+        }
       });
     }
   }
@@ -319,4 +340,5 @@ export function mountEffectsPanel(root, api) {
     current: () => renderOwners.get(root) === owner && api.current?.() !== false && api.tabCurrent?.() !== false,
     contextCurrent: () => api.current?.() !== false && api.tabCurrent?.() !== false
   });
+  return () => pending.some(check => check());
 }

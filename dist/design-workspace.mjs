@@ -12,6 +12,7 @@ export function createDesignWorkspace(app) {
     const { query: $ } = app;
     const appearanceKeys = ['color', 'accent', 'background', 'size', 'stroke', 'backgroundOpacity', 'presentation', 'animation'];
     let copiedAppearance = null;
+    let pendingInput = null;
     const position = createPositionDialog(app);
     const keywords = createCaptionKeywordsDialog(app);
     const cardTiming = createCardTimingDialog(app);
@@ -63,7 +64,7 @@ export function createDesignWorkspace(app) {
 
     function renderDesignPanel(target) {
         const project = app.state, layer = app.textLayer;
-        mountDesignPanel(target, {
+        pendingInput = mountDesignPanel(target, {
             state: app.state,
             layer: app.textLayer,
             clearKeywords: () => keywords.open(),
@@ -108,7 +109,7 @@ export function createDesignWorkspace(app) {
         const selected = project.overlays.find(card => card.id === app.selectedCard) || project.overlays[0];
         const duplicateCurrent = id => app.panel === 'effects' && app.effectTab === 'cards' &&
             app.state === project && (app.selectedCard || project.overlays[0]?.id) === id && !app.modal.open;
-        mountEffectsPanel(target, {
+        pendingInput = mountEffectsPanel(target, {
             state: app.state,
             total: app.duration() / app.state.speed,
             tab: app.effectTab,
@@ -212,5 +213,6 @@ export function createDesignWorkspace(app) {
         });
     }
 
-    return { selectedSceneLayer, updateLayerGuide, previewDesign, renderDesignPanel, renderEffects };
+    return { hasPendingInput: () => pendingInput?.() === true,
+        selectedSceneLayer, updateLayerGuide, previewDesign, renderDesignPanel, renderEffects };
 }

@@ -1,5 +1,6 @@
 // Product-owned diagnostics and progress. Project-authored text is never translated.
 const entries = [
+  ["errors.designDraftConflict","입력 중인 디자인·카드 변경을 확정하거나 원래 값으로 되돌리고 입력 조합을 마친 뒤 다시 시도하세요.","Commit the current design or card input, or restore its original value and finish composition, then retry.","请确认当前设计或卡片输入，或恢复原值并结束输入法组字后重试。"],
   ["errors.trimDraftConflict","화면 패널의 자르기 범위를 적용하거나 원래 값으로 되돌리고 입력 조합을 마친 뒤 다시 시도하세요.","Apply the trim range in the Frame panel or restore its original values, and finish composition before retrying.","请应用画面面板中的裁剪范围或恢复原值，并结束输入法组字后重试。"],
   ["errors.projectNameDraftConflict","프로젝트 이름 입력을 확정하거나 원래 값으로 되돌린 뒤 다시 시도하세요.","Finish the project name edit or restore its original value, then retry.","请确认项目名称修改或恢复原值后重试。"],
   ["errors.captionDraftConflict","아직 반영하지 않은 자막 입력이 있습니다. 입력을 확정하거나 원래 값으로 되돌린 뒤 다시 시도하세요.","There are pending caption edits. Commit them or restore their original values, then retry.","有尚未提交的字幕编辑。请确认修改或恢复原值后重试。"],

@@ -34,6 +34,7 @@ export function createInputHistory(snapshot, blocked = () => false) {
         };
       }
     }
+    return () => composing;
   }
   return {bind, reset};
 }

@@ -460,6 +460,8 @@ Generated arguments can be piped as one JSON object with [`--args-file -`](INTEG
 | Connect an AI client | Local stdio MCP server: `node cli/mcp.mjs` | [Client setup, tools, errors and recovery](docs/MCP.md) |
 | Integrate with your own code | Same-page `window.moment` or the reusable service/adapter | `node examples/use-editor-service.mjs` |
 
+**Design/card drafts:** this same-page guard also covers text in **Title → Title / Dialogue / Credit**, Title/Credit timing, and text/timing in **Effects → Timed cards**. Finish the field edit or restore its original value and end composition, then re-read and retry. Ordinary committed typing stays allowed. These times are output seconds after speed; a blank Title/Credit end still means until the end. Sliders, colors and Motion · Color are not included.
+
 **Unapplied trim range:** the same guard covers start/end drafts and active composition in the **Frame** panel. Use **Apply range**, or restore both original values and finish composition, before re-reading and retrying. Source-second precision is unchanged; untouched or numerically equivalent values are not drafts. This does not extend to every numeric input.
 
 **Project-name drafts:** `window.moment.execute` also returns `CONFLICT` while the header name has an uncommitted value or active composition. Finish/commit the name edit or restore its original value and end composition, then re-read and retry. The name is not silently committed or discarded; explicit local replacements keep their existing behavior.

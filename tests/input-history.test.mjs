@@ -119,3 +119,14 @@ test('current callback defaults and explicit reset preserve normal history bound
   input.value='Two';input.oninput();edits.reset();input.value='Three';input.oninput();assert.equal(snapshots,3);assert.equal(value,'Three');
  }
 });
+
+
+test('composition query is read-only and independent of history reset',()=>{
+ let value='Original',snapshots=0,current=true;const input={type:'text',value};
+ const edits=createInputHistory(()=>{snapshots++;edits.reset();});
+ const composing=edits.bind(input,()=>value,next=>value=next,()=>current);
+ assert.equal(composing(),false);input.oncompositionstart();assert.equal(composing(),true);
+ edits.reset();assert.equal(composing(),true);assert.equal(snapshots,0);
+ input.value='Final';input.oncompositionend();assert.equal(composing(),false);assert.equal(value,'Final');assert.equal(snapshots,1);
+ current=false;input.oncompositionstart();assert.equal(composing(),false);assert.equal(snapshots,1);
+});

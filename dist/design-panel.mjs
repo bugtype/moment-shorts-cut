@@ -15,6 +15,7 @@ const renderOwners = new WeakMap();
 
 export function mountDesignPanel(root, api) {
   const owner = {};
+  const pending = [];
   renderOwners.set(root, owner);
   const { state, layer, total } = api;
   const d = state.design;
@@ -205,6 +206,7 @@ export function mountDesignPanel(root, api) {
   ));
   root.querySelectorAll('[data-design]').forEach(input => {
     const path = input.dataset.design;
+    const read = () => path.split('.').reduce((item, key) => item[key], state);
     const continuous = ['text', 'range', 'color'].includes(input.type);
     const current = () => renderOwners.get(root) === owner && api.current?.() !== false &&
       api.inputCurrent?.() !== false && state.design === d && d[layer] === designLayer &&
@@ -239,11 +241,33 @@ export function mountDesignPanel(root, api) {
       const output = root.querySelector(`[data-output="${path}"]`);
       if (output) output.textContent = input.value + (input.dataset.unit || '');
     };
-    if (continuous) api.input(input, () => {
-      const value = path.split('.').reduce((item, key) => item[key], state);
+    let composing;
+    if (continuous) composing = api.input(input, () => {
+      const value = read();
       return input.dataset.unit === '%' ? Math.round(value * 100) : value;
     }, update, current);
-    else input.onchange = update;
+    else {
+      input.onchange = update;
+      if (input.type === 'number') {
+        let active = false;
+        input.oncompositionstart = () => { if (current()) active = true; };
+        input.oncompositionend = () => { if (current()) active = false; };
+        composing = () => active;
+      }
+    }
+    if (['text', 'number'].includes(input.type)) {
+      const initial = read(), displayed = input.value;
+      pending.push(() => {
+        if (!current()) return false;
+        const value = read(), numeric = input.type === 'number';
+        const nullable = path.endsWith('.end') && value == null;
+        if (composing?.() || (numeric && (input.validity?.badInput || (input.value === '' && !nullable)))) return true;
+        if (value === initial && input.value === displayed) return false;
+        if (numeric) return !(input.value === '' && nullable) &&
+          (!Number.isFinite(input.valueAsNumber) || input.valueAsNumber !== value);
+        return input.value !== value;
+      });
+    }
   });
 
   const timedButton = root.querySelector('#editTimedTitle');
@@ -254,4 +278,5 @@ export function mountDesignPanel(root, api) {
   const screen = root.querySelector('#openScreenEditor');
   if (captions) captions.onclick = () => api.navigate('captions');
   if (screen) screen.onclick = () => api.navigate('settings');
+  return () => pending.some(check => check());
 }

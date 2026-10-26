@@ -555,6 +555,8 @@ window.moment = Object.freeze({
                 throw new CommandError('CONFLICT', message('errors.projectNameDraftConflict'));
             if (workspacePanels.hasPendingTrim())
                 throw new CommandError('CONFLICT', message('errors.trimDraftConflict'));
+            if (designWorkspace.hasPendingInput())
+                throw new CommandError('CONFLICT', message('errors.designDraftConflict'));
             return beforeCommit?.();
         });
     },

@@ -53,8 +53,8 @@ re-read before retrying. It does not blur, commit or discard the name for the us
 Untouched single-line CR/LF-normalized display values are not mistaken for drafts.
 Status refreshes retain the input/composition; true project/input replacement
 resets ownership. The read/preview/no-op, caller-hook and explicit local/file/Undo
-boundaries below are unchanged. Other title/card numeric drafts are not
-covered, and synthetic event tests are not native IME verification.
+boundaries below are unchanged. The design/card extension below has its own field scope; synthetic event tests
+are not native IME verification.
 
 ## Live browser trim drafts
 
@@ -66,8 +66,28 @@ source seconds, not output seconds. Untouched displays and exactly equivalent
 numeric spellings are clean; no rounding tolerance or implicit Apply is used.
 The existing trim binder owns only its current controls and selected occurrence.
 Explicit selection/panel/local replacement does not carry old drafts forward.
-The separate persistent inspector trim behavior is unchanged. Other numeric
-fields are not covered; the API/file/local/Undo boundaries below still apply.
+The separate persistent inspector trim behavior is unchanged. This is not a universal numeric-input guard; design/card fields have their own
+check below. The API/file/local/Undo boundaries below still apply.
+
+## Live browser design and card drafts
+
+The same-page API commit guard also covers **Title** (internal `text` panel):
+Title/Dialogue/Credit text, including Dialogue global keywords and speaker labels,
+and Title/Credit start/end; plus **Effects → Timed cards** label/text/detail and
+start/end. Changed uncommitted values or active composition return `CONFLICT`,
+including unchanged values while composition is active. Finish/commit the field
+edit, or restore the original value and end composition, then re-read before
+retrying. Ordinary oninput-committed text is not a pending draft.
+
+These timings are **output seconds after speed**, unlike Frame trim. A blank
+Title/Credit end remains null/until-end; required starts and card ends cannot use
+that exception. Invalid numeric input is not mistaken for an unchanged blank.
+Untouched native-normalized text and exact numeric equivalents stay clean without
+rewriting authored text or reducing precision. Sliders, colors and Motion · Color
+are not included. No blur, auto-commit, auto-save or automatic retry is added.
+Current ownership does not follow a replaced control or a different card merely
+because its ID is reused. Explicit local actions and the API boundaries below
+remain unchanged; this does not guarantee native IME/event ordering.
 
 ## Live browser caption drafts
 

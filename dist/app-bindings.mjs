@@ -187,6 +187,7 @@ export function bindUi(app) {
         if (!clip)
             return;
         app.pause();
+        const selectionChanged = app.selected !== +clip.dataset.clip;
         app.selected = +clip.dataset.clip;
         const current = app.state.clips[app.selected], rect = clip.getBoundingClientRect();
         const offset = app.state.clips.slice(0, app.selected).reduce((sum, item) => sum + item.end - item.start, 0);
@@ -195,7 +196,7 @@ export function bindUi(app) {
         app.renderInspector();
         app.renderTimeline();
         app.openInspector('clip');
-        if (app.panel === 'settings')
+        if (app.panel === 'settings' && selectionChanged)
             app.renderPanel();
     };
     $('#ruler').onclick = event => {

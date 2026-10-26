@@ -411,7 +411,7 @@ function commitCommandProject(next, { command } = {}) {
             throw new CommandError('INVALID_ARGUMENT', message('errors.clipRange'), `project.clips[${index}]`);
     }
     // Non-timeline commands clone clips without changing the trim draft's target.
-    const preserveTrim = ['project.update', 'effects.update', 'overlays.update', 'overlays.move', 'overlays.add', 'overlays.remove', 'title.update', 'credit.update', 'captions.replace', 'captions.append', 'captions.update', 'captions.insert', 'captions.remove', 'captions.merge', 'captions.split', 'captions.import', 'captions.timing.shift', 'captions.text.replace', 'captions.style.update', 'captions.speaker.assign'].includes(command) && inspectorView.hasTrimTarget(state.clips[selected]);
+    const preserveTrim = ['project.update', 'effects.update', 'overlays.update', 'overlays.move', 'overlays.add', 'overlays.remove', 'title.update', 'credit.update', 'captions.replace', 'captions.append', 'captions.update', 'captions.insert', 'captions.remove', 'captions.merge', 'captions.split', 'captions.split.long', 'captions.import', 'captions.timing.shift', 'captions.text.replace', 'captions.style.update', 'captions.speaker.assign'].includes(command) && inspectorView.hasTrimTarget(state.clips[selected]);
     pause();
     snapshot();
     state = next;

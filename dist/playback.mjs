@@ -167,7 +167,7 @@ export function createPlayback(app, {
         try {
             if (!owns()) { stale(); return; }
             if (app.current >= app.duration() - .03) seekTo(0, !!automatic);
-            if (stopForAudioError()) return;
+            if (stopForVideoError() || stopForAudioError()) return;
             await app.ensureAudio();
             if (!owns()) { stale(); return; }
             if (app.mediaBlocked()) {
@@ -175,6 +175,7 @@ export function createPlayback(app, {
                 else pause();
                 return;
             }
+            if (stopForVideoError()) return;
             if (app.state.kind === 'video') {
                 const pos = app.locate(app.current);
                 if (Math.abs(app.video.currentTime - pos.source) > .08 || (automatic && app.video.seeking))
@@ -185,6 +186,7 @@ export function createPlayback(app, {
                     else pause();
                     return;
                 }
+                if (stopForVideoError()) return;
                 app.video.playbackRate = app.state.speed;
                 await app.video.play();
             }
@@ -194,7 +196,7 @@ export function createPlayback(app, {
                 else pause();
                 return;
             }
-            if (stopForAudioError()) return;
+            if (stopForVideoError() || stopForAudioError()) return;
             pendingRestart = null;
             app.playing = true;
             app.lastTick = clock();
@@ -230,13 +232,18 @@ export function createPlayback(app, {
     }
 
     function handleVideoError() {
-        if (!app.playing || app.state.kind !== 'video' || !app.video.error)
-            return;
+        if (app.playing) stopForVideoError();
+    }
+
+    function stopForVideoError() {
+        if (app.state.kind !== 'video' || !app.video.error)
+            return false;
         if (app.exporting)
             app.stopExport(true);
         else
             pause();
         app.toast(message('shell.playError'));
+        return true;
     }
 
     function tick(now) {

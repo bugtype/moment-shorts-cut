@@ -197,6 +197,16 @@ export function createPlayback(app, {
         setAttr(app.query('#playButton'), 'aria-label', 'shell.play');
     }
 
+    function handleVideoError() {
+        if (!app.playing || app.state.kind !== 'video' || !app.video.error)
+            return;
+        if (app.exporting)
+            app.stopExport(true);
+        else
+            pause();
+        app.toast(message('shell.playError'));
+    }
+
     function tick(now) {
         app.frameHandle = 0;
         if (!app.playing)
@@ -302,7 +312,7 @@ export function createPlayback(app, {
 
     return {
         paint, draw, requestDraw, ensureAudio, applyVolumes, syncAudio, seekTo,
-        play, pause, tick, seekVideo, resizePreview,
+        play, pause, handleVideoError, tick, seekVideo, resizePreview,
         get destination() { return destination; },
         get loopPreview() { return loopPreview; }, setLoopPreview,
     };

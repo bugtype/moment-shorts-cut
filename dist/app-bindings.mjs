@@ -288,4 +288,5 @@ export function bindUi(app) {
         }
     });
     app.video.addEventListener('seeked', app.requestDraw);
+    app.video.addEventListener('error', () => app.playback.handleVideoError());
 }

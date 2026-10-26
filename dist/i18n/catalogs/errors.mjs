@@ -138,6 +138,7 @@ const entries = [
   ["errors.storedVideoOpen","저장된 영상을 열 수 없습니다","The stored video could not be opened","无法打开已保存的视频"],
   ["errors.storedAudioMissing","저장된 오디오 파일을 찾을 수 없습니다","The stored audio file was not found","找不到已保存的音频文件"],
   ["errors.storedAudioOpen","저장된 오디오를 열 수 없습니다","The stored audio could not be opened","无法打开已保存的音频"],
+  ["errors.storedMediaMismatch","저장된 미디어가 프로젝트 설정과 일치하지 않습니다","The stored media does not match the project settings","已保存的媒体与项目设置不匹配"],
   ["errors.restoring","프로젝트를 불러오는 중…","Loading project…","正在加载项目…"],
   ["errors.saving","저장 중…","Saving…","正在保存…"],
   ["errors.saved","이 브라우저에 저장됨","Saved in this browser","已保存到此浏览器"],

@@ -56,12 +56,25 @@ export function createMediaSources({ video, audio }, {
             stage(msg('errors.storedVideoMissing'));
             if (!sources.videoFile)
                 throw new Error('Missing video');
-            stage(msg('errors.storedVideoOpen'));
-            await sources.setVideoFile(sources.videoFile);
         }
         if (project.audioName && !sources.audioFile) {
             stage(msg('errors.storedAudioMissing'));
             throw new Error('Missing audio');
+        }
+        // Media and settings use separate stores; a partial save can leave different projects.
+        if ((project.kind === 'video' ? sources.videoFile.name !== project.fileName : sources.videoFile) ||
+            (project.audioName ? sources.audioFile.name !== project.audioName : sources.audioFile)) {
+            stage(msg('errors.storedMediaMismatch'));
+            throw new Error('Stored media does not match saved settings');
+        }
+        if (project.kind === 'video') {
+            stage(msg('errors.storedVideoOpen'));
+            await sources.setVideoFile(sources.videoFile);
+            // Imported metadata can differ; every authored cut still needs actual source media.
+            if (project.clips.some(clip => clip.end > video.duration)) {
+                stage(msg('errors.storedMediaMismatch'));
+                throw new Error('Stored video duration does not match saved settings');
+            }
         }
         if (sources.audioFile) {
             const message = msg('errors.storedAudioOpen');

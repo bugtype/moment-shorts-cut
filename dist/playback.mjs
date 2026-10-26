@@ -140,7 +140,7 @@ export function createPlayback(app, {
     }
 
     async function play(automatic = null) {
-        if (app.mediaBlocked() || app.playing)
+        if (app.loadingMedia || app.mediaBlocked() || app.playing)
             return;
         if (!automatic) pendingRestart = null; // A manual Play now owns its own async request.
         const request = ++app.playRequest;

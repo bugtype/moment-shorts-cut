@@ -125,7 +125,10 @@ export function parseSubtitlesWithReport(text, duration) {
     // Remove structural/boundary blank lines, not spacing on nonblank text lines.
     // Markup-only wrapping lines retain their existing normalization. Check empty
     // payloads before decoding so an explicit &nbsp; keeps its existing meaning.
-    const lines = match[9].replace(/<[^>]*>/g, '').split('\n');
+    // Consume an unclosed tail once but retain it literally, instead of retrying
+    // the tag scan at every remaining '<' before the cue-length check.
+    const lines = match[9].replace(/<[^>]*(?:>|$)/g,
+      tag => tag.endsWith('>') ? '' : tag).split('\n');
     let first = 0, last = lines.length;
     while (first < last && !lines[first].trim()) first++;
     while (last > first && !lines[last - 1].trim()) last--;

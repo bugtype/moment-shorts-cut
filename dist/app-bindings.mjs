@@ -282,7 +282,7 @@ export function bindUi(app) {
         }
     });
     app.window.addEventListener('beforeunload', event => {
-        if (app.exporting || app.audioRecording.current || (app.persistence.restorePhase === 'failed' && JSON.stringify(app.state) !== app.persistence.recoveryBaseline)) {
+        if (app.exporting || app.audioRecording.current || app.persistence.hasUnsavedChanges()) {
             event.preventDefault();
             event.returnValue = true;
         }

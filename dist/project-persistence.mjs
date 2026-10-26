@@ -8,13 +8,13 @@ export function createProjectPersistence({ store, sources, getProject, replacePr
     setTimer = (callback, delay) => setTimeout(callback, delay),
     clearTimer = timer => clearTimeout(timer),
 } = {}) {
-    let restoreNotice = msg('errors.restoring');
+    let restoreNotice = msg('errors.restoring'), savedSettings;
     const persistence = {
         restorePhase: 'restoring',
         get restoreMessage() { return formatError(restoreNotice); },
         set restoreMessage(value) { restoreNotice = value; },
         recoveryValid: false, recoveryBaseline: '', saveTimer: undefined, pendingSave: Promise.resolve(),
-        recoveryBlocked, settingsUnavailable, scheduleSave, saveProject, persistMedia, restore,
+        recoveryBlocked, settingsUnavailable, hasUnsavedChanges, scheduleSave, saveProject, persistMedia, restore,
     };
     function recoveryBlocked(show = true) {
         if (persistence.restorePhase === 'ready')
@@ -29,6 +29,13 @@ export function createProjectPersistence({ store, sources, getProject, replacePr
             return false;
         recoveryBlocked();
         return true;
+    }
+    function hasUnsavedChanges() {
+        if (persistence.restorePhase === 'failed')
+            return JSON.stringify(getProject()) !== persistence.recoveryBaseline;
+        return persistence.restorePhase === 'ready' &&
+            (JSON.stringify(getProject()) !== savedSettings ||
+                store.hasStoredMedia?.(sources.videoFile, sources.audioFile) === false);
     }
     function scheduleSave() {
         clearTimer(persistence.saveTimer);
@@ -51,7 +58,10 @@ export function createProjectPersistence({ store, sources, getProject, replacePr
                 if (recoveryBlocked(show))
                     return;
             } while (saving !== persistence.pendingSave);
-            writeSettings('moment-state-v1', JSON.stringify(getProject()));
+            const settings = JSON.stringify(getProject());
+            writeSettings('moment-state-v1', settings);
+            // Remember the exact successful write, not a later in-memory edit.
+            savedSettings = settings;
             // Keep metadata autosave, but never repopulate invalidated media implicitly.
             if (store.hasStoredMedia?.(sources.videoFile, sources.audioFile) === false) {
                 saveStatus(msg('errors.checkStorage'), false);
@@ -100,6 +110,7 @@ export function createProjectPersistence({ store, sources, getProject, replacePr
                 replaceProject(recovered);
                 await sources.restore(getProject(), key => store.get(key), message => { cause = message; });
             }
+            savedSettings = JSON.stringify(getProject());
             persistence.restorePhase = 'ready';
             saveStatus(raw === null ? msg('errors.saveInBrowser') : msg('errors.projectRestored'));
         }

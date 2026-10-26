@@ -18,6 +18,7 @@ export function mountDesignPanel(root, api) {
   renderOwners.set(root, owner);
   const { state, layer, total } = api;
   const d = state.design;
+  const designLayer = d[layer];
   const timed = activeSceneLayers(state, api.time || 0)
     .find(card => (card.role || 'headline') === 'headline');
   const check = (label, path, value) => (
@@ -205,7 +206,11 @@ export function mountDesignPanel(root, api) {
   root.querySelectorAll('[data-design]').forEach(input => {
     const path = input.dataset.design;
     const continuous = ['text', 'range', 'color'].includes(input.type);
+    const current = () => renderOwners.get(root) === owner && api.current?.() !== false &&
+      api.inputCurrent?.() !== false && state.design === d && d[layer] === designLayer &&
+      input.isConnected !== false && [...root.querySelectorAll('[data-design]')].includes(input);
     const update = () => {
+      if (!current()) return;
       let value = input.type === 'checkbox' ? input.checked
         : ['number', 'range'].includes(input.type) ? (input.value === '' ? null : Number(input.value))
         : input.value;
@@ -237,7 +242,7 @@ export function mountDesignPanel(root, api) {
     if (continuous) api.input(input, () => {
       const value = path.split('.').reduce((item, key) => item[key], state);
       return input.dataset.unit === '%' ? Math.round(value * 100) : value;
-    }, update);
+    }, update, current);
     else input.onchange = update;
   });
 

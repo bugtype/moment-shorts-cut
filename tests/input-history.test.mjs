@@ -97,3 +97,25 @@ test('an unchanged native color fallback does not overwrite an authored alpha co
   f.input.value='#334455';f.input.oninput();
   assert.equal(f.value,'#334455');assert.deepEqual(f.history,['#11223344']);
 });
+
+
+test('optional current owner refuses stale applies and event resets before snapshots',()=>{
+ for(const type of ['text','range','color'])for(const event of ['onchange','onblur','onpointercancel']) {
+  let oldCurrent=true,value='Original',snapshots=0;
+  const edits=createInputHistory(()=>snapshots++),old={type,value:type==='range'?'1':type==='color'?'#111111':'Original'};
+  edits.bind(old,()=>type==='range'?1:value,()=>{throw Error('stale update');},()=>oldCurrent);
+  const current={type:'text',value:'Original'};edits.bind(current,()=>value,next=>value=next);
+  oldCurrent=false;current.value='First';current.oninput();
+  if(old[event])old[event]();else old.oninput();
+  current.value='Second';current.oninput();assert.equal(snapshots,1,`${type}/${event}`);assert.equal(value,'Second');
+ }
+});
+
+test('current callback defaults and explicit reset preserve normal history boundaries',()=>{
+ for(const current of [undefined,null,()=>true]) {
+  let value='Original',snapshots=0;const input={type:'text',value};const edits=createInputHistory(()=>snapshots++);
+  edits.bind(input,()=>value,next=>value=next,current);
+  input.oncompositionstart();input.value='One';input.oncompositionend();input.onchange();input.onblur();assert.equal(snapshots,1);
+  input.value='Two';input.oninput();edits.reset();input.value='Three';input.oninput();assert.equal(snapshots,3);assert.equal(value,'Three');
+ }
+});

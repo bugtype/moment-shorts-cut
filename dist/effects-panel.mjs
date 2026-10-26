@@ -268,7 +268,12 @@ export function mountEffectsPanel(root, api) {
       target.querySelector('#previewSceneCard').onclick = () => api.play(card.start);
       target.querySelectorAll('[data-card]').forEach(input => {
         const continuous = ['text', 'range', 'color', 'textarea'].includes(input.type);
+        const current = () => renderOwners.get(root) === owner && root.querySelector('#effectControls') === target &&
+          api.current?.() !== false && api.inputCurrent?.() !== false &&
+          state.overlays.find(item => item.id === card.id) === card && input.isConnected !== false &&
+          [...target.querySelectorAll('[data-card]')].includes(input);
         const update = () => {
+          if (!current()) return;
           const key = input.dataset.card;
           const value = input.type === 'checkbox' ? input.checked
             : ['range', 'number'].includes(input.type) ? Number(input.value) : input.value;
@@ -301,7 +306,7 @@ export function mountEffectsPanel(root, api) {
           const output = target.querySelector(`[data-card-output="${key}"]`);
           if (output) output.textContent = input.value;
         };
-        if (continuous) api.input(input, () => card[input.dataset.card], update);
+        if (continuous) api.input(input, () => card[input.dataset.card], update, current);
         else input.onchange = update;
       });
     }

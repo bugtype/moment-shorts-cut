@@ -2,11 +2,13 @@
 export function createInputHistory(snapshot, blocked = () => false) {
   let active = null;
   const reset = () => { active = null; };
-  function bind(input, read, update) {
+  function bind(input, read, update, current = null) {
     const range = input.type === 'range', color = input.type === 'color';
     let composing = false, colorValue = input.value;
+    // A detached control must not write or reset a newer control's undo group.
+    const resetInput = () => { if (current?.() !== false) reset(); };
     const apply = event => {
-      if (blocked() || composing || event?.isComposing) return;
+      if (current?.() === false || blocked() || composing || event?.isComposing) return;
       const value = range ? Number(input.value) : input.value;
       const previous = color ? colorValue.toLowerCase() : read();
       if ((range && !Number.isFinite(value)) || value === previous) return;
@@ -19,14 +21,17 @@ export function createInputHistory(snapshot, blocked = () => false) {
     };
     input.oninput = apply;
     if (range) {
-      input.onpointerdown = input.onpointerup = input.onpointercancel = input.onblur = reset;
+      input.onpointerdown = input.onpointerup = input.onpointercancel = input.onblur = resetInput;
     } else {
-      input.onchange = () => { apply(); reset(); };
-      input.onblur = reset;
-      if (color) input.onclick = reset;
+      input.onchange = () => { apply(); resetInput(); };
+      input.onblur = resetInput;
+      if (color) input.onclick = resetInput;
       else {
-        input.oncompositionstart = () => { composing = true; };
-        input.oncompositionend = () => { composing = false; apply(); };
+        input.oncompositionstart = () => { if (current?.() !== false) composing = true; };
+        input.oncompositionend = () => {
+          if (current?.() === false) return;
+          composing = false; apply();
+        };
       }
     }
   }

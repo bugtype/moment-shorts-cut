@@ -68,6 +68,7 @@ export function createDesignWorkspace(app) {
             layer: app.textLayer,
             clearKeywords: () => keywords.open(),
             current: () => app.panel === 'text' && app.state === project,
+            inputCurrent: () => app.textLayer === layer,
             tabCurrent: () => !app.modal.open,
             position: () => { if (app.panel === 'text' && app.state === project && app.textLayer === layer) position.open(layer); },
             time: app.current / app.state.speed,
@@ -103,6 +104,8 @@ export function createDesignWorkspace(app) {
 
     function renderEffects(target) {
         const project = app.state;
+        const tab = app.effectTab;
+        const selected = project.overlays.find(card => card.id === app.selectedCard) || project.overlays[0];
         const duplicateCurrent = id => app.panel === 'effects' && app.effectTab === 'cards' &&
             app.state === project && (app.selectedCard || project.overlays[0]?.id) === id && !app.modal.open;
         mountEffectsPanel(target, {
@@ -111,6 +114,8 @@ export function createDesignWorkspace(app) {
             tab: app.effectTab,
             selected: app.selectedCard,
             current: () => app.panel === 'effects' && app.state === project,
+            inputCurrent: () => app.effectTab === tab &&
+                (tab !== 'cards' || (app.state.overlays.find(card => card.id === app.selectedCard) || app.state.overlays[0]) === selected),
             tabCurrent: () => !app.modal.open,
             position: id => { if (app.panel === 'effects' && app.effectTab === 'cards' && app.state === project && (app.selectedCard || app.state.overlays[0]?.id) === id) position.open('card', id); },
             moveTime: id => { if (app.state === project && (app.selectedCard || app.state.overlays[0]?.id) === id) cardTiming.open(id); },

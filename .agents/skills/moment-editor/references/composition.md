@@ -206,7 +206,10 @@ units before trimming and must remain nonblank. Save result `data` as the existi
 
 It captures visual style, title/credit/card content and relative output timing,
 not dialogue captions, clips or media. Existing capture clips cards to the output
-range, drops outside cards and orders by start; null title/credit ends remain null.
+range and drops outside cards, preserving the remaining authored array order for
+stacking and headline priority; null title/credit ends remain null. New captures
+no longer sort by start time. Existing saved/exported templates keep their stored
+order and are not rewritten or reinterpreted.
 Review text, global keywords and speaker labels before sharing. No project/library
 write, history or batch operation occurs. A template is not a project backup.
 Use `template.apply.document` to apply it, not `project.import`.

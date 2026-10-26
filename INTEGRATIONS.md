@@ -1668,8 +1668,12 @@ JS
 | `name` | 필수, 다듬기 전 최대 40 UTF-16 코드 단위; 양 끝 공백 제거 후 빈 이름 거절, 자동 자르기 없음 |
 | 반환 문서 | `{format:"moment-template",formatVersion:1,template}`; 기존 형식·버전 사용 |
 | 내용 | 시각 설정·제목·크레딧·카드·전역 강조어·화자 이름/색상; 대사 자막·클립 목록·미디어 제외 |
-| 시간 | 기존 캡처 규칙으로 출력 길이에 상대화; 카드 범위 자르기·범위 밖 제외·시작 시간순 정렬, 제목/크레딧 null 끝점 유지 |
+| 시간·쌓임 | 출력 길이에 상대화; 카드 범위 자르기·범위 밖 제외, 남은 카드의 작성 배열 순서와 제목/크레딧 null 끝점 유지 |
 | 한도·실패 | 들여쓴 UTF-8 JSON 최대 256 KiB; 잘못된 인수·템플릿 검증은 `INVALID_ARGUMENT` |
+
+새 캡처는 시작 시간순으로 정렬하지 않습니다. 배열 순서가 겹친 카드의 쌓임과
+마지막 활성 헤드라인의 우선순위를 결정하므로, 현재 구성을 그대로 재사용하기
+위해 유지합니다. 기존 저장·내보내기 파일의 순서는 다시 해석하거나 수정하지 않습니다.
 
 ```sh
 node cli/moment.mjs exec template.export --project project.json --json '{"id":"custom-my-style","name":"My style"}' --out my-style.moment-template.json

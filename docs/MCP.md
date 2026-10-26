@@ -663,8 +663,11 @@ the MCP envelope. The existing `moment_template_apply_document` can apply it lat
 
 Timing follows existing custom-template capture rules: title/credit times become
 relative to output duration (null ends stay null); cards intersecting the output
-range are clipped, outside cards are omitted, remaining cards are sorted by start
-and normalized. This is not a byte-for-byte archive of the card array. Review saved
+range are clipped, outside cards are omitted, and remaining card times are
+normalized without changing their authored array order. This preserves card
+stacking and the last active headline's priority. New captures no longer sort by
+start time; existing saved/exported documents keep their stored order, without
+migration or reinterpretation. This is not a byte-for-byte archive of the card array. Review saved
 text before sharing. The tool neither persists a browser template nor adds history;
 it is read-only and excluded from `project.batch`.
 

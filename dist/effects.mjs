@@ -123,7 +123,7 @@ export function migrateSceneLayers(project) {
 
 export function projectStructure(project) {
   const seconds = project.clips.reduce((sum, clip) => sum + clip.end - clip.start, 0) / project.speed;
+  // Array order owns card stacking and headline priority, not start time.
   return (project.overlays || []).filter(card => card.end > 0 && card.start < seconds)
-    .map(card => ({ ...card, start: clamp(card.start, 0, seconds), end: clamp(card.end, 0, seconds) }))
-    .sort((a, b) => a.start - b.start);
+    .map(card => ({ ...card, start: clamp(card.start, 0, seconds), end: clamp(card.end, 0, seconds) }));
 }

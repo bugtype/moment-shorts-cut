@@ -149,6 +149,12 @@ with a new ID; it does not replace a saved template, change favorites or apply
 the template to the current project. Preview it, then choose style-only or
 example-content application as usual.
 
+New saves, updates from the current composition and `template.export` preserve
+the captured cards' stacking order, rather than sorting by start time. This keeps
+overlapping card order and the last active headline's priority. Output-range
+clipping and relative timing are unchanged; existing saved/exported templates
+keep their stored order and are not automatically repaired or rewritten.
+
 **Move several saved templates together:** choose **Export my template collection** in the gallery, then use the existing import action in another browser.
 
 - **Add copies:** fresh IDs under **My templates**, no overwrite or automatic application. An empty collection adds nothing.

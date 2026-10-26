@@ -23,16 +23,16 @@ test('capture returns a detached deterministic portable document with exact call
  a.data.template.settings.design.title.lines[0]='changed';a.data.template.cards[0].text='changed';assert.deepEqual(p,before);assert.deepEqual(capture(p),b);
  assert.equal(saveCustomTemplate('Old UI',p).name,'Old UI');assert.ok(saveCustomTemplate('Old UI',p).id.startsWith('custom-'));
 });
-test('capture preserves existing relative timing, range clipping and stable card start order',()=>{
+test('capture preserves relative timing, range clipping and authored card stack order',()=>{
  const p=project(),doc=capture(p).data,t=doc.template;
  assert.equal(t.settings.design.title.start,1/6);assert.equal(t.settings.design.title.end,5/6);assert.equal(t.settings.design.credit.start,2/6);assert.equal(t.settings.design.credit.end,null);
- assert.deepEqual(t.cards.map(c=>[c.id,c.start,c.end]),[['early',1/6,2/6],['late',4/6,1]]);
+ assert.deepEqual(t.cards.map(c=>[c.id,c.start,c.end]),[['late',4/6,1],['early',1/6,2/6]]);
  const target=createDemoProject();target.duration=24;target.clips=[{start:0,end:24}];target.design.title.lines=['Keep','Me'];target.design.credit.text='Keep credit';target.overlays=[{...newCard(24),id:'keep'}];
  for(const withContent of [false,true]){
   const result=prepareCommand(target,'template.apply.document',{document:doc,withContent}).project;
   assert.deepEqual(result.captions,target.captions);assert.deepEqual(result.clips,target.clips);assert.equal(result.design.title.start,4);assert.equal(result.design.title.end,20);assert.equal(result.design.credit.end,null);
   assert.deepEqual(result.design.title.lines,withContent?p.design.title.lines:target.design.title.lines);assert.equal(result.design.credit.text,withContent?'Channel':'Keep credit');
-  assert.deepEqual(result.overlays.map(c=>c.id),withContent?['early','late']:['keep']);
+  assert.deepEqual(result.overlays.map(c=>c.id),withContent?['late','early']:['keep']);
  }
 });
 test('valid out-of-duration text timing follows existing capture validation rather than silently claiming a complete backup',()=>{

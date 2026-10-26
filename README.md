@@ -460,6 +460,8 @@ Generated arguments can be piped as one JSON object with [`--args-file -`](INTEG
 | Connect an AI client | Local stdio MCP server: `node cli/mcp.mjs` | [Client setup, tools, errors and recovery](docs/MCP.md) |
 | Integrate with your own code | Same-page `window.moment` or the reusable service/adapter | `node examples/use-editor-service.mjs` |
 
+**Live caption drafts:** same-page `window.moment.execute` returns `CONFLICT` before a project commit while the open caption panel has uncommitted row edits or an active composition. Finish/commit the edit or restore its original value, then re-read and retry; the API does not blur, auto-save or discard the draft. Reads, previews and genuine no-op results remain available. This does not change CLI/MCP, explicit file import, local UI edits or Undo, and is not a guard for every editor input. [Exact boundary](INTEGRATIONS.md#브라우저와-파일-왕복)
+
 Run `node examples/use-mcp-client.mjs` for an executable handshake → import → edit → SRT → restart/reimport example. It launches local Node processes and keeps its exported document in memory; it does not write your files or connect to a browser.
 
 **Optional smaller MCP tool list:** [`--tools`](docs/MCP.md#choose-a-smaller-tool-list-optional) selects direct commands for one process; default remains all 41. Include import/get for document handoff; if get is omitted, selected `render.plan` can return the document in `data.project` (not the whole plan). This is not a security or read-only boundary: selected batch/preview retains its full nested command set.

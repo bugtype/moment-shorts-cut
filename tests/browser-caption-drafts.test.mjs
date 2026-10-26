@@ -1,0 +1,164 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import vm from 'node:vm';
+import { createAppFixture } from './fixtures/app.mjs';
+import { decimalTime } from '../dist/ui-format.mjs';
+import { initLocale, getLocale, t } from '../dist/i18n.mjs';
+
+// Model only panel descendant replacement and current input values, not native
+// focus/change ordering, IME, media decoding or the transcription model.
+async function fixture(locale = 'ko', caption = {start:0,end:1,text:'Original'}) {
+  const f = await createAppFixture();
+  initLocale({languages:[locale],storage:null,document:f.doc});
+  assert.equal(getLocale(),locale);assert.equal(f.doc.documentElement.lang,locale);
+  const panel = f.element('#panelContent');
+  const originalQuery = f.doc.querySelector, originalAll = f.doc.querySelectorAll;
+  let controls = new Map(), rows = [], markup = '', generation = 0;
+  const query = selector => controls.get(selector) || originalQuery(selector);
+  f.doc.querySelector = query;
+  f.doc.querySelectorAll = selector => {
+    const field = selector.match(/^\[data-caption-(text|start|end|keywords|speaker)\]$/)?.[1];
+    return field ? rows.map(row => row[field]) : originalAll(selector);
+  };
+  panel.querySelector = query;
+  Object.defineProperty(panel, 'innerHTML', { configurable: true, get: () => markup, set: value => {
+    markup = value; controls = new Map(); rows = []; generation++;
+    const node = key => f.element(`api-draft-${generation}-${key}`);
+    for (const [, id] of value.matchAll(/\bid="([\w-]+)"/g)) {
+      const el = node(id); el.id = id; controls.set('#' + id, el);
+    }
+    if (!controls.has('#captionRows')) return;
+    for (const [id, val] of Object.entries({ captionSource: 'video', language: 'korean', captionChunkSize: '18',
+      captionShiftDelta: '0', captionShiftBasis: 'source', captionPageNumber: '1' })) query('#' + id).value = val;
+    query('#captionCreate').open = /id="captionCreate" open/.test(value);
+    controls.set('#captionCreate summary', node('summary'));
+    query('#generateCaptions').innerHTML = value.match(/id="generateCaptions">(.*?)<\/button>/s)[1];
+    const captions = f.evaluate('state.captions');
+    for (const [, index] of value.matchAll(/data-caption-text="(\d+)"/g)) {
+      const row = {};
+      for (const field of ['text', 'start', 'end', 'keywords', 'speaker']) {
+        const el = node(`${field}-${index}`), caption = captions[index];
+        el.dataset['caption' + field[0].toUpperCase() + field.slice(1)] = index;
+        el.value = ['start', 'end'].includes(field) ? decimalTime(caption[field]) : String(caption[field] ?? '');
+        // HTML textarea parsing drops one initial LF; API values normalize CR,
+        // while single-line text inputs strip line breaks. No native DOM claim.
+        if (field === 'text') el.value = el.value.replace(/\r\n?/g, '\n').replace(/^\n/, '');
+        if (field === 'keywords') el.value = el.value.replace(/[\r\n]/g, '');
+        controls.set(`[data-caption-${field}="${index}"]`, el); row[field] = el;
+      }
+      rows.push(row);
+    }
+  }});
+  f.context.seedCaption = caption;
+  vm.runInContext("state.captions=[seedCaption]; switchPanel('captions'); history=[]; future=[];", f.context);
+  return {...f, query, panel};
+}
+const snapshot = f => f.evaluate('({state,history,future,current,selected})');
+const effect = {patch:{brightness:1.1}};
+
+for (const locale of ['ko','en','zh-CN']) {
+  test(`browser execute protects pending caption fields and composition (${locale})`, async () => {
+    try {
+      for (const [field,value] of [['text','Human draft'],['start','.2'],['end','.8'],['keywords','draft word'],['speaker','1'],['composition',null]]) {
+        const f=await fixture(locale), input=f.query(`[data-caption-${field==='composition'?'text':field}="0"]`);
+        input.focus();input.setSelectionRange(1,3);
+        if(field==='composition') f.panel.oncompositionstart();else input.value=value;
+        const before=snapshot(f),markup=f.panel.innerHTML;
+        const result=await f.context.window.moment.execute('effects.update',effect);
+        assert.equal(result.ok,false);assert.equal(result.error.code,'CONFLICT');
+        assert.equal(result.error.message,t('errors.captionDraftConflict'));
+        assert.deepEqual(snapshot(f),before);assert.equal(f.panel.innerHTML,markup);
+        assert.equal(f.query(`[data-caption-${field==='composition'?'text':field}="0"]`),input);
+        assert.equal(input.value,field==='composition'?'Original':value);
+        assert.equal(f.doc.activeElement,input);assert.equal(input.selectionStart,1);assert.equal(input.selectionEnd,3);
+      }
+    } finally {initLocale();}
+  });
+}
+
+test('queued commands detect later drafts; explicit human commit or restoring the value permits retry',async()=>{
+  const f=await fixture('en'), input=f.query('[data-caption-text="0"]');let hooks=0;
+  const pending=f.context.window.moment.execute('effects.update',effect,()=>hooks++);
+  input.value='Typed after submission';input.focus();
+  assert.equal((await pending).error.code,'CONFLICT');assert.equal(hooks,0);
+  assert.equal(f.evaluate('state.captions[0].text'),'Original');assert.equal(f.evaluate('history.length'),0);
+  input.onchange(); // Explicit user change remains outside the API guard.
+  assert.equal(f.evaluate('state.captions[0].text'),input.value);assert.equal(f.evaluate('history.length'),1);
+  assert.equal((await f.context.window.moment.execute('effects.update',effect,()=>hooks++)).ok,true);
+  assert.equal(hooks,1);assert.equal(f.evaluate('history.length'),2);
+  vm.runInContext('undo()',f.context);assert.equal(f.evaluate('state.captions[0].text'),'Typed after submission');
+  const next=f.query('[data-caption-text="0"]');next.value='Discard this draft';next.value='Typed after submission';
+  assert.equal((await f.context.window.moment.execute('effects.update',effect)).ok,true);
+});
+
+test('reads, previews and genuine no-op mutations retain drafts without invoking commit guards',async()=>{
+  const f=await fixture(),input=f.query('[data-caption-text="0"]');input.value='Human draft';
+  const noMatch={find:'absent',replacement:'unused'},operation={command:'effects.update',arguments:effect};
+  const before=snapshot(f);
+  for(const [name,args] of [
+    ['project.get',{}],['captions.list',{}],['captions.export',{}],
+    ['project.preview',{operations:[operation]}],
+    ['captions.text.replace',noMatch],
+    ['project.batch',{operations:[{command:'captions.text.replace',arguments:noMatch}]}],
+  ]) {
+    const result=await f.context.window.moment.execute(name,args,()=>{throw Error('must not run');});
+    assert.equal(result.ok,true,JSON.stringify(result));assert.deepEqual(snapshot(f),before);
+    assert.equal(f.query('[data-caption-text="0"]'),input);assert.equal(input.value,'Human draft');
+  }
+  // Equal-value updates still replace the project/UI, unlike genuine no-project results.
+  assert.equal((await f.context.window.moment.execute('effects.update',{patch:{brightness:1}})).error.code,'CONFLICT');
+});
+
+test('caption replacement, project import through execute and mixed batches reject atomically',async()=>{
+  for(const name of ['captions.update','project.import','project.batch']) {
+    const f=await fixture(),input=f.query('[data-caption-text="0"]');input.value='Human draft';
+    const args=name==='captions.update'?{captionIndex:0,patch:{text:'AI replacement'}}:
+      name==='project.import'?{document:f.evaluate('createProjectDocument(state)')}:
+      {operations:[{command:'effects.update',arguments:effect},{command:'captions.update',arguments:{captionIndex:0,patch:{text:'AI replacement'}}}]};
+    const before=snapshot(f),result=await f.context.window.moment.execute(name,args);
+    assert.equal(result.ok,false);assert.equal(result.error.code,'CONFLICT');assert.deepEqual(snapshot(f),before);
+    assert.equal(f.query('[data-caption-text="0"]'),input);assert.equal(input.value,'Human draft');
+  }
+});
+
+test('invalid commands and caller guard contracts retain their existing diagnostics',async()=>{
+  const f=await fixture(),before=snapshot(f);
+  assert.equal((await f.context.window.moment.execute('effects.update',effect,'invalid')).error.code,'INVALID_ARGUMENT');
+  assert.equal((await f.context.window.moment.execute('effects.update',effect,()=>Promise.resolve())).error.code,'INVALID_ARGUMENT');
+  const denied=await f.context.window.moment.execute('effects.update',effect,()=>{throw new f.context.CommandError('CONFLICT','Caller conflict');});
+  assert.equal(denied.error.code,'CONFLICT');assert.equal(denied.error.message,'Caller conflict');
+  f.query('[data-caption-text="0"]').value='Human draft';
+  const invalid=await f.context.window.moment.execute('effects.update',{patch:{brightness:9}});
+  assert.equal(invalid.error.code,'INVALID_ARGUMENT');assert.match(invalid.error.path,/brightness/);
+  assert.deepEqual(snapshot(f),before);
+});
+
+test('untouched HTML-normalized caption values and clean composition completion are not drafts',async()=>{
+  for(const caption of [
+    {start:0,end:1,text:'\nOriginal'}, {start:0,end:1,text:'First\r\nSecond',keywords:'one\ntwo'},
+  ]) {
+    const f=await fixture('en',caption),before=f.evaluate('state.captions');
+    f.panel.oncompositionstart();f.panel.oncompositionend();
+    assert.equal((await f.context.window.moment.execute('effects.update',effect)).ok,true);
+    assert.deepEqual(f.evaluate('state.captions'),before);
+  }
+});
+
+test('local commands, Undo, explicit file import and inactive caption panels keep existing replacement semantics',async()=>{
+  for(const action of ['local','undo','file','inactive']) {
+    const f=await fixture(),input=f.query('[data-caption-text="0"]');input.value='Human draft';
+    if(action==='local') assert.equal(vm.runInContext("runEditorCommand('captions.update',{captionIndex:0,patch:{text:'Local replacement'}})",f.context),true);
+    else if(action==='undo') {
+      vm.runInContext("snapshot();state.name='Changed';undo()",f.context);
+      assert.equal(f.evaluate('history.length'),0);
+    } else if(action==='file') {
+      const document=f.evaluate('createProjectDocument(state)');document.project.name='Explicit file';
+      assert.equal((await f.context.window.moment.importProject(new Blob([JSON.stringify(document)]))).ok,true);
+      assert.equal(f.evaluate('state.name'),'Explicit file');
+    } else {
+      vm.runInContext("switchPanel('effects')",f.context);
+      assert.equal((await f.context.window.moment.execute('effects.update',effect)).ok,true);
+    }
+    assert.notEqual(f.query('[data-caption-text="0"]'),input);
+  }
+});

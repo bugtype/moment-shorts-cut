@@ -439,6 +439,8 @@ node cli/moment.mjs commands
 | AI 클라이언트 연결 | 로컬 stdio MCP 서버: `node cli/mcp.mjs` | [연결·도구·오류·복구 안내](docs/MCP.md) |
 | 자체 코드에 연결 | 같은 페이지의 `window.moment` 또는 서비스/어댑터 | `node examples/use-editor-service.mjs` |
 
+**입력 중인 자막 보호:** 같은 페이지의 `window.moment.execute`는 열린 자막 패널에 아직 반영하지 않은 행 입력이나 조합 중인 입력이 있으면 프로젝트 커밋 전에 `CONFLICT`를 반환합니다. 입력을 확정하거나 원래 값으로 되돌린 뒤 현재 상태를 다시 읽고 재시도하세요. API가 초점을 옮기거나 입력을 자동 저장·폐기하지 않습니다. 읽기·미리보기·실제로 커밋하지 않는 결과는 계속 허용됩니다. CLI/MCP, 명시적인 파일 가져오기, 직접 UI 편집·실행 취소는 바뀌지 않으며 모든 편집기 입력을 보호하는 기능은 아닙니다. [정확한 범위](INTEGRATIONS.md#브라우저와-파일-왕복)
+
 `node examples/use-mcp-client.mjs`는 연결 → 가져오기 → 편집 → SRT → 재시작/재가져오기를 실행합니다. 로컬 Node 프로세스만 사용하고 결과 문서는 메모리에 보관합니다. 사용자 파일을 쓰거나 브라우저에 연결하지 않습니다.
 
 **선택적 MCP 도구 목록:** [`--tools`](docs/MCP.md#choose-a-smaller-tool-list-optional)로 프로세스의 직접 호출 목록을 고를 수 있으며 기본은 전체 41개입니다. 문서 왕복에는 import/get을 권장합니다. get 대신 선택한 `render.plan`의 `data.project`도 전체 문서이며, 계획 전체를 저장하는 것은 아닙니다. 보안·읽기 전용 경계가 아니며 선택한 batch/preview의 전체 중첩 명령은 유지됩니다.

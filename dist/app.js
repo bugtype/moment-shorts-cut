@@ -543,7 +543,17 @@ async function init() {
 window.moment = Object.freeze({
     apiVersion: 1,
     ready: editorReadyPromise,
-    execute: editorService.execute,
+    execute(name, args, beforeCommit) {
+        // Keep the service's validation of caller hooks; local UI/file replacements
+        // use their existing paths and do not implicitly commit or discard drafts here.
+        if (beforeCommit !== undefined && typeof beforeCommit !== 'function')
+            return editorService.execute(name, args, beforeCommit);
+        return editorService.execute(name, args, () => {
+            if (panel === 'captions' && captionWorkspace.hasPendingEdits())
+                throw new CommandError('CONFLICT', message('errors.captionDraftConflict'));
+            return beforeCommit?.();
+        });
+    },
     describe: editorService.describe,
     capabilities: editorService.capabilities,
     downloadProject: downloadProjectSettings,

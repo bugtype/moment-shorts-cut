@@ -44,6 +44,23 @@ draft before Guide opens—do not claim the whole interaction is mutation-free.
 This is browser navigation, not an MCP/API command. Code fixtures do not establish
 native compact-layout or assistive-technology behavior.
 
+## Live browser caption drafts
+
+Same-page `window.moment.execute` rejects a prepared project commit with `CONFLICT`
+while the open caption panel has pending text/timing/speaker/keyword edits or an
+active composition. This includes unrelated effect updates that rebuild the panel.
+It checks at commit time, including edits entered after submission; it neither
+blurs nor auto-commits/discards the draft. Ask the user to finish/commit the edit or
+restore its original value and finish composition, then re-read current state and
+indexes before retrying. `project.get` contains committed data, not those drafts.
+
+Reads, previews and genuine no-project no-op results remain available. Equal-value
+commands that still replace the project are commits. A blocked batch applies no
+operations. This is not a guard for every input: other panels/tool drafts, direct
+UI edits, Undo and explicit `importProject(file)`/file-picker replacements retain
+existing behavior. `execute('project.import', ...)` does pass through this guard.
+Generic services, CLI and the separate stdio MCP session are unchanged.
+
 ## Browser file handoff
 
 The header folder icon opens **Project files**: **Save settings** downloads a
@@ -383,6 +400,7 @@ See [Subtitle format boundaries](captions.md#subtitle-format-boundaries).
 |---|---|
 | `INVALID_ARGUMENT` | Inspect `error.path` and the live schema. Unknown fields and invalid ranges are rejected before commit. |
 | `NOT_FOUND` | Verify `session`, built-in template IDs, or the exact card ID in `project.overlays`. Do not silently switch targets or recreate a missing card. |
+| `CONFLICT` | For live-browser caption drafts, finish/commit or restore the pending input, then re-read and retry. Do not clear drafts through a replacement import. Other hosts define their own conflict policy. |
 | `BUSY` | Finish/cancel the browser job before retrying there. Standalone stdio is not that browser session. |
 | `UNSUPPORTED_VERSION` | Use a compatible editor. Do not falsify the document's version number. |
 

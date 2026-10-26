@@ -103,7 +103,8 @@ export function parseSubtitlesWithReport(text, duration) {
   if (!Number.isFinite(duration) || duration <= 0) throw new LocalizedError(msg('errors.videoDuration'));
   const normalized = text.replace(/^\uFEFF/, '').replace(/\r\n?/g, '\n');
   // An empty first payload line ends the cue; never absorb the next cue's timing.
-  const pattern = /^(?:(\d{1,2}):)?([0-5]\d):([0-5]\d)[,.](\d{3})[ \t]*-->[ \t]*(?:(\d{1,2}):)?([0-5]\d):([0-5]\d)[,.](\d{3})[^\n]*\n(?![ \t]*(?:\n|$))([\s\S]*?)(?=\n[ \t]*\n|(?![\s\S]))/gm;
+  // End fractions must be complete: never truncate a fourth digit as settings.
+  const pattern = /^(?:(\d{1,2}):)?([0-5]\d):([0-5]\d)[,.](\d{3})[ \t]*-->[ \t]*(?:(\d{1,2}):)?([0-5]\d):([0-5]\d)[,.](\d{3})(?!\d)[^\n]*\n(?![ \t]*(?:\n|$))([\s\S]*?)(?=\n[ \t]*\n|(?![\s\S]))/gm;
   const captions = [];
   let clippedCaptions = 0, discardedRecognizedEntries = 0;
   for (const match of normalized.matchAll(pattern)) {

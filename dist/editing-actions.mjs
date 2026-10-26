@@ -10,6 +10,10 @@ export function createEditingActions(app) {
     // Capture source time into one draft only; Apply remains the mutation boundary.
     function bindTrimDrafts({ start, end, startButton, endButton, current = () => true }) {
         const fields = [app.query(start), app.query(end)];
+        const initialClip = app.state.clips[app.selected];
+        const baseline = fields.map((field, index) => ({
+            value: initialClip?.[index ? 'end' : 'start'], displayed: field.value,
+        }));
         let composing = null;
         for (const field of fields) {
             field.oncompositionstart = () => { composing = field; };
@@ -38,6 +42,20 @@ export function createEditingActions(app) {
                 field.focus({ preventScroll: true });
             };
         }
+        // Only the current owner may query these drafts. Do not infer cleanliness
+        // from rounded display text or reuse a different occurrence's controls.
+        return () => {
+            if (!current() || app.query(start) !== fields[0] || app.query(end) !== fields[1]) return false;
+            const clip = app.state.clips[app.selected];
+            if (!clip) return false;
+            if (composing) return true;
+            return fields.some((field, index) => {
+                const value = clip[index ? 'end' : 'start'];
+                if (value === baseline[index].value && field.value === baseline[index].displayed) return false;
+                const number = field.valueAsNumber;
+                return !Number.isFinite(number) || number !== value;
+            });
+        };
     }
 
     function trim(start, end) {

@@ -10,6 +10,7 @@ const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
 export function createWorkspacePanels(app) {
     const { query: $, queryAll: $$ } = app;
     let sheetOpen = false, renderGeneration = 0;
+    let pendingTrim = null;
     let thirdsGrid = false;
     const desktopGrid = $('#thirdsGridDesktop');
     function syncThirdsGrid() {
@@ -200,6 +201,7 @@ export function createWorkspacePanels(app) {
 
     function renderPanel() {
         const generation = ++renderGeneration;
+        pendingTrim = null;
         const target = $('#panelContent');
         if (app.panel === 'templates') {
             app.templateWorkspace.render(target);
@@ -324,7 +326,7 @@ export function createWorkspacePanels(app) {
                 app.setLoopPreview(loop.checked);
             };
             const trimClip = app.state.clips[app.selected], trimIndex = app.selected;
-            app.bindTrimDrafts({ start: '#panelTrimStart', end: '#panelTrimEnd',
+            pendingTrim = app.bindTrimDrafts({ start: '#panelTrimStart', end: '#panelTrimEnd',
                 startButton: '#panelTrimStartPlayhead', endButton: '#panelTrimEndPlayhead',
                 current: () => app.panel === 'settings' && app.selected === trimIndex && app.state.clips[trimIndex] === trimClip,
             });
@@ -374,5 +376,6 @@ export function createWorkspacePanels(app) {
             syncSheet();
     }
 
-    return { revision: () => renderGeneration, syncPreviewExportLabel, renderPanel, switchPanel, renderCaptionsPanel, navigateCaption, focusCaption, closePanelSheet, togglePanelSheet, syncPanelSheet: syncSheet };
+    return { revision: () => renderGeneration, hasPendingTrim: () => pendingTrim?.() === true,
+        syncPreviewExportLabel, renderPanel, switchPanel, renderCaptionsPanel, navigateCaption, focusCaption, closePanelSheet, togglePanelSheet, syncPanelSheet: syncSheet };
 }

@@ -89,8 +89,14 @@ test('changing selected occurrences still replaces Settings even for identical s
   }
 });
 
-test('command replacement and Undo/Redo still discard old target drafts and refresh Settings', async () => {
+test('API replacement waits for drafts, then explicit Undo/Redo still refresh Settings', async () => {
   const f = await fixture(); f.draft('2.123456789', '9.87654321');
+  const before = f.evaluate('({state,history,future})'), writesBefore = f.writes();
+  const blocked = await f.context.window.moment.execute('timeline.replace', {clips: [{start: 3, end: 8}]});
+  assert.equal(blocked.error?.code, 'CONFLICT');
+  assert.deepEqual(f.evaluate('({state,history,future})'), before);
+  assert.deepEqual(f.values(), ['2.123456789', '9.87654321']); assert.equal(f.writes(), writesBefore);
+  f.draft('1', '11');
   const result = await f.context.window.moment.execute('timeline.replace', {clips: [{start: 3, end: 8}]});
   assert.equal(result.ok, true); assert.deepEqual(f.values(), ['3', '8']);
   f.draft('4.25', '7.75'); vm.runInContext('undo()', f.context);

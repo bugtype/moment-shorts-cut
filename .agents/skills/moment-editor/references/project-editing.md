@@ -53,8 +53,21 @@ re-read before retrying. It does not blur, commit or discard the name for the us
 Untouched single-line CR/LF-normalized display values are not mistaken for drafts.
 Status refreshes retain the input/composition; true project/input replacement
 resets ownership. The read/preview/no-op, caller-hook and explicit local/file/Undo
-boundaries below are unchanged. Other title/card/settings numeric drafts are not
+boundaries below are unchanged. Other title/card numeric drafts are not
 covered, and synthetic event tests are not native IME verification.
+
+## Live browser trim drafts
+
+The same commit guard covers the current **Frame** panel's trim start/end inputs
+(internal panel ID `settings`), including changed blank/invalid values and active
+composition. Use **Apply range**, or restore both original values and finish
+composition; then re-read current state and indexes before retrying. These are
+source seconds, not output seconds. Untouched displays and exactly equivalent
+numeric spellings are clean; no rounding tolerance or implicit Apply is used.
+The existing trim binder owns only its current controls and selected occurrence.
+Explicit selection/panel/local replacement does not carry old drafts forward.
+The separate persistent inspector trim behavior is unchanged. Other numeric
+fields are not covered; the API/file/local/Undo boundaries below still apply.
 
 ## Live browser caption drafts
 

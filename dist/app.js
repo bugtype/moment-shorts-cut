@@ -553,6 +553,8 @@ window.moment = Object.freeze({
                 throw new CommandError('CONFLICT', message('errors.captionDraftConflict'));
             if (inspectorView.hasPendingName(state))
                 throw new CommandError('CONFLICT', message('errors.projectNameDraftConflict'));
+            if (workspacePanels.hasPendingTrim())
+                throw new CommandError('CONFLICT', message('errors.trimDraftConflict'));
             return beforeCommit?.();
         });
     },

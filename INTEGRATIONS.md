@@ -396,7 +396,7 @@ JavaScript에서 직접 호출할 때도 JSON으로 왕복 가능한 값을 전�
 | `captions.merge` | `captionIndex` | 다음 저장 행과 병합; `{updated:true, outputDuration, mergedCaptionIndex}` |
 | `captions.split.long` | 선택 `limit`, `captionIndex`, `count` | 긴 자막 분할; `{updated, changedCaptions, addedCaptions, outputDuration}` |
 | `captions.split` | `captionIndex`, `textOffset` | 지정 자막을 둘로 분할; `{updated:true, outputDuration, createdCaptionIndex}` |
-| `captions.import` | `text`, `basis`, 선택 `mode` | 기본 전체 교체, `mode:"append"`는 추가; `{updated:true, outputDuration, importedCaptions}` |
+| `captions.import` | `text`, `basis`, 선택 `mode`, `report` | 기본 전체 교체, `mode:"append"`는 추가; `{updated:true, outputDuration, importedCaptions}`, `report:true`는 `report` 진단 개수 추가 |
 | `captions.append` | 비어 있지 않은 `captions` 배열 | 기존 행 유지·끝에 추가; `{updated:true, outputDuration}` |
 | `captions.text.replace` | `find`, `replacement`, 선택 `captionIndex`, `count` | 문구 모두 바꾸기; `{updated, matches, changedCaptions}` |
 | `captions.style.update` | `patch` | 공통 자막 스타일; `{updated:true, outputDuration}` |
@@ -530,8 +530,8 @@ node cli/moment.mjs exec captions.append --project project.json --json '{"captio
 제외 개수는 패턴에 맞은 후보만 포함하므로 전체 파일 검증/누락 개수가 아닙니다.
 파일·기준·작업 방식·프로젝트·미디어가 바뀌면 다시 검토하세요. 이 검토 단계는 브라우저 전용이며
 CLI/MCP `captions.import`는 선택한 모드로 즉시 반영하고 기존 응답
-`{updated:true, outputDuration, importedCaptions}`를 유지합니다. 추가 전용 결과 필드는
-없습니다. 추가 성공 후 다시 호출하면 중복이 생깁니다. 기본 옵션의 프로그램 가져오기와 기존 숨긴 파일 선택기는
+`{updated:true, outputDuration, importedCaptions}`를 기본으로 유지합니다. 선택적 `report:true`는
+아래 진단 개수를 추가하며, 사전 승인 단계가 되지는 않습니다. 추가 성공 후 다시 호출하면 중복이 생깁니다. 기본 옵션의 프로그램 가져오기와 기존 숨긴 파일 선택기는
 원본 기준 전체 교체를 유지합니다. 브라우저 추가는 검토한 배열을 재읽기·재파싱 없이
 한 번에 반영하며 한 번 실행 취소하고 첫 추가 행에 초점을 옮깁니다. 유효한 복구 실패
 상태에서도 브라우저 저장은 막혀 있으므로 설정을 별도 백업하세요.
@@ -550,6 +550,23 @@ CLI/MCP `captions.import`는 선택한 모드로 즉시 반영하고 기존 응�
 화자·스타일·키워드 메타데이터는 가져오지 않습니다. 빈 파일이나 유효 자막이
 없는 입력은 기존 자막을 유지하며 오류를 반환합니다. 완전한 SRT/WebVTT 규격
 검사기는 아니며 잘못된 개별 구간을 건너뛸 수 있습니다.
+
+직접 `captions.import`에 `report:true`를 넣으면 성공 응답의 `data.report`로
+`acceptedCaptions`(새로 반영된 수, `importedCaptions`와 같으며 추가 후 전체 수는 아님),
+`clippedCaptions`(선택한 배속 전 기준 길이에 끝이 잘린 수용 자막 수),
+`discardedRecognizedEntries`(인식됐지만 비었거나 양수 길이가 아니거나 범위 밖이라 제외된 수)를
+받습니다. 잘못되어 인식되지 않은 블록은 세지 않으므로 0도 전체 유효성을 보장하지 않습니다.
+생략/`false`는 기존 세 필드 응답을 그대로 유지하고, 불리언이 아닌 값은 반영 전에 거절합니다.
+유효 자막 없음·한도 초과는 부분 반영이나 성공 보고서가 아니라 기존 오류로 반환합니다.
+MCP는 이미 반영한 작업의 진단이며 사전 확인이 아닙니다. 파일을 쓰지 않고 확인하려면
+`report:true`를 넣은 인수 파일로 다음 명령을 실행하세요.
+
+```sh
+node cli/moment.mjs exec captions.import --project project.json --args-file args.json --dry-run
+```
+
+`project.batch`/`project.preview`는 기존 집계 응답만 유지하고 중첩 작업별 보고서를 반환하지 않습니다.
+
 
 | 한도 | 명령과 브라우저의 차이 |
 |---|---|

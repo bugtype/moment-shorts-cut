@@ -50,7 +50,7 @@ project document separately.
 ## Import SRT/VTT without constructing cue arrays
 
 Use CLI `captions.import` or MCP `moment_captions_import` with required `text` and
-`basis`, plus optional `mode:"replace"|"append"` (default `replace`). `text` must contain the file contents, not a path. For MCP:
+`basis`, plus optional `mode:"replace"|"append"` (default `replace`) and `report:true`. `text` must contain the file contents, not a path. For MCP:
 
 ```json
 {"projectId":"session","basis":"source","text":"1\n00:00:01,000 --> 00:00:02,000\nHello\n"}
@@ -71,8 +71,10 @@ clipped accepted cues (a subset) and discarded recognized candidates only; malfo
 unrecognized content is not counted, so this is not full-file validation. Add mode
 also shows the combined total against 10,000. File/clock/action
 changes clear review; stale project/media/modal context requires a fresh review.
-CLI/MCP commits immediately using its chosen mode and existing acknowledgment,
-not this browser report. Legacy programmatic import still defaults to replacement.
+CLI/MCP commits immediately using its chosen mode, without this browser review
+step. Its default/`report:false` acknowledgment stays unchanged; `report:true`
+adds the same parser counts as post-commit diagnostics. Legacy programmatic
+import still defaults to replacement.
 Output mode parses against current
 output duration and multiplies times by the captured speed into existing timeline
 cues (a parser-clipped final endpoint uses the exact captured timeline end).
@@ -103,8 +105,19 @@ are preserved, including at cue boundaries; boundary blank lines are removed.
 Preserved whitespace counts toward the cue-length limit. No speaker/style/keyword metadata
 is imported. Empty/no-valid input fails without replacing the existing captions.
 The permissive parser may skip malformed cues; it is not a full standard validator.
-Success returns `{updated:true, outputDuration, importedCaptions}`; the last field
-is the applied cue count. Read the project separately to save the document.
+Default/`report:false` success remains exactly `{updated:true, outputDuration, importedCaptions}`.
+For diagnostic counts, add `report:true` to the direct import. Its optional
+`data.report` contains `acceptedCaptions` (equal to `importedCaptions`, not the
+combined append total), `clippedCaptions` (accepted cues whose ends were clipped
+to the selected pre-speed clock duration), and `discardedRecognizedEntries`
+(recognized empty/nonpositive/out-of-range entries). Unrecognized malformed
+blocks are not counted; zero counts are not proof of complete validity.
+This is post-commit feedback in MCP, not an approval/preflight step. To inspect
+these counts without saving a file, CLI `exec captions.import` with `--project project.json`,
+`--args-file args.json` and `--dry-run` returns the report without writing files
+when args include `report:true`.
+`project.batch`/`project.preview` keep aggregate results and do not return nested
+reports. Read the project separately to save the document.
 
 ## Read a caption page
 

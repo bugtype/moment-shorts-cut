@@ -138,6 +138,13 @@ async def main():
         assert imported == {"updated": True, "outputDuration": 2, "importedCaptions": 1}
         after = await call(client, "moment_project_get")
         assert after["project"]["captions"][:2] == [original, added]
+        # Optional diagnostics do not change the default closed acknowledgment.
+        reported = await call(client, "moment_captions_import", {
+            "text": "1\n00:00:00,000 --> 00:00:20,000\nReported",
+            "basis": "source", "report": True,
+        })
+        assert reported["report"] == {"acceptedCaptions": 1, "clippedCaptions": 1,
+                                      "discardedRecognizedEntries": 0}
 
     # Both inspection modes use disjoint public input/output schema alternatives.
     async with session() as (client, _, tools):

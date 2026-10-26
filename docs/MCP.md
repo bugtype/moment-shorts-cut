@@ -372,7 +372,7 @@ Exceeding an output budget returns `CAPTION_OUTPUT_LIMIT`.
 | `moment_captions_merge` | `captionIndex` | `{updated:true, outputDuration, mergedCaptionIndex}` |
 | `moment_captions_split_long` | optional `limit`, `captionIndex`, `count` | `{updated, changedCaptions, addedCaptions, outputDuration}` |
 | `moment_captions_split` | `captionIndex`, `textOffset` | `{updated:true, outputDuration, createdCaptionIndex}` |
-| `moment_captions_import` | `text`, `basis`; optional `mode` | `{updated:true, outputDuration, importedCaptions}` |
+| `moment_captions_import` | `text`, `basis`; optional `mode`, `report` | `{updated:true, outputDuration, importedCaptions}`; `report:true` adds parser counts in `report` |
 | `moment_captions_text_replace` | `find`, `replacement`; optional `captionIndex`, `count` | `{updated:boolean, matches:number, changedCaptions:number}` |
 | `moment_captions_style_update` | `patch` | `{updated:true, outputDuration}` |
 | `moment_captions_speaker_assign` | `captionIndex`, `count`, `speaker` | `{updated:boolean, changedCaptions:number, outputDuration}` |
@@ -923,9 +923,9 @@ clock explicitly rather than importing final-output times as source times.
 The browser dialog separately offers **Replace all** (default) or **Keep existing
 and add**, then **Review file** and explicit confirmation. Review does not edit:
 accepted cues, clipped accepted cues and discarded **recognized** candidates are
-shown, not a full-file validity or skipped-entry total. Add mode also shows the combined total against 10,000. Changed file/clock/action/context requires a fresh review. This does not add a review phase or report fields to
-`moment_captions_import`; its immediate chosen-mode commit and closed acknowledgment
-remain. Browser addition commits the reviewed parsed array without rereading or
+shown, not a full-file validity or skipped-entry total. Add mode also shows the combined total against 10,000. Changed file/clock/action/context requires a fresh review. This does not add a review phase to
+`moment_captions_import`; it still commits immediately in the chosen mode. Its
+default acknowledgment remains unchanged; opt-in diagnostics are described below. Browser addition commits the reviewed parsed array without rereading or
 reparsing, takes one undo step and focuses the first added row. Legacy hidden
 imports remain source-clock replacement. Failed-valid recovery still cannot save
 to browser storage.
@@ -946,6 +946,27 @@ This permissive parser may skip malformed cues; it is not a full SRT/WebVTT
 conformance validator. Success includes `importedCaptions`, the applied cue count,
 alongside `updated:true` and `outputDuration`, with no append-specific result fields.
 Import append is also non-idempotent; a repeated successful call adds duplicates.
+
+Add `"report":true` to a **direct** import to receive an optional `data.report`:
+
+```json
+{"updated":true,"outputDuration":12,"importedCaptions":2,"report":{"acceptedCaptions":2,"clippedCaptions":1,"discardedRecognizedEntries":1}}
+```
+
+| Report field | Meaning |
+|---|---|
+| `acceptedCaptions` | Equals `importedCaptions`: newly applied cues, not the combined append total |
+| `clippedCaptions` | Accepted cues whose ends were clipped to the selected source/pre-speed timeline duration; a subset of accepted cues |
+| `discardedRecognizedEntries` | Recognized empty, nonpositive or out-of-range entries that were discarded; malformed/unrecognized blocks are not counted |
+
+Omitted/`false` preserves the exact existing three-field result. Nonboolean values
+reject without mutation. Errors, including no accepted cues or capacity overflow,
+remain errors rather than partial imports or successful reports. These counts
+are not full-file validity, speech alignment or a preflight approval: MCP reports
+accompany the already committed operation. CLI `--dry-run` returns the requested
+report without creating or overwriting files. Nested `project.batch` and
+`project.preview` retain their existing aggregate results, with no per-step reports.
+
 
 | Limit | Scope |
 |---|---|

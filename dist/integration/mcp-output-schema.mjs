@@ -237,7 +237,12 @@ function dataSchema(command) {
       updated: { enum: [true] },
       importedCaptions: { type: 'integer', minimum: 1, maximum: 10000 },
       outputDuration: { type: 'number', minimum: 0 },
-    });
+      report: record({
+        acceptedCaptions: {type: 'integer', minimum: 1, maximum: 10000},
+        clippedCaptions: {type: 'integer', minimum: 0, maximum: 10000},
+        discardedRecognizedEntries: {type: 'integer', minimum: 0},
+      }),
+    }, ['updated', 'importedCaptions', 'outputDuration']);
     case 'timeline.list': return record({
       totalClips: { type: 'integer', minimum: 1, maximum: 1000 },
       offset: { type: 'integer', minimum: 0, maximum: 1000 },

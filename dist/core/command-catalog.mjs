@@ -189,7 +189,7 @@ const definitions = [
   command(
     'captions.import',
     'SRT/VTT 문자열로 자막을 가져옵니다. 기본 replace는 전체 교체, append는 기존 행 뒤에 추가합니다. source 또는 배속 전 timeline 기준을 명시하세요.',
-    object({text: string(100000), basis: choice('source', 'timeline'), mode: choice('replace', 'append')}, ['text', 'basis']),
+    object({text: string(100000), basis: choice('source', 'timeline'), mode: choice('replace', 'append'), report: boolean}, ['text', 'basis']),
     true
   ),
   command(

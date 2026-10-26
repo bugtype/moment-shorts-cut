@@ -100,6 +100,10 @@ const saved = await withClient(async ({request, call, data}) => {
   await data('moment_timeline_replace', {clips: [{start: 2, end: 6}]});
   const imported = await data('moment_captions_import', {text: '1\n00:00:02,000 --> 00:00:04,000\n안녕하세요', basis: 'source'});
   assert.deepEqual(imported, {updated: true, importedCaptions: 1, outputDuration: 2});
+  // Opt-in diagnostics are post-commit; default acknowledgment above stays exact.
+  const reported = await data('moment_captions_import', {text: '1\n00:00:02,000 --> 00:00:04,000\n안녕하세요\n\n2\n00:00:15,000 --> 00:00:20,000\noutside', basis: 'source', report: true});
+  assert.deepEqual(reported, {...imported, report: {acceptedCaptions: 1, clippedCaptions: 0, discardedRecognizedEntries: 1}});
+
   const srt = await data('moment_captions_export');
   assert.match(srt.text, /00:00:00,000 --> 00:00:01,000/);
   assert.match(srt.text, /안녕하세요/);

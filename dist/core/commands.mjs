@@ -11,7 +11,7 @@ import { readTemplateDocument, createTemplateDocument } from '../template-librar
 import { replaceCaptionText } from './caption-text.mjs';
 import { TEMPLATES, REFERENCE_SOURCES, applyTemplate, saveCustomTemplate } from '../template-catalog.mjs';
 import { newCard, retimeOutputLayers, splitCaptionAtOffset } from '../effects.mjs';
-import { MAX_CAPTIONS, parseSubtitles } from '../captions.mjs';
+import { MAX_CAPTIONS, parseSubtitlesWithReport } from '../captions.mjs';
 import {
   outputDuration,
   timelineDuration,
@@ -192,17 +192,20 @@ export function prepareCommand(project, name, args = {}) {
     data: { format: args.format || 'srt', text: projectSubtitles(project, args) }
   };
   if (name === 'captions.import') {
-    let captions;
+    let parsed;
     try {
-      captions = parseSubtitles(args.text, args.basis === 'source' ? project.duration : timelineDuration(project));
+      parsed = parseSubtitlesWithReport(args.text, args.basis === 'source' ? project.duration : timelineDuration(project));
     } catch (error) {
       fail((error.messageKey ? error : error.message) || msg('errors.subtitleText'), 'arguments.text');
     }
-    captions = captions.map(caption => ({ ...caption, basis: args.basis }));
+    const captions = parsed.captions.map(caption => ({ ...caption, basis: args.basis }));
     const prepared = prepareCommand(project, args.mode === 'append' ? 'captions.append' : 'captions.replace', { captions });
     return {
       project: prepared.project,
-      data: { updated: prepared.data.updated, outputDuration: prepared.data.outputDuration, importedCaptions: captions.length }
+      data: {
+        updated: prepared.data.updated, outputDuration: prepared.data.outputDuration,
+        importedCaptions: captions.length, ...(args.report ? {report: parsed.report} : {})
+      }
     };
   }
   if (name === 'timeline.move') {

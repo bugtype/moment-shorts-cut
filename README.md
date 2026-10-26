@@ -671,8 +671,9 @@ captured on Start for that request only; they do not edit/save the project or ad
 Audio inclusion does not change project volumes or preview mute/monitoring. To keep
 an audio track with a silent mix instead, leave it checked and set both project
 volumes to 0. Existing audio preparation and browser codec checks still apply;
-unchecking is not a workaround for audio preparation errors. Cancel/retry cannot
-reuse a previous request's options; a newly opened dialog starts checked again.
+unchecking is not a workaround for audio preparation errors. Reopening export
+settings to record a new video starts both options checked again; **Download again**
+instead reuses the completed file with its original choices.
 
 Caption inclusion affects these outputs:
 
@@ -695,7 +696,11 @@ subtitle track inside MP4/WebM. CLI/MCP `render.plan` has no new toggle and rema
 
 **Pending imports:** if the project changes while a text file is being read or waiting to apply, the import is rejected; select the file again to apply it to the current project. Selecting another JSON/SRT/VTT file supersedes the earlier pending import, even if the newer file fails. These checks cover applied project state, not uncommitted text-field drafts.
 
-**Pending transcription:** results are not applied if the source media or existing captions changed, or the project was replaced; added-audio results also require unchanged audio offset and edited duration. Generate again against the updated input. Appearance changes remain usable. This protects applied edits, not uncommitted text-field drafts, and does not promise to stop model computation when a conflict is detected.
+**Pending transcription:** results are not applied if the source media or existing captions changed, or the project was replaced; added-audio results also require unchanged audio offset and edited duration. Appearance changes remain usable.
+
+While the **Captions** panel is open, uncommitted row text/times/speaker/keywords or active composition anywhere in that panel also block applying a result. A conflict, failure or cancellation leaves its current inputs intact; drafts are not automatically committed or saved. This does not guarantee draft preservation after leaving/replacing the panel or that conflict detection stops model computation.
+
+Choose **Generate captions** again only when you want fresh recognition to replace the current captions. It reruns recognition rather than applying a cached result, and can replace corrections you have already committed.
 
 </details>
 

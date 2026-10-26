@@ -63,6 +63,7 @@ export function createEditingActions(app) {
         app.renderTimeline();
         app.renderInspector();
         app.openInspector('clip');
+        if (app.panel === 'settings') app.renderPanel();
         app.toast(message("shell.splitDone"));
     }
 

@@ -171,7 +171,7 @@ export function bindUi(app) {
         app.edit(() => {
             app.state.clips.splice(app.selected, 1);
             app.selected = Math.min(app.selected, app.state.clips.length - 1);
-        });
+        }, app.panel === 'settings');
         app.seekTo(0);
     };
     $('#removeClipRangeButton').onclick = event => { if (!event?.isComposing) app.openClipRange($('#removeClipRangeButton')); };

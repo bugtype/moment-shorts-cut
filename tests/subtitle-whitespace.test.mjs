@@ -7,7 +7,7 @@ import {createDemoProject} from '../dist/core/project.mjs';
 import {createEditorService} from '../dist/integration/editor-service.mjs';
 import {createMcpToolAdapter} from '../dist/integration/mcp-adapter.mjs';
 import {createAppFixture} from './fixtures/app.mjs';
-import {initLocale, setLocale} from '../dist/i18n.mjs';
+import {initLocale, setLocale, getLocale} from '../dist/i18n.mjs';
 
 const cue = text => `00:00:00,000 --> 00:00:01,000\n${text}`;
 
@@ -96,8 +96,10 @@ test('MCP rejects overlong preserved text atomically and recovers on the next va
 test('reviewed subtitle UI import keeps literal whitespace in all locales and Undo restores captions', async () => {
   for (const locale of ['ko', 'en', 'zh-CN']) {
     const f = await createAppFixture();
-    initLocale({locale, document: f.doc, storage: null});
+    initLocale({languages: [locale], document: f.doc, storage: null});
     try {
+      assert.equal(getLocale(), locale, "the scenario must execute in its requested locale");
+      assert.equal(f.doc.documentElement.lang, locale);
       vm.runInContext("switchPanel('captions');history=[];future=[];", f.context);
       const before = f.evaluate('state');
       const text = '\t 한글 中文 English \t';
@@ -112,6 +114,6 @@ test('reviewed subtitle UI import keeps literal whitespace in all locales and Un
       assert.equal(f.evaluate('history.length'), 1);
       vm.runInContext('undo()', f.context);
       assert.deepEqual(f.evaluate('state'), before);
-    } finally {setLocale('ko'); initLocale({locale: 'ko', document: null, storage: null});}
+    } finally {setLocale('ko'); initLocale({languages: ['ko'], document: null, storage: null});}
   }
 });

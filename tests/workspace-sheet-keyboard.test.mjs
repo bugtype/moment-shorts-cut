@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
 import {createAppFixture} from './fixtures/app.mjs';
-import {initLocale, setLocale} from '../dist/i18n.mjs';
+import {initLocale, setLocale, getLocale} from '../dist/i18n.mjs';
 
 async function fixture(compact = true) {
   const f = await createAppFixture();
@@ -27,8 +27,10 @@ async function fixture(compact = true) {
 
 test('dialog Escape does not also dismiss its underlying compact workspace sheet', async () => {
   for (const locale of ['ko', 'en', 'zh-CN']) {
-    const f = await fixture(); initLocale({locale, document: f.doc, storage: null});
+    const f = await fixture(); initLocale({languages: [locale], document: f.doc, storage: null});
     try {
+      assert.equal(getLocale(), locale, "the scenario must execute in its requested locale");
+      assert.equal(f.doc.documentElement.lang, locale);
       const before = f.evaluate('({state,current,history,future})');
       f.element('#importSrt').onclick({});
       f.element('#subtitleImportFile').focus();
@@ -47,7 +49,7 @@ test('dialog Escape does not also dismiss its underlying compact workspace sheet
       f.press();
       assert.equal(f.element('#libraryPanel').hidden, true);
       assert.equal(f.doc.activeElement, f.rail);
-    } finally {setLocale('ko'); initLocale({locale: 'ko', document: null, storage: null});}
+    } finally {setLocale('ko'); initLocale({languages: ['ko'], document: null, storage: null});}
   }
 });
 

@@ -6,7 +6,7 @@ import {createDemoProject} from '../dist/core/project.mjs';
 import {createEditorService} from '../dist/integration/editor-service.mjs';
 import {createMcpToolAdapter} from '../dist/integration/mcp-adapter.mjs';
 import {createAppFixture} from './fixtures/app.mjs';
-import {initLocale, setLocale} from '../dist/i18n.mjs';
+import {initLocale, setLocale, getLocale} from '../dist/i18n.mjs';
 
 const cue = (fraction, separator = '.', suffix = '') =>
   `00:00:00${separator}000 --> 00:00:01${separator}${fraction}${suffix}\n 한글 中文 English `;
@@ -71,8 +71,10 @@ test('MCP precision failure preserves replace/append state and can retry valid i
 
 test('reviewed import reports invalid precision in all locales without edits and valid retry supports Undo', async () => {
   for (const locale of ['ko', 'en', 'zh-CN']) {
-    const f = await createAppFixture(); initLocale({locale, document: f.doc, storage: null});
+    const f = await createAppFixture(); initLocale({languages: [locale], document: f.doc, storage: null});
     try {
+      assert.equal(getLocale(), locale, "the scenario must execute in its requested locale");
+      assert.equal(f.doc.documentElement.lang, locale);
       vm.runInContext("switchPanel('captions');history=[];future=[];", f.context);
       const before = f.evaluate('({state,history,future})');
       f.element('#importSrt').onclick({});
@@ -87,6 +89,6 @@ test('reviewed import reports invalid precision in all locales without edits and
       await f.element('#confirmSubtitleImport').onclick({});
       assert.equal(f.evaluate('state.captions[0].end'), 1.123); assert.equal(f.evaluate('history.length'), 1);
       vm.runInContext('undo()', f.context); assert.deepEqual(f.evaluate('state'), before.state);
-    } finally {setLocale('ko'); initLocale({locale: 'ko', document: null, storage: null});}
+    } finally {setLocale('ko'); initLocale({languages: ['ko'], document: null, storage: null});}
   }
 });

@@ -7,7 +7,7 @@ import {createDemoProject, projectSubtitles} from '../dist/core/project.mjs';
 import {createEditorService} from '../dist/integration/editor-service.mjs';
 import {createMcpToolAdapter} from '../dist/integration/mcp-adapter.mjs';
 import {createAppFixture} from './fixtures/app.mjs';
-import {initLocale, setLocale} from '../dist/i18n.mjs';
+import {initLocale, setLocale, getLocale} from '../dist/i18n.mjs';
 
 const cue = text => `00:00:00,000 --> 00:00:01,000\n${text}`;
 const parse = text => parseSubtitlesWithReport(cue(text), 12).captions[0].text;
@@ -98,8 +98,10 @@ test('long numeric runs stay bounded and raw byte limits apply before decoding',
 
 test('reviewed numeric-reference import preserves localized draft flow and one-step Undo', async () => {
   for (const locale of ['ko', 'en', 'zh-CN']) {
-    const f = await createAppFixture(); initLocale({locale, document: f.doc, storage: null});
+    const f = await createAppFixture(); initLocale({languages: [locale], document: f.doc, storage: null});
     try {
+      assert.equal(getLocale(), locale, "the scenario must execute in its requested locale");
+      assert.equal(f.doc.documentElement.lang, locale);
       vm.runInContext("switchPanel('captions');history=[];future=[];", f.context);
       const before = f.evaluate('state'); f.element('#importSrt').onclick({});
       f.element('#subtitleImportFile').files = [new Blob([cue('&#54620;&#x4E2D; &amp;#65;')])];
@@ -109,6 +111,6 @@ test('reviewed numeric-reference import preserves localized draft flow and one-s
       await f.element('#confirmSubtitleImport').onclick({});
       assert.equal(f.evaluate('state.captions[0].text'), '한中 &#65;'); assert.equal(f.evaluate('history.length'), 1);
       vm.runInContext('undo()', f.context); assert.deepEqual(f.evaluate('state'), before);
-    } finally {setLocale('ko'); initLocale({locale: 'ko', document: null, storage: null});}
+    } finally {setLocale('ko'); initLocale({languages: ['ko'], document: null, storage: null});}
   }
 });

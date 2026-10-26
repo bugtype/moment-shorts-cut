@@ -5,7 +5,7 @@ import {spawnSync} from 'node:child_process';
 import {parseSubtitlesWithReport} from '../dist/captions.mjs';
 import {createDemoProject, projectSubtitles} from '../dist/core/project.mjs';
 import {createAppFixture} from './fixtures/app.mjs';
-import {initLocale, setLocale} from '../dist/i18n.mjs';
+import {initLocale, setLocale, getLocale} from '../dist/i18n.mjs';
 
 const cue = text => `00:00.000 --> 00:01.000\n${text}`;
 
@@ -70,8 +70,10 @@ test('maximum-budget unmatched markup rejects promptly without changing MCP stat
 
 test('unclosed-markup length errors preserve localized import review and valid retry Undo', async () => {
   for (const locale of ['ko', 'en', 'zh-CN']) {
-    const f = await createAppFixture(); initLocale({locale, document: f.doc, storage: null});
+    const f = await createAppFixture(); initLocale({languages: [locale], document: f.doc, storage: null});
     try {
+      assert.equal(getLocale(), locale, "the scenario must execute in its requested locale");
+      assert.equal(f.doc.documentElement.lang, locale);
       vm.runInContext("switchPanel('captions');history=[];future=[];", f.context);
       const before = f.evaluate('({state,history,future})'); f.element('#importSrt').onclick({});
       const choose = text => {f.element('#subtitleImportFile').files = [new Blob([cue(text)])]; f.element('#subtitleImportFile').onchange();};
@@ -85,6 +87,6 @@ test('unclosed-markup length errors preserve localized import review and valid r
       await f.element('#confirmSubtitleImport').onclick({});
       assert.equal(f.evaluate('state.captions[0].text'), '한中<open'); assert.equal(f.evaluate('history.length'), 1);
       vm.runInContext('undo()', f.context); assert.deepEqual(f.evaluate('state'), before.state);
-    } finally {setLocale('ko'); initLocale({locale: 'ko', document: null, storage: null});}
+    } finally {setLocale('ko'); initLocale({languages: ['ko'], document: null, storage: null});}
   }
 });

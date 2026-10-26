@@ -1,14 +1,21 @@
 // One connection and a serialized write queue; audio changes don't rewrite large videos.
 export function createProjectStore(factory = globalThis.indexedDB) {
   let connection, queue = Promise.resolve();
-  const stored = new Map();
+  let stored = new Map();
   function open() {
     if (!connection) connection = new Promise((resolve, reject) => {
       const request = factory.open('moment-studio', 1);
       request.onupgradeneeded = () => request.result.createObjectStore('project');
       request.onsuccess = () => {
-        const db = request.result;
-        db.onversionchange = () => { db.close(); connection = null; };
+        const db = request.result, owner = connection;
+        const invalidate = () => {
+          if (connection !== owner) return;
+          connection = null;
+          // Late transactions may still finish, but must not refill the next connection's cache.
+          stored = new Map();
+        };
+        db.onversionchange = () => { db.close(); invalidate(); };
+        db.onclose = invalidate;
         resolve(db);
       };
       request.onerror = () => { connection = null; reject(request.error); };
@@ -16,10 +23,10 @@ export function createProjectStore(factory = globalThis.indexedDB) {
     return connection;
   }
   async function get(key) {
-    const db = await open();
+    const db = await open(), cache = stored;
     return new Promise((resolve, reject) => {
       const request = db.transaction('project').objectStore('project').get(key);
-      request.onsuccess = () => { stored.set(key, request.result || null); resolve(request.result); };
+      request.onsuccess = () => { cache.set(key, request.result || null); resolve(request.result); };
       request.onerror = () => reject(request.error);
     });
   }
@@ -27,12 +34,12 @@ export function createProjectStore(factory = globalThis.indexedDB) {
     const requested = [['video', video], ['audio', audio]];
     queue = queue.catch(() => {}).then(async () => {
       // Earlier queued writes may have failed; compare only after they settle.
-      const changed = requested.filter(([key, value]) => !stored.has(key) || stored.get(key) !== value);
+      const db = await open(), cache = stored;
+      const changed = requested.filter(([key, value]) => !cache.has(key) || cache.get(key) !== value);
       if (!changed.length) return;
-      const db = await open();
       return new Promise((resolve, reject) => {
         const tx = db.transaction('project', 'readwrite');
-        tx.oncomplete = () => { changed.forEach(([key, value]) => stored.set(key, value)); resolve(); };
+        tx.oncomplete = () => { changed.forEach(([key, value]) => cache.set(key, value)); resolve(); };
         tx.onerror = tx.onabort = () => reject(tx.error || new Error('Media storage failed'));
         try {
           const store = tx.objectStore('project');

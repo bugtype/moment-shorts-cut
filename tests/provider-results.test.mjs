@@ -114,3 +114,64 @@ test('get and cancel reject records for another job without exposing artifacts o
   assert.equal((await f.service.execute('jobs.submit',{operation:'video.render'})).ok,true,'submit allocates a new ID');
   assert.equal((await f.service.execute('project.get')).ok,true);
 });
+
+for(const [command,args] of commands){
+  for(const key of ['id','status']){
+    test(`${command} rejects a required ${key} that disappears during provider-record capture`,async()=>{
+      const f=fixture(),before=structuredClone(f.state),record={id:'job-1',status:'running'};
+      Object.defineProperty(record,key,{enumerable:false});f.respond=()=>record;
+      const result=await f.service.execute(command,args);
+      assert.equal(result.ok,false);assert.equal(result.error.code,'INVALID_PROVIDER_RESULT');
+      assert.equal(result.data,undefined);assert.equal(f.calls.length,1);assert.equal(f.commits,0);
+      assert.deepEqual(f.state,before);
+      f.respond=()=>({id:'job-1',status:'running'});
+      assert.equal((await f.service.execute(command,args)).ok,true);
+      assert.equal(f.calls.length,2,'only the caller-requested retry invokes the provider again');
+    });
+  }
+
+  test(`${command} validates the captured status rather than a later accessor value`,async()=>{
+    const f=fixture(),before=structuredClone(f.state);let reads=0;
+    f.respond=()=>({id:'job-1',get status(){return ++reads<3?'running':'not-a-job-status';}});
+    const result=await f.service.execute(command,args);
+    assert.equal(result.ok,true);assert.deepEqual(result.data,{id:'job-1',status:'running'});
+    assert.equal(reads,2,'one bounded raw preflight and one detached capture, not repeated provider validation');
+    assert.equal(Object.getOwnPropertyDescriptor(result.data,'status').get,undefined);
+    assert.equal(f.calls.length,1);assert.equal(f.commits,0);assert.deepEqual(f.state,before);
+  });
+}
+
+for(const [label,value] of [['nonfinite',NaN],['undefined',undefined],['bigint',1n],['date',new Date(0)],['function',()=>{}]]){
+  test(`provider extension changing to ${label} during capture remains an invalid provider result`,async()=>{
+    const f=fixture(),before=structuredClone(f.state);
+    for(const [command,args] of commands){
+      let reads=0;const calls=f.calls.length;
+      f.respond=()=>({id:'job-1',status:'running',get privateDetail(){return ++reads===1?0:value;}});
+      const result=await f.service.execute(command,args);
+      assert.equal(result.ok,false);assert.equal(result.error.code,'INVALID_PROVIDER_RESULT');
+      assert.equal(result.data,undefined);assert.equal(result.error.path,undefined);
+      assert.doesNotMatch(JSON.stringify(result),/privateDetail/);
+      assert.equal(f.calls.length,calls+1);assert.equal(reads,2);
+      assert.deepEqual(f.state,before);assert.equal(f.commits,0);
+    }
+    f.respond=()=>({id:'job-1',status:'cancelled'});
+    assert.equal((await f.service.execute('jobs.cancel',{jobId:'job-1'})).data.status,'cancelled');
+    assert.equal((await f.service.execute('project.get')).ok,true);
+  });
+}
+
+test('a provider getter throwing during detached capture uses the safe provider-output error contract',async()=>{
+  const f=fixture(),before=structuredClone(f.state);
+  for(const [command,args] of commands){
+    let reads=0;const calls=f.calls.length;
+    f.respond=()=>({id:'job-1',status:'running',get privateDetail(){
+      if(++reads>1)throw new Error('synthetic private provider diagnostic');return 0;
+    }});
+    const result=await f.service.execute(command,args);
+    assert.equal(result.ok,false);assert.equal(result.error.code,'INVALID_PROVIDER_RESULT');
+    assert.equal(result.data,undefined);assert.doesNotMatch(JSON.stringify(result),/private|diagnostic/);
+    assert.equal(f.calls.length,calls+1);assert.equal(reads,2);
+  }
+  assert.deepEqual(f.state,before);assert.equal(f.commits,0);
+  assert.equal((await f.service.execute('project.get')).ok,true);
+});

@@ -47,6 +47,9 @@ export function createEditorService({getProject,commitProject,jobs,formatErrorMe
           data=await jobs[name==='jobs.get'?'get':'cancel'](args.jobId);
         }
         try{
+          assertJson(data);
+          // Preserve the raw budget check, then validate the exact detached output.
+          data=structuredClone(data);
           assertJson(data);validate(jobResultSchema,data);
           if(!data.id.trim())fail(msg('errors.jobIdEmpty'));
           if(name!=='jobs.submit'&&data.id!==args.jobId)fail(msg('errors.jobIdMismatch'));

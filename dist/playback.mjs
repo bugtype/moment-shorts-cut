@@ -15,6 +15,7 @@ export function createPlayback(app, {
 } = {}) {
     let audioCtx, videoNode, audioNode, videoGain, audioGain, monitorGain, destination;
     let audioGraphReady = false;
+    let audioPlayRequest = 0;
     let loopPreview = false, pendingRestart = null;
     const canLoop = owner => loopPreview && app.editorReady && !app.exporting && !app.loadingMedia &&
         !app.transcribing && !app.document.hidden && !app.modal.open && app.mediaReady() &&
@@ -100,12 +101,28 @@ export function createPlayback(app, {
         if (t >= 0 && t < app.audio.duration) {
             if (force || Math.abs(app.audio.currentTime - t) > .25)
                 app.audio.currentTime = t;
-            if (app.playing && app.audio.paused)
+            if (app.playing && app.audio.paused) {
+                const request = app.playRequest, audioRequest = ++audioPlayRequest;
                 app.audio.play().catch(() => {
+                    if (request !== app.playRequest || audioRequest !== audioPlayRequest ||
+                        (app.exporting && !app.videoExport.renderOptions.includeAudio))
+                        return;
+                    if (app.exporting)
+                        app.stopExport(true);
+                    else
+                        pause();
+                    app.toast(message('shell.playError'));
                 });
+            }
         }
         else
-            app.audio.pause();
+            pauseAudio();
+    }
+
+    function pauseAudio() {
+        // Seeking and offset waits can intentionally reject a pending native play.
+        ++audioPlayRequest;
+        app.audio.pause();
     }
 
     function seekTo(t, automatic = false) {
@@ -175,7 +192,7 @@ export function createPlayback(app, {
             cancelFrame(app.frameHandle);
         app.frameHandle = 0;
         app.video.pause();
-        app.audio.pause();
+        pauseAudio();
         app.query('#playButton').innerHTML = icon('play');
         setAttr(app.query('#playButton'), 'aria-label', 'shell.play');
     }
@@ -216,7 +233,7 @@ export function createPlayback(app, {
             app.current = Math.min(app.duration(), app.current + (now - app.lastTick) / 1000 * state.speed);
         app.lastTick = now;
         if (state.kind === 'video' && app.video.seeking)
-            app.audio.pause();
+            pauseAudio();
         else
             syncAudio();
         app.updateTime(false);

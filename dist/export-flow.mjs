@@ -94,10 +94,18 @@ export function createExportFlow(app, {
                     app.pause();
                     cleanupExport(request);
                     if (!blob.size) {
+                        modal.close();
                         toast(message("shell.exportEmpty"));
                         return;
                     }
-                    app.download(blob, `${app.state.name || 'moment-shorts'}.${type.ext}`);
+                    try {
+                        app.download(blob, `${app.state.name || 'moment-shorts'}.${type.ext}`);
+                    }
+                    catch {
+                        modal.close();
+                        toast(message("shell.exportFinishFailed"));
+                        return;
+                    }
                     modal.innerHTML = `<div class="modal-head"><h2 id="modalTitle">${text("shell.exportDone")}</h2></div><p class="modal-copy">${esc(app.state.name)}<br>${quality}p · ${type.ext.toUpperCase()} · ${fmt(app.duration() / app.state.speed)}</p><div class="notice">${text("shell.exportReview")}</div><div class="modal-foot"><button class="button primary" id="exportDone">${text("shell.backToEditor")}</button></div>`;
                     $('#exportDone').onclick = () => modal.close();
                 },

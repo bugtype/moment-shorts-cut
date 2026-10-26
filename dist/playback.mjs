@@ -139,6 +139,24 @@ export function createPlayback(app, {
             app.renderPanel();
     }
 
+    function stopForAudioError() {
+        if (!app.sources.audioFile || !app.audio.error ||
+            (app.exporting && !app.videoExport.renderOptions.includeAudio))
+            return false;
+        const end = app.exporting || app.cardPlaybackEnd == null ? app.duration() :
+            Math.min(app.duration(), app.cardPlaybackEnd * app.state.speed);
+        // A known failure with unavailable duration has no trustworthy natural tail.
+        const length = app.audio.duration > 0 ? app.audio.duration : Infinity;
+        if (!(Math.max(app.current, app.state.audioOffset) < Math.min(end, app.state.audioOffset + length)))
+            return false;
+        if (app.exporting)
+            app.stopExport(true);
+        else
+            pause();
+        app.toast(message('shell.playError'));
+        return true;
+    }
+
     async function play(automatic = null) {
         if (app.loadingMedia || app.mediaBlocked() || app.playing)
             return;
@@ -149,6 +167,7 @@ export function createPlayback(app, {
         try {
             if (!owns()) { stale(); return; }
             if (app.current >= app.duration() - .03) seekTo(0, !!automatic);
+            if (stopForAudioError()) return;
             await app.ensureAudio();
             if (!owns()) { stale(); return; }
             if (app.mediaBlocked()) {
@@ -175,6 +194,7 @@ export function createPlayback(app, {
                 else pause();
                 return;
             }
+            if (stopForAudioError()) return;
             pendingRestart = null;
             app.playing = true;
             app.lastTick = clock();
@@ -223,6 +243,8 @@ export function createPlayback(app, {
         app.frameHandle = 0;
         if (!app.playing)
             return;
+        // Check remaining pre-speed overlap before a delayed frame can skip short audio.
+        if (stopForAudioError()) return;
         if (!app.mediaReady()) { app.pause(); if (app.exporting) app.stopExport(true); return; }
         const state = app.state, current = app.current;
         const old = app.locate(current);

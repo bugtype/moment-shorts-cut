@@ -151,18 +151,30 @@ export function createPlayback(app, {
             if (app.current >= app.duration() - .03) seekTo(0, !!automatic);
             await app.ensureAudio();
             if (!owns()) { stale(); return; }
-            if (app.mediaBlocked()) { pause(); return; }
+            if (app.mediaBlocked()) {
+                if (app.exporting) app.stopExport(true);
+                else pause();
+                return;
+            }
             if (app.state.kind === 'video') {
                 const pos = app.locate(app.current);
                 if (Math.abs(app.video.currentTime - pos.source) > .08 || (automatic && app.video.seeking))
                     await app.seekVideo(pos.source);
                 if (!owns()) { stale(); return; }
-                if (app.mediaBlocked()) { pause(); return; }
+                if (app.mediaBlocked()) {
+                    if (app.exporting) app.stopExport(true);
+                    else pause();
+                    return;
+                }
                 app.video.playbackRate = app.state.speed;
                 await app.video.play();
             }
             if (!owns()) { stale(); return; }
-            if (app.mediaBlocked()) { pause(); return; }
+            if (app.mediaBlocked()) {
+                if (app.exporting) app.stopExport(true);
+                else pause();
+                return;
+            }
             pendingRestart = null;
             app.playing = true;
             app.lastTick = clock();

@@ -19,7 +19,9 @@ export function bindUi(app) {
     });
     $('#panelClose')?.addEventListener('click', () => app.closePanelSheet());
     app.document.addEventListener('keydown', event => {
-        if (event.key === 'Escape')
+        // Modal dialogs and composition own Escape before the underlying sheet.
+        if (event.key === 'Escape' && !app.modal.open && !event.defaultPrevented &&
+            !event.isComposing && event.keyCode !== 229)
             app.closePanelSheet();
     });
     app.document.addEventListener('click', event => {

@@ -5,7 +5,7 @@ import { fail } from './validation.mjs';
 
 // A human-readable inventory of edited occurrences, not a subtitle import format
 // or a claim about which overlapping cue the renderer displays.
-export function projectCaptionReview(project, { bom = false } = {}) {
+export function projectCaptionReview(project, { bom = false, captionIndexOffset = 0 } = {}) {
   const occurrences = captionOccurrences(project.captions, project.clips, project.speed);
   if (!occurrences.length) return '';
   const encoder = new TextEncoder();
@@ -23,8 +23,9 @@ export function projectCaptionReview(project, { bom = false } = {}) {
     const text = occurrence.text.replace(/\r\n?/g, '\n');
     const name = label.replace(/\r\n?/g, '\n');
     if (text.includes('\0') || name.includes('\0')) fail(message('review.nul', { index: index + 1 }));
-    assertUnicodeText(text);
-    assertUnicodeText(name);
+    // The exporter may select a contiguous authored range before projection.
+    assertUnicodeText(text, `project.captions[${captionIndexOffset + occurrence.captionIndex}].text`);
+    assertUnicodeText(name, `project.speakerLabels[${caption.speaker}]`);
     const lines = [`[${index + 1}]`, t('review.time', {
       start: String(occurrence.start), end: String(occurrence.end),
     })];

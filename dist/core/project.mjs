@@ -4,7 +4,7 @@ import { projectCaptionReview } from './caption-review.mjs';
 import { message as msg } from '../i18n.mjs';
 import { defaultEnhancements } from '../effects.mjs';
 import { defaultDesign, migrateProject, DESIGN_VERSION } from '../typography.mjs';
-import { editedCaptions, MAX_CAPTIONS, MAX_SUBTITLE_BYTES, captionOutputLimit } from '../captions.mjs';
+import { captionOccurrences, MAX_CAPTIONS, MAX_SUBTITLE_BYTES, captionOutputLimit } from '../captions.mjs';
 import { assertJson, validate, object, string, number, choice, array, fail, CommandError } from './validation.mjs';
 
 export function createDemoProject() {
@@ -260,6 +260,7 @@ export function projectSubtitles(p, options = {}) {
   // clock, including repeated occurrences. The default path retains p itself.
   const hasIndex = Object.hasOwn(options, 'captionIndex');
   const hasCount = Object.hasOwn(options, 'count');
+  let captionIndexOffset = 0;
   if (hasIndex || hasCount) {
     const first = hasIndex ? options.captionIndex : 0;
     if (hasIndex && (!Number.isInteger(first) || first < 0 || first > 9999 || first >= p.captions.length))
@@ -268,21 +269,23 @@ export function projectSubtitles(p, options = {}) {
     if (hasCount && (!Number.isInteger(count) || count < 1 || count > 10000 || first + count > p.captions.length))
       fail(msg('errors.replaceCaptionCount'), 'arguments.count');
     p = {...p, captions: p.captions.slice(first, first + count)};
+    captionIndexOffset = first;
   }
   if (review)
-    return projectCaptionReview(p, {bom});
+    return projectCaptionReview(p, {bom, captionIndexOffset});
   const label = format.toUpperCase(),
     header = format === 'vtt' ? 'WEBVTT\n\n' : '';
   const chunks = [],
     encoder = new TextEncoder();
   let bytes = (bom ? 3 : 0) + encoder.encode(header).byteLength;
   const timestamp = t => format === 'vtt' ? srtTimestamp(t).replace(',', '.') : srtTimestamp(t);
-  for (const [i, c] of editedCaptions(p.captions, p.clips, p.speed).entries()) {
+  for (const [i, c] of captionOccurrences(p.captions, p.clips, p.speed).entries()) {
+    const textPath = `project.captions[${captionIndexOffset + c.captionIndex}].text`;
     if (format === 'txt') {
       const text = c.text.replace(/\r\n?/g, '\n');
       if (text.includes('\0'))
         fail(msg('errors.txtNul', {index: i + 1}));
-      assertUnicodeText(text);
+      assertUnicodeText(text, textPath);
       const chunk = text + '\n';
       bytes += encoder.encode(chunk).byteLength + (i ? 1 : 0);
       if (bytes > MAX_SUBTITLE_BYTES)
@@ -301,7 +304,7 @@ export function projectSubtitles(p, options = {}) {
       fail(msg('errors.srtNul', {index: i + 1}));
     if (format === 'vtt' && lines.includes('\0'))
       fail(msg('errors.vttNul', {index: i + 1}));
-    assertUnicodeText(lines);
+    assertUnicodeText(lines, textPath);
     const text = lines.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\u00a0/g, '&nbsp;');
     const chunk = `${i+1}\n${start} --> ${end}\n${text}\n`;
     bytes += encoder.encode(chunk).byteLength + (i ? 1 : 0);

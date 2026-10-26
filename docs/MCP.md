@@ -501,6 +501,16 @@ combining characters and intentionally authored `U+FFFD` remain unchanged.
 Model/import validation is unchanged, and project JSON retains escaped code units
 for recovery. Correct the intended text before retrying.
 
+For these subtitle Unicode errors, `error.path` points to the original zero-based
+authored field: `project.captions[N].text` or a used `project.speakerLabels[0]` /
+`project.speakerLabels[1]`. Selected ranges, output sorting and repeated clips do
+not renumber the caption path. This identifies the first malformed emitted field,
+not every invalid field or the lowest authored index. Read current data before
+using `moment_captions_update` for that cue or `moment_captions_style_update` for
+the label array; preserve other labels and re-read indexes after intervening edits.
+No automatic repair is performed, and other export diagnostics keep their existing
+paths and precedence.
+
 Background: [RFC 8259 §8.2](https://www.rfc-editor.org/rfc/rfc8259.txt) describes unpaired-surrogate interoperability risks; the [File API Blob processing rules](https://w3c.github.io/FileAPI/#processing-blob-parts) describe their replacement during string encoding.
 
 ## Boundaries and extension points

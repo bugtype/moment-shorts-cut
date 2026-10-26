@@ -735,6 +735,8 @@ Trimmed/excluded cues, unused labels and unrelated graphics do not block scoped 
 
 Model/import validation is unchanged; project JSON retains escaped code units for recovery. Correct the intended text before retrying.
 
+For these subtitle Unicode failures, CLI/MCP `error.path` identifies the zero-based authored field, such as `project.captions[2].text` or `project.speakerLabels[1]`. Caption paths keep the original project index through range selection, sorting and clip repetition, not the output cue number. Re-read current data before a targeted repair; indexes can change after edits.
+
 **SRT/VTT text:** all SRT/VTT/TXT exports reject NUL (`U+0000`) rather than stripping it. Correct/remove that unsupported character and retry; project JSON retains authored text, and a failed export does not overwrite an existing output file. Blank lines separate cues. Export rejects empty cues or blank lines inside an exported caption instead of dropping paragraphs or assigning new times. Remove the blank lines to export SRT/VTT; project JSON retains the original text. Ordinary multiline captions are supported, with CRLF/CR normalized to LF in output. Subtitle-player markup support varies; universal compatibility is not claimed.
 
 **SRT/VTT timing:** timestamps round to milliseconds after trimming and speed changes. Export rejects a cue whose rounded start and end are equal; adjust its interval or playback speed. It does not extend, drop or move cues automatically, and the original project keeps its precise timing.

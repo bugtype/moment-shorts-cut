@@ -1,5 +1,6 @@
 import { message as msg } from './i18n.mjs';
 import { LocalizedError } from './core/validation.mjs';
+import { validateProject } from './core/project.mjs';
 import { retimeOutputLayers } from './effects.mjs';
 
 // Owns guarded video/audio imports and recording hand-off. Project replacement and
@@ -26,14 +27,14 @@ export function createMediaLoader(app, {
         }
         app.loadingMedia = true;
         app.pause();
-        const old = app.sources.videoFile, previousOutput = app.duration() / app.state.speed;
+        const old = app.sources.videoFile, oldThumbnail = app.sources.thumbnail;
+        const previousOutput = app.duration() / app.state.speed;
         app.toast(msg('errors.loadingVideo'));
         try {
             await app.sources.setVideoFile(file);
             if (app.recoveryBlocked())
                 return;
-            app.sources.videoFile = file;
-            app.state = {
+            const next = {
                 ...app.initial(),
                 ...app.visualSettings(),
                 kind: 'video',
@@ -43,7 +44,10 @@ export function createMediaLoader(app, {
                 clips: [{ start: 0, end: app.video.duration }],
                 captions: []
             };
-            retimeOutputLayers(app.state, previousOutput, app.state.duration);
+            retimeOutputLayers(next, previousOutput, next.duration);
+            validateProject(next);
+            app.sources.videoFile = file;
+            app.state = next;
             app.current = 0;
             app.selected = 0;
             app.sources.audioFile = null;
@@ -72,7 +76,9 @@ export function createMediaLoader(app, {
                 app.sources.sourceURL = '';
                 app.video.removeAttribute('src');
             }
-            app.toast(e.messageKey ? e : e.message);
+            app.sources.thumbnail = oldThumbnail;
+            app.toast(e.code === 'INVALID_ARGUMENT' && e.path === 'project.duration'
+                ? msg('errors.videoDurationLimit') : e.messageKey ? e : e.message);
         }
         finally {
             app.loadingMedia = false;

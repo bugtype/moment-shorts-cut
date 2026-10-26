@@ -133,6 +133,7 @@ const entries = [
   ["errors.fileTimeout","파일을 읽는 데 시간이 초과되었습니다. 더 작은 파일로 다시 시도하세요.","Reading the file timed out. Try a smaller file.","读取文件超时。请尝试较小的文件。"],
   ["errors.videoFormat","브라우저에서 지원하지 않는 영상입니다. H.264 MP4 또는 WebM을 사용해 주세요.","This browser does not support the video. Use H.264 MP4 or WebM.","浏览器不支持此视频。请使用 H.264 MP4 或 WebM。"],
   ["errors.videoDurationRead","영상 길이를 읽을 수 없습니다.","The video duration could not be read.","无法读取视频时长。"],
+  ["errors.videoDurationLimit","지원되는 영상 길이는 0.001초부터 86,400초까지입니다.","Supported video duration is 0.001 to 86,400 seconds.","支持的视频时长为 0.001 至 86,400 秒。"],
   ["errors.storedMedia","저장된 미디어를 읽을 수 없습니다","Stored media could not be read","无法读取已保存的媒体"],
   ["errors.storedVideoMissing","저장된 영상 파일을 찾을 수 없습니다","The stored video file was not found","找不到已保存的视频文件"],
   ["errors.storedVideoOpen","저장된 영상을 열 수 없습니다","The stored video could not be opened","无法打开已保存的视频"],

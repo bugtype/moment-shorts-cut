@@ -161,7 +161,7 @@ do not silently discard captions to force a backup under the limit.
 ## Inspect a proposed edit summary
 
 Use read-only `project.preview` / `moment_project_preview` before a related edit
-bundle. Pass the same `operations` as `project.batch` (1–20, current 25-command
+bundle. Pass the same `operations` as `project.batch` (1–20, current 27-command
 allowlist); MCP adds outer `projectId:"session"`. It returns operationCount,
 wouldCommit, sorted changedFields and before/after counts (clips/captions/cards)
 plus outputDuration. `wouldCommit` is commit intent: change-and-revert operations

@@ -254,12 +254,17 @@ export function createWorkspacePanels(app) {
                     renderPanel();
                 };
                 $('#audioOffset').onchange = event => {
-                    if (!event.target.value.trim() || !Number.isFinite(Number(event.target.value))) {
+                    const value = Number(event.target.value);
+                    if (!event.target.value.trim() || !Number.isFinite(value)) {
                         app.toast(message('panels.audioStartInvalid'));
                         return;
                     }
+                    const offset = app.state.audioOffset;
+                    // Compare the displayed output time before inverse conversion can drift.
+                    // An out-of-range stored offset still takes the existing clamp path.
+                    if (offset >= 0 && offset <= app.duration() && value === offset / app.state.speed) return;
                     app.edit(() => {
-                        const next = clamp((+event.target.value || 0) * app.state.speed, 0, app.duration()), delta = next - app.state.audioOffset;
+                        const next = clamp(value * app.state.speed, 0, app.duration()), delta = next - app.state.audioOffset;
                         app.state.audioOffset = next;
                         app.state.captions = app.state.captions.map(caption => caption.basis === 'timeline'
                             ? { ...caption, start: Math.max(0, caption.start + delta), end: Math.max(.001, caption.end + delta) }

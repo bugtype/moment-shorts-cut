@@ -118,3 +118,55 @@ test('existing export and restoring guards still refuse valid audio-start edits'
         assert.deepEqual(f.snapshot(), before);
     }
 });
+
+test('equivalent in-range audio start values preserve captions, Redo and persistence', async () => {
+    for (const [speed, offset, value] of [[1, 4, '4.0'], [1, 4, '4e0'], [.25, 0, '-0'], [4, 12, '3.000']]) {
+        const f = await fixture(speed);
+        vm.runInContext(`state.audioOffset=${offset};state.captions[0]={start:0,end:.0001,text:'Precise cue',basis:'timeline'};
+            future=[JSON.stringify({...state,name:'Redo target'})];renderPanel();validateProject(state);
+            globalThis.pendingOffsetSave={pending:true};persistence.saveTimer=pendingOffsetSave;`, f.context);
+        const before = f.snapshot(), markup = f.element('#panelContent').innerHTML;
+        f.change(value);
+        assert.deepEqual(f.snapshot(), before);
+        assert.equal(f.element('#panelContent').innerHTML, markup);
+        assert.equal(f.input.value, value, 'a no-op does not replace the input');
+        assert.equal(vm.runInContext('persistence.saveTimer===pendingOffsetSave', f.context), true);
+        vm.runInContext('undo(true)', f.context);
+        assert.equal(f.evaluate('state.name'), 'Redo target');
+        assert.deepEqual(f.evaluate('state.captions'), before.state.captions);
+    }
+});
+
+test('audio start compares exact displayed output time before multiplying by speed', async () => {
+    const f = await fixture(.3);
+    vm.runInContext("state.audioOffset=.7;state.captions[0]={start:0,end:.0001,text:'Precise cue',basis:'timeline'};renderPanel();validateProject(state)", f.context);
+    const before = f.snapshot(), displayed = .7 / .3;
+    assert.notEqual(displayed * .3, .7, 'fixture exercises non-exact inverse conversion');
+    assert.ok(f.element('#panelContent').innerHTML.includes(`value="${displayed}"`));
+    f.change(String(displayed) + '0');
+    assert.deepEqual(f.snapshot(), before);
+    // No tolerance: a distinct representable output time remains a real edit.
+    const different = '2.333333333333333';
+    assert.notEqual(Number(different), displayed);
+    f.change(different);
+    assert.equal(f.evaluate('state.audioOffset'), Number(different) * .3);
+    assert.equal(f.evaluate('history.length'), 1);
+    assert.equal(f.evaluate('offsetSaves'), 1);
+});
+
+test('out-of-range audio starts retain explicit clamp, caption shift and Undo behavior', async () => {
+    for (const [speed, offset, value] of [[4, 16, '4.0'], [1, 12, '100'], [1, 0, '-1']]) {
+        const f = await fixture(speed);
+        vm.runInContext(`state.audioOffset=${offset};renderPanel();validateProject(state)`, f.context);
+        const before = f.snapshot(), next = Math.max(0, Math.min(12, Number(value) * speed));
+        f.change(value);
+        assert.equal(f.evaluate('state.audioOffset'), next);
+        assert.equal(f.evaluate('history.length'), 1);
+        assert.equal(f.evaluate('offsetSaves'), 1);
+        assert.deepEqual(f.evaluate('state.captions[0]'), {...before.state.captions[0],
+            start: Math.max(0, before.state.captions[0].start + next - offset),
+            end: Math.max(.001, before.state.captions[0].end + next - offset)});
+        vm.runInContext('undo()', f.context);
+        assert.deepEqual(f.evaluate('state'), before.state);
+    }
+});

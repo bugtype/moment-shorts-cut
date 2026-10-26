@@ -1,6 +1,7 @@
 import { createScenePngExport } from './scene-png-export.mjs';
 import { createScenePngDialog } from './scene-png-dialog.mjs';
-import { message, setAttr } from './i18n.mjs';
+import { message, setAttr, text } from './i18n.mjs';
+import { icon, fmt } from './ui-format.mjs';
 import { mediaPanelMarkup, audioPanelMarkup, settingsPanelMarkup } from './panel-markup.mjs';
 
 const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
@@ -142,6 +143,23 @@ export function createWorkspacePanels(app) {
         setAttr(button, 'aria-label', 'shell.previewPngDimensions', dimensions);
     }
 
+    function syncRecordingControl() {
+        if (app.panel !== 'audio') return;
+        const button = $('#recordButton');
+        if (!button) return;
+        const owner = app.audioRecording;
+        const recording = owner.current?.state === 'recording';
+        const finishing = !!owner.current && !recording;
+        const preparing = !owner.current && owner.requesting;
+        button.classList.toggle('recording', recording);
+        button.disabled = finishing || preparing;
+        button.innerHTML = recording
+            ? icon('mic') + ' ' + text('shell.recordDone', { time: fmt(owner.elapsed) })
+            : finishing ? text('shell.recordFinishing')
+            : preparing ? text('shell.recordPreparing')
+            : icon('mic') + ' ' + text('panels.recordMicrophone');
+    }
+
     function bindAudioGain(id, key, generation) {
         const input = $('#' + id), project = app.state;
         const video = app.sources.videoFile, audio = app.sources.audioFile;
@@ -237,6 +255,7 @@ export function createWorkspacePanels(app) {
             target.innerHTML = audioPanelMarkup(app.state, !!app.sources.audioFile, app.sources.audioFile ? app.duration() : 0);
             $('#chooseAudio').onclick = () => $('#audioInput').click();
             $('#recordButton').onclick = app.toggleRecording;
+            syncRecordingControl();
             if (app.state.kind === 'video') bindAudioGain('audioSourceVolume', 'volume', generation);
             if (app.sources.audioFile) {
                 bindOriginalDownload(target, generation, 'audio');
@@ -381,6 +400,6 @@ export function createWorkspacePanels(app) {
             syncSheet();
     }
 
-    return { revision: () => renderGeneration, hasPendingTrim: () => pendingTrim?.() === true,
+    return { syncRecordingControl, revision: () => renderGeneration, hasPendingTrim: () => pendingTrim?.() === true,
         syncPreviewExportLabel, renderPanel, switchPanel, renderCaptionsPanel, navigateCaption, focusCaption, closePanelSheet, togglePanelSheet, syncPanelSheet: syncSheet };
 }

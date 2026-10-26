@@ -1,13 +1,15 @@
 import { message as msg } from './i18n.mjs';
 // Owns microphone/recorder resources; the app serializes starts and validates their context.
-export function createAudioRecording({ prepare, onProgress, onReady, onError, onIdle }, {
+export function createAudioRecording({ prepare, onProgress, onReady, onError, onIdle, onStateChange }, {
     acquireStream = () => navigator.mediaDevices.getUserMedia({ audio: true }),
     createRecorder = stream => new MediaRecorder(stream),
     createFile = (chunks, name, options) => new File(chunks, name, options),
     setTimer = (callback, delay) => setInterval(callback, delay),
     clearTimer = timer => clearInterval(timer),
 } = {}) {
-    let current = null, requesting = false, activeTimer;
+    let current = null, requesting = false, activeTimer, elapsed = 0;
+    // Presentation observes state; it must not interrupt native resource cleanup.
+    const notifyState = () => { try { onStateChange?.(); } catch {} };
 
     function stop() {
         if (current?.state !== 'recording')
@@ -15,6 +17,7 @@ export function createAudioRecording({ prepare, onProgress, onReady, onError, on
         try {
             current.stop();
             clearTimer(activeTimer);
+            notifyState();
         }
         catch {
             current.onerror?.();
@@ -51,6 +54,7 @@ export function createAudioRecording({ prepare, onProgress, onReady, onError, on
         };
         try {
             prepare();
+            notifyState();
             stream = await acquireStream();
             if (!acceptStream()) {
                 release();
@@ -59,7 +63,7 @@ export function createAudioRecording({ prepare, onProgress, onReady, onError, on
             recorder = createRecorder(stream);
             current = recorder;
             const chunks = [];
-            let seconds = 0;
+            elapsed = 0;
             recorder.ondataavailable = event => {
                 if (!finished && current === recorder && event.data.size)
                     chunks.push(event.data);
@@ -70,6 +74,7 @@ export function createAudioRecording({ prepare, onProgress, onReady, onError, on
                     return;
                 finished = true;
                 release();
+                notifyState();
                 try {
                     if (!chunks.length) {
                         onError(msg('errors.recordingEmpty'));
@@ -97,17 +102,10 @@ export function createAudioRecording({ prepare, onProgress, onReady, onError, on
             activeTimer = timer = setTimer(() => {
                 if (finished || current !== recorder || recorder.state !== 'recording')
                     return;
-                seconds++;
-                onProgress(seconds);
-                if (seconds >= 180) {
-                    clearTimer(timer);
-                    try {
-                        recorder.stop();
-                    }
-                    catch {
-                        recorder.onerror?.();
-                    }
-                }
+                elapsed++;
+                onProgress(elapsed);
+                if (elapsed >= 180)
+                    stop();
             }, 1000);
         }
         catch {
@@ -115,11 +113,13 @@ export function createAudioRecording({ prepare, onProgress, onReady, onError, on
         }
         finally {
             requesting = false;
+            notifyState();
         }
     }
     return {
         get current() { return current; },
         get requesting() { return requesting; },
+        get elapsed() { return current ? elapsed : 0; },
         start,
         stop,
     };

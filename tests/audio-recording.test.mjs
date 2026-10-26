@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createAudioRecording } from '../dist/audio-recording.mjs';
 
-function fixture({ acquire, makeRecorder, onReady } = {}) {
+function fixture({ acquire, makeRecorder, onReady, onStateChange } = {}) {
   const timers = new Map(), events = [], recorders = [];
   const track = { stops: 0, stop() { this.stops++; } };
   const stream = { getTracks: () => [track] };
@@ -16,6 +16,7 @@ function fixture({ acquire, makeRecorder, onReady } = {}) {
     },
     onError: message => events.push(['error', message]),
     onIdle: () => events.push('idle'),
+    onStateChange,
   }, {
     acquireStream: acquire || (async () => stream),
     createRecorder: input => {
@@ -129,3 +130,60 @@ for (const [mimeType, extension] of [
     assert.equal(f.events.filter(event => event[0] === 'error').length, 0);
   });
 }
+
+
+test('elapsed time is read-only recorder state, retained through handoff and reset for a new recording', async () => {
+  let finish;
+  const states = [], f = fixture({onStateChange: () => states.push([
+    f.session.requesting, f.session.current?.state ?? null, f.session.elapsed,
+  ]), onReady: () => new Promise(resolve => {finish = resolve;})});
+  assert.equal(f.session.elapsed, 0);
+  assert.throws(() => {f.session.elapsed = 42;}, TypeError);
+  await f.session.start(() => true);
+  const tick = [...f.timers.values()][0], recorder = f.session.current;
+  tick(); tick();
+  assert.equal(f.session.elapsed, 2);
+  recorder.ondataavailable({data: {size: 1}});
+  f.session.stop();
+  const pending = recorder.onstop();
+  assert.equal(f.session.elapsed, 2);
+  assert.deepEqual(states, [[true, null, 0], [false, 'recording', 0],
+    [false, 'inactive', 2], [false, 'inactive', 2]]);
+  assert.deepEqual(f.events.filter(event => event[0] === 'progress'),
+    [['progress', 0], ['progress', 1], ['progress', 2]], 'State notifications are not extra timer ticks');
+  finish(); await pending;
+  assert.equal(f.session.elapsed, 0);
+  await f.session.start(() => true);
+  assert.equal(f.session.elapsed, 0);
+  tick();
+  assert.equal(f.session.elapsed, 0, 'Old timer cannot advance the new recording');
+  f.session.current.onerror();
+});
+
+test('optional presentation observers cannot strand requests, finalization or native cleanup', async () => {
+  const f = fixture({onStateChange: () => {throw new Error('Synthetic UI observer failure');}});
+  await f.session.start(() => true);
+  assert.equal(f.session.requesting, false);
+  const recorder = f.session.current;
+  recorder.ondataavailable({data: {size: 1}});
+  f.session.stop(); await recorder.onstop();
+  assert.equal(f.track.stops, 1); assert.equal(f.timers.size, 0);
+  assert.equal(f.session.current, null);
+  assert.equal(f.events.filter(event => event === 'idle').length, 1);
+  assert.equal(f.events.filter(event => event[0] === 'error').length, 0);
+  const rejected = fixture({acquire: async () => {throw new Error('Synthetic denial');},
+    onStateChange: () => {throw new Error('Synthetic UI observer failure');}});
+  await rejected.session.start(() => true);
+  assert.equal(rejected.session.requesting, false);
+  assert.equal(rejected.session.current, null);
+  assert.equal(rejected.events.filter(event => event[0] === 'error').length, 1);
+});
+
+test('a null state observer retains the existing progress and idle lifecycle', async () => {
+  const f = fixture({onStateChange: null});
+  await f.session.start(() => true);
+  f.session.current.onerror();
+  assert.deepEqual(f.events.filter(event => event[0] === 'progress'), [['progress', 0]]);
+  assert.equal(f.events.filter(event => event === 'idle').length, 1);
+  assert.equal(f.track.stops, 1);
+});

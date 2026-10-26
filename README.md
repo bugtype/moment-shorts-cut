@@ -636,6 +636,8 @@ At 1,000 clips, delete a clip before splitting another.
 
 Both use 0–100% global gains, not per-clip mixing or new audio processing. A video project does not necessarily contain an audio track. These controls change the recorded mix; the session-only monitor mute below remains separate.
 
+**Microphone recording:** Undo/Redo does not stop an active recording. The Audio control keeps its elapsed time and **Finish recording** action when the panel refreshes. While microphone permission is pending or the recording is being finalized/loaded, the same control shows a disabled progress state; it does not start another recording.
+
 **Audio start position:** enter output seconds, including an explicit `0` to start
 at the beginning. An empty or invalid numeric entry keeps the draft and shows a
 warning without changing the offset, captions or history. Accepted numeric edits

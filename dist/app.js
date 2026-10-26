@@ -106,15 +106,8 @@ const audioRecording = createAudioRecording({
         if (panel === 'audio')
             renderPanel();
     },
-    onProgress: seconds => {
-        const button = $('#recordButton');
-        if (seconds === 0) {
-            button.classList.add('recording');
-            button.innerHTML = icon('mic') + text('shell.recordDone', {time: '00:00'});
-        }
-        else if (button)
-            button.innerHTML = icon('mic') + text('shell.recordDone', {time: fmt(seconds)});
-    },
+    onProgress: () => workspacePanels.syncRecordingControl(),
+    onStateChange: () => workspacePanels.syncRecordingControl(),
 });
 const persistence = createProjectPersistence({
     store: projectStore, sources,

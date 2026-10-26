@@ -129,11 +129,14 @@ Run commands from the repository root with Node.js 20+. No package installation 
 
 ```sh
 node cli/moment.mjs commands
+node cli/moment.mjs commands captions.update
 node cli/moment.mjs exec project.summary --project supplied.moment.json
 node cli/moment.mjs exec timeline.list --project supplied.moment.json --json '{"offset":0,"limit":20}'
 node cli/moment.mjs exec project.get --project supplied.moment.json
 node cli/moment.mjs exec templates.list
 ```
+
+`commands <exact-name>` returns one unchanged descriptor in the existing `commands` array; bare `commands` still returns all. Names are case-sensitive, with no trimming, aliases or wildcards. Unknown names return `UNKNOWN_COMMAND`; extra arguments/options return `CLI_USAGE`. Use top-level `--help`, not `commands --help`. Discovery reads neither project files nor stdin and does not execute or restrict commands.
 
 For MCP, use `tools/list`, then `moment_project_import` with `projectId: "session"` and the supplied `document`. `moment_project_get` returns the full editing document in `structuredContent.data`. Do not pass a file path as `document` or use a file path as `projectId`.
 

@@ -30,6 +30,23 @@ node cli/moment.mjs exec captions.export --project titled.json --json '{"format"
 node cli/moment.mjs exec render.plan --project titled.json --json '{"quality":1080,"format":"mp4"}' --out render-plan.json
 ```
 
+### 명령 하나의 입력 규격 조회
+
+```sh
+node cli/moment.mjs commands
+node cli/moment.mjs commands captions.update
+```
+
+이름을 생략하면 기존 전체 목록을 반환합니다. 정확한 명령 이름 하나를 지정하면
+같은 `{apiVersion:1, commands:[...]}` 봉투에 해당 설명·입력 스키마 하나만 반환합니다.
+대소문자를 구분하며 공백 제거·별칭·접두사·와일드카드·쉼표 목록을 지원하지 않습니다.
+`project.batch`/`project.preview`를 조회해도 기존 중첩 스키마는 그대로입니다.
+
+알 수 없는 이름은 `UNKNOWN_COMMAND`, 옵션이나 추가 인수는 `CLI_USAGE`로 거절합니다
+(종료 1, stderr JSON, stdout 없음). 도움말은 기존 최상위 `--help`를 사용하세요.
+`commands --help`는 지원하지 않습니다. 프로젝트 파일이나 stdin을 읽지 않고 명령 실행·
+파일 저장도 하지 않습니다. 조회 결과만 줄이며 `exec`에서 실행할 명령을 제한하지 않습니다.
+
 ### 표준 입력으로 JSON 인수 전달
 
 `exec --args-file -`는 파일 대신 stdin에서 **JSON 인수 하나**를 읽습니다. EOF까지

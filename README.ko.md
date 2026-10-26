@@ -426,6 +426,8 @@ node cli/moment.mjs exec captions.style.update --project corrected.json --json '
 node cli/moment.mjs commands
 ```
 
+**명령 하나만 확인:** `node cli/moment.mjs commands captions.update`는 정확히 일치하는 명령의 기존 설명·입력 스키마 하나만 같은 `commands` 배열로 반환합니다. 이름을 생략하면 전체 목록입니다. 프로젝트 파일·stdin을 읽거나 명령을 실행하지 않습니다. 대소문자를 구분하며 모르는 이름은 오류입니다. 도움말은 `commands --help`가 아닌 최상위 `--help`를 사용하세요. [조회 규칙](INTEGRATIONS.md#명령-하나의-입력-규격-조회)
+
 기존 출력 파일은 기본적으로 보호합니다. 교체할 때만 `--overwrite`를 지정하세요. `exec`에 `--dry-run`을 붙이면 파일을 쓰지 않고 결과를 확인합니다. JSON 입력은 10 MiB(10,485,760바이트) 이하입니다.
 
 생성한 인수 객체는 [`--args-file -`](INTEGRATIONS.md#표준-입력으로-json-인수-전달)로 파이프 전달할 수 있습니다. EOF까지 기다리며 UTF-8 10 MiB 한도는 유지됩니다. `--json`과 함께 쓰지 마세요.

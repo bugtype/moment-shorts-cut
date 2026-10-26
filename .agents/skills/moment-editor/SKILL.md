@@ -17,7 +17,7 @@ description: Edit Moment Shorts Studio project JSON through its CLI or MCP tools
 | Connect or troubleshoot MCP | [MCP guide](../../../docs/MCP.md) | `node cli/mcp.mjs`, not HTTP |
 | Change repository code | [Engineering workflow](references/contributing.md#engineering-workflow), owner map and [repository conventions](../../../CONTRIBUTING.md) | `dist/` is maintained source, not build output |
 
-Inspect live schemas with `node cli/moment.mjs commands` or `tools/list`; do not invent fields or duplicate shared validation.
+Inspect live schemas with `node cli/moment.mjs commands` or `tools/list`; for one CLI command, use `node cli/moment.mjs commands captions.update` with its exact canonical name. Omit the name for the full catalog. Discovery does not read a project or execute the command; do not invent fields or duplicate shared validation.
 
 Paths in command examples are relative to the repository root. Read only the relevant domain reference; shared setup/saving/recovery sections are available when needed, not a prerequisite to loading every domain.
 

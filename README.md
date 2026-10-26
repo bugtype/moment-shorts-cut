@@ -447,6 +447,8 @@ node cli/moment.mjs exec captions.style.update --project corrected.json --json '
 node cli/moment.mjs commands
 ```
 
+**Inspect one command:** `node cli/moment.mjs commands captions.update` returns only that exact command’s existing descriptor in the same `commands` array; omit the name for the full catalog. No project file or stdin is read and no command is executed. Names are case-sensitive; unknown names fail. Use top-level `--help`, not `commands --help`. [Discovery rules](INTEGRATIONS.md#명령-하나의-입력-규격-조회)
+
 Existing output files are protected; use `--overwrite` only when you intend to replace one. Add `--dry-run` to an `exec` command to inspect its result without writing output. JSON inputs are limited to 10 MiB (10,485,760 bytes).
 
 Generated arguments can be piped as one JSON object with [`--args-file -`](INTEGRATIONS.md#표준-입력으로-json-인수-전달); it waits for EOF and retains the 10 MiB UTF-8 limit. Do not combine it with `--json`.

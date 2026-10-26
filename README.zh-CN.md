@@ -277,6 +277,8 @@ node cli/moment.mjs exec captions.style.update --project corrected.json --json '
 node cli/moment.mjs commands
 ```
 
+**仅查看一个命令：** `node cli/moment.mjs commands captions.update` 在相同的 `commands` 数组中仅返回精确匹配命令的现有描述与输入 Schema；省略名称仍返回完整目录。不读取项目文件或 stdin，也不执行命令。名称区分大小写，未知名称报错。帮助请用顶层 `--help`，而非 `commands --help`。[查询规则](INTEGRATIONS.md#명령-하나의-입력-규격-조회)
+
 现有输出文件默认受保护；仅在确定替换时使用 `--overwrite`。对 `exec` 添加 `--dry-run` 可预览结果而不写文件。JSON 输入不得超过 10 MiB（10,485,760 字节）。
 
 生成的参数对象可通过 [`--args-file -`](INTEGRATIONS.md#표준-입력으로-json-인수-전달) 管道传入；读取到 EOF 为止，仍有 UTF-8 10 MiB 限制。不要与 `--json` 同用。

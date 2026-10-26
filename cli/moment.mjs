@@ -8,19 +8,20 @@ import { createEditorService, errorResult } from '../dist/integration/editor-ser
 import { CommandError } from '../dist/core/validation.mjs';
 
 const usage=`Moment CLI · Node.js 20+
-  node cli/moment.mjs commands
+  node cli/moment.mjs commands [<command>]
   node cli/moment.mjs init --out project.json [--overwrite]
   node cli/moment.mjs exec <command> --project project.json [--json '{}'] [--args-file args.json] [--out result.json] [--overwrite] [--dry-run]
 
 --args-file -는 표준 입력에서 UTF-8 JSON 하나를 읽습니다(최대 10 MiB). 파일 이름 -는 ./-로 지정하세요.
-명령과 입력 규격: commands
+명령과 입력 규격: commands, 한 명령만 조회: commands captions.update
 수정 명령에는 --out이 필요합니다. 기존 파일 교체는 --overwrite로 지정하세요.
 captions.export는 format(srt/vtt/txt)에 따라 SRT·WebVTT·TXT를 --out으로 저장합니다. 기본값은 SRT입니다. TXT에서 review:true는 출력 시간과 지정된 화자명을 포함한 검토 대본을 저장합니다.
 영상/음성 파일과 인코더는 포함하지 않습니다.
 `;
 const MAX_JSON_FILE_BYTES=MAX_PROJECT_FILE_BYTES;
 function parse(argv){
-  const [mode,...tail]=argv,opts={},command=mode==='exec'?tail.shift():undefined;
+  const [mode,...tail]=argv,opts={};
+  const command=mode==='exec'||(mode==='commands'&&tail.length&&!tail[0].startsWith('-'))?tail.shift():undefined;
   const allowed=mode==='exec'?['--project','--json','--args-file','--out','--overwrite','--dry-run']:mode==='init'?['--out','--overwrite']:[];
   for(let i=0;i<tail.length;i++){
     const key=tail[i];if(!allowed.includes(key)||Object.hasOwn(opts,key))throw new CommandError('CLI_USAGE','이 명령에서 지원하지 않거나 중복된 옵션입니다.');
@@ -63,7 +64,11 @@ async function main(){
   if(!mode||['help','--help','-h'].includes(mode)){process.stdout.write(usage);return;}
   let state=createDemoProject();
   const service=createEditorService({getProject:()=>state,commitProject:next=>{state=next;}});
-  if(mode==='commands'){process.stdout.write(JSON.stringify({apiVersion:1,commands:service.describe()},null,2)+'\n');return;}
+  if(mode==='commands'){
+    const catalog=service.describe(),commands=command===undefined?catalog:catalog.filter(item=>item.name===command);
+    if(!commands.length)throw new CommandError('UNKNOWN_COMMAND','사용 가능한 명령은 commands로 확인하세요.');
+    process.stdout.write(JSON.stringify({apiVersion:1,commands},null,2)+'\n');return;
+  }
   if(mode==='init'){
     if(!opts['--out'])throw new CommandError('CLI_USAGE','--out 경로를 지정하세요.');
     const text=JSON.stringify(createProjectDocument(state),null,2)+'\n';

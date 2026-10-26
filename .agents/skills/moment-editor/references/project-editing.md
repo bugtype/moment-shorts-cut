@@ -44,6 +44,18 @@ draft before Guide opens—do not claim the whole interaction is mutation-free.
 This is browser navigation, not an MCP/API command. Code fixtures do not establish
 native compact-layout or assistive-technology behavior.
 
+## Live browser project-name drafts
+
+The same-page API commit guard also covers the header's current project-name
+input: a changed uncommitted value or active composition returns `CONFLICT`.
+Finish/commit the edit, or restore the original value and end composition; then
+re-read before retrying. It does not blur, commit or discard the name for the user.
+Untouched single-line CR/LF-normalized display values are not mistaken for drafts.
+Status refreshes retain the input/composition; true project/input replacement
+resets ownership. The read/preview/no-op, caller-hook and explicit local/file/Undo
+boundaries below are unchanged. Other title/card/settings numeric drafts are not
+covered, and synthetic event tests are not native IME verification.
+
 ## Live browser caption drafts
 
 Same-page `window.moment.execute` rejects a prepared project commit with `CONFLICT`
@@ -400,7 +412,7 @@ See [Subtitle format boundaries](captions.md#subtitle-format-boundaries).
 |---|---|
 | `INVALID_ARGUMENT` | Inspect `error.path` and the live schema. Unknown fields and invalid ranges are rejected before commit. |
 | `NOT_FOUND` | Verify `session`, built-in template IDs, or the exact card ID in `project.overlays`. Do not silently switch targets or recreate a missing card. |
-| `CONFLICT` | For live-browser caption drafts, finish/commit or restore the pending input, then re-read and retry. Do not clear drafts through a replacement import. Other hosts define their own conflict policy. |
+| `CONFLICT` | For live-browser caption/name drafts, finish/commit or restore the pending input and end composition, then re-read and retry. Do not clear drafts through a replacement import. Other hosts define their own conflict policy. |
 | `BUSY` | Finish/cancel the browser job before retrying there. Standalone stdio is not that browser session. |
 | `UNSUPPORTED_VERSION` | Use a compatible editor. Do not falsify the document's version number. |
 

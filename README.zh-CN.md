@@ -290,6 +290,8 @@ node cli/moment.mjs commands
 | 连接 AI 客户端 | 本地 stdio MCP：`node cli/mcp.mjs` | [客户端设置、工具、错误和恢复](docs/MCP.md) |
 | 接入自己的代码 | 同页面 `window.moment` 或可复用服务/适配器 | `node examples/use-editor-service.mjs` |
 
+**保护项目名称输入：** 当顶部名称有尚未提交的值或正在进行输入法组字时，`window.moment.execute` 也会返回 `CONFLICT`。请确认名称修改或恢复原值，并结束组字后重新读取状态并重试。名称不会被自动提交或丢弃；明确的本地替换保留原有行为。
+
 **保护正在输入的字幕：** 当打开的字幕面板有尚未提交的行编辑或正在进行输入法组字时，同页面 `window.moment.execute` 会在提交项目之前返回 `CONFLICT`。请确认修改或恢复原值，再读取当前状态并重试；API 不会移走焦点、自动保存或丢弃草稿。读取、预检和实际不提交项目的结果仍可使用。这不改变 CLI/MCP、明确的文件导入、直接界面编辑或撤销，也不保护所有编辑器输入。[准确范围](INTEGRATIONS.md#브라우저와-파일-왕복)
 
 运行 `node examples/use-mcp-client.mjs` 可执行握手 → 导入 → 编辑 → SRT → 重启/重新导入示例。它启动本地 Node 进程，并把导出的文档保存在内存；不会写入用户文件或连接浏览器。

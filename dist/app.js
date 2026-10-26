@@ -551,6 +551,8 @@ window.moment = Object.freeze({
         return editorService.execute(name, args, () => {
             if (panel === 'captions' && captionWorkspace.hasPendingEdits())
                 throw new CommandError('CONFLICT', message('errors.captionDraftConflict'));
+            if (inspectorView.hasPendingName(state))
+                throw new CommandError('CONFLICT', message('errors.projectNameDraftConflict'));
             return beforeCommit?.();
         });
     },

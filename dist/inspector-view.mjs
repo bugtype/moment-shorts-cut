@@ -6,6 +6,7 @@ import { MAX_CLIPS } from './core/project.mjs';
 export function createInspectorView($, $$) {
     let inspectorTrimContext = null;
     let inspectorNameContext = null;
+    let composingName = null;
     function open(section) {
         for (const name of ['frame', 'clip', 'caption'])
             $('#' + name + 'Settings').open = name === section;
@@ -31,8 +32,9 @@ export function createInspectorView($, $$) {
         const nameInput = $('#projectName');
         // A status refresh does not own the header's uncommitted name draft.
         if (inspectorNameContext?.project !== state || inspectorNameContext.name !== state.name || inspectorNameContext.input !== nameInput) {
+            composingName = null;
             if (nameInput.value !== state.name) nameInput.value = state.name;
-            inspectorNameContext = {project:state, name:state.name, input:nameInput};
+            inspectorNameContext = {project:state, name:state.name, input:nameInput, displayed:nameInput.value};
         }
         $('#ratioLabel').textContent = state.ratio;
         setAttr($('#ratioShortcut'), 'aria-label', 'panels.ratioCurrent', {ratio:state.ratio});
@@ -66,5 +68,15 @@ export function createInspectorView($, $$) {
         open, render,
         hasTrimTarget: clip => inspectorTrimContext?.clip === clip,
         retargetTrim: clip => { inspectorTrimContext.clip = clip; },
+        setNameComposing(input, composing) {
+            if (input !== $('#projectName') || inspectorNameContext?.input !== input) return;
+            if (composing) composingName = input;
+            else if (composingName === input) composingName = null;
+        },
+        hasPendingName(state) {
+            const context = inspectorNameContext;
+            return !!(context?.project === state && context.name === state.name && context.input === $('#projectName') &&
+                (composingName === context.input || context.input.value !== context.displayed));
+        },
     };
 }

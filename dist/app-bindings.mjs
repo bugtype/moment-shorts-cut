@@ -52,6 +52,9 @@ export function bindUi(app) {
     $('#srtInput').onchange = event => event.target.files[0] && app.importSrt(event.target.files[0]);
     $('#projectInput').onchange = event => event.target.files[0] && app.importProjectSettings(event.target.files[0], app.captureSettingsImportClose());
     $('#projectInput').oncancel = () => { app.captureSettingsImportClose(); };
+    const nameInput = $('#projectName');
+    nameInput.oncompositionstart = () => app.inspectorView.setNameComposing(nameInput, true);
+    nameInput.oncompositionend = () => app.inspectorView.setNameComposing(nameInput, false);
     $('#projectName').onchange = event => app.edit(() => {
         app.state.name = event.target.value.trim() || t('shell.untitled');
         event.target.value = app.state.name;

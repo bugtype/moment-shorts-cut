@@ -460,6 +460,8 @@ Generated arguments can be piped as one JSON object with [`--args-file -`](INTEG
 | Connect an AI client | Local stdio MCP server: `node cli/mcp.mjs` | [Client setup, tools, errors and recovery](docs/MCP.md) |
 | Integrate with your own code | Same-page `window.moment` or the reusable service/adapter | `node examples/use-editor-service.mjs` |
 
+**Project-name drafts:** `window.moment.execute` also returns `CONFLICT` while the header name has an uncommitted value or active composition. Finish/commit the name edit or restore its original value and end composition, then re-read and retry. The name is not silently committed or discarded; explicit local replacements keep their existing behavior.
+
 **Live caption drafts:** same-page `window.moment.execute` returns `CONFLICT` before a project commit while the open caption panel has uncommitted row edits or an active composition. Finish/commit the edit or restore its original value, then re-read and retry; the API does not blur, auto-save or discard the draft. Reads, previews and genuine no-op results remain available. This does not change CLI/MCP, explicit file import, local UI edits or Undo, and is not a guard for every editor input. [Exact boundary](INTEGRATIONS.md#브라우저와-파일-왕복)
 
 Run `node examples/use-mcp-client.mjs` for an executable handshake → import → edit → SRT → restart/reimport example. It launches local Node processes and keeps its exported document in memory; it does not write your files or connect to a browser.

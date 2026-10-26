@@ -5,7 +5,7 @@ import { createAppFixture } from './fixtures/app.mjs';
 
 // Native recording/download dispatch is simulated; app, export and download owners are real.
 async function fixture() {
-  const f = await createAppFixture(), recorders = [], tracks = [], downloads = [], revoked = [], timers = [];
+  const f = await createAppFixture(), recorders = [], tracks = [], downloads = [], blobs = [], revoked = [], timers = [];
   let failure, nextURL = 0;
   const track = () => {
     const value = { stops: 0, clone: track, stop() { this.stops++; } };
@@ -21,7 +21,8 @@ async function fixture() {
     createGain() { return node(); }
   };
   f.context.URL = {
-    createObjectURL() {
+    createObjectURL(blob) {
+      blobs.push(blob);
       if (failure === 'url') throw new Error('Cannot create download URL');
       return `blob:download-${++nextURL}`;
     },
@@ -59,7 +60,7 @@ async function fixture() {
     start() { this.state = 'recording'; }
     stop() { this.state = 'inactive'; this.stops++; }
   };
-  return { ...f, recorders, tracks, sourceTrack, downloads, revoked, timers, fail: value => { failure = value; } };
+  return { ...f, recorders, tracks, sourceTrack, downloads, blobs, revoked, timers, fail: value => { failure = value; } };
 }
 
 async function start(f, includeAudio = true) {
@@ -78,10 +79,11 @@ const snapshot = f => f.evaluate('({state,history,future})');
 
 for (const locale of ['ko', 'en', 'zh-CN']) {
   for (const failure of ['empty', 'url', 'click', 'detach']) {
-    test(`${locale}: ${failure} finalization failure closes the running dialog and permits explicit retry`, async () => {
+    test(`${locale}: ${failure} finalization failure releases recording and permits explicit retry`, async () => {
       const f = await fixture(), before = snapshot(f);
       try {
         vm.runInContext(`setLocale('${locale}', {persist:false})`, f.context);
+        assert.equal(f.evaluate('getLocale()'), locale);
         const old = await start(f);
         f.fail(failure);
         vm.runInContext('stopExport(false)', f.context);
@@ -89,15 +91,19 @@ for (const locale of ['ko', 'en', 'zh-CN']) {
         assert.doesNotThrow(() => old.stop());
         assert.equal(f.evaluate('exporting'), false);
         assert.equal(f.evaluate('playing'), false);
-        assert.equal(f.evaluate('modal.open'), false);
+        assert.equal(f.evaluate('modal.open'), failure !== 'empty');
         assert.equal(f.evaluate('videoExport.recorder'), null);
         assert.equal(f.evaluate('videoExport.canvas'), null);
         assert.equal(f.pendingFrames.size, 0);
         assert.equal(old.recorder.stops, 1);
         assert.ok(old.recorder.stream.getTracks().every(track => track.stops === 1));
         assert.equal(f.sourceTrack.stops, 0);
-        const key = failure === 'empty' ? 'shell.exportEmpty' : 'shell.exportFinishFailed';
-        assert.equal(f.element('#toast').textContent, vm.runInContext(`t('${key}')`, f.context));
+        if (failure === 'empty')
+          assert.equal(f.element('#toast').textContent, vm.runInContext(`t('shell.exportEmpty')`, f.context));
+        else {
+          assert.match(f.element('#modal').innerHTML, /shell.exportDone/);
+          assert.equal(f.element('#exportDownloadStatus').textContent, vm.runInContext(`t('shell.exportDownloadFailed')`, f.context));
+        }
         assert.deepEqual(snapshot(f), before);
         // A post-click cleanup error cannot undo a download already dispatched.
         assert.equal(f.downloads.length, failure === 'detach' ? 1 : 0);
@@ -109,6 +115,15 @@ for (const locale of ['ko', 'en', 'zh-CN']) {
           assert.deepEqual(f.revoked, ['blob:download-1']);
         }
         f.fail(null);
+        if (failure !== 'empty') {
+          const attempts = f.downloads.length, blob = f.blobs[0];
+          f.element('#downloadExportAgain').onclick();
+          assert.equal(f.downloads.length, attempts + 1);
+          assert.equal(f.blobs.at(-1), blob, 'retry hands off the identical completed Blob');
+          assert.equal(f.recorders.length, 1, 'retry does not encode again');
+          assert.equal(f.element('#exportDownloadStatus').textContent, vm.runInContext(`t('shell.exportReview')`, f.context));
+          assert.deepEqual(snapshot(f), before);
+        }
         const replacement = await start(f), dispatched = f.downloads.length;
         f.element('#toast').textContent = 'New export';
         old.data(finalData()); old.stop(); old.error(); old.cancel();
@@ -145,3 +160,87 @@ for (const includeAudio of [true, false]) {
     assert.equal(f.evaluate('modal.open'), false);
   });
 }
+
+async function finish(f) {
+  const active = await start(f);
+  vm.runInContext('stopExport(false)', f.context);
+  active.data(finalData()); active.stop();
+  return active;
+}
+
+for (const dismissal of ['back', 'native close', 'replacement', 'export settings', 'new export', 'direct new export']) {
+  test(`completed download owner is invalidated by ${dismissal}`, async () => {
+    const f = await fixture();
+    await finish(f);
+    const retry = f.element('#downloadExportAgain').onclick, back = f.element('#exportDone').onclick;
+    const close = f.element('#modal').onclose, replace = f.element('#modal').onreplace;
+    assert.equal(typeof retry, 'function');
+    if (dismissal === 'back') back();
+    if (dismissal === 'native close') { f.element('#modal').close(); close(); }
+    if (dismissal === 'replacement') f.element('#projectFilesButton').onclick();
+    if (dismissal === 'export settings') vm.runInContext('exportDialog()', f.context);
+    if (dismissal === 'new export') await start(f);
+    if (dismissal === 'direct new export') await vm.runInContext("startExport({mime:'video/webm', ext:'webm'}, 720)", f.context);
+    const html = f.element('#modal').innerHTML, open = f.element('#modal').open;
+    retry(); back(); close(); replace();
+    assert.equal(f.downloads.length, 1);
+    assert.equal(f.element('#modal').innerHTML, html);
+    assert.equal(f.element('#modal').open, open);
+    if (f.evaluate('exporting')) vm.runInContext('stopExport(true)', f.context);
+    // Dismissing the result does not revoke an already dispatched URL early.
+    assert.deepEqual(f.revoked, []);
+    f.timers.find(timer => timer.delay === 60000).callback();
+    assert.deepEqual(f.revoked, ['blob:download-1']);
+  });
+}
+
+test('retry keeps completed bytes and metadata after an API project edit', async () => {
+  const f = await fixture();
+  vm.runInContext("state.name = 'Original <short>'", f.context);
+  await finish(f);
+  const blob = f.blobs[0], html = f.element('#modal').innerHTML;
+  const result = await vm.runInContext("window.moment.execute('project.update', {patch:{name:'New project', speed:2}})", f.context);
+  assert.equal(result.ok, true, JSON.stringify(result));
+  const before = snapshot(f);
+  f.element('#downloadExportAgain').onclick();
+  assert.equal(f.downloads.length, 2);
+  assert.equal(f.downloads[1].name, 'Original <short>.mp4');
+  assert.equal(f.blobs[1], blob);
+  assert.equal(f.recorders.length, 1);
+  assert.equal(f.element('#modal').innerHTML, html);
+  assert.match(html, /Original &lt;short&gt;/);
+  assert.deepEqual(snapshot(f), before);
+});
+
+test('retry failures remain recoverable and composing activation cannot dispatch', async () => {
+  const f = await fixture();
+  await finish(f);
+  const retry = f.element('#downloadExportAgain').onclick, blob = f.blobs[0];
+  retry({isComposing:true}); retry({keyCode:229});
+  assert.equal(f.downloads.length, 1);
+  for (const failure of ['url', 'click', 'detach']) {
+    f.fail(failure); retry();
+    assert.equal(f.evaluate('modal.open'), true);
+    assert.equal(f.element('#exportDownloadStatus').textContent, vm.runInContext("t('shell.exportDownloadFailed')", f.context));
+    assert.equal(f.recorders.length, 1);
+  }
+  f.fail(null); retry();
+  assert.equal(f.blobs.at(-1), blob);
+  assert.equal(f.downloads.length, 3, 'one original, one post-click fault, one explicit recovery');
+});
+
+test('stale result handlers cannot discard a newer completed export', async () => {
+  const f = await fixture();
+  await finish(f);
+  const oldRetry = f.element('#downloadExportAgain').onclick, oldBack = f.element('#exportDone').onclick;
+  const oldReplace = f.element('#modal').onreplace, oldClose = f.element('#modal').onclose;
+  await finish(f);
+  const newest = f.blobs.at(-1);
+  oldRetry(); oldBack(); oldReplace(); oldClose();
+  assert.equal(f.downloads.length, 2);
+  assert.equal(f.evaluate('modal.open'), true);
+  f.element('#downloadExportAgain').onclick();
+  assert.equal(f.downloads.length, 3);
+  assert.equal(f.blobs.at(-1), newest);
+  assert.equal(f.recorders.length, 2);
+});

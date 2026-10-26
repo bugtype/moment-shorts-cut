@@ -658,6 +658,8 @@ is session-only (reload defaults to unmuted), not a saved project field.
 
 **Video export:** keep the tab visible; hiding it cancels recording. MP4/WebM support depends on the browser. Recording is real-time, with a 30 fps target rather than a fixed-rate guarantee. The historical 4-second Chromium test averaged about 21.7 fps; see [the measured report](docs/BROWSER_QA.md).
 
+**Download again:** the finished-export dialog keeps one completed video in memory for an explicit **Download again**, including after a download-handling error. Retrying reuses those same bytes and filename without recording again; later project edits are not included. Check your browser’s Downloads first, since a retry may create another copy. Closing/replacing the dialog or starting another export drops the app’s result reference; already-dispatched download URLs keep their existing 60-second cleanup delay. Browser download permission and successful disk saving are not guaranteed.
+
 Both export options start checked whenever you open the dialog. Their values are
 captured on Start for that request only; they do not edit/save the project or add history.
 

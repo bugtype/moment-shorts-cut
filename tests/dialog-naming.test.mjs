@@ -15,7 +15,7 @@ const heading = (modal, key, locale) => {
 function controls() {
   const nodes = new Map();
   return id => {
-    if (!nodes.has(id)) nodes.set(id, {focus() {}});
+    if (!nodes.has(id)) nodes.set(id, {focus() {}, setAttribute() {}});
     return nodes.get(id);
   };
 }

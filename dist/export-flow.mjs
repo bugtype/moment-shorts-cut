@@ -1,4 +1,4 @@
-import {t, text, mark, message} from './i18n.mjs';
+import {t, text, mark, message, setText} from './i18n.mjs';
 import { esc, fmt } from './ui-format.mjs';
 
 // Owns the export dialog and lifecycle. Recording, encoding and resource release
@@ -11,7 +11,39 @@ export function createExportFlow(app, {
 } = {}) {
     const { query: $, videoExport, toast, modal } = app;
 
-    let dialogGeneration = 0;
+    let dialogGeneration = 0, completed = null;
+
+    // One immutable finished-file snapshot, not a cache of current project edits.
+    // Handlers retain only ownership tokens; clearing this cell releases our Blob reference.
+    function showCompleted(result) {
+        const generation = ++dialogGeneration;
+        completed = result;
+        result = null;
+        const { name, quality, extension, duration } = completed;
+        modal.innerHTML = `<div class="modal-head"><h2 id="modalTitle">${text("shell.exportDone")}</h2></div><p class="modal-copy">${esc(name)}<br>${quality}p · ${extension.toUpperCase()} · ${fmt(duration)}</p><div class="notice" id="exportDownloadStatus" role="status">${text("shell.exportReview")}</div><div class="modal-foot"><button class="button" id="exportDone">${text("shell.backToEditor")}</button><button class="button primary" id="downloadExportAgain">${text("shell.exportDownloadAgain")}</button></div>`;
+        const retry = $('#downloadExportAgain');
+        const owns = () => generation === dialogGeneration && completed && modal.open && $('#downloadExportAgain') === retry;
+        const release = () => { if (generation === dialogGeneration) completed = null; };
+        const attempt = () => {
+            let status = 'shell.exportReview';
+            try {
+                app.download(completed.blob, completed.filename);
+            }
+            catch {
+                // A cleanup failure can happen after click: never automatically retry
+                // or imply that no file reached the browser's Downloads list.
+                status = 'shell.exportDownloadFailed';
+            }
+            setText($('#exportDownloadStatus'), status);
+        };
+        modal.onreplace = release;
+        modal.onclose = () => { if (!modal.open) release(); };
+        $('#exportDone').onclick = () => { if (owns()) { release(); modal.close(); } };
+        retry.onclick = event => {
+            if (owns() && !event?.isComposing && event?.keyCode !== 229) attempt();
+        };
+        attempt();
+    }
 
     function supportedTypes() {
         if (!hasMediaRecorder())
@@ -37,6 +69,7 @@ export function createExportFlow(app, {
             toast(message("shell.exportUnsupported"));
             return;
         }
+        completed = null;
         const generation = ++dialogGeneration;
         app.modalOpen(message("shell.exportTitle"), `<p class="modal-copy">${text("shell.exportDescription")}</p><div class="modal-field"><label for="exportFormat">${text("shell.fileFormat")}</label><select id="exportFormat">${types.map((t, i) => `<option value="${i}">${t.label}</option>`).join('')}</select></div><div class="modal-field"><label for="exportQuality">${text("shell.resolution")}</label><select id="exportQuality"><option value="720" ${mark("shell.quality720")}>${t("shell.quality720")}</option><option value="1080" selected ${mark("shell.quality1080")}>${t("shell.quality1080")}</option></select></div><div class="modal-field"><label><input type="checkbox" id="exportIncludeCaptions" checked> ${text("shell.exportIncludeCaptions")}</label></div><div class="modal-field"><label><input type="checkbox" id="exportIncludeAudio" checked> ${text("shell.exportIncludeAudio")}</label></div><div class="modal-field"><span>${text("shell.videoLength")}</span><strong>${fmt(app.duration() / app.state.speed)}</strong></div><div class="notice">${text("shell.exportNotice")}</div>`, `<div class="modal-foot"><button class="button" id="cancelExportDialog">${text("shell.cancel")}</button><button class="button primary" id="startExport">${text("shell.exportVideo")}</button></div>`);
         const start = $('#startExport'), include = $('#exportIncludeCaptions'), audio = $('#exportIncludeAudio');
@@ -53,10 +86,13 @@ export function createExportFlow(app, {
         if (app.mediaBlocked() || app.exporting || app.audioRecording.current || app.audioRecording.requesting || app.loadingMedia || app.transcribing)
             return;
         ++dialogGeneration;
+        completed = null;
         app.pause();
         const request = videoExport.begin(options);
         try {
             app.exporting = true;
+            const details = { name: app.state.name, filename: `${app.state.name || 'moment-shorts'}.${type.ext}`,
+                quality, extension: type.ext, duration: app.duration() / app.state.speed };
             app.exportCancelled = false;
             body().classList.add('exporting');
             // Preparation can wait on audio, fonts or seeking. Keep cancellation reachable
@@ -98,16 +134,7 @@ export function createExportFlow(app, {
                         toast(message("shell.exportEmpty"));
                         return;
                     }
-                    try {
-                        app.download(blob, `${app.state.name || 'moment-shorts'}.${type.ext}`);
-                    }
-                    catch {
-                        modal.close();
-                        toast(message("shell.exportFinishFailed"));
-                        return;
-                    }
-                    modal.innerHTML = `<div class="modal-head"><h2 id="modalTitle">${text("shell.exportDone")}</h2></div><p class="modal-copy">${esc(app.state.name)}<br>${quality}p · ${type.ext.toUpperCase()} · ${fmt(app.duration() / app.state.speed)}</p><div class="notice">${text("shell.exportReview")}</div><div class="modal-foot"><button class="button primary" id="exportDone">${text("shell.backToEditor")}</button></div>`;
-                    $('#exportDone').onclick = () => modal.close();
+                    showCompleted({ ...details, blob });
                 },
             });
             modal.innerHTML = `<div class="modal-head"><h2 id="modalTitle">${text("shell.exportRunning")}</h2><strong id="exportPercent">0%</strong></div><p class="modal-copy">${text("shell.exportKeepOpen")}</p><div class="progress"><i id="exportProgress"></i></div><button class="button full" id="cancelRunningExport">${text("shell.exportCancel")}</button>`;

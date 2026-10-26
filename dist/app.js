@@ -404,6 +404,12 @@ function commitCommandProject(next, { command } = {}) {
         throw new CommandError('BUSY', message('shell.operationBusy'));
     if (command === 'project.import' && (next.kind !== state.kind || (next.kind === 'video' && (next.fileName !== state.fileName || Math.abs(next.duration - state.duration) > .05)) || next.audioName !== state.audioName))
         throw new CommandError('MEDIA_RELINK_REQUIRED', message('shell.mediaRelink'));
+    if (next.kind === 'video' && sessionMedia.mediaReady() && Number.isFinite(video.duration)) {
+        // Imported duration metadata does not extend the media actually available in this tab.
+        const index = next.clips.findIndex(clip => clip.end > video.duration);
+        if (index !== -1)
+            throw new CommandError('INVALID_ARGUMENT', message('errors.clipRange'), `project.clips[${index}]`);
+    }
     // Non-timeline commands clone clips without changing the trim draft's target.
     const preserveTrim = ['project.update', 'effects.update', 'overlays.update', 'overlays.move', 'overlays.add', 'overlays.remove', 'title.update', 'credit.update', 'captions.replace', 'captions.append', 'captions.update', 'captions.insert', 'captions.remove', 'captions.merge', 'captions.split', 'captions.import', 'captions.timing.shift', 'captions.text.replace', 'captions.style.update', 'captions.speaker.assign'].includes(command) && inspectorView.hasTrimTarget(state.clips[selected]);
     pause();

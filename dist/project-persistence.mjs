@@ -8,7 +8,7 @@ export function createProjectPersistence({ store, sources, getProject, replacePr
     setTimer = (callback, delay) => setTimeout(callback, delay),
     clearTimer = timer => clearTimeout(timer),
 } = {}) {
-    let restoreNotice = msg('errors.restoring'), savedSettings;
+    let restoreNotice = msg('errors.restoring'), savedSettings, pendingMediaWrite = false;
     const persistence = {
         restorePhase: 'restoring',
         get restoreMessage() { return formatError(restoreNotice); },
@@ -34,7 +34,7 @@ export function createProjectPersistence({ store, sources, getProject, replacePr
         if (persistence.restorePhase === 'failed')
             return JSON.stringify(getProject()) !== persistence.recoveryBaseline;
         return persistence.restorePhase === 'ready' &&
-            (JSON.stringify(getProject()) !== savedSettings ||
+            (pendingMediaWrite || JSON.stringify(getProject()) !== savedSettings ||
                 store.hasStoredMedia?.(sources.videoFile, sources.audioFile) === false);
     }
     function scheduleSave() {
@@ -49,7 +49,7 @@ export function createProjectPersistence({ store, sources, getProject, replacePr
         if (recoveryBlocked(show))
             return;
         try {
-            if (show && (sources.videoFile || sources.audioFile))
+            if (show && (sources.videoFile || sources.audioFile || pendingMediaWrite))
                 persistMedia();
             let saving;
             do {
@@ -84,8 +84,12 @@ export function createProjectPersistence({ store, sources, getProject, replacePr
     function persistMedia() {
         if (recoveryBlocked(false))
             return;
-        persistence.pendingSave = store.setMedia(sources.videoFile, sources.audioFile);
-        persistence.pendingSave.catch(() => {
+        // A requested deletion still needs a retry when no files remain attached.
+        pendingMediaWrite = true;
+        const saving = persistence.pendingSave = store.setMedia(sources.videoFile, sources.audioFile);
+        saving.then(() => {
+            if (persistence.pendingSave === saving) pendingMediaWrite = false;
+        }, () => {
             if (!recoveryBlocked(false))
                 saveStatus(msg('errors.mediaSave'), false);
         });

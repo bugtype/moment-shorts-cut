@@ -701,6 +701,8 @@ subtitle track inside MP4/WebM. CLI/MCP `render.plan` has no new toggle and rema
 
 **Storage:** media is stored in IndexedDB and editing state in localStorage. They are written separately; a failed save can leave them out of sync. Storage belongs to the current browser and origin; changing the host or port opens a different storage area. Clearing browser data, private browsing, or storage exhaustion can lose work. There is no cloud sync or remote backup.
 
+**Failed removal or reset save:** once storage is writable again, click **Save** to retry the current media state—even when no files remain attached. Background metadata autosave does not retry that failed media write. An unfinished media write still counts as unsaved when the visible settings match their previous values; browsers may omit the exit warning. This does not restore removed files or repair failed startup recovery.
+
 **Pending imports:** if the project changes while a text file is being read or waiting to apply, the import is rejected; select the file again to apply it to the current project. Selecting another JSON/SRT/VTT file supersedes the earlier pending import, even if the newer file fails. These checks cover applied project state, not uncommitted text-field drafts.
 
 **Pending transcription:** results are not applied if the source media or existing captions changed, or the project was replaced; added-audio results also require unchanged audio offset and edited duration. Appearance changes remain usable.

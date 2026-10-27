@@ -107,6 +107,11 @@ export function createTextFileWorkflow({
         const owned = options.owned === true;
         let request;
         const current = () => (!request || request.isLatest()) && (!options.isCurrent || options.isCurrent());
+        function reportFailure(error) {
+            if (!current()) return {ok:false,stale:true};
+            if (!owned) toast((error.messageKey ? error : error.message) || msg('errors.captionRead'));
+            return {ok:false,error:error.messageKey ? error : {code:error.code || 'IMPORT_FAILED',message:formatError(error)}};
+        }
         try {
             request = guardTextImport();
             const project = getProject(), clock = options.clock || 'source', mode = options.mode ?? 'replace';
@@ -149,9 +154,7 @@ export function createTextFileWorkflow({
                     if (!owned) { focusImportedCaption(); toast(success); }
                     return {...result, message:success};
                 } catch (error) {
-                    if (!current()) return {ok:false,stale:true};
-                    if (!owned) toast((error.messageKey ? error : error.message) || msg('errors.captionRead'));
-                    return {ok:false,error:error.messageKey ? error : {code:error.code || 'IMPORT_FAILED',message:formatError(error)}};
+                    return reportFailure(error);
                 } finally {
                     inFlight = false;
                 }
@@ -160,9 +163,7 @@ export function createTextFileWorkflow({
                 return {ok:true,prepared:true,report:{...parsed.report},commit};
             return await commit();
         } catch (error) {
-            if (!current()) return {ok:false,stale:true};
-            if (!owned) toast((error.messageKey ? error : error.message) || msg('errors.captionRead'));
-            return {ok:false,error:error.messageKey ? error : {code:error.code || 'IMPORT_FAILED',message:formatError(error)}};
+            return reportFailure(error);
         } finally {
             if (!owned && options.prepareOnly !== true && current()) $('#srtInput').value = '';
         }

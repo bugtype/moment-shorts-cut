@@ -2,6 +2,7 @@ import { bindPanelTabs } from './panel-tabs.mjs';
 import { decimalTime, esc as escape } from './ui-format.mjs';
 import { t, text, mark, attrs, setValidity } from './i18n.mjs';
 import { activeSceneLayers } from './effects.mjs';
+import { createPendingInputCheck } from './pending-input.mjs';
 
 const renderOwners = new WeakMap();
 
@@ -248,17 +249,10 @@ export function mountDesignPanel(root, api) {
       }
     }
     if (['text', 'number'].includes(input.type)) {
-      const initial = read(), displayed = input.value;
-      pending.push(() => {
-        if (!current()) return false;
-        const value = read(), numeric = input.type === 'number';
-        const nullable = path.endsWith('.end') && value == null;
-        if (composing?.() || (numeric && (input.validity?.badInput || (input.value === '' && !nullable)))) return true;
-        if (value === initial && input.value === displayed) return false;
-        if (numeric) return !(input.value === '' && nullable) &&
-          (!Number.isFinite(input.valueAsNumber) || input.valueAsNumber !== value);
-        return input.value !== value;
+      const check = createPendingInputCheck(input, {
+        read, current, composing, nullable: value => path.endsWith('.end') && value == null
       });
+      pending.push(check);
     }
   });
 

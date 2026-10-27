@@ -1,6 +1,7 @@
 import { bindPanelTabs } from './panel-tabs.mjs';
 import { decimalTime, esc } from './ui-format.mjs';
 import { t, text, mark, attrs, setText, setValidity } from './i18n.mjs';
+import { createPendingInputCheck } from './pending-input.mjs';
 
 const renderOwners = new WeakMap();
 
@@ -312,15 +313,9 @@ export function mountEffectsPanel(root, api) {
           }
         }
         if (['text', 'textarea', 'number'].includes(input.type)) {
-          const key = input.dataset.card, initial = card[key], displayed = input.value;
-          pending.push(() => {
-            if (!current()) return false;
-            const value = card[key], numeric = input.type === 'number';
-            if (composing?.() || (numeric && (input.validity?.badInput || input.value === ''))) return true;
-            if (value === initial && input.value === displayed) return false;
-            if (numeric) return !Number.isFinite(input.valueAsNumber) || input.valueAsNumber !== value;
-            return input.value !== value;
-          });
+          const key = input.dataset.card;
+          const check = createPendingInputCheck(input, { read: () => card[key], current, composing });
+          pending.push(check);
         }
       });
     }

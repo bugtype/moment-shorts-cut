@@ -1,13 +1,11 @@
 import { text, message, setValidity } from './i18n.mjs';
+import { metadataEditBlocked } from './metadata-edit-availability.mjs';
 
 // Range numbers describe authored clip positions, not a persisted selection.
 export function createClipDuplicateDialog(app) {
     const $ = app.query;
     let generation = 0;
-    const blocked = () => !app.editorReady || app.exporting || app.loadingMedia || app.transcribing ||
-        app.audioRecording.requesting || app.audioRecording.current ||
-        (app.persistence.restorePhase !== 'ready' &&
-            !(app.persistence.restorePhase === 'failed' && app.persistence.recoveryValid));
+    const blocked = () => metadataEditBlocked(app);
 
     function open(trigger, event) {
         if (blocked() || app.modal.open || event?.isComposing || event?.keyCode === 229 ||

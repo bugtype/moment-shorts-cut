@@ -1,15 +1,14 @@
 import { clearCaptionKeywords } from './core/caption-keywords.mjs';
 import { validateProject } from './core/project.mjs';
 import { text, message, formatError } from './i18n.mjs';
+import { metadataEditBlocked } from './metadata-edit-availability.mjs';
 
 // One explicit reset of keyword fields, not caption styling or authored text.
 export function createCaptionKeywordsDialog(app) {
     const $ = app.query;
     let generation = 0;
     const context = () => app.panel === 'text' && app.textLayer === 'caption';
-    const blocked = () => !app.editorReady || app.exporting || app.loadingMedia || app.transcribing ||
-        app.audioRecording.requesting || app.audioRecording.current ||
-        (app.persistence.restorePhase !== 'ready' && !(app.persistence.restorePhase === 'failed' && app.persistence.recoveryValid));
+    const blocked = () => metadataEditBlocked(app);
     function open() {
         if (!context() || app.modal.open || blocked()) return;
         const project = app.state, contents = JSON.stringify(project);

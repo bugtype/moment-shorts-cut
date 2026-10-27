@@ -2,12 +2,12 @@ import {complementSourceClips} from './core/timeline-complement.mjs';
 import {outputDuration} from './core/project.mjs';
 import {text,message,formatError} from './i18n.mjs';
 import {decimalTime} from './ui-format.mjs';
+import { metadataEditBlocked } from './metadata-edit-availability.mjs';
 
 export function createClipComplementDialog(app) {
     const $=app.query;
     let generation=0;
-    const blocked=()=>!app.editorReady||app.exporting||app.loadingMedia||app.transcribing||app.audioRecording.requesting||app.audioRecording.current||
-        (app.persistence.restorePhase!=='ready'&&!(app.persistence.restorePhase==='failed'&&app.persistence.recoveryValid));
+    const blocked=()=>metadataEditBlocked(app);
     function open(trigger) {
         if(blocked()||app.modal.open||!['keepGapsButton','keepPanelGaps'].includes(trigger))return;
         const project=app.state,signature=JSON.stringify(project),panel=app.panel,selected=app.selected,

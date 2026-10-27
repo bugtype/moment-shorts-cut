@@ -1,13 +1,12 @@
 import {text,message,setValidity} from './i18n.mjs';
 import {decimalTime} from './ui-format.mjs';
+import { metadataEditBlocked } from './metadata-edit-availability.mjs';
 
 // Global source framing: offsets are fractions of the rendered video region.
 export function createFramingDialog(app) {
     const $=app.query;
     let generation=0;
-    const blocked=()=>!app.editorReady || app.exporting || app.loadingMedia || app.transcribing ||
-        app.audioRecording.requesting || app.audioRecording.current ||
-        (app.persistence.restorePhase!=='ready' && !(app.persistence.restorePhase==='failed' && app.persistence.recoveryValid));
+    const blocked=()=>metadataEditBlocked(app);
     function open(trigger) {
         if(app.modal.open || blocked() || !['openFraming','openPanelFraming'].includes(trigger))return;
         const project=app.state,signature=JSON.stringify(project),panel=app.panel,selected=app.selected,

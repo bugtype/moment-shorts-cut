@@ -1,13 +1,12 @@
 import {text, message, setValidity} from './i18n.mjs';
 import {decimalTime} from './ui-format.mjs';
+import { metadataEditBlocked } from './metadata-edit-availability.mjs';
 
 // Explicit two-axis commit; percentages never round-trip unchanged model coordinates.
 export function createPositionDialog(app) {
     const $ = app.query;
     let generation = 0;
-    const blocked = () => !app.editorReady || app.exporting || app.loadingMedia || app.transcribing ||
-        app.audioRecording.requesting || app.audioRecording.current ||
-        (app.persistence.restorePhase !== 'ready' && !(app.persistence.restorePhase === 'failed' && app.persistence.recoveryValid));
+    const blocked = () => metadataEditBlocked(app);
     function open(kind, id) {
         if (app.modal.open || blocked()) return;
         const project = app.state, layer = kind === 'card' ? project.overlays.find(item => item.id === id)

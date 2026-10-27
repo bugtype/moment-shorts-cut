@@ -51,8 +51,11 @@ export function createCaptionGeneration({ transcription, getProject, getFile, ge
         const pcm = (await offline.startRendering()).getChannelData(0);
         beforeApply();
         let peak = 0;
-        for (let i = 0; i < pcm.length; i += 50)
+        // Striding can sample only zero crossings and mistake non-silent PCM for silence.
+        for (let i = 0; i < pcm.length; i++) {
             peak = Math.max(peak, Math.abs(pcm[i]));
+            if (peak >= .002) break;
+        }
         if (peak < .002)
             throw new LocalizedError(msg('errors.noSpeechSource'));
         status(msg('errors.preparingModel'));

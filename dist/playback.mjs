@@ -107,11 +107,7 @@ export function createPlayback(app, {
                     if (request !== app.playRequest || audioRequest !== audioPlayRequest ||
                         (app.exporting && !app.videoExport.renderOptions.includeAudio))
                         return;
-                    if (app.exporting)
-                        app.stopExport(true);
-                    else
-                        pause();
-                    app.toast(message('shell.playError'));
+                    stopAndReportPlaybackError();
                 });
             }
         }
@@ -139,6 +135,14 @@ export function createPlayback(app, {
             app.renderPanel();
     }
 
+    function stopAndReportPlaybackError() {
+        if (app.exporting)
+            app.stopExport(true);
+        else
+            pause();
+        app.toast(message('shell.playError'));
+    }
+
     function stopForAudioError() {
         if (!app.sources.audioFile || !app.audio.error ||
             (app.exporting && !app.videoExport.renderOptions.includeAudio))
@@ -149,11 +153,7 @@ export function createPlayback(app, {
         const length = app.audio.duration > 0 ? app.audio.duration : Infinity;
         if (!(Math.max(app.current, app.state.audioOffset) < Math.min(end, app.state.audioOffset + length)))
             return false;
-        if (app.exporting)
-            app.stopExport(true);
-        else
-            pause();
-        app.toast(message('shell.playError'));
+        stopAndReportPlaybackError();
         return true;
     }
 
@@ -238,11 +238,7 @@ export function createPlayback(app, {
     function stopForVideoError() {
         if (app.state.kind !== 'video' || !app.video.error)
             return false;
-        if (app.exporting)
-            app.stopExport(true);
-        else
-            pause();
-        app.toast(message('shell.playError'));
+        stopAndReportPlaybackError();
         return true;
     }
 
@@ -268,11 +264,7 @@ export function createPlayback(app, {
                             // A cancelled cut must not stop a newer preview or export.
                             if (request !== app.playRequest)
                                 return;
-                            if (app.exporting)
-                                app.stopExport(true);
-                            else
-                                pause();
-                            app.toast(message('shell.playError'));
+                            stopAndReportPlaybackError();
                         });
                     }
                     else

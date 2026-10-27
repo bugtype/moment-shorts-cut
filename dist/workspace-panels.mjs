@@ -153,6 +153,86 @@ export function createWorkspacePanels(app) {
         };
     }
 
+    function renderSettingsPanel(target, generation) {
+        target.innerHTML = settingsPanelMarkup(app.state, app.state.clips[app.selected], app.loopPreview);
+        for (const [id, key] of [['mobileZoom', 'zoom'], ['captionSize', 'captionSize'], ['captionY', 'captionY'], ['panelVolume', 'volume']]) {
+            const control = $('#' + id);
+            app.inputHistory.bind(control, () => app.state[key], value => {
+                app.state[key] = value;
+                app.renderInspector();
+                app.draw();
+                app.scheduleSave();
+            });
+        }
+        const gaps = $('#keepPanelGaps'), gapProject = app.state, gapGeneration = renderGeneration;
+        gaps.onclick = event => {
+            if (app.panel === 'settings' && app.state === gapProject && gapGeneration === renderGeneration && $('#keepPanelGaps') === gaps &&
+                !event?.isComposing && event?.keyCode !== 229) app.openKeepGaps('keepPanelGaps');
+        };
+        const framing = $('#openPanelFraming'), framingProject = app.state, framingGeneration = renderGeneration;
+        framing.onclick = event => {
+            if (app.panel === 'settings' && app.state === framingProject && framingGeneration === renderGeneration && $('#openPanelFraming') === framing &&
+                !event?.isComposing && event?.keyCode !== 229) app.openFraming('openPanelFraming');
+        };
+        const grid = $('#thirdsGridPanel'), gridGeneration = renderGeneration;
+        syncThirdsGrid();
+        grid.onchange = event => {
+            if (app.panel === 'settings' && gridGeneration === renderGeneration && $('#thirdsGridPanel') === grid)
+                changeThirdsGrid(grid, event);
+        };
+        const sceneButton = $('#openScenePng'), sceneGeneration = renderGeneration;
+        sceneButton.onclick = event => {
+            if (sceneGeneration === renderGeneration && $('#openScenePng') === sceneButton) scenePng.open(event);
+        };
+        const savePreview = $('#savePreviewPng'), previewProject = app.state;
+        syncPreviewExportLabel();
+        savePreview.onclick = () => {
+            if (app.panel === 'settings' && app.state === previewProject && $('#savePreviewPng') === savePreview)
+                app.savePreview();
+        };
+        $('#resetPosition').onclick = () => app.edit(() => {
+            app.state.zoom = 1;
+            app.state.panX = 0;
+            app.state.panY = 0;
+        }, true);
+        const loop = $('#loopPreview');
+        loop.checked = app.loopPreview;
+        loop.onchange = () => {
+            if (app.panel !== 'settings' || $('#loopPreview') !== loop) return;
+            if (!app.editorReady || app.exporting || app.loadingMedia || app.transcribing ||
+                !app.mediaReady() || app.audioRecording.requesting || app.audioRecording.current) {
+                loop.checked = app.loopPreview;
+                return;
+            }
+            app.setLoopPreview(loop.checked);
+        };
+        const trimClip = app.state.clips[app.selected], trimIndex = app.selected;
+        pendingTrim = app.bindTrimDrafts({ start: '#panelTrimStart', end: '#panelTrimEnd',
+            startButton: '#panelTrimStartPlayhead', endButton: '#panelTrimEndPlayhead',
+            current: () => app.panel === 'settings' && app.selected === trimIndex && app.state.clips[trimIndex] === trimClip,
+        });
+        const moveClipButton = $('#panelMoveClip');
+        moveClipButton.onclick = event => {
+            if (!event?.isComposing && event?.keyCode !== 229 && app.panel === 'settings' &&
+                $('#panelMoveClip') === moveClipButton && app.selected === trimIndex && app.state.clips[trimIndex] === trimClip)
+                app.openClipMove(moveClipButton);
+        };
+        const duplicateRangeButton = $('#panelDuplicateClipRange');
+        duplicateRangeButton.onclick = event => {
+            if (app.panel === 'settings' && renderGeneration === generation &&
+                $('#panelDuplicateClipRange') === duplicateRangeButton && app.selected === trimIndex && app.state.clips[trimIndex] === trimClip)
+                app.openClipDuplicate(duplicateRangeButton, event);
+        };
+        const removeRangeButton = $('#panelRemoveClipRange');
+        removeRangeButton.disabled = app.state.clips.length <= 1;
+        removeRangeButton.onclick = event => {
+            if (!event?.isComposing && event?.keyCode !== 229 && app.panel === 'settings' &&
+                $('#panelRemoveClipRange') === removeRangeButton && app.selected === trimIndex && app.state.clips[trimIndex] === trimClip)
+                app.openClipRange(removeRangeButton);
+        };
+        $('#panelTrimApply').onclick = () => app.trim($('#panelTrimStart').valueAsNumber, $('#panelTrimEnd').valueAsNumber);
+    }
+
     function renderPanel() {
         const generation = ++renderGeneration;
         pendingTrim = null;
@@ -233,83 +313,7 @@ export function createWorkspacePanels(app) {
             app.renderDesignPanel(target);
         }
         else {
-            target.innerHTML = settingsPanelMarkup(app.state, app.state.clips[app.selected], app.loopPreview);
-            for (const [id, key] of [['mobileZoom', 'zoom'], ['captionSize', 'captionSize'], ['captionY', 'captionY'], ['panelVolume', 'volume']]) {
-                const control = $('#' + id);
-                app.inputHistory.bind(control, () => app.state[key], value => {
-                    app.state[key] = value;
-                    app.renderInspector();
-                    app.draw();
-                    app.scheduleSave();
-                });
-            }
-            const gaps = $('#keepPanelGaps'), gapProject = app.state, gapGeneration = renderGeneration;
-            gaps.onclick = event => {
-                if (app.panel === 'settings' && app.state === gapProject && gapGeneration === renderGeneration && $('#keepPanelGaps') === gaps &&
-                    !event?.isComposing && event?.keyCode !== 229) app.openKeepGaps('keepPanelGaps');
-            };
-            const framing = $('#openPanelFraming'), framingProject = app.state, framingGeneration = renderGeneration;
-            framing.onclick = event => {
-                if (app.panel === 'settings' && app.state === framingProject && framingGeneration === renderGeneration && $('#openPanelFraming') === framing &&
-                    !event?.isComposing && event?.keyCode !== 229) app.openFraming('openPanelFraming');
-            };
-            const grid = $('#thirdsGridPanel'), gridGeneration = renderGeneration;
-            syncThirdsGrid();
-            grid.onchange = event => {
-                if (app.panel === 'settings' && gridGeneration === renderGeneration && $('#thirdsGridPanel') === grid)
-                    changeThirdsGrid(grid, event);
-            };
-            const sceneButton = $('#openScenePng'), sceneGeneration = renderGeneration;
-            sceneButton.onclick = event => {
-                if (sceneGeneration === renderGeneration && $('#openScenePng') === sceneButton) scenePng.open(event);
-            };
-            const savePreview = $('#savePreviewPng'), previewProject = app.state;
-            syncPreviewExportLabel();
-            savePreview.onclick = () => {
-                if (app.panel === 'settings' && app.state === previewProject && $('#savePreviewPng') === savePreview)
-                    app.savePreview();
-            };
-            $('#resetPosition').onclick = () => app.edit(() => {
-                app.state.zoom = 1;
-                app.state.panX = 0;
-                app.state.panY = 0;
-            }, true);
-            const loop = $('#loopPreview');
-            loop.checked = app.loopPreview;
-            loop.onchange = () => {
-                if (app.panel !== 'settings' || $('#loopPreview') !== loop) return;
-                if (!app.editorReady || app.exporting || app.loadingMedia || app.transcribing ||
-                    !app.mediaReady() || app.audioRecording.requesting || app.audioRecording.current) {
-                    loop.checked = app.loopPreview;
-                    return;
-                }
-                app.setLoopPreview(loop.checked);
-            };
-            const trimClip = app.state.clips[app.selected], trimIndex = app.selected;
-            pendingTrim = app.bindTrimDrafts({ start: '#panelTrimStart', end: '#panelTrimEnd',
-                startButton: '#panelTrimStartPlayhead', endButton: '#panelTrimEndPlayhead',
-                current: () => app.panel === 'settings' && app.selected === trimIndex && app.state.clips[trimIndex] === trimClip,
-            });
-            const moveClipButton = $('#panelMoveClip');
-            moveClipButton.onclick = event => {
-                if (!event?.isComposing && event?.keyCode !== 229 && app.panel === 'settings' &&
-                    $('#panelMoveClip') === moveClipButton && app.selected === trimIndex && app.state.clips[trimIndex] === trimClip)
-                    app.openClipMove(moveClipButton);
-            };
-            const duplicateRangeButton = $('#panelDuplicateClipRange');
-            duplicateRangeButton.onclick = event => {
-                if (app.panel === 'settings' && renderGeneration === generation &&
-                    $('#panelDuplicateClipRange') === duplicateRangeButton && app.selected === trimIndex && app.state.clips[trimIndex] === trimClip)
-                    app.openClipDuplicate(duplicateRangeButton, event);
-            };
-            const removeRangeButton = $('#panelRemoveClipRange');
-            removeRangeButton.disabled = app.state.clips.length <= 1;
-            removeRangeButton.onclick = event => {
-                if (!event?.isComposing && event?.keyCode !== 229 && app.panel === 'settings' &&
-                    $('#panelRemoveClipRange') === removeRangeButton && app.selected === trimIndex && app.state.clips[trimIndex] === trimClip)
-                    app.openClipRange(removeRangeButton);
-            };
-            $('#panelTrimApply').onclick = () => app.trim($('#panelTrimStart').valueAsNumber, $('#panelTrimEnd').valueAsNumber);
+            renderSettingsPanel(target, generation);
         }
         app.icons(target);
         app.updateLayerGuide();

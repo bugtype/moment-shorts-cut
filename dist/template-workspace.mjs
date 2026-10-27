@@ -9,6 +9,16 @@ import { esc } from './ui-format.mjs';
 const templateError = key => Object.assign(new Error(), message(key));
 const errorMessage = (error, fallback) => error?.messageKey ? error : (formatError(error) || message(fallback));
 
+// Keep the existing UTF-16 limit without cutting a complete code point in half.
+function namePrefix(value, limit) {
+    let prefix = '';
+    for (const character of value) {
+        if (prefix.length + character.length > limit) break;
+        prefix += character;
+    }
+    return prefix;
+}
+
 // Own the template library independently of project state and project persistence.
 export function createTemplateWorkspace({
     getProject, query: $, modal, openModal,
@@ -198,11 +208,7 @@ export function createTemplateWorkspace({
         if (!source) { toast(message('templates.duplicateMissing')); return; }
         if (savedTemplates.length >= 20) { toast(message('templates.capacity')); return; }
         const signature = JSON.stringify(source), suffix = t('templates.copySuffix');
-        let base = '';
-        for (const character of source.name) {
-            if (base.length + character.length + suffix.length > 40) break;
-            base += character;
-        }
+        const base = namePrefix(source.name, 40 - suffix.length);
         modalOpen(message('templates.duplicateTitle'), `<label class="panel-label" for="duplicateTemplateName">${text('templates.name')}</label><input class="panel-input" id="duplicateTemplateName" maxlength="40" value="${esc(base + suffix)}">`, `<div class="modal-foot"><button class="button" id="cancelDuplicateTemplate">${text('templates.cancel')}</button><button class="button primary" id="confirmDuplicateTemplate">${text('templates.duplicate')}</button></div>`);
         const input = $('#duplicateTemplateName'), confirm = $('#confirmDuplicateTemplate'), generation = dialogGeneration;
         let active = true, composing = false;
@@ -325,10 +331,16 @@ export function createTemplateWorkspace({
             toast(message('templates.capacity'));
             return;
         }
-        modalOpen(message('templates.saveTitle'), `<p class="modal-copy">${text('templates.saveWarning')}</p><label class="panel-label" for="customTemplateName">${text('templates.name')}</label><input class="panel-input" id="customTemplateName" maxlength="40" value="${esc(t('templates.suggestName',{name:getProject().name}))}">`, `<div class="modal-foot"><button class="button primary" id="saveCustomTemplate">${text('templates.saveLocal')}</button></div>`);
+        const suggestedName = namePrefix(t('templates.suggestName', {name:getProject().name}), 40);
+        modalOpen(message('templates.saveTitle'), `<p class="modal-copy">${text('templates.saveWarning')}</p><label class="panel-label" for="customTemplateName">${text('templates.name')}</label><input class="panel-input" id="customTemplateName" maxlength="40" value="${esc(suggestedName)}">`, `<div class="modal-foot"><button class="button primary" id="saveCustomTemplate">${text('templates.saveLocal')}</button></div>`);
         $('#saveCustomTemplate').onclick = () => {
             const name = $('#customTemplateName').value.trim();
             if (!name) {
+                $('#customTemplateName').focus();
+                return;
+            }
+            if (name.length > 40) {
+                toast(message('templates.nameLength'));
                 $('#customTemplateName').focus();
                 return;
             }

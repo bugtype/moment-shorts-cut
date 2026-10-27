@@ -98,7 +98,8 @@ it from a skill, research source or tool's availability.
 | Ordered command descriptions/input schemas, cloned catalog accessors and batch allowlist | `dist/core/command-catalog.mjs`; no execution or project-state ownership |
 | Copy-before-commit preparation/execution and existing public export façade | `dist/core/commands.mjs`; keep catalog/schema rules in their catalog owner |
 | Serialized execution, commit port, sanitized errors, optional jobs | `dist/integration/editor-service.mjs` |
-| Tool naming, project resolution, dispatch/result mapping and input descriptions | `dist/integration/mcp-adapter.mjs` |
+| Tool naming, project resolution and dispatch/result mapping | `dist/integration/mcp-adapter.mjs` |
+| MCP selector and descriptions added to cloned core input schemas, not runtime validation | `dist/integration/mcp-input-schema.mjs` |
 | MCP success/error envelopes and command-data output schemas, not dispatch or execution | `dist/integration/mcp-output-schema.mjs` |
 
 ### Runtime entry points

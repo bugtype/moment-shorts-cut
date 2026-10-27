@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {once} from 'node:events';
+import {readFile} from 'node:fs/promises';
 import {createPreviewServer} from '../scripts/serve.mjs';
 
 test('preview serves modules with correct MIME types and never serves repository files', async t => {
@@ -56,13 +57,36 @@ test('preview serves modules with correct MIME types and never serves repository
   const css = await stylesheet.text();
   const imports = [...css.matchAll(/@import url\("(\.\/styles\/[^"\n]+)"\);/g)].map(match => match[1]);
   assert.deepEqual(imports, ['shell-library', 'preview-timeline', 'inspector-dialogs', 'responsive', 'design', 'templates', 'workspace-state', 'mobile-shell', 'shell-fit'].map(name => `./styles/${name}.css`), 'Keep the existing cascade order');
+  const sampleSvg = await readFile(new URL('../dist/sample.svg', import.meta.url), 'utf8');
+  const stylesheetAssets = [];
   for (const path of imports) {
-    const response = await fetch(new URL(path, `${origin}/style.css`));
+    const stylesheetUrl = new URL(path, `${origin}/style.css`);
+    const response = await fetch(stylesheetUrl);
     assert.equal(response.status, 200, path);
     assert.match(response.headers.get('content-type'), /text\/css/);
     assert.equal(response.headers.get('x-content-type-options'), 'nosniff');
-    assert.ok((await response.text()).trim().length > 0);
+    const source = await response.text();
+    assert.ok(source.trim().length > 0);
+    // Current local assets use quoted relative URLs. Resolve from the CSS file,
+    // not the HTML document; moving a stylesheet must not silently break them.
+    for (const match of source.matchAll(/url\(\s*(['"])(\.[^'"]+)\1\s*\)/g)) {
+      const assetUrl = new URL(match[2], stylesheetUrl);
+      assert.equal(assetUrl.origin, origin);
+      const asset = await fetch(assetUrl);
+      assert.equal(asset.status, 200, `${stylesheetUrl.pathname}: ${match[2]}`);
+      assert.match(asset.headers.get('content-type'), /image\/svg\+xml/);
+      assert.equal(await asset.text(), sampleSvg);
+      stylesheetAssets.push([stylesheetUrl.pathname, assetUrl.pathname]);
+      // The same relative binding must survive hosting the editor in a subdirectory.
+      const nested = new URL(match[2], `${origin}/editor${stylesheetUrl.pathname}`);
+      assert.equal(nested.pathname, `/editor${assetUrl.pathname}`);
+    }
   }
+  assert.deepEqual(stylesheetAssets, [
+    ['/styles/preview-timeline.css', '/sample.svg'],
+    ['/styles/design.css', '/sample.svg'],
+    ['/styles/design.css', '/sample.svg'],
+  ]);
   const responsive = await (await fetch(`${origin}/styles/responsive.css`)).text();
   // Phones trade the wordmark for the project name so it stays editable.
   assert.match(responsive, /\.brand>span:last-child \{\s*display:none\s*\}/);

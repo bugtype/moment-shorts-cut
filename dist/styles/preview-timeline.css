@@ -364,7 +364,7 @@ input[type=range] {
   position:absolute;
   inset:0;
   opacity:.3;
-  background-image:url('./sample.svg');
+  background-image:url('../sample.svg');
   background-size:65px 100%
 }
 .clip span {

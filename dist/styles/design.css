@@ -57,7 +57,7 @@
   left:0;
   right:0;
   height:43%;
-  background:url('./sample.svg') center 54%/100% auto
+  background:url('../sample.svg') center 54%/100% auto
 }
 .preset-art em {
   position:absolute;
@@ -74,7 +74,7 @@
   font-size:5px
 }
 .preset-art.punch,.preset-art.clean {
-  background:url('./sample.svg') center/cover
+  background:url('../sample.svg') center/cover
 }
 .preset-art.punch b:nth-child(2) {
   color:#ffd13e

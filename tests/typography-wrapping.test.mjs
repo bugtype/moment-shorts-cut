@@ -1,7 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import fs from 'node:fs/promises';
-import vm from 'node:vm';
+import {spawnSync} from 'node:child_process';
 import {measureLines,createTypographyRenderer} from '../dist/typography.mjs';
 import {createCanvasTrace} from './fixtures/canvas-trace.mjs';
 
@@ -31,14 +30,21 @@ test('shared typography sprite rendering sends intact graphemes to canvas text d
  assert.deepEqual(fill,clusters);assert.deepEqual(stroke,clusters);assert.equal(fill.join(''),value);
 });
 
-test('engines without Intl retain bounded legacy code-point wrapping rather than failing draw',async()=>{
- const source=await fs.readFile(new URL('../dist/typography.mjs',import.meta.url),'utf8');
- for(const Intl of [undefined,{}]){
-  const sandbox=vm.createContext({Intl});
-  vm.runInContext(source.replace(/^import .*;$/gm,'').replace(/^export /gm,''),sandbox);
-  sandbox.ctx=context;sandbox.value='e\u0301🇰🇷';
-  const result=vm.runInContext('measureLines(ctx,value,10)',sandbox);
-  assert.deepEqual(Array.from(result),['e','\u0301','🇰','🇷']);
-  sandbox.value='x'.repeat(100);assert.equal(vm.runInContext('measureLines(ctx,value,10).length',sandbox),100);
+test('engines without Intl retain bounded legacy code-point wrapping rather than failing draw',()=>{
+ const moduleUrl=new URL('../dist/typography.mjs',import.meta.url).href;
+ for(const unavailable of ['undefined','{}']){
+  const result=spawnSync(process.execPath,['--input-type=module','--eval',`
+   import assert from 'node:assert/strict';
+   globalThis.Intl=${unavailable};
+   const {measureLines}=await import(${JSON.stringify(moduleUrl)});
+   const context={measureText:text=>({width:Array.from(text).length*10})};
+   assert.deepEqual(measureLines(context,'e\\u0301🇰🇷',10),['e','\\u0301','🇰','🇷']);
+   assert.equal(measureLines(context,'x'.repeat(100),10).length,100);
+  `],{encoding:'utf8',timeout:5000,maxBuffer:1024*1024});
+  assert.equal(result.error,undefined);
+  assert.equal(result.signal,null);
+  assert.equal(result.status,0,result.stderr);
+  assert.equal(result.stdout,'');
+  assert.equal(result.stderr,'');
  }
 });

@@ -1,3 +1,4 @@
+import { dialogEnterBlocked } from './dialog-enter.mjs';
 import { decimalTime } from './ui-format.mjs';
 export { decimalTime } from './ui-format.mjs';
 import {text, message} from './i18n.mjs';
@@ -44,7 +45,7 @@ export function createSeekDialog({getProject, getCurrent, getDuration, getMedia,
             } catch (error) { toast(error); input.focus(); }
         };
         input.onkeydown = event => {
-            if (!owns() || event.defaultPrevented || event.key !== 'Enter' || event.isComposing || event.keyCode === 229 || event.ctrlKey || event.metaKey || event.altKey || event.shiftKey) return;
+            if (!owns() || dialogEnterBlocked(event)) return;
             event.preventDefault();
             confirm.onclick();
         };

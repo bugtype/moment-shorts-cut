@@ -1,3 +1,4 @@
+import { dialogEnterBlocked } from '../../dist/dialog-enter.mjs';
 import { buildTimelineEntries, locateTimelineEntry } from '../../dist/timeline-index.mjs';
 import {createToolFinder} from '../../dist/tool-finder.mjs';
 import { createCaptionSplitRangeDialog } from '../../dist/caption-split-range-dialog.mjs';
@@ -205,6 +206,7 @@ export async function createAppFixture({sessionMediaDependencies = {}} = {}) {
     const moduleSource=fs.readFileSync(new URL('../../dist/'+file,import.meta.url),'utf8');
     context[name]=vm.runInContext('(()=>{'+moduleSource.replace(/^import .*;$/gm,'').replace('export function','function')+';return '+name+';})()',context);
   };
+  context.dialogEnterBlocked = dialogEnterBlocked;
   loadFactory('caption-export-dialog.mjs','createCaptionExportDialog');
   loadFactory('caption-workspace.mjs','createCaptionWorkspace');
   loadFactory('playback.mjs','createPlayback');

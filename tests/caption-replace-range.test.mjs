@@ -21,6 +21,35 @@ async function fixture(find = 'North', replacement = 'South') {
     return f;
 }
 
+test('numeric Enter replaces the owned range once; IME, handled, modified and stale keys stay inert', async () => {
+    const f = await fixture(), before = f.evaluate('state');
+    f.open(); f.range(1, 1);
+    const input = f.element('#replaceRangeFirst'), oldKeydown = input.onkeydown;
+    let prevented = 0;
+    const enter = extra => input.onkeydown({key:'Enter', preventDefault(){prevented++;}, ...extra});
+    for (const extra of [{key:'Escape'}, {defaultPrevented:true}, {isComposing:true}, {keyCode:229},
+        {ctrlKey:true}, {metaKey:true}, {altKey:true}, {shiftKey:true}]) enter(extra);
+    input.oncompositionstart(); enter(); input.oncompositionend();
+    assert.equal(prevented, 0);
+    assert.deepEqual(f.evaluate('state'), before);
+    assert.equal(f.evaluate('history.length'), 0);
+    assert.equal(f.element('#modal').open, true);
+    enter();
+    assert.equal(prevented, 1);
+    assert.equal(f.evaluate('state.captions[0].text'), 'South South');
+    assert.equal(f.evaluate('state.captions[1].text'), 'North North');
+    assert.equal(f.evaluate('history.length'), 1);
+    assert.equal(f.element('#modal').open, false);
+    assert.equal(f.doc.activeElement, f.element('#replaceCaptionRange'));
+    f.open();
+    oldKeydown({get key(){assert.fail('stale handler read the event');}});
+    assert.equal(f.element('#modal').open, true);
+    assert.equal(f.evaluate('history.length'), 1);
+    f.element('#cancelReplaceRange').onclick();
+    vm.runInContext('undo()', f.context);
+    assert.deepEqual(f.evaluate('state'), before);
+});
+
 test('200 matches in authored rows1–100 change in one Undo without editing row101 or metadata', async () => {
     const f = await fixture(), before = f.evaluate('state');
     f.open(); f.range(1,100);

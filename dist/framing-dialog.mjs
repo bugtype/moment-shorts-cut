@@ -1,3 +1,4 @@
+import { dialogEnterBlocked } from './dialog-enter.mjs';
 import {text,message,setValidity} from './i18n.mjs';
 import {decimalTime} from './ui-format.mjs';
 import { metadataEditBlocked } from './metadata-edit-availability.mjs';
@@ -50,7 +51,7 @@ export function createFramingDialog(app) {
             input.oncompositionend=()=>{if(owns()&&composing===input)composing=null;};
             input.oninput=()=>{if(owns())setValidity(input,'');};
             input.onkeydown=event=>{
-                if(!owns()||composing||event.defaultPrevented||event.key!=='Enter'||event.isComposing||event.keyCode===229||event.ctrlKey||event.metaKey||event.altKey||event.shiftKey)return;
+                if(!owns()||composing||dialogEnterBlocked(event))return;
                 event.preventDefault();confirm.onclick(event);
             };
         }

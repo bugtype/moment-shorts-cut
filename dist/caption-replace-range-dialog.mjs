@@ -1,3 +1,4 @@
+import { dialogEnterBlocked } from './dialog-enter.mjs';
 import { inspectCaptionTextReplacement } from './core/caption-text.mjs';
 import { text, message, setText, setValidity, formatError } from './i18n.mjs';
 
@@ -76,7 +77,7 @@ export function createCaptionReplaceRangeDialog(app, blocked) {
             input.oncompositionend = () => { if (owns()) composing = false; };
             input.oninput = () => { if (owns()) { setValidity(first, ''); preview(); } };
             input.onkeydown = event => {
-                if (!owns() || composing || event.defaultPrevented || event.key !== 'Enter' || event.isComposing || event.keyCode === 229 || event.ctrlKey || event.metaKey || event.altKey || event.shiftKey) return;
+                if (!owns() || composing || dialogEnterBlocked(event)) return;
                 event.preventDefault(); confirm.onclick(event);
             };
         }

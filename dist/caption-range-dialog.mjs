@@ -1,3 +1,4 @@
+import { dialogEnterBlocked } from './dialog-enter.mjs';
 import {text, message, setValidity} from './i18n.mjs';
 
 // Authored row indices, not projected occurrences or a persisted selection.
@@ -44,7 +45,7 @@ export function createCaptionRangeDialog(app, blocked) {
             input.oncompositionend = () => { if (owns() && composing === input) composing = null; };
             input.oninput = () => { if (owns()) setValidity(first, ''); };
             input.onkeydown = event => {
-                if (!owns() || composing || event.defaultPrevented || event.key !== 'Enter' || event.isComposing || event.keyCode === 229 || event.ctrlKey || event.metaKey || event.altKey || event.shiftKey) return;
+                if (!owns() || composing || dialogEnterBlocked(event)) return;
                 event.preventDefault(); confirm.onclick(event);
             };
         }

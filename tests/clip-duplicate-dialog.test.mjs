@@ -19,6 +19,35 @@ async function fixture(setup = '') {
     return f;
 }
 
+test('numeric Enter duplicates the owned range once; IME, handled, modified and stale keys stay inert', async () => {
+    const f = await fixture(), before = f.evaluate('state');
+    const expected = prepareCommand(before, 'timeline.duplicate', {clipIndex:1, count:1}).project;
+    f.open();
+    const input = f.element('#duplicateRangeFirst'), oldKeydown = input.onkeydown;
+    let prevented = 0;
+    const enter = extra => input.onkeydown({key:'Enter', preventDefault(){prevented++;}, ...extra});
+    for (const extra of [{key:'Escape'}, {defaultPrevented:true}, {isComposing:true}, {keyCode:229},
+        {ctrlKey:true}, {metaKey:true}, {altKey:true}, {shiftKey:true}]) enter(extra);
+    input.oncompositionstart(); enter(); input.oncompositionend();
+    assert.equal(prevented, 0);
+    assert.deepEqual(f.evaluate('state'), before);
+    assert.equal(f.evaluate('history.length'), 0);
+    assert.equal(f.element('#modal').open, true);
+    enter();
+    assert.equal(prevented, 1);
+    assert.deepEqual(f.evaluate('state'), expected);
+    assert.equal(f.evaluate('history.length'), 1);
+    assert.equal(f.element('#modal').open, false);
+    assert.equal(f.doc.activeElement, f.element('#duplicateClipRangeButton'));
+    f.open();
+    oldKeydown({get key(){assert.fail('stale handler read the event');}});
+    assert.equal(f.element('#modal').open, true);
+    assert.equal(f.evaluate('history.length'), 1);
+    f.element('#cancelDuplicateRange').onclick();
+    vm.runInContext('undo()', f.context);
+    assert.deepEqual(f.evaluate('state'), before);
+});
+
 test('inclusive blocks duplicate atomically, select first copy, retime once and undo/redo exactly', async () => {
     for (const [first, last] of [[1, 2], [2, 3], [3, 4], [1, 4], [2, 2]]) {
         const f = await fixture();

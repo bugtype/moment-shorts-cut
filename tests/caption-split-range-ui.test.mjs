@@ -18,6 +18,38 @@ async function fixture(setup = '') {
     return f;
 }
 
+test('numeric Enter splits the owned range once; IME, handled, modified and stale keys stay inert', async () => {
+    const f = await fixture(), before = f.evaluate('state');
+    f.element('#captionChunkSize').value = '12';
+    const expected = prepareCommand(before, 'captions.split.long', {limit:12, captionIndex:0, count:1}).project;
+    assert.ok(expected.captions.length > before.captions.length);
+    f.open();
+    const input = f.element('#splitRangeFirst'), oldKeydown = input.onkeydown;
+    let prevented = 0;
+    const enter = extra => input.onkeydown({key:'Enter', preventDefault(){prevented++;}, ...extra});
+    for (const extra of [{key:'Escape'}, {defaultPrevented:true}, {isComposing:true}, {keyCode:229},
+        {ctrlKey:true}, {metaKey:true}, {altKey:true}, {shiftKey:true}]) enter(extra);
+    input.oncompositionstart(); enter(); input.oncompositionend();
+    assert.equal(prevented, 0);
+    assert.deepEqual(f.evaluate('state'), before);
+    assert.equal(f.evaluate('history.length'), 0);
+    assert.equal(f.element('#modal').open, true);
+    assert.equal(typeof f.element('#splitRangeLimit').onkeydown, 'undefined');
+    enter();
+    assert.equal(prevented, 1);
+    assert.deepEqual(f.evaluate('state'), expected);
+    assert.equal(f.evaluate('history.length'), 1);
+    assert.equal(f.element('#modal').open, false);
+    assert.equal(f.doc.activeElement, f.element('#splitCaptionRange'));
+    f.open();
+    oldKeydown({get key(){assert.fail('stale handler read the event');}});
+    assert.equal(f.element('#modal').open, true);
+    assert.equal(f.evaluate('history.length'), 1);
+    f.element('#cancelSplitRange').onclick();
+    vm.runInContext('undo()', f.context);
+    assert.deepEqual(f.evaluate('state'), before);
+});
+
 test('range split carries the preset and changes only explicit authored rows in one Undo', async () => {
     const f = await fixture();
     const before = f.evaluate('state');

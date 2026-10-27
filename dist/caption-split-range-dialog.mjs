@@ -1,3 +1,4 @@
+import { dialogEnterBlocked } from './dialog-enter.mjs';
 import { prepareCommand } from './core/commands.mjs';
 import { text, mark, t, message, setValidity, formatError } from './i18n.mjs';
 import { esc } from './ui-format.mjs';
@@ -84,8 +85,7 @@ export function createCaptionSplitRangeDialog(app, blocked) {
             // Preserve native select activation; only the numeric fields submit on Enter.
             if (input === limit) continue;
             input.onkeydown = event => {
-                if (!owns() || composing || event.defaultPrevented || event.key !== 'Enter' || event.isComposing ||
-                    event.keyCode === 229 || event.ctrlKey || event.metaKey || event.altKey || event.shiftKey) return;
+                if (!owns() || composing || dialogEnterBlocked(event)) return;
                 event.preventDefault();
                 confirm.onclick(event);
             };

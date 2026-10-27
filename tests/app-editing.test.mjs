@@ -4,7 +4,9 @@ import vm from 'node:vm';
 import * as projectModule from '../dist/core/project.mjs';
 import { createAppFixture } from './fixtures/app.mjs';
 
-test('app editing, selection, input history and keyboard boundaries', async () => {
+// Each workflow owns its VM and controls; unrelated cases must not depend on earlier edits.
+
+test("app initialization preserves source mapping, subtitle clocks and split undo", async () => {
   const { context, evaluate, element, doc, focusEvents, documentEvents } = await createAppFixture();
   for(const p of ['media','templates','captions','audio','text','effects','settings'])vm.runInContext(`switchPanel('${p}')`,context);
   assert.equal(evaluate('duration()'),12);
@@ -21,7 +23,12 @@ test('app editing, selection, input history and keyboard boundaries', async () =
   vm.runInContext('undo();',context);
   assert.deepEqual(evaluate('state.clips'),[{start:0,end:12}]);
   console.log('PASS: DOM IDs, all panel initializations, trim mapping, split/undo, caption clipping, speed-adjusted SRT, SRT parsing.');
-  
+});
+
+test("app split limits preserve atomic refusal and editing recovery at every speed", async () => {
+  const { context, evaluate, element, doc, focusEvents, documentEvents } = await createAppFixture();
+  vm.runInContext("switchPanel('settings')",context);
+  assert.equal(evaluate('panel'), 'settings');
   // A split must stay within the same clip budget enforced by project JSON and commands.
   vm.runInContext('globalThis.splitSave=scheduleSave;globalThis.splitSaves=0;scheduleSave=()=>splitSaves++;',context);
   for(const speed of [.25,1,4]){
@@ -44,7 +51,12 @@ test('app editing, selection, input history and keyboard boundaries', async () =
   }
   vm.runInContext('scheduleSave=splitSave;delete globalThis.splitSave;delete globalThis.splitSaves;state=initial();timelineCache=null;current=0;selected=0;history=[];future=[];',context);
   console.log('PASS: split clip budget, exact boundary, rejected no-op, JSON round-trip, speed/source mapping, undo/redo and trim/reorder/delete at the limit.');
-  
+});
+
+test("app inspector follows selection without editing project history", async () => {
+  const { context, evaluate, element, doc, focusEvents, documentEvents } = await createAppFixture();
+  vm.runInContext("switchPanel('settings')",context);
+  assert.equal(evaluate('panel'), 'settings');
   // Context changes reveal the relevant controls without editing the project.
   const inspectorState=evaluate('state'),inspectorHistory=evaluate('history.length');
   function assertInspector(section){
@@ -69,7 +81,15 @@ test('app editing, selection, input history and keyboard boundaries', async () =
   vm.runInContext("textLayer='caption';switchPanel('text')",context);assertInspector('caption');
   vm.runInContext("textLayer='title';switchPanel('settings')",context);
   console.log('PASS: selection-aware inspector, split selection, unchanged project/history and caption navigation.');
-  
+});
+
+test("app caption navigation follows occurrences and refuses busy actions", async () => {
+  const { context, evaluate, element, doc, focusEvents, documentEvents } = await createAppFixture();
+  vm.runInContext("switchPanel('settings')",context);
+  assert.equal(evaluate('panel'), 'settings');
+  // Navigation originally ran with an available redo; seed that valid snapshot explicitly.
+  vm.runInContext("current=5;future=[JSON.stringify({...initial(),clips:[{start:0,end:5},{start:5,end:12}]})]",context);
+  assert.deepEqual(evaluate('[current,selected,history.length,future.length]'), [5,0,0,1]);
   // Timeline navigation uses the clicked occurrence, never text or source-time matching.
   vm.runInContext(`state=initial();state.clips=[{start:8,end:12},{start:2,end:5},{start:8,end:10}];state.speed=2;
    state.captions=[{start:1,end:3,text:'same'},{start:9,end:11,text:'same'},{start:0,end:2,text:'same',basis:'timeline'}];changed();`,context);
@@ -117,7 +137,12 @@ test('app editing, selection, input history and keyboard boundaries', async () =
   assert.equal(evaluate('playing'),false);
   vm.runInContext('state=initial();timelineCache=null;current=0;changed()',context);
   console.log('PASS: caption occurrence navigation, duplicate text, trim/repeat/narration/speed, deletion/undo, focus and busy guards.');
-  
+});
+
+test("app range inputs group edits and preserve no-op redo history", async () => {
+  const { context, evaluate, element, doc, focusEvents, documentEvents } = await createAppFixture();
+  vm.runInContext("switchPanel('audio')",context);
+  assert.equal(evaluate('panel'), 'audio');
   // All direct range callers share keyboard/pointer history without changing seek semantics.
   vm.runInContext('state=initial();history=[];future=[];inputHistory.reset();sources.audioFile={name:"synthetic.wav"};switchPanel("audio");switchPanel("settings")',context);
   for(const [id,key,next] of [['zoom','zoom',1.2],['volume','volume',.7],['audioVolume','audioVolume',.6],['mobileZoom','zoom',1.4],['captionSize','captionSize',35],['captionY','captionY',.7],['panelVolume','volume',.5]]){
@@ -140,7 +165,13 @@ test('app editing, selection, input history and keyboard boundaries', async () =
   vm.runInContext('exporting=true',context);zoomControl.value='2';zoomControl.oninput();assert.equal(evaluate('state.zoom'),1.3);
   vm.runInContext('exporting=false;state=initial();history=[];future=[];inputHistory.reset();current=0;changed()',context);
   console.log('PASS: range history across inspector/audio/mirror controls, no-op/redo, interleaved edits and export guard.');
-  
+});
+
+test("app zoom and volume mirrors preserve focused controls and trim drafts", async () => {
+  const { context, evaluate, element, doc, focusEvents, documentEvents } = await createAppFixture();
+  const zoomControl = element('#zoom');
+  vm.runInContext("switchPanel('settings')",context);
+  assert.equal(evaluate('panel'), 'settings');
   // Live mirrors must share the model without rebuilding focused settings controls.
   vm.runInContext('state=initial();state.clips=[{start:0,end:4},{start:4,end:12}];selected=1;current=5;history=[];future=[];inputHistory.reset();switchPanel("settings");renderInspector();',context);
   const mirrorZoom=element('#mobileZoom'),mirrorVolume=element('#panelVolume');
@@ -194,7 +225,13 @@ test('app editing, selection, input history and keyboard boundaries', async () =
   assert.match(element('#panelContent').innerHTML,/id="panelVolume"[^>]*value="0.7"/);
   vm.runInContext('state=initial();history=[];future=[];inputHistory.reset();current=0;selected=0;changed()',context);
   console.log('PASS: zoom/volume mirrors sync in both directions without live panel replacement, focus/history changes or pending trim loss; commands, undo, reset, import and absent panels work.');
-  
+});
+
+test("app trim drafts follow clip identity through edits, moves and replacement", async () => {
+  const { context, evaluate, element, doc, focusEvents, documentEvents } = await createAppFixture();
+  const zoomControl = element('#zoom');
+  vm.runInContext("switchPanel('settings')",context);
+  assert.equal(evaluate('panel'), 'settings');
   // Inspector trim fields are drafts until Apply, scoped to the selected clip.
   function trimDraft(start,end){element('#trimStart').value=start;element('#trimEnd').value=end;}
   function assertTrimDraft(start,end){assert.deepEqual([element('#trimStart').value,element('#trimEnd').value],[start,end]);}
@@ -244,7 +281,12 @@ test('app editing, selection, input history and keyboard boundaries', async () =
   trimDraft('2.5','3.5');vm.runInContext('confirmReset()',context);element('#confirmReset').onclick();assertTrimDraft('0.0','12.0');
   vm.runInContext('state=initial();history=[];future=[];inputHistory.reset();selected=0;current=0;changed()',context);
   console.log('PASS: trim drafts survive unrelated edits and failed/blocked Apply; successful Apply, clip selection/structure, undo/redo and project replacement reset their context.');
-  
+});
+
+test("app trim Apply rejects invalid numbers and supports explicit correction", async () => {
+  const { context, evaluate, element, doc, focusEvents, documentEvents } = await createAppFixture();
+  vm.runInContext("switchPanel('media')",context);
+  assert.equal(evaluate('panel'), 'media');
   for(const [startId,endId,applyId] of [['trimStart','trimEnd','trimButton'],['panelTrimStart','panelTrimEnd','panelTrimApply']]){
    vm.runInContext('state=initial();state.clips=[{start:2,end:8}];selected=0;current=0;history=[];future=[];inputHistory.reset();switchPanel("settings");renderInspector();',context);
    vm.runInContext('edit(()=>state.zoom=1.2);undo();',context);
@@ -271,7 +313,13 @@ test('app editing, selection, input history and keyboard boundaries', async () =
   }
   vm.runInContext('state=initial();history=[];future=[];inputHistory.reset();selected=0;current=0;changed()',context);
   console.log('PASS: both trim Apply paths reject empty/invalid/nonfinite inputs without losing drafts/history; zero, decimals, minimum duration, correction and undo remain supported.');
-  
+});
+
+test("app mounted design controls preserve focus-only redo and group typing", async () => {
+  const { context, evaluate, element, doc, focusEvents, documentEvents } = await createAppFixture();
+  const zoomControl = element('#zoom');
+  vm.runInContext("switchPanel('settings')",context);
+  assert.equal(evaluate('panel'), 'settings');
   // Focusing mounted design text/color controls must leave actual project redo intact.
   const titleInput=element('#titleFirst'),titleColor=element('[data-design="design.title.colors.0"]');
   Object.assign(titleInput,{type:'text',dataset:{design:'design.title.lines.0'},value:'평범했던 하루가',setCustomValidity(){}});
@@ -290,7 +338,12 @@ test('app editing, selection, input history and keyboard boundaries', async () =
   designRoot.querySelectorAll=previousQueries;
   vm.runInContext('state=initial();history=[];future=[];inputHistory.reset();current=0;changed()',context);
   console.log('PASS: mounted text/color focus preserves redo; typing groups and undo/redo restores the final title.');
-  
+});
+
+test("app keyboard shortcuts preserve native control activation", async () => {
+  const { context, evaluate, element, doc, focusEvents, documentEvents } = await createAppFixture();
+  vm.runInContext("switchPanel('text')",context);
+  assert.equal(evaluate('panel'), 'text');
   // Space belongs to focused controls; global playback still works elsewhere.
   function keydown(tagName,key,extra={}){
    let prevented=false;
@@ -315,6 +368,4 @@ test('app editing, selection, input history and keyboard boundaries', async () =
   assert.equal(keydown('BUTTON','z',{ctrlKey:true}),true);assert.equal(evaluate('state.name'),keyboardState.name,'Undo remains available from buttons');
   vm.runInContext('current=0;changed()',context);
   console.log('PASS: native Space activation boundary, form controls, global playback, arrow keys and undo.');
-  
-  
 });

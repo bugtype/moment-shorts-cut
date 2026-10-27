@@ -34,6 +34,30 @@ export const TEMPLATES = [
 export const VISUAL_KEYS = ['design','style','captionSize','captionY','captionX','captionColor','captionAccent','captionStroke','captionItalic','captionAnimation','effects','globalKeywords','speakerLabels','speakerColors','templateId'];
 export function visualPreset(project) { return structuredClone(Object.fromEntries(VISUAL_KEYS.map(key => [key, project[key]]))); }
 
+function builtInTemplateCards(template, total) {
+  const cards = {
+    reference: [],
+    punch: [],
+    clean: [],
+    explainer: [['질문','왜 같은 장면도\n다르게 느껴질까?','',0,.24],['핵심','시선을 바꾸면\n새로운 것이 보입니다','',.28,.68],['한 줄 정리','중요한 건\n어디를 바라보느냐','',.73,1]],
+    interview: [['인터뷰','가장 기억나는 순간은?','',0,.22],['기억할 한마디','그 대답의 핵심','',.7,.98]],
+    recipe: [['PREVIEW','완성된 한 접시','',0,.2],['STEP 01','재료를 준비해 주세요','',.23,.47],['STEP 02','순서대로 조리해 주세요','',.5,.74],['FINISH','마지막으로 이 팁','',.78,1]],
+    ranking: [['TOP 3','세 번째 포인트','',.08,.35],['TOP 2','두 번째 포인트','',.38,.65],['TOP 1','가장 중요한 포인트','',.68,1]],
+    product: [['FIRST LOOK','어떤 제품인가요?','',0,.22],['GOOD','좋았던 점','',.25,.49],['CHECK','아쉬웠던 점','',.52,.76],['VERDICT','이런 분께 맞아요','',.8,1]],
+    quiz: [['QUIZ','1분은 몇 초일까요?','A. 30초     B. 60초',0,.66],['ANSWER','정답은 B, 60초','다음 문제에도 도전해 보세요',.68,1]],
+    cinema: [],
+    'hook-result': [['RESULT','같은 영상인데\n이렇게 달라집니다','',0,2],['HOW','제목은 짧게\n핵심만 남기기','한 화면에 한 가지 메시지',2,5],['COMPARE','바꾸기 전과 후를\n같은 장면으로 비교','달라진 점을 직접 확인하세요',5,8],['TAKEAWAY','첫 화면에는\n결과와 핵심 한 가지','내 영상의 결과에 맞게 바꿔 주세요',8,12]],
+    'hook-mistake': [['CHECK','자막이 안 읽힌다면\n이것부터 확인하세요','',0,2],['CAUSE','밝은 배경 위의\n흰 글자를 확인하세요','실제 문제 장면을 보여주세요',2,5],['FIX','짙은 외곽선으로\n글자를 구분해 보세요','같은 장면에서 수정 전후 비교',5,8],['VERIFY','작은 화면에서도\n읽히는지 확인하세요','크기와 배치도 함께 점검',8,12]],
+    'hook-compare': [['A / B','A와 B 중\n어느 쪽이 잘 읽히나요?','',0,2],['A','A · 글자만 표시','밝은 배경에서 확인하세요',2,5],['B','B · 외곽선 추가','같은 배경에서 차이를 보세요',5,8],['CHOOSE','내 배경에 맞게\n대비를 선택하세요','두 장면의 조건을 맞춰 비교',8,12]],
+    'hook-experiment': [['TEST','제목을 짧게 줄이면\n더 잘 읽힐까요?','',0,2],['TRY','긴 제목을\n핵심 한 문장으로','장면과 글자 크기는 그대로',2,5],['RESULT','두 제목을 번갈아\n읽어 보세요','이 자리에 실제 결과를 넣어 주세요',5,8],['LIMIT','뜻이 빠지지 않았는지\n함께 확인하세요','짧아져도 핵심 정보는 남기기',8,12]],
+    'hook-quiz': [['QUIZ','첫 화면의 제목은\n몇 줄이었을까요?','',0,3],['HINT','힌트 · 위아래로\n나뉘어 있었습니다','첫 화면을 떠올려 보세요',3,5],['ANSWER','정답은\n두 줄입니다','질문과 정답을 함께 수정하세요',5,8],['WHY','질문은 짧게\n답과 이유는 바로','내 영상의 관찰 포인트로 교체',8,12]],
+    'hook-myth': [['REALLY?','자막은 무조건\n클수록 좋을까요?','',0,2],['CHECK','너무 큰 자막은\n피사체를 가릴 수 있어요','작은 화면에서 직접 비교',2,5],['FINDING','읽기 쉬운 크기와\n배치를 함께 보세요','실제 비교 장면으로 확인',5,8],['CONTEXT','배경과 화면에 맞게\n크기를 정하세요','조건에 따라 결과가 달라집니다',8,12]],
+  }[template.id] || [];
+  // Keep the opening in seconds on longer edits; only compress outputs below 12 seconds.
+  const timingScale = template.hook ? Math.min(1,total/12) : total;
+  return cards.map(([label,text,detail,a,b],i) => ({...newCard(total),id:`${template.id}-${i}-${Date.now()}`,label,text,detail,start:a*timingScale,end:template.hook&&i===cards.length-1?total:b*timingScale,accent:template.accent,background:template.id==='recipe'?'#283423':'#141a22',y:template.hook ? .18 : .16,role:'headline',presentation:'plain',size:template.hook&&i===0?50:template.id==='recipe'?32:36,stroke:3,animation:template.hook?'none':template.id==='cinema'?'fade':'slide',kind:template.id==='quiz'&&i===0?'countdown':'card'}));
+}
+
 export function applyTemplate(project, template, withContent = false) {
   const existingText = { lines:[...project.design.title.lines], credit:project.design.credit.text };
   const total = project.clips.reduce((sum, clip) => sum + clip.end - clip.start, 0) / project.speed;
@@ -83,27 +107,7 @@ export function applyTemplate(project, template, withContent = false) {
   if (!withContent) return;
   title.lines = [...template.title];
   project.design.credit.text = '나의 채널';
-  const cards = {
-    reference: [],
-    punch: [],
-    clean: [],
-    explainer: [['질문','왜 같은 장면도\n다르게 느껴질까?','',0,.24],['핵심','시선을 바꾸면\n새로운 것이 보입니다','',.28,.68],['한 줄 정리','중요한 건\n어디를 바라보느냐','',.73,1]],
-    interview: [['인터뷰','가장 기억나는 순간은?','',0,.22],['기억할 한마디','그 대답의 핵심','',.7,.98]],
-    recipe: [['PREVIEW','완성된 한 접시','',0,.2],['STEP 01','재료를 준비해 주세요','',.23,.47],['STEP 02','순서대로 조리해 주세요','',.5,.74],['FINISH','마지막으로 이 팁','',.78,1]],
-    ranking: [['TOP 3','세 번째 포인트','',.08,.35],['TOP 2','두 번째 포인트','',.38,.65],['TOP 1','가장 중요한 포인트','',.68,1]],
-    product: [['FIRST LOOK','어떤 제품인가요?','',0,.22],['GOOD','좋았던 점','',.25,.49],['CHECK','아쉬웠던 점','',.52,.76],['VERDICT','이런 분께 맞아요','',.8,1]],
-    quiz: [['QUIZ','1분은 몇 초일까요?','A. 30초     B. 60초',0,.66],['ANSWER','정답은 B, 60초','다음 문제에도 도전해 보세요',.68,1]],
-    cinema: [],
-    'hook-result': [['RESULT','같은 영상인데\n이렇게 달라집니다','',0,2],['HOW','제목은 짧게\n핵심만 남기기','한 화면에 한 가지 메시지',2,5],['COMPARE','바꾸기 전과 후를\n같은 장면으로 비교','달라진 점을 직접 확인하세요',5,8],['TAKEAWAY','첫 화면에는\n결과와 핵심 한 가지','내 영상의 결과에 맞게 바꿔 주세요',8,12]],
-    'hook-mistake': [['CHECK','자막이 안 읽힌다면\n이것부터 확인하세요','',0,2],['CAUSE','밝은 배경 위의\n흰 글자를 확인하세요','실제 문제 장면을 보여주세요',2,5],['FIX','짙은 외곽선으로\n글자를 구분해 보세요','같은 장면에서 수정 전후 비교',5,8],['VERIFY','작은 화면에서도\n읽히는지 확인하세요','크기와 배치도 함께 점검',8,12]],
-    'hook-compare': [['A / B','A와 B 중\n어느 쪽이 잘 읽히나요?','',0,2],['A','A · 글자만 표시','밝은 배경에서 확인하세요',2,5],['B','B · 외곽선 추가','같은 배경에서 차이를 보세요',5,8],['CHOOSE','내 배경에 맞게\n대비를 선택하세요','두 장면의 조건을 맞춰 비교',8,12]],
-    'hook-experiment': [['TEST','제목을 짧게 줄이면\n더 잘 읽힐까요?','',0,2],['TRY','긴 제목을\n핵심 한 문장으로','장면과 글자 크기는 그대로',2,5],['RESULT','두 제목을 번갈아\n읽어 보세요','이 자리에 실제 결과를 넣어 주세요',5,8],['LIMIT','뜻이 빠지지 않았는지\n함께 확인하세요','짧아져도 핵심 정보는 남기기',8,12]],
-    'hook-quiz': [['QUIZ','첫 화면의 제목은\n몇 줄이었을까요?','',0,3],['HINT','힌트 · 위아래로\n나뉘어 있었습니다','첫 화면을 떠올려 보세요',3,5],['ANSWER','정답은\n두 줄입니다','질문과 정답을 함께 수정하세요',5,8],['WHY','질문은 짧게\n답과 이유는 바로','내 영상의 관찰 포인트로 교체',8,12]],
-    'hook-myth': [['REALLY?','자막은 무조건\n클수록 좋을까요?','',0,2],['CHECK','너무 큰 자막은\n피사체를 가릴 수 있어요','작은 화면에서 직접 비교',2,5],['FINDING','읽기 쉬운 크기와\n배치를 함께 보세요','실제 비교 장면으로 확인',5,8],['CONTEXT','배경과 화면에 맞게\n크기를 정하세요','조건에 따라 결과가 달라집니다',8,12]],
-  }[template.id] || [];
-  // Keep the opening in seconds on longer edits; only compress outputs below 12 seconds.
-  const timingScale = template.hook ? Math.min(1,total/12) : total;
-  project.overlays = cards.map(([label,text,detail,a,b],i) => ({...newCard(total),id:`${template.id}-${i}-${Date.now()}`,label,text,detail,start:a*timingScale,end:template.hook&&i===cards.length-1?total:b*timingScale,accent:template.accent,background:template.id==='recipe'?'#283423':'#141a22',y:template.hook ? .18 : .16,role:'headline',presentation:'plain',size:template.hook&&i===0?50:template.id==='recipe'?32:36,stroke:3,animation:template.hook?'none':template.id==='cinema'?'fade':'slide',kind:template.id==='quiz'&&i===0?'countdown':'card'}));
+  project.overlays = builtInTemplateCards(template, total);
 }
 
 export function saveCustomTemplate(name, project, {id} = {}) {

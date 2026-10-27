@@ -621,7 +621,9 @@ At 1,000 clips, delete a clip before splitting another.
 
 **These are validation limits, not memory or codec guarantees.** Browser storage is not a backup: media and settings are written separately and can fall out of sync after a failed save. Keep the original media and export project JSON regularly.
 
-**Automatic captions:** the original video must be **180 seconds or shorter**, even after trimming. Selected audio is processed for at most 180 seconds. Recognition, manual speaker labels and estimated split timing need review.
+**Automatic captions:** the original video must be **180 seconds or shorter**, even after trimming. Only the first 180 seconds of selected audio are used for recognition, but the whole file is read and decoded before that excerpt is prepared.
+
+Long compressed audio can therefore need much more memory than its file size; use a short audio excerpt when possible. Cancel prevents the result from being applied, but an already-running native file read or decode may finish before cancellation is reported. Recognition, manual speaker labels and estimated split timing need review.
 
 <a id="audio-export"></a>
 

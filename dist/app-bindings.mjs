@@ -120,6 +120,7 @@ export function bindUi(app) {
     $('#timelineToggle').onclick = () => {
         app.timelineView.setCollapsed(!app.timelineView.isCollapsed());
         app.resizePreview();
+        app.timelineView.resize(app.current, app.duration(), app.state.speed);
     };
     $('#timelineZoom').onclick = () => {
         app.timelineView.cycleZoom();
@@ -246,6 +247,7 @@ export function bindUi(app) {
     app.window.addEventListener('resize', () => {
         app.resizePreview();
         app.syncPanelSheet();
+        app.timelineView.resize(app.current, app.duration(), app.state.speed);
     });
     app.document.addEventListener('visibilitychange', () => {
         if (app.document.hidden) {

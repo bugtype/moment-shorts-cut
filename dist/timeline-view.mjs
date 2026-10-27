@@ -241,6 +241,16 @@ export function createTimelineView($, clock = () => performance.now()) {
         setText($('#audioTrack'), hasAudio ? 'shell.audioFrom' : 'shell.addAudio', {name: state.audioName, seconds: (state.audioOffset / state.speed).toFixed(1)});
     }
 
+    function positionPlayhead(current, len) {
+        $('#playhead').style.transform = `translateX(${len ? current / len * $('#tracksArea').clientWidth : 0}px)`;
+    }
+
+    // Width changes affect geometry only; retain track nodes, drafts and manual scrolling.
+    function resize(current, len, speed) {
+        renderRuler(len / speed);
+        positionPlayhead(current, len);
+    }
+
     function updateTime(state, current, duration, exporting, force = true) {
         const now = clock();
         if (!force && now - lastUiTime < 100)
@@ -255,7 +265,7 @@ export function createTimelineView($, clock = () => performance.now()) {
         $('#seek').value = current;
         lastCurrent = current;
         lastLen = len;
-        $('#playhead').style.transform = `translateX(${len ? current / len * $('#tracksArea').clientWidth : 0}px)`;
+        positionPlayhead(current, len);
         if (zoom > 1)
             keepPlayheadVisible();
         if (exporting) {
@@ -266,5 +276,5 @@ export function createTimelineView($, clock = () => performance.now()) {
                 label.textContent = progress + '%';
         }
     }
-    return { render, renderLayers, updateTime, setCollapsed, isCollapsed: () => collapsed, setZoom, cycleZoom, getZoom: () => zoom, zoomLevels: () => [...ZOOM_LEVELS] };
+    return { render, renderLayers, resize, updateTime, setCollapsed, isCollapsed: () => collapsed, setZoom, cycleZoom, getZoom: () => zoom, zoomLevels: () => [...ZOOM_LEVELS] };
 }

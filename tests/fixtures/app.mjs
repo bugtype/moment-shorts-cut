@@ -193,18 +193,20 @@ export async function createAppFixture({sessionMediaDependencies = {}} = {}) {
       clearTimer: timer => context.clearInterval(timer),
     }), shiftCaptionTiming, mountDesignPanel, ...panelMarkup, icon, esc, fmt, decimalTime,
   });
+  // Load extracted app modules in this VM so timers, promises and DOM access keep the
+  // same realm semantics the browser app has (the host realm would add microtask hops).
+  const evaluateFactory=(moduleSource,name)=>
+    vm.runInContext('(()=>{'+moduleSource.replace(/^import .*;$/gm,'').replace('export function','function')+';return '+name+';})()',context);
   // Keep the existing split-helper fault injection in this VM without a production test hook.
   const captionPanelSource=fs.readFileSync(new URL('../../dist/caption-panel.mjs',import.meta.url),'utf8');
   context.createCaptionSearch=createCaptionSearch;
-  context.createCaptionPanel=vm.runInContext('(()=>{'+captionPanelSource.replace(/^import .*;$/gm,'').replace('export function','function')+';return createCaptionPanel;})()',context);
+  context.createCaptionPanel=evaluateFactory(captionPanelSource,'createCaptionPanel');
   // Preserve the parser fault injection without adding a production-only dependency hook.
   const textWorkflowSource=fs.readFileSync(new URL('../../dist/text-file-workflow.mjs',import.meta.url),'utf8');
-  context.createTextFileWorkflow=vm.runInContext('(()=>{'+textWorkflowSource.replace(/^import .*;$/gm,'').replace('export function','function')+';return createTextFileWorkflow;})()',context);
-  // Load extracted app modules in this VM so timers, promises and DOM access keep the
-  // same realm semantics the browser app has (the host realm would add microtask hops).
+  context.createTextFileWorkflow=evaluateFactory(textWorkflowSource,'createTextFileWorkflow');
   const loadFactory=(file,name)=>{
     const moduleSource=fs.readFileSync(new URL('../../dist/'+file,import.meta.url),'utf8');
-    context[name]=vm.runInContext('(()=>{'+moduleSource.replace(/^import .*;$/gm,'').replace('export function','function')+';return '+name+';})()',context);
+    context[name]=evaluateFactory(moduleSource,name);
   };
   context.dialogEnterBlocked = dialogEnterBlocked;
   loadFactory('caption-export-dialog.mjs','createCaptionExportDialog');

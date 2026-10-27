@@ -180,23 +180,7 @@ export function createTimelineView($, clock = () => performance.now()) {
         updateLayerTrack($('#titleTrack'), html || `<span class="empty-layer-track">${text('shell.addLayers')}</span>`, blocks);
     }
 
-    function render(state, len, { selected, thumbnail, hasAudio }) {
-        renderLayers(state, len);
-        $('#seek').max = len;
-        const background = thumbnail ? `background-image:url('${thumbnail}');background-size:auto 100%;` : '';
-        const clips = state.clips.map((clip, index) =>
-            `<button class="clip" data-clip="${index}" ` +
-            `style="flex:${clip.end - clip.start};${background}" ` +
-            `${attrs("title", "shell.clipRange", {index: index + 1, start: fmt(clip.start), end: fmt(clip.end)})}>` +
-            `<span>${index === 0 ? esc(state.fileName) : text('shell.clip', {index: index + 1})}</span></button>`
-        ).join('');
-        const videoTrack = $('#videoTrack');
-        updateTimelineMarkup(videoTrack, clips);
-        // Selection alone must not replace the button receiving native activation.
-        for (const button of videoTrack.querySelectorAll('[data-clip]'))
-            button.classList.toggle('active', +button.dataset.clip === selected);
-        renderCaptions(state, len);
-        const total = len / state.speed;
+    function renderRuler(total) {
         // Aim for a label roughly every 90px; zooming then reveals finer marks,
         // including sub-second steps once a whole second becomes too coarse.
         const width = $('#tracksArea').clientWidth || 600;
@@ -233,6 +217,26 @@ export function createTimelineView($, clock = () => performance.now()) {
         $('#ruler').innerHTML = marks.map(at =>
             `<span style="left:${total > 0 ? Number((at / total * 100).toFixed(4)) : 0}%">${rulerLabel(at)}</span>`
         ).join('');
+    }
+
+    function render(state, len, { selected, thumbnail, hasAudio }) {
+        renderLayers(state, len);
+        $('#seek').max = len;
+        const background = thumbnail ? `background-image:url('${thumbnail}');background-size:auto 100%;` : '';
+        const clips = state.clips.map((clip, index) =>
+            `<button class="clip" data-clip="${index}" ` +
+            `style="flex:${clip.end - clip.start};${background}" ` +
+            `${attrs("title", "shell.clipRange", {index: index + 1, start: fmt(clip.start), end: fmt(clip.end)})}>` +
+            `<span>${index === 0 ? esc(state.fileName) : text('shell.clip', {index: index + 1})}</span></button>`
+        ).join('');
+        const videoTrack = $('#videoTrack');
+        updateTimelineMarkup(videoTrack, clips);
+        // Selection alone must not replace the button receiving native activation.
+        for (const button of videoTrack.querySelectorAll('[data-clip]'))
+            button.classList.toggle('active', +button.dataset.clip === selected);
+        renderCaptions(state, len);
+        const total = len / state.speed;
+        renderRuler(total);
         $('#audioTrack').classList.toggle('has-audio', hasAudio);
         setText($('#audioTrack'), hasAudio ? 'shell.audioFrom' : 'shell.addAudio', {name: state.audioName, seconds: (state.audioOffset / state.speed).toFixed(1)});
     }

@@ -23,7 +23,7 @@ test('caption VM import stripping accepts LF and CRLF source without changing se
   }
 });
 
-test('caption workspace, budgets and asynchronous recognition lifecycle', async () => {
+test('caption workspace, split budgets and recognition result validation', async () => {
   const { context, evaluate, element, doc, focusEvents } = await createAppFixture();
   function assertCaptionVisibleTarget(target){
    assert.equal(doc.activeElement,target);
@@ -266,6 +266,23 @@ test('caption workspace, budgets and asynchronous recognition lifecycle', async 
   delete context.captionTestResult;
   console.log('PASS: ASR validation preserves prior state/redo/save on invalid chunks or fallback; Unicode boundaries, both clocks, cleanup, retry and canonical JSON succeed.');
   
+  vm.runInContext('sources.videoFile=null;sources.audioFile=null;transcription.cancel()',context);
+  delete context.AudioContext;delete context.OfflineAudioContext;delete context.Worker;delete context.captionTestFile;delete context.captionTestChunks;
+  vm.runInContext('state=initial();timelineCache=null;history=[];future=[];renderPanel()',context);
+  delete context.captionLimitFixture;
+  console.log('PASS: split/add/ASR count boundaries, early rejection without mutation/redo/save/focus loss, Unicode and time-base metadata, exact-boundary JSON/SRT export and undo/redo.');
+
+});
+
+
+test('delayed caption recognition preserves conflicts, cancellation and worker retry ownership', async () => {
+  const { context, evaluate, element } = await createAppFixture();
+  // These were inherited from earlier scenarios; this lifecycle owns them now.
+  context.OfflineAudioContext=class {createBufferSource(){return {connect(){},start(){}};}async startRendering(){return {getChannelData:()=>new Float32Array([.1])};}};
+  element('#language').value='korean';
+  assert.equal(evaluate('editorReady'),true);
+  assert.deepEqual(evaluate('[transcribing,loadingMedia,exporting,audioRecording.requesting,audioRecording.current]'),[false,false,false,false,null]);
+  assert.equal(element('#language').value,'korean');
   // Synthetic delayed worker/decode responses; no model, real audio or storage.
   const asrWorkers=[];let workerPosted;
   context.Worker=class {constructor(){asrWorkers.push(this);}postMessage(){workerPosted(this);}terminate(){this.terminated=true;this.terminateCalls=(this.terminateCalls||0)+1;}};
@@ -370,9 +387,4 @@ test('caption workspace, budgets and asynchronous recognition lifecycle', async 
   console.log('PASS: synthetic ASR conflicts preserve edits/history/redo/saves; source removal, time maps, decode/worker delays, cancellation/late responses, provider errors, retry and unaffected appearance edits are covered.');
   console.log('PASS: synthetic worker startup/native/postMessage failures retire only their instance; explicit retry, warm reuse, job errors, idle failure and stale message/error callbacks preserve state.');
   vm.runInContext('sources.videoFile=null;sources.audioFile=null;transcription.cancel()',context);
-  delete context.AudioContext;delete context.OfflineAudioContext;delete context.Worker;delete context.captionTestFile;delete context.captionTestChunks;
-  vm.runInContext('state=initial();timelineCache=null;history=[];future=[];renderPanel()',context);
-  delete context.captionLimitFixture;
-  console.log('PASS: split/add/ASR count boundaries, early rejection without mutation/redo/save/focus loss, Unicode and time-base metadata, exact-boundary JSON/SRT export and undo/redo.');
-  
 });

@@ -110,6 +110,17 @@ export function measureLines(context, text, maxWidth) {
   return lines;
 }
 
+function keywordSegments(line, keywords) {
+  const pattern = new RegExp(keywords.map(word => word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|'), 'giu');
+  const segments = []; let cursor = 0;
+  for (const match of line.matchAll(pattern)) {
+    if (match.index > cursor) segments.push([line.slice(cursor,match.index),false]);
+    segments.push([match[0],true]); cursor = match.index + match[0].length;
+  }
+  if (cursor < line.length) segments.push([line.slice(cursor),false]);
+  return segments;
+}
+
 export function createTypographyRenderer(makeCanvas = () => document.createElement('canvas')) {
   const cache = new Map();
   let pixels = 0;
@@ -161,13 +172,7 @@ export function createTypographyRenderer(makeCanvas = () => document.createEleme
       if (!keywords.length) {
         context.fillStyle = options.color; context.fillText(line, x, y);
       } else {
-        const pattern = new RegExp(keywords.map(word => word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|'), 'giu');
-        const segments = []; let cursor = 0;
-        for (const match of line.matchAll(pattern)) {
-          if (match.index > cursor) segments.push([line.slice(cursor,match.index),false]);
-          segments.push([match[0],true]); cursor = match.index + match[0].length;
-        }
-        if (cursor < line.length) segments.push([line.slice(cursor),false]);
+        const segments = keywordSegments(line, keywords);
         context.textAlign = 'left'; let left = x - widths[i] / 2;
         for (const [segment, marked] of segments) {
           context.fillStyle = marked ? options.accent : options.color;

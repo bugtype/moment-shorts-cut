@@ -10,13 +10,12 @@ import { mountDesignPanel } from '../dist/design-panel.mjs';
 import { mountEffectsPanel } from '../dist/effects-panel.mjs';
 import { mountTemplateGallery } from '../dist/template-gallery.mjs';
 
-test('design, effects and template panel controls and hierarchy', () => {
-  const defaults = createDemoProject(), savedProject = structuredClone(defaults);
-  templateModule.applyTemplate(savedProject,templateModule.TEMPLATES.find(t=>t.id==='recipe'),true);
-  const custom=templateModule.saveCustomTemplate('내 요리 구성',savedProject);
+function panelRoot(lists={},byId={}){byId={'#openPosition':{},'#clearKeywordEmphasis':{},...byId};return {innerHTML:'',querySelectorAll(selector){return lists[selector]||[];},querySelector(selector){return byId[selector]||null;}};}
+
+test('design and effects panel controls and hierarchy', () => {
+  const defaults = createDemoProject();
   // Panel controls are exercised with supplied DOM controls (not a browser layout test).
   function control(type,dataset,value){return {attributes: {}, setAttribute(name, value) { this.attributes[name] = String(value); }, getAttribute(name) { return this.attributes[name] ?? null; }, removeAttribute(name) { delete this.attributes[name]; },type,dataset,value,checked:false,setCustomValidity(message){this.error=message;},reportValidity(){this.reported=true;}};}
-  function panelRoot(lists={},byId={}){byId={'#openPosition':{},'#clearKeywordEmphasis':{},...byId};return {innerHTML:'',querySelectorAll(selector){return lists[selector]||[];},querySelector(selector){return byId[selector]||null;}};}
   const inputs=[control('number',{design:'design.title.start'},'5'),control('number',{design:'design.title.end'},'3'),control('text',{design:'speakerLabels.1'},'인터뷰이'),control('text',{design:'globalKeywords'},'순간, C++'),control('range',{design:'captionY',unit:'%'},'75')];
   let panelProject=structuredClone(defaults),snapshots=0;
   const panelRanges=createInputHistory(()=>snapshots++);
@@ -77,8 +76,12 @@ test('design, effects and template panel controls and hierarchy', () => {
    tabs.forEach(button=>button.onclick());assert.deepEqual(selected,['cards','motion'].filter(value=>value!==tab));
   }
   console.log('PASS: design/effects control-first hierarchy retains selected tabs, preset/navigation actions and essential timing/input instructions.');
-  
-  
+});
+
+test('template gallery controls, search and hierarchy', () => {
+  const defaults = createDemoProject(), savedProject = structuredClone(defaults);
+  templateModule.applyTemplate(savedProject,templateModule.TEMPLATES.find(t=>t.id==='recipe'),true);
+  const custom=templateModule.saveCustomTemplate('내 요리 구성',savedProject);
   // Gallery hierarchy, accessible filter groups and existing actions remain connected.
   const search={},grid={innerHTML:''},count={attributes: {}, setAttribute(name, value) { this.attributes[name] = String(value); }, getAttribute(name) { return this.attributes[name] ?? null; }, removeAttribute(name) { delete this.attributes[name]; },},saveButton={};
   const categories=['전체','리뷰','정보','라이프','대화','참여','즐겨찾기','내 템플릿'].map(category=>({dataset:{category},classList:{toggle(){}},setAttribute(name,value){this[name]=value;},getAttribute(name){return String(this[name]);}}));
@@ -109,7 +112,6 @@ test('design, effects and template panel controls and hierarchy', () => {
   galleryApi.error='<읽기 실패>';mountTemplateGallery(galleryRoot,galleryApi);assert.match(galleryRoot.innerHTML,/role="alert">&lt;읽기 실패&gt;<\/p>/);
   search.oninput({target:{value:'no matching template'}});assert.ok(grid.innerHTML.includes('조건에 맞는 템플릿이 없습니다.'));assert.equal(count.textContent,'0개의 구성');
   console.log('PASS: template gallery hierarchy, accessible filters, preview/save/favorite/delete actions, empty/error states and HTML escaping.');
-  
 });
 
 test('illustrative design artwork follows locale without editing authored project text', () => {

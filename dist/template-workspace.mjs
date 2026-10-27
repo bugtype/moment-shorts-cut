@@ -70,6 +70,15 @@ export function createTemplateWorkspace({
             return false;
         }
     }
+    // Capture previous in the first argument, before evaluating the candidate.
+    function replaceSavedTemplates(previous, next) {
+        savedTemplates = next;
+        if (!persistTemplateLibrary('moment-templates-v1', next)) {
+            savedTemplates = previous;
+            return false;
+        }
+        return true;
+    }
     async function importTemplate(file) {
         const request = ++importRequest;
         if (templateLibraryBlocked())
@@ -119,12 +128,7 @@ export function createTemplateWorkspace({
             }
             const next = [...savedTemplates, ...imported];
             validateTemplateLibrary(next, favoriteTemplates);
-            const previous = savedTemplates;
-            savedTemplates = next;
-            if (!persistTemplateLibrary('moment-templates-v1', next)) {
-                savedTemplates = previous;
-                return;
-            }
+            if (!replaceSavedTemplates(savedTemplates, next)) return;
             galleryUI.category = '내 템플릿';
             refresh();
             toast(collection ? message('templates.collectionImported', {count: imported.length}) : message('templates.imported'));
@@ -186,12 +190,10 @@ export function createTemplateWorkspace({
                     ...current, settings: captured.settings, cards: captured.cards,
                     title: captured.title, accent: captured.accent, relativeTiming: captured.relativeTiming,
                 }));
-                const previous = savedTemplates;
-                savedTemplates = savedTemplates.map(template => template.id === id ? replacement : template);
-                if (!persistTemplateLibrary('moment-templates-v1', savedTemplates)) {
-                    savedTemplates = previous;
-                    return;
-                }
+                if (!replaceSavedTemplates(
+                    savedTemplates,
+                    savedTemplates.map(template => template.id === id ? replacement : template)
+                )) return;
                 active = false;
                 modal.close();
                 renderAndFocusTemplate(id);
@@ -227,9 +229,7 @@ export function createTemplateWorkspace({
                 const copy = { ...structuredClone(source), id: makeId(), name };
                 const next = [...savedTemplates, copy];
                 validateTemplateLibrary(next, favoriteTemplates);
-                const previous = savedTemplates;
-                savedTemplates = next;
-                if (!persistTemplateLibrary('moment-templates-v1', next)) { savedTemplates = previous; return; }
+                if (!replaceSavedTemplates(savedTemplates, next)) return;
                 active = false;
                 modal.close();
                 galleryUI.category = '전체';
@@ -266,12 +266,10 @@ export function createTemplateWorkspace({
                 modal.close();
                 return;
             }
-            const previous = savedTemplates;
-            savedTemplates = savedTemplates.map(template => template.id === id ? { ...template, name } : template);
-            if (!persistTemplateLibrary('moment-templates-v1', savedTemplates)) {
-                savedTemplates = previous;
-                return;
-            }
+            if (!replaceSavedTemplates(
+                savedTemplates,
+                savedTemplates.map(template => template.id === id ? { ...template, name } : template)
+            )) return;
             modal.close();
             renderAndFocusTemplate(id);
             toast(message('templates.renamed'));
@@ -311,12 +309,10 @@ export function createTemplateWorkspace({
                 modalOpen(message('templates.removeTitle'), `<p class="modal-copy">${text('templates.removeWarning')}</p>`, `<div class="modal-foot"><button class="button" id="cancelRemoveTemplate">${text('templates.cancel')}</button><button class="button primary" id="confirmRemoveTemplate">${text('templates.removeConfirm')}</button></div>`);
                 $('#cancelRemoveTemplate').onclick = () => modal.close();
                 $('#confirmRemoveTemplate').onclick = () => {
-                    const previous = savedTemplates;
-                    savedTemplates = savedTemplates.filter(t => t.id !== id);
-                    if (!persistTemplateLibrary('moment-templates-v1', savedTemplates)) {
-                        savedTemplates = previous;
-                        return;
-                    }
+                    if (!replaceSavedTemplates(
+                        savedTemplates,
+                        savedTemplates.filter(t => t.id !== id)
+                    )) return;
                     modal.close();
                     renderAndFocusTemplate(id);
                 };

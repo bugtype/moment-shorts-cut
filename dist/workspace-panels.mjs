@@ -233,6 +233,49 @@ export function createWorkspacePanels(app) {
         $('#panelTrimApply').onclick = () => app.trim($('#panelTrimStart').valueAsNumber, $('#panelTrimEnd').valueAsNumber);
     }
 
+    function renderAudioPanel(target, generation) {
+        target.innerHTML = audioPanelMarkup(app.state, !!app.sources.audioFile, app.sources.audioFile ? app.duration() : 0);
+        $('#chooseAudio').onclick = () => $('#audioInput').click();
+        $('#recordButton').onclick = app.toggleRecording;
+        syncRecordingControl();
+        if (app.state.kind === 'video') bindAudioGain('audioSourceVolume', 'volume', generation);
+        if (app.sources.audioFile) {
+            bindOriginalDownload(target, generation, 'audio');
+            $('#removeAudio').onclick = () => {
+                if (app.recoveryBlocked() || app.audioRecording.current || app.audioRecording.requesting || app.loadingMedia)
+                    return;
+                app.pause();
+                app.sources.audioFile = null;
+                app.state.audioName = '';
+                app.audio.removeAttribute('src');
+                if (app.sources.audioURL)
+                    app.revokeObjectURL(app.sources.audioURL);
+                app.persistMedia();
+                app.changed();
+                renderPanel();
+            };
+            $('#audioOffset').onchange = event => {
+                const value = Number(event.target.value);
+                if (!event.target.value.trim() || !Number.isFinite(value)) {
+                    app.toast(message('panels.audioStartInvalid'));
+                    return;
+                }
+                const offset = app.state.audioOffset;
+                // Compare the displayed output time before inverse conversion can drift.
+                // An out-of-range stored offset still takes the existing clamp path.
+                if (offset >= 0 && offset <= app.duration() && value === offset / app.state.speed) return;
+                app.edit(() => {
+                    const next = clamp(value * app.state.speed, 0, app.duration()), delta = next - app.state.audioOffset;
+                    app.state.audioOffset = next;
+                    app.state.captions = app.state.captions.map(caption => caption.basis === 'timeline'
+                        ? { ...caption, start: Math.max(0, caption.start + delta), end: Math.max(.001, caption.end + delta) }
+                        : caption);
+                }, true);
+            };
+            bindAudioGain('audioVolume', 'audioVolume', generation);
+        }
+    }
+
     function renderPanel() {
         const generation = ++renderGeneration;
         pendingTrim = null;
@@ -268,46 +311,7 @@ export function createWorkspacePanels(app) {
             renderCaptionsPanel(target);
         }
         else if (app.panel === 'audio') {
-            target.innerHTML = audioPanelMarkup(app.state, !!app.sources.audioFile, app.sources.audioFile ? app.duration() : 0);
-            $('#chooseAudio').onclick = () => $('#audioInput').click();
-            $('#recordButton').onclick = app.toggleRecording;
-            syncRecordingControl();
-            if (app.state.kind === 'video') bindAudioGain('audioSourceVolume', 'volume', generation);
-            if (app.sources.audioFile) {
-                bindOriginalDownload(target, generation, 'audio');
-                $('#removeAudio').onclick = () => {
-                    if (app.recoveryBlocked() || app.audioRecording.current || app.audioRecording.requesting || app.loadingMedia)
-                        return;
-                    app.pause();
-                    app.sources.audioFile = null;
-                    app.state.audioName = '';
-                    app.audio.removeAttribute('src');
-                    if (app.sources.audioURL)
-                        app.revokeObjectURL(app.sources.audioURL);
-                    app.persistMedia();
-                    app.changed();
-                    renderPanel();
-                };
-                $('#audioOffset').onchange = event => {
-                    const value = Number(event.target.value);
-                    if (!event.target.value.trim() || !Number.isFinite(value)) {
-                        app.toast(message('panels.audioStartInvalid'));
-                        return;
-                    }
-                    const offset = app.state.audioOffset;
-                    // Compare the displayed output time before inverse conversion can drift.
-                    // An out-of-range stored offset still takes the existing clamp path.
-                    if (offset >= 0 && offset <= app.duration() && value === offset / app.state.speed) return;
-                    app.edit(() => {
-                        const next = clamp(value * app.state.speed, 0, app.duration()), delta = next - app.state.audioOffset;
-                        app.state.audioOffset = next;
-                        app.state.captions = app.state.captions.map(caption => caption.basis === 'timeline'
-                            ? { ...caption, start: Math.max(0, caption.start + delta), end: Math.max(.001, caption.end + delta) }
-                            : caption);
-                    }, true);
-                };
-                bindAudioGain('audioVolume', 'audioVolume', generation);
-            }
+            renderAudioPanel(target, generation);
         }
         else if (app.panel === 'text') {
             app.renderDesignPanel(target);

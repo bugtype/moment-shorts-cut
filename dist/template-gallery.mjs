@@ -1,13 +1,6 @@
+import { esc } from './ui-format.mjs';
 import { text, attrs, setText } from './i18n.mjs';
 import { TEMPLATES, templateCategoryKey, templateSearchText } from './template-catalog.mjs';
-
-const esc = value => String(value).replace(/[&<>"']/g, c => ({
-  '&': '&amp;',
-  '<': '&lt;',
-  '>': '&gt;',
-  '"': '&quot;',
-  "'": '&#39;'
-}[c]));
 
 const searchTerms = {
   recipe: '요리 음식 쿠킹 레시피',

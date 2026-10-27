@@ -1,15 +1,7 @@
 import { bindPanelTabs } from './panel-tabs.mjs';
-import { decimalTime } from './ui-format.mjs';
+import { decimalTime, esc as escape } from './ui-format.mjs';
 import { t, text, mark, attrs, setValidity } from './i18n.mjs';
 import { activeSceneLayers } from './effects.mjs';
-
-const escape = value => String(value).replace(/[&<>"']/g, char => ({
-  '&': '&amp;',
-  '<': '&lt;',
-  '>': '&gt;',
-  '"': '&quot;',
-  "'": '&#39;'
-}[char]));
 
 const renderOwners = new WeakMap();
 

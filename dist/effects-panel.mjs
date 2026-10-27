@@ -1,15 +1,8 @@
 import { bindPanelTabs } from './panel-tabs.mjs';
-import { decimalTime } from './ui-format.mjs';
+import { decimalTime, esc } from './ui-format.mjs';
 import { t, text, mark, attrs, setText, setValidity } from './i18n.mjs';
 
 const renderOwners = new WeakMap();
-const esc = value => String(value).replace(/[&<>"']/g, c => ({
-  '&': '&amp;',
-  '<': '&lt;',
-  '>': '&gt;',
-  '"': '&quot;',
-  "'": '&#39;'
-}[c]));
 
 export function mountEffectsPanel(root, api) {
   const owner = {};

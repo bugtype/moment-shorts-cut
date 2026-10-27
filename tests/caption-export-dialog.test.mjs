@@ -2,9 +2,35 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
 import fs from 'node:fs';
+import {spawnSync} from 'node:child_process';
 import {createAppFixture} from './fixtures/app.mjs';
 import {projectSubtitles} from '../dist/core/project.mjs';
 import {setLocale,initLocale} from '../dist/i18n.mjs';
+
+test('caption factories link natively without accessing browser resources during initialization', () => {
+    // The VM fixture strips imports. This child checks real bindings and safe
+    // module initialization, not browser behavior or factory invocation.
+    const urls = ['caption-export-dialog.mjs', 'caption-workspace.mjs']
+        .map(file => new URL('../dist/' + file, import.meta.url).href);
+    const result = spawnSync(process.execPath, ['--input-type=module', '--eval', `
+        import assert from 'node:assert/strict';
+        for (const name of ['window', 'document', 'navigator', 'localStorage', 'indexedDB',
+            'Worker', 'Image', 'AudioContext', 'OfflineAudioContext', 'XMLHttpRequest', 'fetch']) {
+            Object.defineProperty(globalThis, name, {configurable:true, get() {
+                throw new Error('Unexpected browser resource access: ' + name);
+            }});
+        }
+        const urls = ${JSON.stringify(urls)};
+        assert.equal(typeof (await import(urls[0])).createCaptionExportDialog, 'function');
+        assert.equal(typeof (await import(urls[1])).createCaptionWorkspace, 'function');
+        console.log('Caption factories linked.');
+    `], {encoding:'utf8', timeout:10000, maxBuffer:1024 * 1024});
+    assert.equal(result.error, undefined);
+    assert.equal(result.signal, null);
+    assert.equal(result.status, 0, result.stderr);
+    assert.equal(result.stderr, '');
+    assert.equal(result.stdout, 'Caption factories linked.\n');
+});
 
 async function fixture(setup='') {
     const f=await createAppFixture(), downloads=[], writes=[];

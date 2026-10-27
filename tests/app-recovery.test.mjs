@@ -14,7 +14,7 @@ import * as templateModule from '../dist/template-catalog.mjs';
 import { mountTemplateGallery } from '../dist/template-gallery.mjs';
 
 test('restore protection and isolated template library failures', async () => {
-  const { source, context, evaluate, element } = await createAppFixture();
+  const { context, evaluate, element } = await createAppFixture();
   const originalGetItem=context.localStorage.getItem;
   const corruptSaved=projectModule.createDemoProject();corruptSaved.design=null;
   context.localStorage.getItem=key=>key==='moment-state-v1'?JSON.stringify(corruptSaved):null;
@@ -24,8 +24,9 @@ test('restore protection and isolated template library failures', async () => {
   context.localStorage.getItem=originalGetItem;
   console.log('PASS: corrupt browser storage is rejected before rendering.');
   
-  // Each recovery scenario gets a fresh app VM and synthetic storage/media only.
-  function recoveryApp({raw=null,media={},readError=null,mediaError=null,decodeError=null,audioResult='loadeddata',audioDuration=5,readGate=null,templateRaw=null,favoritesRaw=null,libraryReadError=null,libraryWriteError=null}={}){
+  // Own the base VM, DOM and callbacks per recovery; native i18n remains shared.
+  async function recoveryApp({raw=null,media={},readError=null,mediaError=null,decodeError=null,audioResult='loadeddata',audioDuration=5,readGate=null,templateRaw=null,favoritesRaw=null,libraryReadError=null,libraryWriteError=null}={}){
+   const { source, context } = await createAppFixture();
    const f={raw,media:structuredClone(media),jsonWrites:0,mediaWrites:0,reads:0,downloads:[],events:new Map(),timers:[],micCalls:0,libraryWrites:[],library:{'moment-templates-v1':templateRaw,'moment-favorites-v1':favoritesRaw}};
    const audioEvents=new Map(),fixtureAudio={duration:audioDuration,paused:true,pause(){this.paused=true;},removeAttribute(){},addEventListener(name,handler){audioEvents.set(name,handler);},removeEventListener(name){audioEvents.delete(name);},set src(value){queueMicrotask(()=>audioEvents.get(audioResult)?.());}};
    const app=vm.createContext({...context,
@@ -76,7 +77,27 @@ test('restore protection and isolated template library failures', async () => {
    vm.runInContext(source.replace(/^import .*;$/gm,'').replace(/init\(\);\s*$/,''),app);
    const run=code=>vm.runInContext(code,app);
    run('sources.setVideoFile=async()=>{if(fixtureDecodeError)throw fixtureDecodeError;};download=(blob,name)=>fixtureDownloads.push({blob,name});');
-   return {...f,app,run,f,init:()=>run('init()'),value:code=>JSON.parse(JSON.stringify(run(code)))};
+   assert.equal(run('getLocale()'),'ko','Recovery expectations use the Korean locale');
+   return {...f,app,run,f,element:app.document.querySelector,init:()=>run('init()'),value:code=>JSON.parse(JSON.stringify(run(code)))};
+  }
+  // Retained controls must keep their recovery owner when another fixture starts.
+  for(const failedFirst of [false,true]){
+   const first=await recoveryApp({raw:failedFirst?'null':null});await first.init();
+   const button=first.element('#saveButton'),handler=button.onclick,status=first.element('#saveStatus').innerHTML;
+   const second=await recoveryApp({raw:failedFirst?null:'null'});await second.init();
+   assert.equal(first.run('persistence.restorePhase'),failedFirst?'failed':'ready');
+   assert.equal(second.run('persistence.restorePhase'),failedFirst?'ready':'failed');
+   assert.notEqual(button,second.element('#saveButton'),'Recovery fixtures must not share controls');
+   assert.equal(button.onclick,handler);
+   assert.equal(first.element('#saveStatus').innerHTML,status);
+   assert.equal(first.element('#sourceAudio'),first.run('audio'));
+   assert.notEqual(first.element('#sourceAudio'),second.element('#sourceAudio'));
+   await button.onclick();
+   assert.equal(first.f.jsonWrites,failedFirst?0:1);assert.equal(second.f.jsonWrites,0);
+   await second.element('#saveButton').onclick();
+   assert.equal(first.f.jsonWrites,failedFirst?0:1);assert.equal(second.f.jsonWrites,failedFirst?1:0);
+   assert.equal(first.f.mediaWrites,0);assert.equal(second.f.mediaWrites,0);
+   assert.equal(first.f.micCalls,0);assert.equal(second.f.micCalls,0);
   }
   const recoveryProject=projectModule.createDemoProject();
   Object.assign(recoveryProject,{kind:'video',fileName:'saved.mp4',audioName:'voice.wav',audioOffset:1,audioVolume:.4,clips:[{start:2,end:7}],captions:[{start:1,end:3,text:'보존할 음성 자막',basis:'timeline'}]});
@@ -93,10 +114,10 @@ test('restore protection and isolated template library failures', async () => {
    {media:{video:recoveryMedia.video}},
    {mediaError:new Error('storage read failed')},
   ]){
-   const a=recoveryApp({raw:recoveryRaw,media:recoveryMedia,...options});await a.init();
+   const a=await recoveryApp({raw:recoveryRaw,media:recoveryMedia,...options});await a.init();
    assert.equal(a.run('persistence.restorePhase'),'failed');assert.deepEqual(a.value('state'),recoveryProject);
-   assert.match(element('#saveStatus').innerHTML,/변경사항은 저장되지 않습니다/);
-   assert.match(element('#saveStatus').innerHTML,/새로고침 전에.*내보내세요/);
+   assert.match(a.element('#saveStatus').innerHTML,/변경사항은 저장되지 않습니다/);
+   assert.match(a.element('#saveStatus').innerHTML,/새로고침 전에.*내보내세요/);
    let cancelled=false;const unload=()=>{cancelled=false;a.f.events.get('beforeunload')({preventDefault(){cancelled=true;}});return cancelled;};
    assert.equal(unload(),false);
    assert.equal(a.run('runEditorCommand("project.update",{patch:{name:"메모리에서 편집"}})'),true);
@@ -109,13 +130,13 @@ test('restore protection and isolated template library failures', async () => {
    const api=await a.app.window.moment.execute('project.get');assert.equal(api.ok,true);assert.equal(api.data.project.audioName,'voice.wav');
    const imported=await a.app.window.moment.execute('project.import',{document:projectModule.createProjectDocument(recoveryProject)});assert.equal(imported.ok,true);
    const before=a.value('state'),files=structuredClone(a.f.media);
-   a.run('switchPanel("audio")');if(a.run('sources.audioFile'))element('#removeAudio').onclick();
+   a.run('switchPanel("audio")');if(a.run('sources.audioFile'))a.element('#removeAudio').onclick();
    await a.run('loadVideo({name:"new.mp4",type:"video/mp4",size:1});loadAudio({name:"new.wav",size:1});toggleRecording();generateCaptions();play();startExport({mime:"video/webm",ext:"webm"},720)');
    a.run('confirmReset();exportDialog();persistMedia();scheduleSave()');await a.run('saveProject(true)');
    assert.deepEqual(a.value('state'),before);assert.deepEqual(a.f.media,files);
    assert.equal(a.f.micCalls,0);assert.equal(a.run('playing'),false);assert.equal(a.run('exporting'),false);
    assert.equal(a.f.jsonWrites,0);assert.equal(a.f.mediaWrites,0);assert.equal(a.f.raw,recoveryRaw);
-   assert.match(element('#saveStatus').innerHTML,/변경사항은 저장되지 않습니다/);
+   assert.match(a.element('#saveStatus').innerHTML,/변경사항은 저장되지 않습니다/);
    // Selecting the exact original names is still a normal destructive-load route,
    // not permission to exit failed recovery or overwrite browser storage.
    const protectedHistory=a.value('({history,future})');
@@ -123,7 +144,7 @@ test('restore protection and isolated template library failures', async () => {
     await a.run('loadVideo({name:"saved.mp4",type:"video/mp4",size:1})');
     await a.run('loadAudio({name:"voice.wav",type:"audio/wav",size:1})');
     a.run('confirmReset();toggleRecording();scheduleSave();persistMedia()');
-    await element('#saveButton').onclick();
+    await a.element('#saveButton').onclick();
     for(const timer of a.f.timers.filter(timer=>!timer.cancelled)){
      timer.cancelled=true;await timer.callback();
     }
@@ -143,41 +164,41 @@ test('restore protection and isolated template library failures', async () => {
    assert.equal(a.f.jsonWrites,0);assert.equal(a.f.mediaWrites,0);
   }
   for(const raw of ['', ' ', 'null', 'false', '42', '[]', '{}', '{broken', JSON.stringify({...recoveryProject,clips:[]}),JSON.stringify({...recoveryProject,design:null})]){
-   const a=recoveryApp({raw});await a.init();assert.equal(a.run('persistence.restorePhase'),'failed');
+   const a=await recoveryApp({raw});await a.init();assert.equal(a.run('persistence.restorePhase'),'failed');
    assert.equal(a.run('persistence.recoveryValid'),false);assert.equal(a.f.reads,0);
    a.run('edit(()=>state.name="임시 화면");downloadProjectSettings();downloadSrt();persistMedia();scheduleSave()');await a.run('saveProject(true)');
    assert.equal(a.f.downloads.length,0);assert.equal(a.f.jsonWrites,0);assert.equal(a.f.mediaWrites,0);assert.equal(a.f.raw,raw);
    assert.equal((await a.app.window.moment.execute('project.get')).error.code,'RECOVERY_REQUIRED');
   }
-  const readFailure=recoveryApp({readError:new Error('storage blocked')});await readFailure.init();
+  const readFailure=await recoveryApp({readError:new Error('storage blocked')});await readFailure.init();
   assert.equal(readFailure.run('persistence.restorePhase'),'failed');await readFailure.run('saveProject(true)');assert.equal(readFailure.f.jsonWrites,0);
-  const emptyStart=recoveryApp();await emptyStart.init();assert.equal(emptyStart.run('persistence.restorePhase'),'ready');assert.equal(emptyStart.f.reads,0);
+  const emptyStart=await recoveryApp();await emptyStart.init();assert.equal(emptyStart.run('persistence.restorePhase'),'ready');assert.equal(emptyStart.f.reads,0);
   await emptyStart.run('saveProject()');assert.equal(emptyStart.f.jsonWrites,1);
-  emptyStart.run('confirmReset()');element('#confirmReset').onclick();await emptyStart.run('saveProject()');assert.equal(emptyStart.f.mediaWrites,1);
-  const retried=recoveryApp({raw:recoveryRaw,media:recoveryMedia});await retried.init();
+  emptyStart.run('confirmReset()');emptyStart.element('#confirmReset').onclick();await emptyStart.run('saveProject()');assert.equal(emptyStart.f.mediaWrites,1);
+  const retried=await recoveryApp({raw:recoveryRaw,media:recoveryMedia});await retried.init();
   assert.equal(retried.run('persistence.restorePhase'),'ready');assert.deepEqual(retried.value('state'),recoveryProject);
   await retried.run('saveProject(true)');assert.equal(retried.f.jsonWrites,1);assert.equal(retried.f.mediaWrites,1);
-  const unknownAudioDuration=recoveryApp({raw:recoveryRaw,media:recoveryMedia,audioDuration:Infinity});
+  const unknownAudioDuration=await recoveryApp({raw:recoveryRaw,media:recoveryMedia,audioDuration:Infinity});
   await unknownAudioDuration.init();assert.equal(unknownAudioDuration.run('persistence.restorePhase'),'ready','Loaded audio with unknown duration remains supported');
   const noAudioProject={...recoveryProject,audioName:''};
-  const noAudio=recoveryApp({raw:JSON.stringify(noAudioProject),media:{video:recoveryMedia.video}});await noAudio.init();assert.equal(noAudio.run('persistence.restorePhase'),'ready');
+  const noAudio=await recoveryApp({raw:JSON.stringify(noAudioProject),media:{video:recoveryMedia.video}});await noAudio.init();assert.equal(noAudio.run('persistence.restorePhase'),'ready');
   
-  let finishRead;const restoring=recoveryApp({raw:recoveryRaw,media:recoveryMedia,readGate:new Promise(resolve=>finishRead=resolve)});
+  let finishRead;const restoring=await recoveryApp({raw:recoveryRaw,media:recoveryMedia,readGate:new Promise(resolve=>finishRead=resolve)});
   const initializing=restoring.init();assert.equal(restoring.run('persistence.restorePhase'),'restoring');
   restoring.run('persistMedia();scheduleSave();confirmReset()');await restoring.run('saveProject(true)');
   assert.equal(restoring.f.jsonWrites,0);assert.equal(restoring.f.mediaWrites,0);
   assert.equal((await restoring.app.window.moment.execute('project.update',{patch:{name:'too early'}})).error.code,'BUSY');
   finishRead();await initializing;assert.equal(restoring.run('persistence.restorePhase'),'ready');
-  assert.match(element('#saveStatus').innerHTML,/저장된 프로젝트를 불러왔습니다/);
+  assert.match(restoring.element('#saveStatus').innerHTML,/저장된 프로젝트를 불러왔습니다/);
   
-  const stale=recoveryApp();await stale.init();stale.run('scheduleSave();confirmReset()');
-  const staleTimer=stale.f.timers.at(-1),oldReset=element('#confirmReset').onclick;
-  stale.run('switchPanel("audio");sources.audioFile={name:"voice.wav"};renderPanel()');const oldRemove=element('#removeAudio').onclick;
+  const stale=await recoveryApp();await stale.init();stale.run('scheduleSave();confirmReset()');
+  const staleTimer=stale.f.timers.at(-1),oldReset=stale.element('#confirmReset').onclick;
+  stale.run('switchPanel("audio");sources.audioFile={name:"voice.wav"};renderPanel()');const oldRemove=stale.element('#removeAudio').onclick;
   let finishSave;stale.app.fixturePending=new Promise(resolve=>finishSave=resolve);stale.run('persistence.pendingSave=fixturePending');
   const saving=stale.run('saveProject()');stale.f.raw='null';await stale.init();
   assert.equal(staleTimer.cancelled,true);finishSave();await saving;await staleTimer.callback();oldReset();oldRemove();
   assert.equal(stale.f.jsonWrites,0);assert.equal(stale.f.mediaWrites,0);assert.equal(stale.f.raw,'null');
-  assert.match(element('#saveStatus').innerHTML,/변경사항은 저장되지 않습니다/);
+  assert.match(stale.element('#saveStatus').innerHTML,/변경사항은 저장되지 않습니다/);
   console.log('PASS: protected restore preserves settings/metadata/export, blocks writes and media actions, distinguishes absent/invalid storage, guards stale callbacks, warns on memory-only edits and retries in a fresh app instance.');
   
   // Library faults are isolated from project startup; all storage here is synthetic.
@@ -190,10 +211,10 @@ test('restore protection and isolated template library failures', async () => {
    {templateRaw:JSON.stringify([validLibraryTemplate]),favoritesRaw:'[null]'},
    {libraryReadError:new Error('synthetic library read failure')},
   ]){
-   const r=recoveryApp({...options,raw:JSON.stringify({...projectModule.createDemoProject(),name:'preserved project'})});let api;
+   const r=await recoveryApp({...options,raw:JSON.stringify({...projectModule.createDemoProject(),name:'preserved project'})});let api;
    r.app.mountTemplateGallery=(root,value)=>{api=value;mountTemplateGallery(root,value);};
    await r.init();assert.equal(r.value('editorReady'),true);assert.equal(r.value('persistence.restorePhase'),'ready');assert.equal(r.value('state.name'),'preserved project');
-   assert.match(api.error,/원본 저장값은 유지/);assert.ok(element('#panelContent').innerHTML.includes('role="alert"'));
+   assert.match(api.error,/원본 저장값은 유지/);assert.ok(r.element('#panelContent').innerHTML.includes('role="alert"'));
    const stored=structuredClone(r.f.library),before={custom:structuredClone(api.custom),favorites:structuredClone(api.favorites),project:r.value('({state,history,future})')};
    api.favorite('reference');api.remove('unknown');api.save();
    assert.deepEqual({custom:api.custom,favorites:api.favorites,project:r.value('({state,history,future})')},before);
@@ -203,16 +224,16 @@ test('restore protection and isolated template library failures', async () => {
    assert.equal(r.value('state.name'),'still editable');assert.deepEqual(r.f.library,stored);
   }
   for(const writeFailure of [false,true]){
-   const r=recoveryApp({templateRaw:JSON.stringify([validLibraryTemplate]),favoritesRaw:'["reference"]',libraryWriteError:writeFailure?new Error('synthetic quota'):null});let api;
+   const r=await recoveryApp({templateRaw:JSON.stringify([validLibraryTemplate]),favoritesRaw:'["reference"]',libraryWriteError:writeFailure?new Error('synthetic quota'):null});let api;
    r.app.mountTemplateGallery=(root,value)=>{api=value;mountTemplateGallery(root,value);};
    await r.init();assert.equal(api.error,'');assert.equal(api.custom.length,1);
    api.thumbnail(r.app.document.createElement('canvas'),api.custom[0]); // synthetic canvas only
    api.favorite('clean');assert.equal(api.favorites.includes('clean'),!writeFailure);
    if(!writeFailure){assert.equal(JSON.parse(r.f.library['moment-favorites-v1']).includes('clean'),true);}
    else {assert.equal(r.f.libraryWrites.length,0);assert.deepEqual(api.favorites,['reference']);}
-   api.save();element('#customTemplateName').value='Second fixture';element('#saveCustomTemplate').onclick();
+   api.save();r.element('#customTemplateName').value='Second fixture';r.element('#saveCustomTemplate').onclick();
    assert.equal(api.custom.length,writeFailure?1:2);
-   api.remove(validLibraryTemplate.id);element('#confirmRemoveTemplate').onclick();
+   api.remove(validLibraryTemplate.id);r.element('#confirmRemoveTemplate').onclick();
    assert.equal(api.custom.length,1);assert.equal(api.custom[0].id===validLibraryTemplate.id,writeFailure);
    if(writeFailure)assert.equal(r.f.libraryWrites.length,0);
    else assert.equal(JSON.parse(r.f.library['moment-templates-v1']).length,1);

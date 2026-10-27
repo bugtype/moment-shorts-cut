@@ -211,6 +211,7 @@ export async function createAppFixture({sessionMediaDependencies = {}} = {}) {
   loadFactory('export-flow.mjs','createExportFlow');
   loadFactory('media-loader.mjs','createMediaLoader');
   loadFactory('design-workspace.mjs','createDesignWorkspace');
+  loadFactory('panel-sheet.mjs','createPanelSheet');
   loadFactory('workspace-panels.mjs','createWorkspacePanels');
   loadFactory('app-bindings.mjs','bindUi');
   loadFactory('editing-actions.mjs','createEditingActions');

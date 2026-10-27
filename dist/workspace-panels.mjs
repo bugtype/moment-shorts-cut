@@ -1,3 +1,4 @@
+import { createPanelSheet } from './panel-sheet.mjs';
 import { createScenePngExport } from './scene-png-export.mjs';
 import { createScenePngDialog } from './scene-png-dialog.mjs';
 import { message, setAttr, text } from './i18n.mjs';
@@ -10,7 +11,9 @@ const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
 // media lifetime stay in the app; this module only wires the current panel controls.
 export function createWorkspacePanels(app) {
     const { query: $, queryAll: $$ } = app;
-    let sheetOpen = false, renderGeneration = 0;
+    const { syncSheet, setSheetOpen, closePanelSheet, togglePanelSheet } =
+        createPanelSheet(app, { query: $, queryAll: $$ });
+    let renderGeneration = 0;
     let pendingTrim = null;
     let thirdsGrid = false;
     const desktopGrid = $('#thirdsGridDesktop');
@@ -33,73 +36,6 @@ export function createWorkspacePanels(app) {
         if ($('#thirdsGridDesktop') === desktopGrid) changeThirdsGrid(desktopGrid, event);
     };
     const scenePng = createScenePngDialog(app, createScenePngExport(app));
-
-    // Compact layouts keep the preview visible and turn the side panel into a
-    // sheet above the bottom tool rail. Desktop keeps the panel permanently docked.
-    const isCompact = () => app.window.matchMedia?.('(max-width:700px), (max-height:560px) and (orientation:landscape)').matches === true;
-
-    function syncSheet() {
-        const library = $('#libraryPanel');
-        if (!isCompact()) {
-            sheetOpen = false;
-            if (library)
-                library.hidden = false;
-            app.document.body.classList.remove('panel-sheet-open');
-            fitSheet();
-            setExpanded();
-            return;
-        }
-        if (library)
-            library.hidden = !sheetOpen;
-        app.document.body.classList.toggle('panel-sheet-open', sheetOpen);
-        fitSheet();
-        setExpanded();
-    }
-
-    // The sheet grows from the rail up to just below the preview, so it uses the
-    // room a given ratio leaves instead of an arbitrary share of the viewport.
-    function fitSheet() {
-        const library = $('#libraryPanel');
-        if (!library)
-            return;
-        library.style.removeProperty('max-height');
-        if (!isCompact() || !sheetOpen || app.window.matchMedia?.('(max-height:720px)').matches)
-            return;
-        const canvas = $('#canvasWrap')?.getBoundingClientRect();
-        const rail = $('.rail')?.getBoundingClientRect();
-        if (!canvas || !rail)
-            return;
-        const available = Math.floor(rail.top - canvas.bottom - 8);
-        if (available > 0)
-            library.style.maxHeight = `${Math.max(180, available)}px`;
-    }
-
-    function setExpanded() {
-        $$('[data-panel]').forEach(button => {
-            const active = button.dataset.panel === app.panel;
-            button.setAttribute('aria-expanded', String(active && (!isCompact() || sheetOpen)));
-        });
-    }
-
-    function setSheetOpen(open) {
-        sheetOpen = !!open && isCompact();
-        syncSheet();
-    }
-
-    function closePanelSheet() {
-        if (!isCompact() || !sheetOpen)
-            return;
-        setSheetOpen(false);
-        $$('[data-panel]').find(button => button.dataset.panel === app.panel)?.focus();
-    }
-
-    function togglePanelSheet() {
-        if (!isCompact())
-            return;
-        setSheetOpen(!sheetOpen);
-        if (sheetOpen)
-            $('#panelClose')?.focus();
-    }
 
     function renderCaptionsPanel(target) {
         app.captionPanel.render(target, {

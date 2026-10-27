@@ -28,6 +28,15 @@ export { API_VERSION, commandDefinitions, commandDefinition } from './command-ca
 
 const previewFields = [...new Set([...Object.keys(createDemoProject()), 'templateId'])].sort();
 
+// A transform may reuse untouched cues; only validated, isolated copies become mutations.
+function finalizeCaptionTransform(project, result, data) {
+  if (!data.updated) return { data };
+  const next = structuredClone(project);
+  next.captions = structuredClone(result.captions);
+  validateProject(next);
+  return { project: next, data };
+}
+
 export function prepareCommand(project, name, args = {}) {
   const definition = commandDefinition(name);
   assertJson(args);
@@ -304,11 +313,7 @@ export function prepareCommand(project, name, args = {}) {
       addedCaptions: result.addedCaptions,
       outputDuration: outputDuration(project)
     };
-    if (!data.updated) return { data };
-    const next = structuredClone(project);
-    next.captions = structuredClone(result.captions);
-    validateProject(next);
-    return { project: next, data };
+    return finalizeCaptionTransform(project, result, data);
   }
   if (name === 'captions.split') {
     const index = args.captionIndex;
@@ -359,11 +364,7 @@ export function prepareCommand(project, name, args = {}) {
       changedCaptions: result.changedCaptions,
       outputDuration: outputDuration(project)
     };
-    if (!data.updated) return { data };
-    const next = structuredClone(project);
-    next.captions = structuredClone(result.captions);
-    validateProject(next);
-    return { project: next, data };
+    return finalizeCaptionTransform(project, result, data);
   }
   if (name === 'captions.timing.shift') {
     const result = shiftCaptionTiming(
@@ -374,11 +375,7 @@ export function prepareCommand(project, name, args = {}) {
       shiftedCaptions: result.shiftedCaptions,
       outputDuration: outputDuration(project)
     };
-    if (!data.updated) return { data };
-    const next = structuredClone(project);
-    next.captions = structuredClone(result.captions);
-    validateProject(next);
-    return { project: next, data };
+    return finalizeCaptionTransform(project, result, data);
   }
   if (name === 'captions.text.replace') {
     const result = replaceCaptionText(project.captions, args);
@@ -387,11 +384,7 @@ export function prepareCommand(project, name, args = {}) {
       matches: result.matches,
       changedCaptions: result.changedCaptions
     };
-    if (!data.updated) return { data };
-    const next = structuredClone(project);
-    next.captions = structuredClone(result.captions);
-    validateProject(next);
-    return { project: next, data };
+    return finalizeCaptionTransform(project, result, data);
   }
   if (name === 'render.plan') {
     const quality = args.quality || 1080,

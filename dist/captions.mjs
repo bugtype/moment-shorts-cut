@@ -28,7 +28,8 @@ function sourceCaptionLookup(sourceCaptions, clipCount) {
     return () => sourceCaptions;
   const sorted = [...sourceCaptions].sort((a, b) => a[1].start - b[1].start || a[0] - b[0]);
   const authoredOrder = sorted.every(([index], position) => index === sourceCaptions[position][0]);
-  let maximumEnd = -Infinity;
+  const blockSize = 32;
+  let blockEnds, maximumEnd = -Infinity;
   const ends = sorted.map(([, cap]) => maximumEnd = Math.max(maximumEnd, cap.end));
   function firstMatch(predicate) {
     let low = 0, high = sorted.length;
@@ -45,12 +46,38 @@ function sourceCaptionLookup(sourceCaptions, clipCount) {
     if (!Number.isFinite(clip.start) || !Number.isFinite(clip.end)) return sourceCaptions;
     const first = firstMatch(index => ends[index] > clip.start);
     const last = firstMatch(index => sorted[index][1].start >= clip.end);
-    // Broad windows are cheaper to scan than allocate and reorder, especially
-    // when a long overlapping cue keeps every prefix maximum high.
     const count = Math.max(0, last - first);
-    if (!authoredOrder && count * Math.log2(Math.max(2, count)) >= sourceCaptions.length)
-      return sourceCaptions;
-    const candidates = sorted.slice(first, last);
+    let candidates;
+    if (count > blockSize) {
+      // Build only for broad windows, and only within this projection call.
+      // A later edit must never reuse metadata by mutable array identity.
+      if (!blockEnds) {
+        blockEnds = [];
+        for (let index = 0; index < sorted.length; index++) {
+          const block = Math.floor(index / blockSize);
+          blockEnds[block] = Math.max(blockEnds[block] ?? -Infinity, sorted[index][1].end);
+        }
+      }
+      const ranges = []; let candidateCount = 0;
+      for (let index = first; index < last;) {
+        const block = Math.floor(index / blockSize), end = Math.min(last, (block + 1) * blockSize);
+        // Ended blocks cannot contain a cue overlapping this clip.
+        if (blockEnds[block] > clip.start) { ranges.push([index, end]); candidateCount += end - index; }
+        index = end;
+      }
+      if (candidateCount !== count) {
+        if (!authoredOrder && candidateCount * Math.log2(Math.max(2, candidateCount)) >= sourceCaptions.length)
+          return sourceCaptions;
+        candidates = [];
+        for (const [start, end] of ranges) for (let index = start; index < end; index++) candidates.push(sorted[index]);
+      }
+    }
+    if (!candidates) {
+      // Keep the original cheap slice/linear path when blocks did not narrow it.
+      if (!authoredOrder && count * Math.log2(Math.max(2, count)) >= sourceCaptions.length)
+        return sourceCaptions;
+      candidates = sorted.slice(first, last);
+    }
     return authoredOrder ? candidates : candidates.sort((a, b) => a[0] - b[0]);
   };
 }

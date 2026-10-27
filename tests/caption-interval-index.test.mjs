@@ -97,3 +97,60 @@ test('broad shuffled candidate windows preserve authored ties through linear fal
   const clips=Array.from({length:10},(_,i)=>({start:i*10,end:i*10+10}));
   assert.deepEqual(captionOccurrences(captions,clips),exhaustive(captions,clips));
 });
+
+test('long spanning cues do not force repeated scans of already-ended blocks',()=>{
+  for(const reverse of [false,true]){
+    const plain=[{start:0,end:1000,text:'long'},...Array.from({length:1000},(_,i)=>({start:i,end:i+.5,text:String(i)}))];
+    if(reverse)plain.reverse();
+    let reads=0;
+    const captions=plain.map(cap=>({get start(){reads++;return cap.start;},get end(){reads++;return cap.end;},text:cap.text}));
+    const clips=Array.from({length:100},(_,i)=>({start:i*10,end:i*10+10}));
+    const result=captionOccurrences(captions,clips,2),endpointReads=reads;
+    assert.equal(result.length,1100);
+    assert.deepEqual(result,exhaustive(plain,clips,2));
+    // Stable getter instrumentation measures work, not an accessor-call-order contract.
+    assert.ok(endpointReads<50000,`long-span mapping read ${endpointReads} endpoints (reverse=${reverse})`);
+  }
+});
+
+test('partial blocks and long-cue positions preserve raw boundaries, clocks and authored ties',()=>{
+  const clips=[{start:0,end:1},{start:30.75,end:33.25},{start:63,end:65},{start:95.5,end:98},
+    {start:1,end:1},{start:80,end:70},{start:200,end:201},{start:30.75,end:33.25}];
+  for(const count of [31,32,33,63,64,65,95,96,97])for(const position of [0,Math.floor(count/2),count]){
+    const captions=Array.from({length:count},(_,i)=>({start:i,end:i+.75,text:`${i} e\u0301 한🎬`}));
+    captions.splice(position,0,{start:0,end:128,text:'long'});
+    captions.push({start:0,end:3,text:'narration',basis:'timeline'});
+    for(const ordered of [captions,[...captions].reverse()])for(const cuts of [clips,[...clips].reverse()])
+      for(const speed of [.25,1,2,4]){
+        const before=structuredClone({ordered,cuts}),result=captionOccurrences(ordered,cuts,speed);
+        assert.ok(result.length>0);
+        assert.deepEqual(result,exhaustive(ordered,cuts,speed));
+        assert.deepEqual({ordered,cuts},before);
+      }
+  }
+});
+
+test('broad-window metadata is rebuilt after in-place cue and clip edits',()=>{
+  const captions=[{start:0,end:160,text:'long'},...Array.from({length:128},(_,i)=>({start:i,end:i+.5,text:String(i)}))];
+  const clips=[{start:0,end:40},{start:40,end:80},{start:80,end:128}];
+  const check=()=>{const before=structuredClone({captions,clips});assert.deepEqual(captionOccurrences(captions,clips),exhaustive(captions,clips));assert.deepEqual({captions,clips},before);};
+  check();captions[0].end=20;check();captions[1].start=70;captions[1].end=71;check();
+  captions[1].text='changed 한😀';captions[1].basis='timeline';check();
+  clips.reverse();check();clips[1].start=45;check();captions.reverse();check();
+});
+
+test('pruned broad windows preserve count-before-text and UTF-8 failure priority',()=>{
+  const captions=[{start:0,end:9000,text:'long'},...Array.from({length:9000},(_,i)=>({start:i,end:i+.5,text:'a'}))];
+  const clips=Array.from({length:1000},(_,i)=>({start:i*9,end:i*9+9}));
+  assert.equal(captionOccurrences(captions,clips).length,10000);
+  let reads=0;
+  const late={start:0,end:1,basis:'timeline',get text(){reads++;throw new Error('late payload');}};
+  assert.throws(()=>captionOccurrences([...captions,late],clips),e=>e.code==='CAPTION_OUTPUT_LIMIT'&&e.messageKey==='errors.derivedCount'&&e.path==='project.captions');
+  assert.equal(reads,0);
+  const text='한'.repeat(600)+'a'.repeat(100);assert.equal(new TextEncoder().encode(text).byteLength,1900);
+  const bytes=[{start:0,end:1100,text},...Array.from({length:1100},(_,i)=>({start:i,end:i+.5,text}))];
+  const byteClips=Array.from({length:110},(_,i)=>({start:i*10,end:i*10+10}));
+  bytes[1100]={start:1099,end:1099.5,get text(){reads++;throw new Error('late byte payload');}};
+  assert.throws(()=>captionOccurrences(bytes,byteClips),e=>e.code==='CAPTION_OUTPUT_LIMIT'&&e.messageKey==='errors.derivedBytes'&&e.path==='project.captions');
+  assert.throws(()=>exhaustive(bytes,byteClips),/bytes/);assert.equal(reads,0);
+});

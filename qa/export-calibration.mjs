@@ -80,23 +80,29 @@ async function runCommand(directory, commands, name, argv, { input, binary = fal
   const chunks = { stdout: [], stderr: [] };
   const sizes = { stdout: 0, stderr: 0 };
   let failure = null;
+  let terminating = false;
   const abort = error => {
     failure ??= error;
+    if (terminating) return;
+    terminating = true;
     child.stdin?.destroy();
     child.kill('SIGKILL');
   };
-  const timer = setTimeout(() => abort(new Error(`${name}: timeout after ${timeoutMs} ms`)), timeoutMs);
-  for (const stream of ['stdout', 'stderr']) {
-    child[stream].on('data', chunk => {
-      const limit = stream === 'stdout' ? maxBytes : record.stderr_limit_bytes;
-      if (sizes[stream] + chunk.length > limit) abort(new Error(`${name}: ${stream} exceeded ${limit} bytes`));
-      else { chunks[stream].push(chunk); sizes[stream] += chunk.length; }
-    });
-    child[stream].on('error', abort);
-  }
-  child.on('error', abort);
   const closed = new Promise(resolve => child.once('close', (code, signal) => resolve({ code, signal })));
-  const fed = input ? pipeline(Readable.from(input), child.stdin).catch(abort) : Promise.resolve();
+  child.on('error', abort);
+  const timer = setTimeout(() => abort(new Error(`${name}: timeout after ${timeoutMs} ms`)), timeoutMs);
+  let fed = Promise.resolve();
+  try {
+    for (const stream of ['stdout', 'stderr']) {
+      child[stream]?.on('data', chunk => {
+        const limit = stream === 'stdout' ? maxBytes : record.stderr_limit_bytes;
+        if (sizes[stream] + chunk.length > limit) abort(new Error(`${name}: ${stream} exceeded ${limit} bytes`));
+        else { chunks[stream].push(chunk); sizes[stream] += chunk.length; }
+      });
+      child[stream]?.on('error', abort);
+    }
+    if (input && child.stdin) fed = pipeline(Readable.from(input), child.stdin).catch(abort);
+  } catch (error) { abort(error); }
   let status;
   try { status = await closed; await fed; }
   finally { clearTimeout(timer); }

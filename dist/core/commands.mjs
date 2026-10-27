@@ -38,6 +38,32 @@ function finalizeCaptionTransform(project, result, data) {
   return { project: next, data };
 }
 
+function prepareBatch(project, args) {
+  let next = project,
+    updated = false;
+  for (const [index, operation] of args.operations.entries()) {
+    const path = `arguments.operations[${index}]`;
+    if (!isBatchCommand(operation.command)) fail(msg('errors.batchCommand'), `${path}.command`);
+    try {
+      const prepared = prepareCommand(next, operation.command, operation.arguments);
+      if (prepared.project) {
+        next = prepared.project;
+        updated = true;
+      }
+    } catch (error) {
+      if (error instanceof CommandError) {
+        const nested = error.path || 'arguments';
+        throw new CommandError(error.code, error.messageKey ? error : error.message, `${path}.${nested}`);
+      }
+      throw error;
+    }
+  }
+  return {
+    ...(updated ? { project: next } : {}),
+    data: { updated, operationCount: args.operations.length, outputDuration: outputDuration(next) }
+  };
+}
+
 export function prepareCommand(project, name, args = {}) {
   const definition = commandDefinition(name);
   assertJson(args);
@@ -68,31 +94,7 @@ export function prepareCommand(project, name, args = {}) {
       }
     };
   }
-  if (name === 'project.batch') {
-    let next = project,
-      updated = false;
-    for (const [index, operation] of args.operations.entries()) {
-      const path = `arguments.operations[${index}]`;
-      if (!isBatchCommand(operation.command)) fail(msg('errors.batchCommand'), `${path}.command`);
-      try {
-        const prepared = prepareCommand(next, operation.command, operation.arguments);
-        if (prepared.project) {
-          next = prepared.project;
-          updated = true;
-        }
-      } catch (error) {
-        if (error instanceof CommandError) {
-          const nested = error.path || 'arguments';
-          throw new CommandError(error.code, error.messageKey ? error : error.message, `${path}.${nested}`);
-        }
-        throw error;
-      }
-    }
-    return {
-      ...(updated ? { project: next } : {}),
-      data: { updated, operationCount: args.operations.length, outputDuration: outputDuration(next) }
-    };
-  }
+  if (name === 'project.batch') return prepareBatch(project, args);
   if (name === 'template.inspect') {
     const next = prepareCommand(project, 'template.apply', args).project;
     const template = TEMPLATES.find(item => item.id === args.templateId),

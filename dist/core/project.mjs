@@ -25,7 +25,7 @@ export function createDemoProject() {
     panY: 0,
     volume: 1,
     speed: 1,
-    schemaVersion: 4,
+    schemaVersion: DESIGN_VERSION,
     design: defaultDesign(),
     style: 'impact',
     captionSize: 36,

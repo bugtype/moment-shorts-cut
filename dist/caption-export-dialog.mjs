@@ -1,5 +1,6 @@
 import { dialogEnterBlocked } from './dialog-enter.mjs';
 import {text, message, setValidity} from './i18n.mjs';
+import { readCaptionRangeInputs } from './caption-range-inputs.mjs';
 
 // Read-only authored-row export; byte generation/download stay in the file workflow.
 export function createCaptionExportDialog(app, blocked) {
@@ -30,11 +31,9 @@ export function createCaptionExportDialog(app, blocked) {
                 app.sources.videoFile !== media[0] || app.sources.audioFile !== media[1]) {
                 app.toast(message('panels.captionRangeStale')); return;
             }
-            const start = first.value.trim() === '' ? NaN : Number(first.value), end = last.value.trim() === '' ? NaN : Number(last.value);
-            if (!Number.isInteger(start) || !Number.isInteger(end) || start < 1 || end < start || end > project.captions.length) {
-                setValidity(first, 'panels.captionRangeInvalid', {total:project.captions.length});
-                first.reportValidity?.(); first.focus(); return;
-            }
+            const range = readCaptionRangeInputs(first, last, project);
+            if (!range) return;
+            const { start, end } = range;
             if (app.downloadSubtitles(format, {captionIndex:start - 1, count:end - start + 1}) === true && owns()) close();
         };
         for (const input of [first,last]) {

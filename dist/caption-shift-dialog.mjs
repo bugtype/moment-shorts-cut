@@ -2,6 +2,7 @@ import { dialogEnterBlocked } from './dialog-enter.mjs';
 import { prepareCommand } from './core/commands.mjs';
 import { text, mark, t, message, setValidity, formatError } from './i18n.mjs';
 import { esc } from './ui-format.mjs';
+import { readCaptionRangeInputs } from './caption-range-inputs.mjs';
 
 // This range is an explicit authored-row choice, independent of search and playback.
 export function createCaptionShiftDialog(app, blocked) {
@@ -58,14 +59,9 @@ export function createCaptionShiftDialog(app, blocked) {
                 app.toast(message('panels.captionRangeStale'));
                 return;
             }
-            const start = first.value.trim() === '' ? NaN : Number(first.value);
-            const end = last.value.trim() === '' ? NaN : Number(last.value);
-            if (!Number.isInteger(start) || !Number.isInteger(end) || start < 1 || end < start || end > project.captions.length) {
-                setValidity(first, 'panels.captionRangeInvalid', { total: project.captions.length });
-                first.reportValidity?.();
-                first.focus();
-                return;
-            }
+            const range = readCaptionRangeInputs(first, last, project);
+            if (!range) return;
+            const { start, end } = range;
             const seconds = delta.value.trim() === '' ? NaN : Number(delta.value);
             if (!Number.isFinite(seconds)) {
                 setValidity(delta, 'panels.enterShift');

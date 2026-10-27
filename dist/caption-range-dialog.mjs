@@ -1,5 +1,6 @@
 import { dialogEnterBlocked } from './dialog-enter.mjs';
 import {text, message, setValidity} from './i18n.mjs';
+import { readCaptionRangeInputs } from './caption-range-inputs.mjs';
 
 // Authored row indices, not projected occurrences or a persisted selection.
 export function createCaptionRangeDialog(app, blocked) {
@@ -29,11 +30,9 @@ export function createCaptionRangeDialog(app, blocked) {
                 app.sources.videoFile !== media[0] || app.sources.audioFile !== media[1]) {
                 app.toast(message('panels.captionRangeStale')); return;
             }
-            const start = first.value.trim() === '' ? NaN : Number(first.value), end = last.value.trim() === '' ? NaN : Number(last.value);
-            if (!Number.isInteger(start) || !Number.isInteger(end) || start < 1 || end < start || end > project.captions.length) {
-                setValidity(first, 'panels.captionRangeInvalid', {total: project.captions.length});
-                first.reportValidity?.(); first.focus(); return;
-            }
+            const range = readCaptionRangeInputs(first, last, project);
+            if (!range) return;
+            const { start, end } = range;
             if (!app.runEditorCommand('captions.remove', {captionIndex: start - 1, count: end - start + 1})) return;
             if (!owns()) return;
             invalidate(); app.modal.close();

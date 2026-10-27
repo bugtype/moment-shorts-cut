@@ -65,6 +65,7 @@ import { mountDesignPanel } from '../../dist/design-panel.mjs';
 import fs from 'node:fs';
 import vm from 'node:vm';
 import assert from 'node:assert/strict';
+import { readCaptionRangeInputs } from '../../dist/caption-range-inputs.mjs';
 
 // Synthetic DOM/media only. Each call owns a separate VM, controls and event queues.
 export async function createAppFixture({sessionMediaDependencies = {}} = {}) {
@@ -209,6 +210,7 @@ export async function createAppFixture({sessionMediaDependencies = {}} = {}) {
     context[name]=evaluateFactory(moduleSource,name);
   };
   context.dialogEnterBlocked = dialogEnterBlocked;
+  context.readCaptionRangeInputs = readCaptionRangeInputs;
   loadFactory('caption-export-dialog.mjs','createCaptionExportDialog');
   loadFactory('caption-workspace.mjs','createCaptionWorkspace');
   loadFactory('playback.mjs','createPlayback');

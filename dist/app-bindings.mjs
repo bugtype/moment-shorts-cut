@@ -1,6 +1,6 @@
 import { adjacentCut } from './timeline-view.mjs';
 import {t, message, setAttr} from './i18n.mjs';
-import { bindPreviewDrag, bindEditorKeyboard } from './editor-interactions.mjs';
+import { bindPreviewDrag, bindEditorKeyboard, bindTimelinePinch } from './editor-interactions.mjs';
 import { icon } from './ui-format.mjs';
 
 const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
@@ -125,44 +125,14 @@ export function bindUi(app) {
         app.timelineView.cycleZoom();
         app.renderTimeline();
     };
-    // Pinching the tracks changes zoom around the fingers' midpoint, so the time
-    // under them stays put while the lane grows or shrinks.
     const timelineBody = $('#timelineBody'), zoomLevels = app.timelineView.zoomLevels();
-    const touchDistance = touches => Math.hypot(touches[0].clientX - touches[1].clientX, touches[0].clientY - touches[1].clientY);
-    let pinch = null;
-    timelineBody.addEventListener('touchstart', event => {
-        if (event.touches.length !== 2) {
-            pinch = null;
-            return;
-        }
-        const area = $('#tracksArea').getBoundingClientRect();
-        const mid = (event.touches[0].clientX + event.touches[1].clientX) / 2;
-        pinch = {
-            distance: touchDistance(event.touches),
-            zoom: app.timelineView.getZoom(),
-            at: area.width > 0 ? Math.max(0, Math.min(1, (mid - area.left) / area.width)) : 0,
-        };
-    }, { passive: true });
-    timelineBody.addEventListener('touchmove', event => {
-        if (!pinch || event.touches.length !== 2)
-            return;
-        event.preventDefault();
-        const scale = touchDistance(event.touches) / Math.max(1, pinch.distance);
-        const start = zoomLevels.indexOf(pinch.zoom);
-        const next = zoomLevels[Math.max(0, Math.min(zoomLevels.length - 1, start + Math.round(Math.log2(scale))))];
-        if (next === app.timelineView.getZoom())
-            return;
-        app.timelineView.setZoom(next);
-        app.renderTimeline();
-        const area = $('#tracksArea').getBoundingClientRect();
-        const mid = (event.touches[0].clientX + event.touches[1].clientX) / 2;
-        // The client rect is already shifted by scrolling; apply only the anchor delta.
-        timelineBody.scrollLeft = Math.max(0, timelineBody.scrollLeft + pinch.at * area.width - (mid - area.left));
-    }, { passive: false });
-    ['touchend', 'touchcancel'].forEach(name => timelineBody.addEventListener(name, event => {
-        if (event.touches.length < 2)
-            pinch = null;
-    }));
+    bindTimelinePinch(timelineBody, {
+        zoomLevels,
+        getTracksRect: () => $('#tracksArea').getBoundingClientRect(),
+        getZoom: () => app.timelineView.getZoom(),
+        setZoom: value => app.timelineView.setZoom(value),
+        render: () => app.renderTimeline(),
+    });
     // Landscape phones cannot fit the preview, player and tracks together; start
     // with the canvas in view and leave the expanded timeline one tap away.
     if (app.window.matchMedia?.('(max-height: 560px) and (orientation: landscape)')?.matches)

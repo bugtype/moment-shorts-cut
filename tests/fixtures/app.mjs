@@ -37,7 +37,7 @@ import { createMediaSources } from '../../dist/media-sources.mjs';
 import { createProjectPersistence } from '../../dist/project-persistence.mjs';
 import { createCaptionGeneration } from '../../dist/caption-generation.mjs';
 import { createInspectorView } from '../../dist/inspector-view.mjs';
-import { bindPreviewDrag, bindEditorKeyboard } from '../../dist/editor-interactions.mjs';
+import { bindPreviewDrag, bindEditorKeyboard, bindTimelinePinch } from '../../dist/editor-interactions.mjs';
 import { createTemplatePreview } from '../../dist/template-preview.mjs';
 import { createVideoExport } from '../../dist/video-export.mjs';
 import { createAudioRecording } from '../../dist/audio-recording.mjs';
@@ -154,7 +154,7 @@ export async function createAppFixture({sessionMediaDependencies = {}} = {}) {
       writeStorage: (key, value) => context.localStorage.setItem(key, value),
       mount: (root, options) => context.mountTemplateGallery(root, options),
     }),
-    createProjectStore, createTranscriptionClient, createVideoExport, bindPreviewDrag, bindEditorKeyboard,
+    createProjectStore, createTranscriptionClient, createVideoExport, bindPreviewDrag, bindEditorKeyboard, bindTimelinePinch,
     createMediaSources: options => createMediaSources(options, {
       createURL: file => context.URL.createObjectURL(file),
       revokeURL: url => context.URL.revokeObjectURL(url),

@@ -122,3 +122,43 @@ export function bindEditorKeyboard(document, { blocked, togglePlayback, undo, se
         }
     });
 }
+
+// Pinching the tracks changes zoom around the fingers' midpoint, so the time
+// under them stays put while the lane grows or shrinks.
+export function bindTimelinePinch(timelineBody, { zoomLevels, getTracksRect, getZoom, setZoom, render }) {
+    const touchDistance = touches => Math.hypot(touches[0].clientX - touches[1].clientX, touches[0].clientY - touches[1].clientY);
+    let pinch = null;
+    timelineBody.addEventListener('touchstart', event => {
+        if (event.touches.length !== 2) {
+            pinch = null;
+            return;
+        }
+        const area = getTracksRect();
+        const mid = (event.touches[0].clientX + event.touches[1].clientX) / 2;
+        pinch = {
+            distance: touchDistance(event.touches),
+            zoom: getZoom(),
+            at: area.width > 0 ? Math.max(0, Math.min(1, (mid - area.left) / area.width)) : 0,
+        };
+    }, { passive: true });
+    timelineBody.addEventListener('touchmove', event => {
+        if (!pinch || event.touches.length !== 2)
+            return;
+        event.preventDefault();
+        const scale = touchDistance(event.touches) / Math.max(1, pinch.distance);
+        const start = zoomLevels.indexOf(pinch.zoom);
+        const next = zoomLevels[Math.max(0, Math.min(zoomLevels.length - 1, start + Math.round(Math.log2(scale))))];
+        if (next === getZoom())
+            return;
+        setZoom(next);
+        render();
+        const area = getTracksRect();
+        const mid = (event.touches[0].clientX + event.touches[1].clientX) / 2;
+        // The client rect is already shifted by scrolling; apply only the anchor delta.
+        timelineBody.scrollLeft = Math.max(0, timelineBody.scrollLeft + pinch.at * area.width - (mid - area.left));
+    }, { passive: false });
+    ['touchend', 'touchcancel'].forEach(name => timelineBody.addEventListener(name, event => {
+        if (event.touches.length < 2)
+            pinch = null;
+    }));
+}

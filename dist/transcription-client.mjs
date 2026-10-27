@@ -33,8 +33,11 @@ export function createTranscriptionClient(createWorker) {
                     status(e.data.messageKey ? msg(e.data.messageKey,e.data.messageParams) : e.data.message);
                 if (e.data.type === 'result')
                     finish(null, e.data.result);
-                if (e.data.type === 'error')
-                    finish(e.data.messageKey ? new LocalizedError(e.data) : new Error(e.data.message));
+                if (e.data.type === 'error') {
+                    const error = e.data.messageKey ? new LocalizedError(e.data) : new Error(e.data.message);
+                    if (e.data.fatal === true) retire(error);
+                    else finish(error);
+                }
             };
             // Keep observing idle failures; a new job replaces this handler before reuse.
             worker.onerror = onError;

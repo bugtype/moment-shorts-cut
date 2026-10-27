@@ -11,5 +11,8 @@ self.onmessage=async event=>{
   self.postMessage({type:'progress',...msg('errors.recognizing')});
   const result=await transcriber(event.data.audio,{language:event.data.language,task:'transcribe',return_timestamps:true,chunk_length_s:30,stride_length_s:5});
   self.postMessage({type:'result',result});
- }catch(error){self.postMessage({type:'error',...msg('errors.recognitionFailed')});}
+ }catch(error){
+  // Failed runtime/model initialization may retain a rejected cache in this worker.
+  self.postMessage({type:'error',...(!transcriber?{fatal:true}:{}),...msg('errors.recognitionFailed')});
+ }
 };

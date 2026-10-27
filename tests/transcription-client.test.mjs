@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createTranscriptionClient } from '../dist/transcription-client.mjs';
+import { message } from '../dist/i18n.mjs';
 
 function fixture() {
   const workers = [];
@@ -84,6 +85,7 @@ test('cancellation rejects once, detaches messages and leaves subsequent work in
   assert.equal(old.onmessage, null);
   const next = f.start(), current = f.workers[1];
   lateMessage({ data: { type: 'error', message: 'late failure' } });
+  lateMessage({ data: { type: 'error', fatal: true, message: 'late startup failure' } });
   lateError();
   emit(current, { type: 'result', result: 'retry' });
   assert.equal(await next, 'retry');
@@ -100,10 +102,36 @@ test('old job callbacks on a reused worker do not retire or settle its newer job
   oldError();
   oldMessage({ data: { type: 'result', result: 'old' } });
   oldMessage({ data: { type: 'progress', message: 'old' } });
+  oldMessage({ data: { type: 'error', fatal: true, message: 'old startup failure' } });
   assert.equal(worker.terminateCalls, 0);
   assert.deepEqual(f.progress, []);
   emit(worker, { type: 'result', result: 'new' });
   assert.equal(await second, 'new');
+});
+
+test('startup error metadata retires only its owner without changing the localized rejection', async () => {
+  const f = fixture(), pending = f.start(), old = f.workers[0];
+  const oldMessage = old.onmessage, oldError = old.onerror;
+  emit(old, {type:'error',fatal:true,...message('errors.recognitionFailed')});
+  await assert.rejects(pending, error => error.messageKey === 'errors.recognitionFailed' &&
+    error.message === message('errors.recognitionFailed').message && !Object.hasOwn(error, 'fatal'));
+  assert.equal(old.terminateCalls, 1);
+  assert.equal(old.onmessage, null);
+  assert.equal(f.workers.length, 1, 'Only an explicit retry may create the next worker');
+  const retry = f.start(), current = f.workers[1];
+  oldMessage({data:{type:'error',fatal:true,message:'stale'}});
+  oldError();
+  assert.equal(old.terminateCalls, 1);
+  assert.equal(current.terminateCalls, 0);
+  emit(current, {type:'result',result:'current'});
+  assert.equal(await retry, 'current');
+  for (const fatal of [false, 1, 'true']) {
+    const failure = f.start();
+    emit(current, {type:'error',fatal,message:'recoverable'});
+    await assert.rejects(failure, /recoverable/);
+    assert.equal(current.terminateCalls, 0, 'Only the exact private fatal marker retires the worker');
+  }
+  f.client.cancel();
 });
 
 test('constructor and message transport failures leave explicit retry available', async () => {

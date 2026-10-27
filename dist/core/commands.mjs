@@ -409,6 +409,10 @@ export function prepareCommand(project, name, args = {}) {
     project: readProjectDocument(args.document),
     data: { imported: true }
   };
+  return prepareCopiedMutation(project, name, args);
+}
+
+function prepareCopiedMutation(project, name, args) {
   const next = structuredClone(project),
     before = outputDuration(next);
   if (name === 'project.update') {

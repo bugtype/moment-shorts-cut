@@ -1,3 +1,4 @@
+import { buildTimelineEntries, locateTimelineEntry } from './timeline-index.mjs';
 import {createToolFinder} from './tool-finder.mjs';
 import { createClipDuplicateDialog } from './clip-duplicate-dialog.mjs';
 import { createClipComplementDialog } from './clip-complement-dialog.mjs';
@@ -182,31 +183,13 @@ const inputHistory = createInputHistory(snapshot, () => exporting || persistence
 function timelineIndex() {
     if (timelineCache?.clips === state.clips)
         return timelineCache;
-    let total = 0;
-    const entries = state.clips.map((clip, index) => {
-        const entry = { clip, index, offset: total };
-        total += clip.end - clip.start;
-        return entry;
-    });
+    const { entries, total } = buildTimelineEntries(state.clips);
     return timelineCache = { clips: state.clips, entries, total };
 }
 const duration = () => timelineIndex().total;
 function locate(t) {
     const { entries } = timelineIndex();
-    let low = 0, high = entries.length - 1;
-    while (low < high) {
-        const middle = (low + high) >> 1, entry = entries[middle];
-        if (t < entry.offset + entry.clip.end - entry.clip.start)
-            high = middle;
-        else
-            low = middle + 1;
-    }
-    const entry = entries[low];
-    return {
-        index: entry.index,
-        source: entry.clip.start + clamp(t - entry.offset, 0, entry.clip.end - entry.clip.start),
-        offset: entry.offset,
-    };
+    return locateTimelineEntry(entries, t);
 }
 
 const editorService = createEditorService({

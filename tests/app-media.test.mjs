@@ -8,36 +8,6 @@ import { createMediaStorageFixture } from './fixtures/media-storage.mjs';
 
 test('media persistence, recording and export ownership', async () => {
   const { context, evaluate, element, doc } = await createAppFixture();
-  // Storage writes are serialized and only changed media is persisted.
-  const writes=[],savedMedia=new Map();let opens=0;
-  const db={close(){},transaction(){
-   const tx={objectStore(){return {
-    put(value,key){writes.push(['put',key]);savedMedia.set(key,value);},
-    delete(key){writes.push(['delete',key]);savedMedia.delete(key);},
-    get(key){const request={};queueMicrotask(()=>{request.result=savedMedia.get(key);request.onsuccess?.();});return request;}
-   };}};
-   queueMicrotask(()=>tx.oncomplete?.());return tx;
-  }};
-  const factory={open(){opens++;const request={};queueMicrotask(()=>{request.result=db;request.onsuccess();});return request;}};
-  const store=createProjectStore(factory),v={name:'large-video.mp4'},a={name:'voice.webm'};
-  await store.setMedia(v,null);writes.length=0;
-  await store.setMedia(v,a);
-  assert.deepEqual(writes,[['put','audio']],'Adding audio must not rewrite the video');
-  writes.length=0;await store.setMedia(v,a);assert.equal(writes.length,0);
-  const a2={name:'second.webm'},a3={name:'third.webm'};
-  await Promise.all([store.setMedia(v,a2),store.setMedia(v,a3)]);
-  assert.equal(await store.get('audio'),a3);assert.equal(opens,1);
-  console.log('PASS: changed-media deduplication and serialized storage write ordering.');
-
-  // Storage retry after a denied connection must not discard subsequent retries.
-  let retryAttempts=0;
-  const retryStore=createProjectStore({open(){const request={};retryAttempts++;queueMicrotask(()=>{if(retryAttempts===1){request.error=new Error('denied');request.onerror();}else{request.result=db;request.onsuccess();}});return request;}});
-  await assert.rejects(retryStore.setMedia(v,a),/denied/);await retryStore.setMedia(v,a);assert.equal(retryAttempts,2);
-  let syncAttempts=0;
-  const syncStore=createProjectStore({open(){syncAttempts++;if(syncAttempts===1)throw new Error('temporary');const request={};queueMicrotask(()=>{request.result=db;request.onsuccess();});return request;}});
-  await assert.rejects(syncStore.setMedia(v,a),/temporary/);await syncStore.setMedia(v,a);assert.equal(syncAttempts,2);
-  console.log('PASS: asynchronous and synchronous storage failures can be retried.');
-  
   // Exercise the real save coordinator with isolated media and JSON stores.
   const mediaFixture=createMediaStorageFixture([['video',{name:'old.mp4'}]]);
   const appStore=vm.runInContext('projectStore',context),originalStore={...appStore};

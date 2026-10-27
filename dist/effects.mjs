@@ -44,29 +44,49 @@ export function sceneBounds(card, w, h) {
   const y=clamp((card.y??.16)*h,height/2+h*.08,h*.83-height/2);
   return {x,y,width,height,u};
 }
-export function drawSceneCards(c,w,h,project,time,total,typography) {
-  for(const card of activeSceneLayers(project,time)) {
-    const {x,y,width:bw,height:bh,u}=sceneBounds(card,w,h);
-    const enter=clamp((time-card.start)/.16,0,1),leave=clamp((card.end-time)/.12,0,1);
-    const fade=card.animation==='none'?1:Math.min(enter,leave);
-    c.save();c.globalAlpha=fade;
-    c.translate(x,y+(card.animation==='slide'?(1-enter)*10*u:0));
-    const scale=card.animation==='pop'?.96+.04*enter:1;c.scale(scale,scale);
-    if(card.presentation==='panel') {
-      c.save();c.globalAlpha=fade*clamp(card.backgroundOpacity??.65,0,1);
-      c.fillStyle=card.background;c.beginPath();c.roundRect(-bw/2,-bh/2,bw,bh,8*u);c.fill();c.restore();
+export function drawSceneCards(c, w, h, project, time, total, typography) {
+  for (const card of activeSceneLayers(project, time)) {
+    const { x, y, width: bw, height: bh, u } = sceneBounds(card, w, h);
+    const enter = clamp((time - card.start) / .16, 0, 1),
+      leave = clamp((card.end - time) / .12, 0, 1);
+    const fade = card.animation === 'none' ? 1 : Math.min(enter, leave);
+    c.save();
+    c.globalAlpha = fade;
+    c.translate(x, y + (card.animation === 'slide' ? (1 - enter) * 10 * u : 0));
+    const scale = card.animation === 'pop' ? .96 + .04 * enter : 1;
+    c.scale(scale, scale);
+    if (card.presentation === 'panel') {
+      c.save();
+      c.globalAlpha = fade * clamp(card.backgroundOpacity ?? .65, 0, 1);
+      c.fillStyle = card.background;
+      c.beginPath();
+      c.roundRect(-bw / 2, -bh / 2, bw, bh, 8 * u);
+      c.fill();
+      c.restore();
     }
-    const stroke=(card.stroke??3)*u;
-    const count=card.kind==='countdown'?` · ${Math.max(1,Math.ceil(card.end-time))}`:'';
-    typography.label(c,(card.label||'')+count,0,-bh/2+14*u,{size:13*u,color:card.accent,stroke:1.5*u,maxWidth:bw*.92,maxHeight:22*u,singleLine:true});
-    typography.label(c,card.text,0,card.detail?-5*u:12*u,{size:card.size*u,color:card.color,stroke,weight:900,maxWidth:bw*.96,maxHeight:(card.detail?70:90)*u,lineHeight:1.2});
-    if(card.detail)typography.label(c,card.detail,0,bh/2-18*u,{size:16*u,weight:600,color:card.color,stroke:1.5*u,maxWidth:bw*.94,maxHeight:30*u,lineHeight:1.25});
+    const stroke = (card.stroke ?? 3) * u;
+    const count = card.kind === 'countdown' ? ` · ${Math.max(1,Math.ceil(card.end-time))}` : '';
+    typography.label(c, (card.label || '') + count, 0, -bh / 2 + 14 * u, {
+      size: 13 * u, color: card.accent, stroke: 1.5 * u,
+      maxWidth: bw * .92, maxHeight: 22 * u, singleLine: true
+    });
+    typography.label(c, card.text, 0, card.detail ? -5 * u : 12 * u, {
+      size: card.size * u, color: card.color, stroke, weight: 900,
+      maxWidth: bw * .96, maxHeight: (card.detail ? 70 : 90) * u, lineHeight: 1.2
+    });
+    if (card.detail) typography.label(c, card.detail, 0, bh / 2 - 18 * u, {
+      size: 16 * u, weight: 600, color: card.color, stroke: 1.5 * u,
+      maxWidth: bw * .94, maxHeight: 30 * u, lineHeight: 1.25
+    });
     c.restore();
   }
-  if(project.effects?.progress) {
-    const u=Math.min(w/540,h/960),y=project.effects.progressPosition==='top'?h*.08:h*.84;
-    c.fillStyle='#ffffff35';c.fillRect(w*.07,y,w*.78,3*u);
-    c.fillStyle=project.effects.progressColor;c.fillRect(w*.07,y,w*.78*clamp(time/Math.max(.1,total),0,1),3*u);
+  if (project.effects?.progress) {
+    const u = Math.min(w / 540, h / 960),
+      y = project.effects.progressPosition === 'top' ? h * .08 : h * .84;
+    c.fillStyle = '#ffffff35';
+    c.fillRect(w * .07, y, w * .78, 3 * u);
+    c.fillStyle = project.effects.progressColor;
+    c.fillRect(w * .07, y, w * .78 * clamp(time / Math.max(.1, total), 0, 1), 3 * u);
   }
 }
 export function migrateSceneLayers(project) {

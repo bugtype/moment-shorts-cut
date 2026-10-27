@@ -3,6 +3,12 @@ import {captionOccurrences} from '../captions.mjs';
 import { captionOverlapWitnesses } from './caption-overlaps.mjs';
 import {fail} from './validation.mjs';
 
+function countNonWhitespaceGraphemes(segmenter, text) {
+  let count = 0;
+  for (const { segment } of segmenter.segment(text)) if (!/^\s+$/u.test(segment)) count++;
+  return count;
+}
+
 // A review metric, not a language-specific delivery standard or speech alignment.
 export function inspectCaptions(project, {maxGraphemesPerSecond, limit = 20}) {
   if (!Number.isFinite(maxGraphemesPerSecond) || maxGraphemesPerSecond <= 0)
@@ -17,8 +23,7 @@ export function inspectCaptions(project, {maxGraphemesPerSecond, limit = 20}) {
   for (const [occurrenceIndex, occurrence] of occurrences.entries()) {
     const {captionIndex, clipIndex, start, end, text} = occurrence;
     if (!counts.has(captionIndex)) {
-      let count = 0;
-      for (const {segment} of segmenter.segment(text)) if (!/^\s+$/u.test(segment)) count++;
+      const count = countNonWhitespaceGraphemes(segmenter, text);
       counts.set(captionIndex, count);
     }
     const graphemeCount = counts.get(captionIndex), duration = end - start;
@@ -80,8 +85,7 @@ export function inspectCaptionReview(project, { review, limit = 20 }) {
       fail(msg('errors.inspectionPrecision', { index: occurrenceIndex + 1 }), `project.captions[${captionIndex}]`);
     if (segmenter) {
       if (!graphemes.has(captionIndex)) {
-        let count = 0;
-        for (const { segment } of segmenter.segment(text)) if (!/^\s+$/u.test(segment)) count++;
+        const count = countNonWhitespaceGraphemes(segmenter, text);
         graphemes.set(captionIndex, count);
       }
       const graphemeCount = graphemes.get(captionIndex), graphemesPerSecond = graphemeCount / duration;

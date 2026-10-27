@@ -14,7 +14,7 @@ function unsupportedCaptionSplitter(source) {
 }
 
 test('caption VM import stripping accepts LF and CRLF source without changing segmentation guards',()=>{
-  const source=fs.readFileSync('dist/effects.mjs','utf8').replace(/\r\n/g,'\n');
+  const source=fs.readFileSync('dist/caption-splitting.mjs','utf8').replace(/\r\n/g,'\n');
   for(const newline of ['\n','\r\n']){
     const split=unsupportedCaptionSplitter(source.replace(/\n/g,newline));
     const caption={start:0,end:1,text:'unchanged'},before=structuredClone(caption);
@@ -138,7 +138,7 @@ test('caption workspace, split budgets and recognition result validation', async
   }
   console.log('PASS: no-op/repeated caption splits preserve redo, save and focus; actual text/timing/metadata and mixed splits remain undoable.');
   // Older/custom runtimes must leave the whole operation untouched, including redo/focus.
-  const unsupportedSplit=unsupportedCaptionSplitter(fs.readFileSync('dist/effects.mjs','utf8'));
+  const unsupportedSplit=unsupportedCaptionSplitter(fs.readFileSync('dist/caption-splitting.mjs','utf8'));
   setCaptionLimitFixture([{start:0,end:4,text:'e\u0301'.repeat(25)}]);
   context.splitCaptionText=unsupportedSplit;
   const unsupportedBefore=evaluate('({state,history,future})'),unsupportedTimer=vm.runInContext('persistence.saveTimer',context);

@@ -35,7 +35,7 @@ test('invalid offsets, whitespace halves, exhausted precision and capacity rejec
  const p=project();p.captions=Array.from({length:9999},()=>({...p.captions[0]}));assert.equal(split(p).project.captions.length,10000);p.captions.push({...p.captions[0]});assert.throws(()=>split(p));
 });
 test('missing Intl refuses without codepoint fallback; newline and source/timeline export semantics remain explicit',async()=>{
- const source=await fs.readFile(new URL('../dist/effects.mjs',import.meta.url),'utf8');
+ const source=await fs.readFile(new URL('../dist/caption-splitting.mjs',import.meta.url),'utf8');
  const helper=vm.runInNewContext(source.replace(/^import .*;$/gm,'').replace(/export /g,'')+';splitCaptionAtOffset',{Intl:{},LocalizedError,msg});
  assert.throws(()=>helper({start:0,end:2,text:'AB'},1),/안전한 문자 분할/);
  const p=project();p.captions=[{start:0,end:2,text:'AB'}];p.clips=[{start:0,end:2},{start:0,end:2}];p.speed=2;

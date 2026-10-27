@@ -44,7 +44,7 @@ test('split timing uses grapheme weights, retains whitespace boundaries and leav
 });
 
 test('missing native segmentation rejects splitting without changing input or preventing module load',()=>{
- const source=readFileSync(new URL('../dist/effects.mjs',import.meta.url),'utf8').replace(/^import .*;$/gm,'').replaceAll('export ','');
+ const source=readFileSync(new URL('../dist/caption-splitting.mjs',import.meta.url),'utf8').replace(/^import .*;$/gm,'').replaceAll('export ','');
  for(const Intl of [undefined,{}]){
   const split=vm.runInNewContext(source+';splitCaptionText',{Intl,LocalizedError,msg});
   const caption={start:0,end:1,text:'unchanged'},before=structuredClone(caption);

@@ -2,7 +2,7 @@ import { setText, setValidity, formatError, message } from './i18n.mjs';
 import { shiftCaptionTiming } from './core/caption-timing.mjs';
 import { createCaptionSearch } from './caption-search.mjs';
 import { MAX_CAPTIONS } from './captions.mjs';
-import { splitCaptionText } from './effects.mjs';
+import { splitCaptionText } from './caption-splitting.mjs';
 import { CAPTION_PAGE_SIZE, captionsPanelMarkup } from './panel-markup.mjs';
 
 export function createCaptionPanel({

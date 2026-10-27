@@ -10,7 +10,8 @@ import { shiftCaptionTiming } from './caption-timing.mjs';
 import { readTemplateDocument, createTemplateDocument } from '../template-library.mjs';
 import { replaceCaptionText } from './caption-text.mjs';
 import { TEMPLATES, REFERENCE_SOURCES, applyTemplate, saveCustomTemplate } from '../template-catalog.mjs';
-import { newCard, retimeOutputLayers, splitCaptionAtOffset } from '../effects.mjs';
+import { newCard, retimeOutputLayers } from '../effects.mjs';
+import { splitCaptionAtOffset } from '../caption-splitting.mjs';
 import { MAX_CAPTIONS, parseSubtitlesWithReport } from '../captions.mjs';
 import {
   outputDuration,

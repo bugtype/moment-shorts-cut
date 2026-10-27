@@ -1,4 +1,4 @@
-import { splitCaptionText } from '../effects.mjs';
+import { splitCaptionText } from '../caption-splitting.mjs';
 import { MAX_CAPTIONS } from '../captions.mjs';
 import { message as msg } from '../i18n.mjs';
 import { fail } from './validation.mjs';

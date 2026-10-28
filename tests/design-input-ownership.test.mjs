@@ -26,6 +26,7 @@ async function fixture(locale='ko') {
    input.dataset=design?{design}:card?{card}:{};input.isConnected=true;
    input.reportValidity=()=>false;
    input.value=decode(tag==='textarea'?body||'':/value="([^"]*)"/.exec(attrs)?.[1]||'');
+   if(input.type==='textarea')input.value=input.value.replace(/\r\n?/g,'\n').replace(/^\n/,'');
    controls.push(input);
   }
  }

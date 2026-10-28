@@ -87,6 +87,22 @@ test('null end, exact numeric spelling and untouched display normalization are n
  }
 });
 
+test('card textarea leading newlines survive clean checks, append edits and Undo/Redo',async()=>{
+ for(const field of ['text','detail']) {
+  const authored='\n\n한글\r\n& </textarea> \"',displayed=authored.replace(/\r\n?/g,'\n');
+  const f=await fixture('ko',`state.overlays[0].${field}=${JSON.stringify(authored)}`);open(f,'card');
+  assert.equal(control(f,'card',field).value,displayed);
+  const before=state(f).state;
+  assert.equal((await edit(f)).ok,true);
+  assert.equal(f.evaluate(`state.overlays[0].${field}`),authored);
+  const input=control(f,'card',field);input.value+='!';input.oninput();
+  assert.equal(f.evaluate(`state.overlays[0].${field}`),displayed+'!');
+  const accepted=state(f).state;
+  vm.runInContext('undo()',f.context);assert.deepEqual(state(f).state.overlays,before.overlays);
+  vm.runInContext('undo(true)',f.context);assert.deepEqual(state(f).state,accepted);
+ }
+});
+
 test('bad input cannot masquerade as the unchanged nullable blank end',async()=>{
  for(const kind of ['title','credit']) {
   const f=await fixture();open(f,kind);const end=control(f,kind,'end');assert.equal(end.value,'');

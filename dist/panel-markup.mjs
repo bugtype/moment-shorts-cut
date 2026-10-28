@@ -194,6 +194,7 @@ export function settingsPanelMarkup({ ratio, fit, zoom, captionSize, captionY, v
 }
 
 function captionRowMarkup(c, i, speakerLabels, last) {
+    // The HTML parser consumes the first LF in a textarea, not the authored one.
     return `<div class="caption-row">` +
         `<small class="caption-clock">${c.basis === 'timeline' ? text('panels.captionTimeline') : text('panels.captionSource')}</small>` +
         `<div class="caption-row-head">` +
@@ -201,7 +202,7 @@ function captionRowMarkup(c, i, speakerLabels, last) {
         `<span class="muted">–</span>` +
         `<input type="number" min="0" step="any" value="${decimalTime(c.end)}" data-caption-end="${i}" ${attrs('aria-label', 'panels.cueEnd', {index: i + 1})}>` +
         `</div>` +
-        `<textarea data-caption-text="${i}" ${attrs('aria-label', 'panels.cueText', {index: i + 1})}>${esc(c.text)}</textarea>` +
+        `<textarea data-caption-text="${i}" ${attrs('aria-label', 'panels.cueText', {index: i + 1})}>\n${esc(c.text)}</textarea>` +
         `<div class="caption-row-actions" role="group" ${attrs('aria-label', 'panels.cueEdit', {index: i + 1})}>` +
         `<button class="text-button" data-view-caption="${i}" ${attrs('aria-label', 'panels.viewCaption', {index: i + 1})}>${text('panels.viewInVideo')}</button>` +
         `<button class="text-button" data-split-caption="${i}" ${attrs('aria-label', 'panels.cueSplit', {index: i + 1})} ${attrs('title', 'panels.splitAtCursor')}>${text('panels.split')}</button>` +

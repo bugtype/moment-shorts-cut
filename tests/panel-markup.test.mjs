@@ -26,7 +26,13 @@ function frozenProject() {
 test('caption markup preserves text whitespace, escaping, indices and accessible controls', () => {
   const state = frozenProject();
   const html = captionsPanelMarkup(state, { toolsOpen: true, transcribing: false, hasAudio: false, transcriptionStatus: '<status>' });
-  assert.equal(html.match(/<textarea data-caption-text="0" aria-label="자막 1 내용"[^>]*>([\s\S]*?)<\/textarea>/)[1], esc(state.captions[0].text));
+  assert.equal(html.match(/<textarea data-caption-text="0" aria-label="자막 1 내용"[^>]*>([\s\S]*?)<\/textarea>/)[1], '\n'+esc(state.captions[0].text));
+  for (const value of ['', '\n', '\n\n한글', '\r\n한글', '\r한글', '중간\nLF', '\0', '&#10;</textarea><script>"&', '\n'+'한'.repeat(1999)]) {
+    const rendered = captionsPanelMarkup({...state, captions:[{start:0,end:1,text:value}]}, {});
+    const body = rendered.match(/<textarea data-caption-text="0"[^>]*>([\s\S]*?)<\/textarea>/)[1];
+    // The HTML parser consumes this one LF; authored bytes still use the same escaping.
+    assert.equal(body, '\n'+esc(value));
+  }
   assert.match(html, /value="1.25" data-caption-start="0"/);
   assert.match(html, /data-caption-end="1" aria-label="자막 2 끝 초"/);
   assert.match(html, /value="0" selected>&lt;화자&gt;/);

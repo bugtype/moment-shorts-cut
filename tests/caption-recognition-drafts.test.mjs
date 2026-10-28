@@ -31,7 +31,7 @@ async function fixture() {
     controls.set('#captionCreate summary', node('summary'));
     query('#generateCaptions').innerHTML = value.match(/id="generateCaptions">(.*?)<\/button>/s)[1];
     const captions = f.evaluate('state.captions');
-    for (const [, index] of value.matchAll(/data-caption-text="(\d+)"/g)) {
+    for (const [, index, contents] of value.matchAll(/<textarea data-caption-text="(\d+)"[^>]*>([\s\S]*?)<\/textarea>/g)) {
       const row = {};
       for (const field of ['text', 'start', 'end', 'keywords', 'speaker']) {
         const el = node(`${field}-${index}`), caption = captions[index];
@@ -39,7 +39,9 @@ async function fixture() {
         el.value = ['start', 'end'].includes(field) ? decimalTime(caption[field]) : String(caption[field] ?? '');
         // HTML textarea parsing drops one initial LF; API values normalize CR,
         // while single-line text inputs strip line breaks. No native DOM claim.
-        if (field === 'text') el.value = el.value.replace(/\r\n?/g, '\n').replace(/^\n/, '');
+        if (field === 'text') el.value = contents.replace(/&(amp|lt|gt|quot|#39);/g,
+          (_, key) => ({amp:'&',lt:'<',gt:'>',quot:'"','#39':"'"}[key]))
+          .replace(/\r\n?/g, '\n').replace(/^\n/, '');
         if (field === 'keywords') el.value = el.value.replace(/[\r\n]/g, '');
         controls.set(`[data-caption-${field}="${index}"]`, el); row[field] = el;
       }

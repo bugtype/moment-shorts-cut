@@ -34,7 +34,7 @@ async function fixture(locale = 'ko', caption = {start:0,end:1,text:'Original'})
     controls.set('#captionCreate summary', node('summary'));
     query('#generateCaptions').innerHTML = value.match(/id="generateCaptions">(.*?)<\/button>/s)[1];
     const captions = f.evaluate('state.captions');
-    for (const [, index] of value.matchAll(/data-caption-text="(\d+)"/g)) {
+    for (const [, index, contents] of value.matchAll(/<textarea data-caption-text="(\d+)"[^>]*>([\s\S]*?)<\/textarea>/g)) {
       const row = {};
       for (const field of ['text', 'start', 'end', 'keywords', 'speaker']) {
         const el = node(`${field}-${index}`), caption = captions[index];
@@ -42,7 +42,9 @@ async function fixture(locale = 'ko', caption = {start:0,end:1,text:'Original'})
         el.value = ['start', 'end'].includes(field) ? decimalTime(caption[field]) : String(caption[field] ?? '');
         // HTML textarea parsing drops one initial LF; API values normalize CR,
         // while single-line text inputs strip line breaks. No native DOM claim.
-        if (field === 'text') el.value = el.value.replace(/\r\n?/g, '\n').replace(/^\n/, '');
+        if (field === 'text') el.value = contents.replace(/&(amp|lt|gt|quot|#39);/g,
+          (_, key) => ({amp:'&',lt:'<',gt:'>',quot:'"','#39':"'"}[key]))
+          .replace(/\r\n?/g, '\n').replace(/^\n/, '');
         if (field === 'keywords') el.value = el.value.replace(/[\r\n]/g, '');
         controls.set(`[data-caption-${field}="${index}"]`, el); row[field] = el;
       }
@@ -235,14 +237,24 @@ test('invalid commands and caller guard contracts retain their existing diagnost
   assert.deepEqual(snapshot(f),before);
 });
 
-test('untouched HTML-normalized caption values and clean composition completion are not drafts',async()=>{
+test('caption textarea keeps leading newlines through clean checks, edits and Undo/Redo',async()=>{
   for(const caption of [
-    {start:0,end:1,text:'\nOriginal'}, {start:0,end:1,text:'First\r\nSecond',keywords:'one\ntwo'},
+    {start:0,end:1,text:'\nOriginal'}, {start:0,end:1,text:'\n\n한글'},
+    {start:0,end:1,text:'\r\nFirst\r\nSecond',keywords:'one\ntwo'},
+    {start:0,end:1,text:'\n'+'한'.repeat(1998),basis:'timeline',timing:'estimated',speaker:'1'},
   ]) {
     const f=await fixture('en',caption),before=f.evaluate('state.captions');
+    const displayed = caption.text.replace(/\r\n?/g, '\n');
+    assert.equal(f.query('[data-caption-text="0"]').value, displayed);
     f.panel.oncompositionstart();f.panel.oncompositionend();
     assert.equal((await f.context.window.moment.execute('effects.update',effect)).ok,true);
     assert.deepEqual(f.evaluate('state.captions'),before);
+    const input = f.query('[data-caption-text="0"]');
+    input.value += '!'; input.onchange();
+    assert.deepEqual(f.evaluate('state.captions'), [{...caption, text:displayed+'!'}]);
+    vm.runInContext('undo()', f.context); assert.deepEqual(f.evaluate('state.captions'), before);
+    vm.runInContext('undo(true)', f.context);
+    assert.deepEqual(f.evaluate('state.captions'), [{...caption, text:displayed+'!'}]);
   }
 });
 

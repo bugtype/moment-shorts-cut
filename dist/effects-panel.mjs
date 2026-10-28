@@ -129,9 +129,9 @@ export function mountEffectsPanel(root, api) {
         `\n      <label class="panel-label" for="sceneLabel">${text('panels.smallLabel')}</label>` +
         `<input id="sceneLabel" class="panel-input" data-card="label" maxlength="32" value="${esc(card.label)}">` +
         `\n      <label class="panel-label" for="sceneText">${text('panels.cardText')}</label>` +
-        `<textarea id="sceneText" class="panel-input" data-card="text" maxlength="90" rows="2">${esc(card.text)}</textarea>` +
+        `<textarea id="sceneText" class="panel-input" data-card="text" maxlength="90" rows="2">\n${esc(card.text)}</textarea>` +
         `\n      <label class="panel-label" for="sceneDetail">${text('panels.cardDetail')}</label>` +
-        `<textarea id="sceneDetail" class="panel-input" data-card="detail" maxlength="130">${esc(card.detail)}</textarea>` +
+        `<textarea id="sceneDetail" class="panel-input" data-card="detail" maxlength="130">\n${esc(card.detail)}</textarea>` +
         `\n      <div class="time-fields"><label>${text('panels.startSeconds')}` +
         `<input type="number" data-card="start" min="0" max="${total}" step="any" value="${decimalTime(card.start)}"></label>` +
         `<label>${text('panels.endSeconds')}` +

@@ -34,6 +34,12 @@ function inspectReplacement(captions, options, change) {
     // a callback invocation per occurrence during actual text construction.
     const length = caption.text.length + count * (replacement.length - find.length);
     if (length > 2000) fail(msg('errors.replacedTooLong'), `project.captions[${index}].text`);
+    // A nonblank replacement proves preview cannot become blank. Only actual
+    // application needs the joined text; keep empty/whitespace previews below.
+    if (!change && replacement.trim()) {
+      changedCaptions++;
+      continue;
+    }
     const text = (parts || caption.text.split(find)).join(replacement);
     if (!text.trim()) fail(msg('errors.replacedEmpty'), `project.captions[${index}].text`);
     changedCaptions++;

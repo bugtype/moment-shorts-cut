@@ -153,3 +153,48 @@ test('inspection and application agree with the original split/join model for se
     matches: 3, changedCaptions: 0,
   });
 });
+
+test('nonblank replacement preview avoids split output while application and whitespace checks retain it', async () => {
+  const {inspectCaptionTextReplacement}=await import('../dist/core/caption-text.mjs');
+  const original=String.prototype.split, find='확인';let splits=0;
+  String.prototype.split=function(separator,...args){if(separator===find)splits++;return original.call(this,separator,...args);};
+  try {
+    const captions=[cap('확인 확인'),cap('앞 확인 뒤')],before=structuredClone(captions);
+    const options={find,replacement:'$&🙂 e\u0301'};
+    assert.deepEqual(inspectCaptionTextReplacement(captions,options),{matches:3,changedCaptions:2});
+    assert.equal(splits,0,'preview needs counts and validity, not replacement output');
+    const result=replaceCaptionText(captions,options);
+    assert.equal(splits,2);assert.equal(result.captions[0].text,'$&🙂 e\u0301 $&🙂 e\u0301');
+    assert.equal(result.captions[1].text,'앞 $&🙂 e\u0301 뒤');assert.deepEqual(captions,before);
+    splits=0;
+    assert.deepEqual(inspectCaptionTextReplacement([cap('확인 남김'),cap('본문 확인')],{find,replacement:''}),{matches:2,changedCaptions:2});
+    assert.equal(splits,2,'empty replacement still inspects constructed text');
+    splits=0;
+    assert.throws(()=>inspectCaptionTextReplacement([cap('확인')],{find,replacement:'\ufeff \n'}),error=>error.messageKey==='errors.replacedEmpty'&&error.path==='project.captions[0].text');
+    assert.equal(splits,1);
+    splits=0;
+    assert.throws(()=>inspectCaptionTextReplacement([cap('확인확인')],{find,replacement:'x'.repeat(1001)}),error=>error.messageKey==='errors.replacedTooLong'&&error.path==='project.captions[0].text');
+    assert.equal(splits,0,'UTF-16 length limit still rejects before construction');
+  } finally {String.prototype.split=original;}
+});
+
+test('preview nonblank proof keeps native trim whitespace and UTF-16 limit semantics',async()=>{
+  const {inspectCaptionTextReplacement}=await import('../dist/core/caption-text.mjs');
+  const whitespace=[9,10,11,12,13,32,160,5760,...Array.from({length:11},(_,i)=>8192+i),8232,8233,8239,8287,12288,65279];
+  for(const code of whitespace) {
+    const options={find:'x',replacement:String.fromCodePoint(code)};
+    for(const helper of [inspectCaptionTextReplacement,replaceCaptionText])
+      assert.throws(()=>helper([cap('x')],options),error=>error.messageKey==='errors.replacedEmpty'&&error.path==='project.captions[0].text');
+  }
+  for(const replacement of ['\u0301','\u200b','\ud800','\udc00','🙂','$&$1$`', '\r\n한글\n']) {
+    const captions=[cap('xx')],options={find:'x',replacement};
+    assert.deepEqual(inspectCaptionTextReplacement(captions,options),{matches:2,changedCaptions:1});
+    assert.equal(replaceCaptionText(captions,options).captions[0].text,replacement+replacement);
+  }
+  for(const helper of [inspectCaptionTextReplacement,replaceCaptionText]) {
+    const accepted=helper([cap('x'.repeat(1000))],{find:'x',replacement:'🙂'});
+    assert.equal(accepted.changedCaptions,1);assert.equal(accepted.matches,1000);
+    assert.throws(()=>helper([cap('x'.repeat(1001))],{find:'x',replacement:'🙂'}),error=>error.messageKey==='errors.replacedTooLong');
+    assert.throws(()=>helper([cap('x')],{find:'',replacement:'🙂'}),error=>error.path==='arguments.find');
+  }
+});

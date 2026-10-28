@@ -37,3 +37,31 @@ test('app pagination reveals timeline/global search targets without page navigat
  assert.equal(doc.activeElement,element('[data-caption-text="49"]'));assert.equal(evaluate('current'),49);
  assert.equal(evaluate('history.length'),0);assert.equal(evaluate('pageSaves'),0);
 });
+
+test('nonblank correction previews avoid replacement output without changing search or actual edit history',async()=>{
+ const f=await createAppFixture();
+ vm.runInContext("state.captions=[{start:0,end:1,text:'확인 확인'},{start:1,end:2,text:'앞 확인 뒤'}];current=1;history=[];future=[];switchPanel('captions');",f.context);
+ const before=f.evaluate('({state,current,history,future})');
+ const original=String.prototype.split;let splits=0;
+ String.prototype.split=function(separator,...args){if(separator==='확인')splits++;return original.call(this,separator,...args);};
+ try {
+  f.element('#captionReplacement').value='승인🙂';f.element('#captionReplacement').oninput();
+  f.element('#captionFind').value='확인';f.element('#captionFind').oninput();
+  assert.equal(splits,0);assert.equal(f.element('#captionSearchStatus').textContent,'일치 0 / 3');
+  for(const [id,index,start,current] of [
+   ['nextCaptionMatch',0,0,1],['nextCaptionMatch',0,3,2],['previousCaptionMatch',0,0,1],
+   ['previousCaptionMatch',1,2,3],['nextCaptionMatch',0,0,1],
+  ]) {
+   f.element('#'+id).onclick();const input=f.element(`[data-caption-text="${index}"]`);
+   assert.equal(f.doc.activeElement,input);assert.equal(input.selectionStart,start);assert.equal(input.selectionEnd,start+2);
+   assert.equal(f.element('#captionSearchStatus').textContent,`일치 ${current} / 3`);assert.equal(splits,0);
+  }
+  assert.deepEqual(f.evaluate('({state,current,history,future})'),before);
+  f.element('#replaceAllCaptions').onclick();
+  assert.equal(splits,2,'only application constructs both changed captions');
+  assert.deepEqual(f.evaluate('state.captions.map(c=>c.text)'),['승인🙂 승인🙂','앞 승인🙂 뒤']);
+  assert.equal(f.evaluate('history.length'),1);assert.equal(f.evaluate('current'),1);
+  vm.runInContext('undo()',f.context);assert.deepEqual(f.evaluate('state'),before.state);
+  assert.equal(f.evaluate('history.length'),0);assert.equal(f.evaluate('future.length'),1);
+ } finally {String.prototype.split=original;}
+});

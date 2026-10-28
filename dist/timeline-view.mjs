@@ -105,6 +105,8 @@ export function createTimelineView($, clock = () => performance.now()) {
     const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
     const ZOOM_LEVELS = [1, 2, 4, 8], LABEL_WIDTH = 73;
     let zoom = 1, lastCurrent = 0, lastLen = 0;
+    // Reuse string construction only; markup remains the sole DOM-write guard.
+    let clipMarkup;
     // Zoom is presentation only: the tracks keep their true percentages while the
     // lane grows past the viewport, so clips and captions regain readable width.
     function setZoom(next) {
@@ -227,12 +229,26 @@ export function createTimelineView($, clock = () => performance.now()) {
         renderLayers(state, len);
         $('#seek').max = len;
         const background = thumbnail ? `background-image:url('${thumbnail}');background-size:auto 100%;` : '';
-        const clips = state.clips.map((clip, index) =>
-            `<button class="clip" data-clip="${index}" ` +
-            `style="flex:${clip.end - clip.start};${background}" ` +
-            `${attrs("title", "shell.clipRange", {index: index + 1, start: fmt(clip.start), end: fmt(clip.end)})}>` +
-            `<span>${index === 0 ? esc(state.fileName) : text('shell.clip', {index: index + 1})}</span></button>`
-        ).join('');
+        const parts = state.clips.map((clip, index) => {
+            const before = `<button class="clip" data-clip="${index}" style="flex:${clip.end - clip.start};`;
+            const after = `" ${attrs("title", "shell.clipRange", {index: index + 1, start: fmt(clip.start), end: fmt(clip.end)})}>` +
+                `<span>${index === 0 ? esc(state.fileName) : text('shell.clip', {index: index + 1})}</span></button>`;
+            return background ? [before, after] : before + after;
+        });
+        let clips;
+        if (!background) {
+            clips = parts.join('');
+            clipMarkup = undefined;
+        } else {
+            // Recompute every small field, including locale and in-place edits,
+            // before reusing HTML that repeats a large thumbnail for each clip.
+            const structure = parts.map(pair => pair.join('')).join('');
+            if (!clipMarkup || clipMarkup.structure !== structure || clipMarkup.background !== background) {
+                const html = parts.map(([before, after]) => before + background + after).join('');
+                clipMarkup = { structure, background, html };
+            }
+            clips = clipMarkup.html;
+        }
         const videoTrack = $('#videoTrack');
         updateTimelineMarkup(videoTrack, clips);
         // Selection alone must not replace the button receiving native activation.

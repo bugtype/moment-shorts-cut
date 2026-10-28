@@ -169,3 +169,102 @@ test('real clip timing, source-name and thumbnail changes still replace stale st
   assert.deepEqual(f.track.children.map(node => node.classList.contains('active')), [false, true, false]);
   f.assertNoWrites();
 });
+
+test('thumbnail refresh reuses full clip HTML while empty backgrounds release the memo', async () => {
+  const f = await setup();
+  const joins = [];
+  f.context.thumbnailJoins = value => {
+    if (value.startsWith('<button class="clip"') && value.includes('background-image:url(')) joins.push(value);
+  };
+  // The project clip array belongs to this fixture's VM, so observe that realm's
+  // join rather than changing the host process's Array prototype.
+  vm.runInContext(`globalThis.originalClipJoin=Array.prototype.join;
+    Array.prototype.join=function(...args){
+      const value=Reflect.apply(originalClipJoin,this,args);thumbnailJoins(value);return value;
+    };`, f.context);
+  try {
+    vm.runInContext(`sources.thumbnail='data:image/jpeg;base64,'+'QUFB'.repeat(100);renderTimeline();`, f.context);
+    assert.equal(joins.length, 1);
+    const html = f.track.innerHTML, nodes = [...f.track.children], writes = f.track.writes;
+    nodes[1].focus();
+    f.activate(1, { detail: 0 });
+    vm.runInContext('renderTimeline();renderTimeline()', f.context);
+    assert.equal(joins.length, 1, 'unchanged refreshes do not join repeated thumbnail payloads');
+    assert.equal(f.track.innerHTML, html);
+    assert.equal(f.track.writes, writes);
+    assertNodes(f.track, nodes);
+    assert.equal(f.doc.activeElement, nodes[1]);
+    vm.runInContext(`sources.thumbnail='';renderTimeline();`, f.context);
+    assert.doesNotMatch(f.track.innerHTML, /background-image/);
+    assert.equal(joins.length, 1);
+    vm.runInContext(`sources.thumbnail='data:image/jpeg;base64,'+'QUFB'.repeat(100);renderTimeline();`, f.context);
+    assert.equal(joins.length, 2, 'empty background discarded the old full-string memo');
+    assert.equal(f.track.innerHTML, html);
+    assert.equal(f.track.writes, writes + 2);
+    assert.ok(nodes.every(node => !node.isConnected));
+    f.assertNoWrites();
+  } finally {
+    vm.runInContext('Array.prototype.join=originalClipJoin;delete globalThis.originalClipJoin;', f.context);
+  }
+});
+
+test('thumbnail markup memo includes localized labels and escaped names without hiding in-place edits', async () => {
+  const f = await setup(), originalLocale = f.context.getLocale();
+  try {
+    vm.runInContext(`sources.thumbnail='data:image/jpeg;base64,QUFB';renderTimeline();`, f.context);
+    for (const [name, code, expected] of [
+      ['English', `setLocale('en',{persist:false})`, /Clip 2/],
+      ['Chinese', `setLocale('zh-CN',{persist:false})`, /片段 2/],
+      ['Korean', `setLocale('ko',{persist:false})`, /클립 2/],
+      ['escaped name', `state.fileName='<button style="flex:3;"> & 한국어 👨‍👩‍👧‍👦'`, /&lt;button style=&quot;flex:3;&quot;&gt; &amp; 한국어/],
+      ['in-place trim', 'state.clips[1].end=5.25;timelineCache=null', /flex:3.25;/],
+      ['thumbnail replacement', `sources.thumbnail='data:image/jpeg;base64,QkJC'`, /QkJC/],
+    ]) {
+      const previous = [...f.track.children], writes = f.track.writes;
+      vm.runInContext(code + ';renderTimeline()', f.context);
+      assert.equal(f.track.writes, writes + 1, name);
+      assert.ok(previous.every(node => !node.isConnected), name);
+      assert.match(f.track.innerHTML, expected, name);
+      const next = [...f.track.children];
+      vm.runInContext('renderTimeline()', f.context);
+      assertNodes(f.track, next);
+      assert.equal(f.track.writes, writes + 1, name + ' repeated');
+    }
+    f.assertNoWrites();
+  } finally { f.context.setLocale(originalLocale, { persist: false }); }
+});
+
+test('thumbnail string memo preserves markup-owner repair and throwing or reentrant DOM setter ordering', async () => {
+  const f = await setup();
+  vm.runInContext(`sources.thumbnail='data:image/jpeg;base64,QUFB';renderTimeline();`, f.context);
+  vm.runInContext(`updateTimelineMarkup($('#videoTrack'),'<span>Other owner</span>');`, f.context);
+  assert.equal(f.track.children.length, 0);
+  vm.runInContext('renderTimeline()', f.context);
+  assert.equal(f.track.children.length, 3);
+  const descriptor = Object.getOwnPropertyDescriptor(f.track, 'innerHTML');
+  const failure = new Error('injected DOM setter failure');
+  let fail = true;
+  Object.defineProperty(f.track, 'innerHTML', { ...descriptor, set(value) {
+    if (fail) throw failure;
+    descriptor.set.call(this, value);
+  } });
+  vm.runInContext(`state.fileName='Retry name'`, f.context);
+  assert.throws(() => vm.runInContext('renderTimeline()', f.context), error => error === failure);
+  fail = false;
+  vm.runInContext('renderTimeline()', f.context);
+  assert.match(f.track.innerHTML, /Retry name/);
+  let reentered = false;
+  Object.defineProperty(f.track, 'innerHTML', { ...descriptor, set(value) {
+    descriptor.set.call(this, value);
+    if (!reentered) {
+      reentered = true;
+      vm.runInContext(`state.fileName='Nested name';renderTimeline()`, f.context);
+    }
+  } });
+  vm.runInContext(`state.fileName='Outer name';renderTimeline()`, f.context);
+  assert.equal(reentered, true);
+  assert.match(f.track.innerHTML, /Nested name/);
+  vm.runInContext('renderTimeline()', f.context);
+  assert.match(f.track.innerHTML, /Nested name/);
+  f.assertNoWrites();
+});

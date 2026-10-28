@@ -155,6 +155,7 @@ test('replace-all previews literal occurrences and edits the latest project once
     { start: 3, end: 5, text: '다른 이름', basis: 'source' },
   ];
   f.replace(current);
+  f.panel.render(f.target, {}, {});
   replacementInput(f, '이름', '$&🎬');
   assert.equal(f.query('#replaceAllCaptions').textContent, '모두 바꾸기 · 3곳');
   assert.equal(f.query('#replaceAllCaptions').disabled, false);
@@ -176,15 +177,18 @@ test('replacement fields survive render and click rechecks project changed since
   assert.equal(f.query('#captionFind').value, '이름');
   assert.equal(f.query('#captionReplacement').value, '수정');
   assert.equal(f.query('#replaceAllCaptions').disabled, true);
-  f.project().captions = [{ start: 0, end: 1, text: '새 이름' }];
+  const first = structuredClone(f.project().captions[0]), index = f.project().captions.length;
+  f.project().captions.push({ start: 0, end: 1, text: '새 이름' });
   f.query('#replaceAllCaptions').onclick();
-  assert.equal(f.project().captions[0].text, '새 수정');
+  assert.equal(f.project().captions[index].text, '새 수정');
+  assert.deepEqual(f.project().captions[0], first);
   assert.equal(f.log.filter(event => event[0] === 'edit').length, 1);
 });
 
 test('replace-all no-ops and invalid replacements do not edit or partially mutate captions', () => {
   const f = fixture();
   f.project().captions = [{ start: 0, end: 1, text: '이름' }, { start: 1, end: 2, text: '이름'.repeat(1000) }];
+  f.panel.render(f.target, {}, {});
   const original = f.project().captions;
   for (const [find, replacement] of [['없는 말', '새 말'], ['이름', '이름'], ['', '새 말'], ['이름', ''], ['이름', '길어진 이름']]) {
     replacementInput(f, find, replacement);
@@ -224,6 +228,7 @@ test('replacement through the app is one undoable edit and preserves fields on r
 test('a blocked app edit does not announce replacement success or alter captions', () => {
   const f = fixture({ blocked: true });
   f.project().captions = [{start: 0, end: 1, text: '이름'}];
+  f.panel.render(f.target, {}, {});
   const before = f.project().captions;
   replacementInput(f, '이름', '명칭');
   f.query('#replaceAllCaptions').onclick();

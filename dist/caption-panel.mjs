@@ -14,7 +14,8 @@ export function createCaptionPanel({
     let renderedRows = [];
     const rowFields = ['text', 'start', 'end', 'keywords', 'speaker'];
     const lastPage = () => Math.max(0, Math.ceil(getProject().captions.length / CAPTION_PAGE_SIZE) - 1);
-    const search = createCaptionSearch({query:$,getProject,focusCaption,edit,execute,toast,
+    const search = createCaptionSearch({query:$,getProject,focusCaption,execute,toast,
+        edit: (change, refresh) => { if (canTransformRows()) return edit(change, refresh); },
         blocked: () => composing || blocked(),
         replaceRange: options => replaceRange?.({...options,index:options.index ?? page * CAPTION_PAGE_SIZE})});
     // Recognition may finish without a blur/change event. A current row draft
@@ -32,6 +33,11 @@ export function createCaptionPanel({
                 ? !input.value.trim() || Number(input.value) !== caption[field]
                 : input.value !== String(caption[field] ?? '');
         });
+    }
+    function canTransformRows() {
+        if (!hasPendingEdits()) return true;
+        toast(message('errors.captionDraftConflict'));
+        return false;
     }
     function refreshAfterRecognition(activeElement) {
         // A successful result replaces rows, but does not own tool drafts or
@@ -60,6 +66,7 @@ export function createCaptionPanel({
             const result = shiftCaptionTiming(project.captions, { basis, delta: Number(timingFields.delta) },
                 basis === 'source' ? project.duration : getDuration());
             if (!result.shiftedCaptions) return;
+            if (!canTransformRows()) return;
             let applied = false;
             edit(() => { getProject().captions = result.captions; applied = true; }, true);
             if (!applied) return;
@@ -244,6 +251,7 @@ export function createCaptionPanel({
         });
         $$('[data-merge-caption]').forEach(button => button.onclick = () => {
             if (composing) return;
+            if (!canTransformRows()) return;
             const index = +button.dataset.mergeCaption;
             const result = execute('captions.merge', { captionIndex: index });
             if (result) focusCaption(index);

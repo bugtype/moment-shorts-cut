@@ -13,17 +13,18 @@ async function fixture(locale = 'ko', caption = {start:0,end:1,text:'Original'})
   assert.equal(getLocale(),locale);assert.equal(f.doc.documentElement.lang,locale);
   const panel = f.element('#panelContent');
   const originalQuery = f.doc.querySelector, originalAll = f.doc.querySelectorAll;
-  let controls = new Map(), rows = [], splitButtons = [], markup = '', generation = 0;
+  let controls = new Map(), rows = [], splitButtons = [], mergeButtons = [], markup = '', generation = 0;
   const query = selector => controls.get(selector) || originalQuery(selector);
   f.doc.querySelector = query;
   f.doc.querySelectorAll = selector => {
     if (selector === '[data-split-caption]') return splitButtons;
+    if (selector === '[data-merge-caption]') return mergeButtons;
     const field = selector.match(/^\[data-caption-(text|start|end|keywords|speaker)\]$/)?.[1];
     return field ? rows.map(row => row[field]) : originalAll(selector);
   };
   panel.querySelector = query;
   Object.defineProperty(panel, 'innerHTML', { configurable: true, get: () => markup, set: value => {
-    markup = value; controls = new Map(); rows = []; splitButtons = []; generation++;
+    markup = value; controls = new Map(); rows = []; splitButtons = []; mergeButtons = []; generation++;
     const node = key => f.element(`api-draft-${generation}-${key}`);
     for (const [, id] of value.matchAll(/\bid="([\w-]+)"/g)) {
       const el = node(id); el.id = id; controls.set('#' + id, el);
@@ -55,6 +56,10 @@ async function fixture(locale = 'ko', caption = {start:0,end:1,text:'Original'})
       const button = node(`split-${index}`); button.dataset.splitCaption = index;
       controls.set(`[data-split-caption="${index}"]`, button); splitButtons.push(button);
     }
+    for (const [, index] of value.matchAll(/data-merge-caption="(\d+)"/g)) {
+      const button = node(`merge-${index}`); button.dataset.mergeCaption = index;
+      controls.set(`[data-merge-caption="${index}"]`, button); mergeButtons.push(button);
+    }
   }});
   f.context.seedCaption = caption;
   vm.runInContext("state.captions=[seedCaption]; switchPanel('captions'); history=[]; future=[];", f.context);
@@ -62,6 +67,126 @@ async function fixture(locale = 'ko', caption = {start:0,end:1,text:'Original'})
 }
 const snapshot = f => f.evaluate('({state,history,future,current,selected})');
 const effect = {patch:{brightness:1.1}};
+
+async function transformFixture(action, text = '오류 문장') {
+  const caption = {start:0,end:3,text,basis:'timeline',speaker:'1',keywords:'유지'};
+  const f = await fixture('ko', caption);
+  f.context.secondCaption = {...caption,start:3,end:6,text:'정상 문장'};
+  vm.runInContext('state.captions.push(secondCaption);renderPanel();', f.context);
+  const input = (id, value, event) => { const el = f.query('#' + id); el.value = value; el[event](); };
+  if (action === 'replace-all') {
+    input('captionFind','오류','oninput'); input('captionReplacement','수정','oninput');
+  }
+  if (action === 'shift') {
+    input('captionShiftBasis','timeline','onchange'); input('captionShiftDelta','0.5','onchange');
+  }
+  const selector = action === 'merge' ? '[data-merge-caption="0"]'
+    : action === 'replace-all' ? '#replaceAllCaptions' : '#shiftCaptionTiming';
+  return {...f, actionButton: () => f.query(selector), toolInput: input};
+}
+
+test('caption transformations preserve refused and uncommitted drafts until corrected retry', async () => {
+  try {
+    for (const action of ['merge','replace-all','shift']) {
+      const f = await transformFixture(action);
+      assert.equal((await f.context.window.moment.execute('effects.update', effect)).ok, true);
+      vm.runInContext('undo();globalThis.transformSaves=0;scheduleSave=()=>transformSaves++;', f.context);
+      const input = f.query('[data-caption-text="0"]'), button = f.actionButton();
+      const before = snapshot(f), markup = f.panel.innerHTML;
+      assert.equal(before.future.length, 1);
+      input.value = '한'.repeat(2001); input.focus(); input.setSelectionRange(2,4);
+      f.element('#toast').textContent = 'unchanged';
+      f.panel.oncompositionstart(); button.onclick({});
+      assert.deepEqual(snapshot(f), before); assert.equal(f.element('#toast').textContent, 'unchanged');
+      f.panel.oncompositionend(); input.onchange();
+      assert.equal(f.element('#toast').textContent, t('errors.cueLength'));
+      for (const draft of ['한'.repeat(2001), '아직 반영하지 않은 문장']) {
+        input.value = draft;
+        assert.equal(f.evaluate('captionWorkspace.hasPendingEdits()'), true);
+        const focuses = f.focusEvents.length;
+        button.onclick({}); button.onclick({}); await Promise.resolve();
+        assert.deepEqual(snapshot(f), before); assert.equal(f.evaluate('transformSaves'), 0);
+        assert.equal(f.panel.innerHTML, markup); assert.equal(f.query('[data-caption-text="0"]'), input);
+        assert.equal(input.value, draft); assert.equal(f.doc.activeElement, input);
+        assert.equal(f.focusEvents.length, focuses); assert.deepEqual([input.selectionStart,input.selectionEnd], [2,4]);
+        assert.equal(f.element('#toast').textContent, t('errors.captionDraftConflict'));
+      }
+      input.value = before.state.captions[0].text;
+      const other = f.query('[data-caption-keywords="1"]'); other.value = '다른 행 초안';
+      button.onclick({}); assert.deepEqual(snapshot(f), before); assert.equal(f.evaluate('transformSaves'), 0);
+      assert.equal(other.value, '다른 행 초안'); assert.equal(f.element('#toast').textContent, t('errors.captionDraftConflict'));
+      other.value = before.state.captions[1].keywords;
+      input.value = '오류 고침'; input.onchange();
+      assert.equal(f.evaluate('captionWorkspace.hasPendingEdits()'), false);
+      const corrected = f.evaluate('state');
+      assert.equal(f.evaluate('history.length'), 1); assert.equal(f.evaluate('transformSaves'), 1);
+      button.onclick({});
+      const after = f.evaluate('state'), expected = structuredClone(corrected);
+      if (action === 'merge') expected.captions = [{...corrected.captions[0],end:6,text:'오류 고침 정상 문장'}];
+      if (action === 'replace-all') expected.captions[0].text = '수정 고침';
+      if (action === 'shift') for (const caption of expected.captions) { caption.start += .5; caption.end += .5; }
+      assert.deepEqual(after, expected); assert.equal(f.evaluate('history.length'), 2);
+      assert.equal(f.evaluate('future.length'), 0); assert.equal(f.evaluate('transformSaves'), 2);
+      const target = action === 'merge' ? '[data-caption-text="0"]'
+        : action === 'replace-all' ? '#captionFind' : '#shiftCaptionTiming';
+      assert.equal(f.doc.activeElement, f.query(target));
+      const accepted = snapshot(f); button.onclick({}); assert.deepEqual(snapshot(f), accepted);
+      vm.runInContext('undo()', f.context); assert.deepEqual(f.evaluate('state'), corrected);
+      vm.runInContext('undo(true)', f.context); assert.deepEqual(f.evaluate('state'), after);
+    }
+  } finally { initLocale(); }
+});
+
+test('caption transformations accept clean normalized rows without treating tool fields as drafts', async () => {
+  try {
+    for (const action of ['merge','replace-all','shift']) {
+      const text = '\n오류\r\n문장', f = await transformFixture(action, text), before = f.evaluate('state');
+      if (action !== 'replace-all') {
+        f.toolInput('captionFind','검색 초안','oninput'); f.toolInput('captionReplacement','교체 초안','oninput');
+      }
+      assert.equal(f.query('[data-caption-text="0"]').value, '\n오류\n문장');
+      assert.equal(f.evaluate('captionWorkspace.hasPendingEdits()'), false);
+      f.actionButton().onclick({});
+      const expected = structuredClone(before);
+      if (action === 'merge') expected.captions = [{...before.captions[0],end:6,text:text+' 정상 문장'}];
+      if (action === 'replace-all') expected.captions[0].text = '\n수정\r\n문장';
+      if (action === 'shift') for (const caption of expected.captions) { caption.start += .5; caption.end += .5; }
+      assert.deepEqual(f.evaluate('state'), expected); assert.equal(f.evaluate('history.length'), 1);
+    }
+  } finally { initLocale(); }
+});
+
+test('draft admission retains replacement/shift validation and no-op priority, but precedes invalid merge', async () => {
+  try {
+    for (const action of ['merge','replace-all','shift']) {
+      const f = await transformFixture(action);
+      if (action === 'merge') vm.runInContext("state.captions[1].speaker='0';renderPanel();", f.context);
+      const input = f.query('[data-caption-text="0"]'), before = snapshot(f);
+      input.value = '아직 반영하지 않은 문장';
+      if (action === 'replace-all') {
+        f.toolInput('captionFind','없는 말','oninput');
+        f.element('#toast').textContent = 'unchanged'; f.actionButton().onclick({});
+        assert.equal(f.element('#toast').textContent, 'unchanged');
+        f.toolInput('captionFind','오류','oninput');
+        f.toolInput('captionReplacement','한'.repeat(2001),'oninput'); f.actionButton().onclick({});
+        assert.equal(f.element('#toast').textContent, t('errors.replacementLength'));
+      }
+      if (action === 'shift') {
+        f.toolInput('captionShiftDelta','0','onchange');
+        f.element('#toast').textContent = 'unchanged'; f.actionButton().onclick({});
+        assert.equal(f.element('#toast').textContent, 'unchanged');
+        f.toolInput('captionShiftDelta','','onchange'); f.actionButton().onclick({});
+        assert.equal(f.element('#toast').textContent, t('panels.enterShift'));
+      }
+      if (action === 'merge') {
+        f.actionButton().onclick({}); assert.equal(f.element('#toast').textContent, t('errors.captionDraftConflict'));
+        input.value = before.state.captions[0].text;
+        f.actionButton().onclick({}); assert.equal(f.element('#toast').textContent, t('errors.mergeMetadata'));
+      }
+      assert.deepEqual(snapshot(f), before); assert.equal(f.query('[data-caption-text="0"]'), input);
+    }
+  } finally { initLocale(); }
+});
 
 test('caret splitting maps normalized rows to literal authored halves and preserves Undo/Redo', async () => {
   try {

@@ -111,12 +111,14 @@ test('caption delete/add retain focus scrolling and route existing actions', () 
 test('caption split preserves a no-op and sends real grapheme splits through edit once', () => {
   const f = fixture();
   f.project().captions = [{ start: 0, end: 2, text: 'short', basis: 'timeline' }];
+  f.panel.render(f.target, {}, {});
   f.query('#captionChunkSize').value = '12';
   const original = f.project().captions;
   f.query('#splitLongCaptions').onclick();
   assert.equal(f.project().captions, original);
   assert.ok(!f.log.some(event => event[0] === 'edit'));
   f.project().captions = [{ start: 0, end: 4, text: 'e\u0301'.repeat(24), basis: 'timeline', speaker: '1' }];
+  f.panel.render(f.target, {}, {});
   f.query('#splitLongCaptions').onclick();
   assert.equal(f.project().captions.length, 2);
   assert.ok(f.project().captions.every(caption => caption.text === 'e\u0301'.repeat(12) && caption.speaker === '1'));

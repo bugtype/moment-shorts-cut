@@ -88,7 +88,7 @@ test('blur/change commits before page click, IME blocks paging and off-page focu
 });
 
 test('blocked add/delete/split neither focus nor announce success and full list refuses addition',()=>{
- const f=fixture(51);f.project().captions[0].text='긴 자막을 여러 부분으로 나누는 문장입니다';f.block();
+ const f=fixture(51);f.project().captions[0].text='긴 자막을 여러 부분으로 나누는 문장입니다';f.render();f.block();
  f.query('#captionChunkSize').value='5';const before=structuredClone(f.project());
  f.query('#addCaption').onclick();f.query('[data-delete-caption="0"]').onclick();f.query('#splitLongCaptions').onclick();
  assert.deepEqual(f.project(),before);assert.deepEqual(f.log,[]);

@@ -69,6 +69,10 @@ export function createCaptionPanel({
     }
     function splitLongCaptions(event) {
         if (composing || event?.isComposing || event?.keyCode === 229) return;
+        if (hasPendingEdits()) {
+            toast(message('panels.finishTyping'));
+            return;
+        }
         const limit = Number($('#captionChunkSize').value), captions = [];
         try {
             for (const caption of getProject().captions) {

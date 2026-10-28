@@ -58,6 +58,64 @@ async function fixture(locale = 'ko', caption = {start:0,end:1,text:'Original'})
 const snapshot = f => f.evaluate('({state,history,future,current,selected})');
 const effect = {patch:{brightness:1.1}};
 
+test('whole-list split preserves refused and uncommitted row drafts until explicit corrected retry', async () => {
+  try {
+    for (const draft of ['한'.repeat(2001), '아직 적용하지 않은 문장']) {
+      const caption = {start:0,end:6,text:'가'.repeat(24),basis:'timeline',speaker:'1',keywords:'유지'};
+      const f = await fixture('ko', caption);
+      assert.equal((await f.context.window.moment.execute('effects.update', effect)).ok, true);
+      vm.runInContext('undo();globalThis.splitSaves=0;scheduleSave=()=>splitSaves++;', f.context);
+      const input = f.query('[data-caption-text="0"]'), button = f.query('#splitLongCaptions');
+      const split = f.context.splitCaptionText; let calls = 0;
+      f.context.splitCaptionText = (...args) => { calls++; return split(...args); };
+      f.query('#captionChunkSize').value = '12';
+      input.value = draft; input.focus(); input.setSelectionRange(2,4);
+      f.panel.oncompositionstart(); f.panel.oncompositionend();
+      if (draft.length > 2000) input.onchange();
+      assert.equal(f.evaluate('captionWorkspace.hasPendingEdits()'), true);
+      const before = snapshot(f), markup = f.panel.innerHTML, focuses = f.focusEvents.length;
+      assert.equal(before.future.length, 1);
+      button.onclick({}); button.onclick({}); await Promise.resolve();
+      assert.deepEqual(snapshot(f), before); assert.equal(calls, 0);
+      assert.equal(f.evaluate('splitSaves'), 0); assert.equal(f.panel.innerHTML, markup);
+      assert.equal(f.query('[data-caption-text="0"]'), input); assert.equal(input.value, draft);
+      assert.equal(f.doc.activeElement, input); assert.equal(f.focusEvents.length, focuses);
+      assert.deepEqual([input.selectionStart,input.selectionEnd], [2,4]);
+      assert.equal(f.element('#toast').textContent, t('panels.finishTyping'));
+      input.value = '수'.repeat(24); input.onchange();
+      assert.equal(f.evaluate('captionWorkspace.hasPendingEdits()'), false);
+      assert.equal(f.evaluate('state.captions.length'), 1); assert.equal(calls, 0);
+      assert.equal(f.evaluate('history.length'), 1); assert.equal(f.evaluate('splitSaves'), 1);
+      button.onclick({});
+      assert.equal(calls, 1); assert.equal(f.evaluate('history.length'), 2);
+      assert.equal(f.evaluate('future.length'), 0); assert.equal(f.evaluate('splitSaves'), 2);
+      assert.deepEqual(f.evaluate('state.captions'), [
+        {...caption,text:'수'.repeat(12),end:3,timing:'estimated'},
+        {...caption,text:'수'.repeat(12),start:3,timing:'estimated'},
+      ]);
+      assert.equal(f.doc.activeElement, f.query('#splitLongCaptions'));
+      const after = snapshot(f); button.onclick({}); assert.deepEqual(snapshot(f), after);
+      assert.equal(calls, 1, 'The detached button cannot retry after the accepted split');
+    }
+  } finally { initLocale(); }
+});
+
+test('whole-list split permits clean normalized rows and unrelated search drafts', async () => {
+  try {
+    for (const text of ['\n'+'가'.repeat(24), '가'.repeat(12)+'\r\n'+'가'.repeat(12)]) {
+      const f = await fixture('ko', {start:0,end:6,text});
+      f.query('#captionFind').value = '찾는 문구'; f.query('#captionFind').oninput();
+      f.query('#captionReplacement').value = '바꿀 문구'; f.query('#captionReplacement').oninput();
+      assert.equal(f.evaluate('captionWorkspace.hasPendingEdits()'), false);
+      f.query('#captionChunkSize').value = '12'; f.query('#splitLongCaptions').onclick({});
+      assert.deepEqual(f.evaluate('state.captions.map(c=>c.text)'), ['가'.repeat(12),'가'.repeat(12)]);
+      assert.equal(f.evaluate('history.length'), 1);
+      assert.equal(f.query('#captionFind').value, '찾는 문구');
+      assert.equal(f.query('#captionReplacement').value, '바꿀 문구');
+    }
+  } finally { initLocale(); }
+});
+
 test('current-match correction uses textarea offsets while retaining authored line endings', async () => {
   try {
     for (const text of ['앞\r\n찾기 찾기', '앞\r찾기', '\n찾기', '😀& </textarea>\r\n찾기']) {

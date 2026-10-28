@@ -14,7 +14,8 @@ export function createCaptionPanel({
     let renderedRows = [];
     const rowFields = ['text', 'start', 'end', 'keywords', 'speaker'];
     const lastPage = () => Math.max(0, Math.ceil(getProject().captions.length / CAPTION_PAGE_SIZE) - 1);
-    const search = createCaptionSearch({query:$,getProject,focusCaption,execute,toast,
+    const search = createCaptionSearch({query:$,getProject,focusCaption,toast,
+        execute: (name, args) => canTransformRows() && execute(name, args),
         edit: (change, refresh) => { if (canTransformRows()) return edit(change, refresh); },
         blocked: () => composing || blocked(),
         replaceRange: options => replaceRange?.({...options,index:options.index ?? page * CAPTION_PAGE_SIZE})});
@@ -246,6 +247,7 @@ export function createCaptionPanel({
                     sourceOffset += text[sourceOffset] === '\r' && text[sourceOffset + 1] === '\n' ? 2 : 1;
                 textOffset = sourceOffset;
             }
+            if (!canTransformRows()) return;
             if (execute('captions.split', { captionIndex: index, textOffset }))
                 focusCaption(index + 1);
         });

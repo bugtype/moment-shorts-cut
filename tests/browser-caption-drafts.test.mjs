@@ -85,6 +85,84 @@ async function transformFixture(action, text = '오류 문장') {
   return {...f, actionButton: () => f.query(selector), toolInput: input};
 }
 
+test('targeted caption transforms preserve another row draft and require explicit corrected retry', async () => {
+  try {
+    for (const action of ['split','match']) {
+      const f = await transformFixture(action === 'match' ? 'replace-all' : action, '\n오류\r\n문장');
+      assert.equal((await f.context.window.moment.execute('effects.update', effect)).ok, true);
+      vm.runInContext('undo();globalThis.crossSaves=0;scheduleSave=()=>crossSaves++;', f.context);
+      if (action === 'match') f.query('#nextCaptionMatch').onclick({});
+      else f.query('[data-caption-text="0"]').setSelectionRange(4,4);
+      const input = f.query('[data-caption-text="1"]');
+      const button = f.query(action === 'split' ? '[data-split-caption="0"]' : '#replaceCaptionMatch');
+      const before = snapshot(f), markup = f.panel.innerHTML, status = f.query('#captionSearchStatus').textContent;
+      assert.equal(before.future.length, 1);
+      input.value = '한'.repeat(2001); input.focus(); input.setSelectionRange(2,4);
+      f.panel.oncompositionstart(); button.onclick({}); assert.deepEqual(snapshot(f), before);
+      f.panel.oncompositionend(); input.onchange();
+      assert.equal(f.element('#toast').textContent, t('errors.cueLength'));
+      for (const draft of ['한'.repeat(2001), '다른 행의 미완성 문장']) {
+        input.value = draft;
+        const focuses = f.focusEvents.length;
+        button.onclick({}); button.onclick({}); await Promise.resolve();
+        assert.deepEqual(snapshot(f), before); assert.equal(f.evaluate('crossSaves'), 0);
+        assert.equal(f.panel.innerHTML, markup); assert.equal(f.query('[data-caption-text="1"]'), input);
+        assert.equal(input.value, draft); assert.equal(f.doc.activeElement, input);
+        assert.equal(f.focusEvents.length, focuses); assert.deepEqual([input.selectionStart,input.selectionEnd], [2,4]);
+        assert.equal(f.query('#captionSearchStatus').textContent, status);
+        assert.equal(f.element('#toast').textContent, t('errors.captionDraftConflict'));
+      }
+      input.value = '정상 고침'; input.onchange();
+      assert.equal(f.evaluate('captionWorkspace.hasPendingEdits()'), false);
+      const corrected = f.evaluate('state');
+      assert.equal(f.evaluate('history.length'), 1); assert.equal(f.evaluate('crossSaves'), 1);
+      button.onclick({});
+      const expected = structuredClone(corrected), first = corrected.captions[0];
+      if (action === 'match') expected.captions[0].text = '\n수정\r\n문장';
+      else expected.captions = [{...first,text:'\n오류\r\n',end:2,timing:'estimated'},
+        {...first,text:'문장',start:2,timing:'estimated'},corrected.captions[1]];
+      assert.deepEqual(f.evaluate('state'), expected); assert.equal(f.evaluate('history.length'), 2);
+      assert.equal(f.evaluate('future.length'), 0); assert.equal(f.evaluate('crossSaves'), 2);
+      assert.equal(f.doc.activeElement, f.query(`[data-caption-text="${action === 'match' ? 0 : 1}"]`));
+      const accepted = snapshot(f); button.onclick({}); assert.deepEqual(snapshot(f), accepted);
+      vm.runInContext('undo()', f.context); assert.deepEqual(f.evaluate('state'), corrected);
+      vm.runInContext('undo(true)', f.context); assert.deepEqual(f.evaluate('state'), expected);
+    }
+  } finally { initLocale(); }
+});
+
+test('targeted diagnostics precede cross-row admission while pending drafts defer core split errors', async () => {
+  try {
+    for (const action of ['split','match']) {
+      const f = await transformFixture(action === 'match' ? 'replace-all' : action, '오류\r\n문장');
+      if (action === 'match') f.query('#nextCaptionMatch').onclick({});
+      const target = f.query('[data-caption-text="0"]'), other = f.query('[data-caption-text="1"]');
+      const displayed = target.value, before = snapshot(f);
+      const button = f.query(action === 'split' ? '[data-split-caption="0"]' : '#replaceCaptionMatch');
+      other.value = '다른 행 초안'; target.value = '대상 행 초안'; target.setSelectionRange(2,2);
+      button.onclick({});
+      assert.equal(f.element('#toast').textContent, t(action === 'split' ? 'panels.finishTyping' : 'panels.searchStale'));
+      target.value = displayed;
+      if (action === 'split') {
+        for (const [start,end] of [[1,2],[displayed.length+1,displayed.length+1]]) {
+          target.setSelectionRange(start,end); button.onclick({});
+          assert.equal(f.element('#toast').textContent, t('panels.chooseCaret'));
+        }
+        target.setSelectionRange(0,0); button.onclick({});
+        assert.equal(f.element('#toast').textContent, t('errors.captionDraftConflict'));
+        other.value = before.state.captions[1].text; button.onclick({});
+        assert.equal(f.element('#toast').textContent, t('errors.splitCaret'));
+      } else {
+        f.toolInput('captionReplacement','한'.repeat(2001),'oninput'); button.onclick({});
+        assert.equal(f.element('#toast').textContent, t('errors.replacementLength'));
+        f.toolInput('captionReplacement','오류','oninput'); f.element('#toast').textContent = 'unchanged';
+        button.onclick({}); assert.equal(f.element('#toast').textContent, 'unchanged');
+      }
+      assert.deepEqual(snapshot(f), before); assert.equal(f.query('[data-caption-text="1"]'), other);
+    }
+  } finally { initLocale(); }
+});
+
 test('caption transformations preserve refused and uncommitted drafts until corrected retry', async () => {
   try {
     for (const action of ['merge','replace-all','shift']) {

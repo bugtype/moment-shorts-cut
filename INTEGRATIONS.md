@@ -1835,11 +1835,12 @@ const document = await window.moment.execute('project.get');
 
 읽기·`project.preview`와 실제로 프로젝트를 커밋하지 않는 결과는 허용됩니다.
 값이 같아도 프로젝트를 교체하는 명령은 커밋이므로 차단됩니다. `project.batch`는
-일부만 적용하지 않고 전체 커밋을 거절합니다. 이 보호는 **`window.moment.execute`만**
+일부만 적용하지 않고 전체 커밋을 거절합니다. 이 API 훅은 **`window.moment.execute`만**
 대상이며, `execute('project.import', ...)`에도 적용됩니다. 별도의 명시적
-`window.moment.importProject(file)`/파일 선택 가져오기, 직접 UI 편집·실행 취소의
-기존 교체 동작, 일반 서비스·CLI·MCP는 바뀌지 않습니다. 여기에 명시하지 않은 입력의 초안이나
-이미 화면을 떠난 입력까지 보호하는 것은 아닙니다.
+`window.moment.importProject(file)`/파일 선택 가져오기, 직접 UI 편집·실행 취소,
+일반 서비스·CLI·MCP에는 이 훅이 적용되지 않습니다. 자막 행 변환은
+[별도의 미반영 입력 보호](docs/CAPTION_WORKFLOWS.ko.md#pending-row-edits)를 사용합니다.
+여기에 명시하지 않은 입력의 초안이나 이미 화면을 떠난 입력까지 보호하는 것은 아닙니다.
 
 ### 동시성 경계
 

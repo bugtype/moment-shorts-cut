@@ -20,6 +20,14 @@
 | [Shift timing in a range](#shift-range) |
 | [Assign a speaker to a range](#assign-speaker) |
 
+<a id="pending-row-edits"></a>
+
+Caret/whole-list splitting, Merge, Replace match/all and whole-list timing shift
+refuse to commit while **any visible caption row** has pending edits, including
+rejected overlong text. Correct/commit the input or restore its original value,
+then retry explicitly; nothing is auto-committed or retried. This is not general
+draft retention through navigation, deletion or file import.
+
 <a id="edit-text"></a>
 
 ## Find and replace text

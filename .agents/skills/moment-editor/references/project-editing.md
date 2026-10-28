@@ -101,10 +101,11 @@ indexes before retrying. `project.get` contains committed data, not those drafts
 
 Reads, previews and genuine no-project no-op results remain available. Equal-value
 commands that still replace the project are commits. A blocked batch applies no
-operations. This is not a guard for every input: other panels/tool drafts, direct
-UI edits, Undo and explicit `importProject(file)`/file-picker replacements retain
-existing behavior. `execute('project.import', ...)` does pass through this guard.
-Generic services, CLI and the separate stdio MCP session are unchanged.
+operations. This API hook does not cover every input, direct UI edits, Undo or
+explicit `importProject(file)`/file-picker replacements. Caption row transformations
+have [separate pending-row protection](../../../../docs/CAPTION_WORKFLOWS.md#pending-row-edits).
+`execute('project.import', ...)` does pass through the API guard. Generic services,
+CLI and the separate stdio MCP session are unchanged.
 
 ## Browser file handoff
 

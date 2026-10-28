@@ -278,6 +278,16 @@ export function projectSubtitles(p, options = {}) {
   const chunks = [],
     encoder = new TextEncoder();
   let bytes = (bom ? 3 : 0) + encoder.encode(header).byteLength;
+  // UTF-8 needs at most three bytes per UTF-16 unit: 2,730 units fit in 8 KiB.
+  // Reuse is local to this export; larger chunks keep the original encoding path.
+  let byteBuffer;
+  function chunkBytes(text) {
+    if (text.length > 2730 || typeof encoder.encodeInto !== 'function') return encoder.encode(text).byteLength;
+    byteBuffer ||= new Uint8Array(8192);
+    const result = encoder.encodeInto(text, byteBuffer);
+    return result.read === text.length && Number.isInteger(result.written) && result.written >= 0 && result.written <= byteBuffer.length
+      ? result.written : encoder.encode(text).byteLength;
+  }
   const timestamp = t => format === 'vtt' ? srtTimestamp(t).replace(',', '.') : srtTimestamp(t);
   for (const [i, c] of captionOccurrences(p.captions, p.clips, p.speed).entries()) {
     const textPath = `project.captions[${captionIndexOffset + c.captionIndex}].text`;
@@ -287,7 +297,7 @@ export function projectSubtitles(p, options = {}) {
         fail(msg('errors.txtNul', {index: i + 1}));
       assertUnicodeText(text, textPath);
       const chunk = text + '\n';
-      bytes += encoder.encode(chunk).byteLength + (i ? 1 : 0);
+      bytes += chunkBytes(chunk) + (i ? 1 : 0);
       if (bytes > MAX_SUBTITLE_BYTES)
         captionOutputLimit(msg('errors.txtLimit'));
       chunks.push(chunk);
@@ -307,7 +317,7 @@ export function projectSubtitles(p, options = {}) {
     assertUnicodeText(lines, textPath);
     const text = lines.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\u00a0/g, '&nbsp;');
     const chunk = `${i+1}\n${start} --> ${end}\n${text}\n`;
-    bytes += encoder.encode(chunk).byteLength + (i ? 1 : 0);
+    bytes += chunkBytes(chunk) + (i ? 1 : 0);
     if (bytes > MAX_SUBTITLE_BYTES)
       captionOutputLimit(msg('errors.subtitleBytes', {format: label}));
     chunks.push(chunk);

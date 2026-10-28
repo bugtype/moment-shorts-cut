@@ -68,7 +68,7 @@ import assert from 'node:assert/strict';
 import { readCaptionRangeInputs } from '../../dist/caption-range-inputs.mjs';
 
 // Synthetic DOM/media only. Each call owns a separate VM, controls and event queues.
-export async function createAppFixture({sessionMediaDependencies = {}} = {}) {
+export async function createAppFixture({sessionMediaDependencies = {}, fontSet} = {}) {
   const source=fs.readFileSync(new URL('../../dist/app.js',import.meta.url),'utf8');
   const panelSource=['shell-presentation.mjs','design-panel.mjs','effects-panel.mjs','template-gallery.mjs','template-workspace.mjs','panel-markup.mjs','template-preview.mjs','inspector-view.mjs','timeline-view.mjs','caption-panel.mjs','playback.mjs','export-flow.mjs','media-loader.mjs','design-workspace.mjs','workspace-panels.mjs','app-bindings.mjs','editing-actions.mjs','caption-flow.mjs'].map(f=>fs.readFileSync(new URL('../../dist/'+f,import.meta.url),'utf8')).join('\n');
   const html=fs.readFileSync(new URL('../../dist/index.html',import.meta.url),'utf8');
@@ -134,7 +134,7 @@ export async function createAppFixture({sessionMediaDependencies = {}} = {}) {
     querySelector: element, querySelectorAll: selector => selector.includes('[data-i18n') ? [...elements.values()].filter(node => [...['data-i18n','data-i18n-validity',...['aria-label','title','placeholder','alt','aria-valuetext','content','data-label'].map(name=>'data-i18n-'+name)]].some(name=>node.getAttribute?.(name))) : [],
     documentElement: {lang: 'ko'},
     addEventListener(name, handler) { documentEvents.set(name, handler); },
-    body: element('body'), fonts: { ready: Promise.resolve() },
+    body: element('body'), fonts: fontSet || { ready: Promise.resolve() },
     createElement: () => element('canvas-' + (++canvasCount)),
   };
   const context = vm.createContext({

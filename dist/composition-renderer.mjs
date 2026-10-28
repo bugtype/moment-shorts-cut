@@ -3,10 +3,37 @@ import { clipEffects, drawSceneCards } from './effects.mjs';
 import { videoFrame, createTypographyRenderer } from './typography.mjs';
 
 // One renderer/cache serves template previews, the editor and recorded output.
-export function createCompositionRenderer(makeCanvas) {
+export function createCompositionRenderer(makeCanvas, { getFonts = () => null, onFontsReady = () => {} } = {}) {
   const typography = createTypographyRenderer(makeCanvas);
+  let observedReady = null, pendingFonts = false;
+  function completeFonts(ready, notify) {
+    if (observedReady !== ready || !pendingFonts) return;
+    pendingFonts = false;
+    typography.clear();
+    if (notify) { try { onFontsReady(); } catch { /* Optional repaint must not break rendering. */ } }
+  }
+  function observeFonts() {
+    try {
+      const fonts = getFonts(), ready = fonts?.ready;
+      if (!ready || typeof ready.then !== 'function') return;
+      let notify = true;
+      if (ready !== observedReady) {
+        notify = observedReady !== null;
+        observedReady = ready;
+        pendingFonts = true;
+        typography.clear();
+        ready.then(() => completeFonts(ready, true), () => {
+          if (observedReady === ready) pendingFonts = false;
+        });
+      }
+      // Awaiting export may resume before our registered promise callback.
+      if (fonts.status === 'loaded') completeFonts(ready, notify);
+    } catch { /* Font observation is optional; preserve native drawing errors. */ }
+  }
 
   function draw(context, width, height, project, media, { includeCaptions = true } = {}) {
+    observeFonts();
+    try {
     const frame = videoFrame(project.design, width, height);
     const effects = project.effects;
     const fx = clipEffects(effects, media.elapsed, media.remaining, media.progress);
@@ -50,6 +77,7 @@ export function createCompositionRenderer(makeCanvas) {
       context.fillRect(0, 0, width, height);
       context.restore();
     }
+    } finally { observeFonts(); }
   }
 
   return { draw, clear: typography.clear };

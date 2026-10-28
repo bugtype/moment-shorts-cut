@@ -79,7 +79,7 @@ const shellPresentation = createShellPresentation({
     filesBlocked: () => !editorReady || exporting,
     setTimer: (callback, delay) => setTimeout(callback, delay), clearTimer: timer => clearTimeout(timer),
 });
-const composition = createCompositionRenderer(() => document.createElement('canvas'));
+const composition = createCompositionRenderer(() => document.createElement('canvas'), { getFonts: () => document.fonts, onFontsReady: () => requestDraw() });
 const projectStore = createProjectStore();
 const sources = createMediaSources({ video, audio });
 const inspectorView = createInspectorView($, $$);

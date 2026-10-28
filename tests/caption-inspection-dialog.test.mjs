@@ -27,6 +27,53 @@ test('blank numeric checks are optional; invalid values fail and reports are bou
  f.run('1');const html=f.query('#captionInspectionResults').innerHTML;assert.match(html,/출력 발생 30개 · 관련 발생 30개 · 전체 결과 30개/);assert.match(html,/필터 결과 30개 · 표시 20개 · 생략 10개/);assert.equal([...html.matchAll(/id="inspectCaption/g)].length,20);assert.equal(f.query('#inspectCaption20'),null);assert.deepEqual(f.project(),before);
  const stale=f.query('#inspectCaption0').onclick;f.query('#captionInspectionThreshold').oninput();stale();assert.ok(!f.events.some(e=>e[0]==='caption'));
 });
+test('bad numeric input is not an omitted criterion and validity-only changes invalidate findings',async()=>{
+ const fields=[['captionInspectionThreshold','maxGraphemesPerSecond','1'],['captionInspectionMin','minDuration','.5'],['captionInspectionMax','maxDuration','5']];
+ for(const [id,key,valid] of fields){
+  const f=fixture();f.project().captions=[{start:0,end:.1,text:'짧은 자막'},{start:1,end:11,text:'긴 자막'}];
+  const before=structuredClone(f.project());f.controller.open();
+  for(const [name,,value] of fields)f.query('#'+name).value=value;
+  const input=f.query('#'+id),run=f.query('#runCaptionInspection');input.value='';input.validity={badInput:false};run.onclick();
+  assert.match(f.query('#captionInspectionResults').innerHTML,/관련 발생/,'genuinely blank checks remain optional');
+  const oldSave=f.query('#saveCaptionFindings').onclick,oldView=f.query('#inspectOccurrence0').onclick;
+  // Defensive eventless change: the native UI/event sequence is not simulated.
+  input.validity.badInput=true;oldSave();oldView();assert.equal(f.downloads.length,0);
+  assert.ok(!f.events.some(([kind])=>['seek','caption','close'].includes(kind)));
+  for(const value of ['',valid]){
+   input.value=value;run.onclick();assert.equal(f.query('#captionInspectionResults').innerHTML,'');oldSave();
+   const error=f.events.filter(([kind])=>kind==='toast').at(-1)[1];
+   assert.equal(error.messageKey,'errors.finiteNumber');assert.equal(error.path,'$.review.'+key);
+   assert.equal(f.downloads.length,0);assert.equal(f.modal.open,true);assert.deepEqual(f.project(),before);
+  }
+  input.validity.badInput=false;run.onclick();f.query('#saveCaptionFindings').onclick();
+  const report=JSON.parse(await f.downloads[0].blob.text());
+  assert.equal(report.thresholds[key],Number(valid));assert.equal(report.counts.tooShort,1);assert.equal(report.counts.tooLong,1);
+  assert.deepEqual(f.project(),before);
+ }
+ const f=fixture();f.controller.open();f.query('#captionInspectionMin').validity={badInput:true};
+ f.run('0');assert.equal(f.events.at(-2)[1].path,'$.review.minDuration','nonfinite validation still precedes finite domain checks');
+ f.run('NaN');assert.equal(f.events.at(-2)[1].path,'$.review.maxGraphemesPerSecond','first nonfinite field keeps precedence');
+ f.query('#captionInspectionMin').validity.badInput=false;f.run('1');
+ const oldSave=f.query('#saveCaptionFindings').onclick;f.query('#captionInspectionMin').validity.badInput=true;
+ f.query('#captionInspectionFilter').value='too-long';f.query('#captionInspectionFilter').onchange();
+ assert.equal(f.query('#captionInspectionResults').innerHTML,'');assert.equal(f.events.at(-2)[1].messageKey,'errors.finiteNumber');
+ oldSave();assert.equal(f.downloads.length,0);
+});
+
+test('actual app inspection rejects incomplete duration input and recovers without edits or saves',async()=>{
+ const f=await createAppFixture(),downloads=[];f.context.captureReport=(blob,name)=>downloads.push({blob,name});
+ vm.runInContext("state.captions=[{start:0,end:.1,text:'짧은 자막'},{start:1,end:11,text:'긴 자막'}];history=[];future=[];current=0;globalThis.inspectionSaves=0;scheduleSave=()=>inspectionSaves++;download=(blob,name)=>captureReport(blob,name);switchPanel('captions');",f.context);
+ f.element('#inspectCaptions').onclick();const input=f.element('#captionInspectionMin');input.value='';input.validity={badInput:true};
+ f.element('#captionInspectionMax').value='5';const before=f.evaluate('JSON.stringify({state,history,future,current,inspectionSaves})');
+ f.element('#runCaptionInspection').onclick();assert.equal(f.element('#captionInspectionResults').innerHTML,'');
+ assert.equal(f.element('#saveCaptionFindings').onclick,undefined);assert.equal(downloads.length,0);
+ assert.equal(f.doc.activeElement,f.element('#captionInspectionThreshold'),'existing error focus remains unchanged');
+ input.value='.5';input.validity.badInput=false;f.element('#runCaptionInspection').onclick();f.element('#saveCaptionFindings').onclick();
+ assert.equal(downloads.length,1);const report=JSON.parse(await downloads[0].blob.text());
+ assert.equal(report.thresholds.minDuration,.5);assert.equal(report.thresholds.maxDuration,5);
+ assert.equal(report.counts.tooShort,1);assert.equal(report.counts.tooLong,1);
+ assert.equal(f.evaluate('JSON.stringify({state,history,future,current,inspectionSaves})'),before);
+});
 test('occurrence navigation uses output seconds converted to pre-speed and focus-only does not seek',()=>{
  const f=fixture();f.project().speed=2;f.project().clips=[{start:0,end:2},{start:0,end:2}];f.project().captions=[{start:0,end:1,text:'AB'}];const before=structuredClone(f.project());
  f.controller.open();f.run();const old=f.query('#inspectOccurrence1').onclick;old();assert.deepEqual(f.events.slice(-4),[['close'],['pause'],['seek',2],['caption',0]]);old();assert.equal(f.events.filter(e=>e[0]==='seek').length,1);

@@ -29,7 +29,8 @@ export function createCaptionInspectionDialog({getProject, getMedia = () => [], 
         const owns = () => generation === owner && modal.open && $('#runCaptionInspection') === run;
         const composingControls = new Set();
         const composing = event => composingControls.size > 0 || event?.isComposing || event?.keyCode === 229;
-        const criteria = () => JSON.stringify([input.value,minimum.value,maximum.value,overlaps.checked,filter.value]);
+        const criteria = () => JSON.stringify([input.value,minimum.value,maximum.value,overlaps.checked,filter.value,
+            Boolean(input.validity?.badInput),Boolean(minimum.validity?.badInput),Boolean(maximum.validity?.badInput)]);
         const unchanged = captured => getProject() === captured.project && JSON.stringify(getProject()) === captured.contents &&
             getMedia().length === captured.media.length && getMedia().every((file,index) => file === captured.media[index]);
         const stale = () => { reportGeneration++; snapshot = null; results.innerHTML = `<p role="status">${text('advisory.stale')}</p>`; };
@@ -52,7 +53,9 @@ export function createCaptionInspectionDialog({getProject, getMedia = () => [], 
             try {
                 const review = {includeOverlaps: overlaps.checked, filter: filter.value};
                 for (const [control,key] of [[input,'maxGraphemesPerSecond'],[minimum,'minDuration'],[maximum,'maxDuration']]) {
-                    if (control.value.trim() !== '') review[key] = Number(control.value);
+                    // Incomplete native numeric input can expose an empty value; it is not an omitted check.
+                    if (control.validity?.badInput) review[key] = NaN;
+                    else if (control.value.trim() !== '') review[key] = Number(control.value);
                 }
                 const project = getProject(), captured = {project, contents: JSON.stringify(project), media: [...getMedia()], criteria: criteria()};
                 const report = prepareCommand(project, 'captions.inspect', {review, limit:20}).data;

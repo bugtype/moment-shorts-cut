@@ -4,6 +4,29 @@ import {once} from 'node:events';
 import {readFile} from 'node:fs/promises';
 import {createPreviewServer} from '../scripts/serve.mjs';
 
+test('active form-label colors retain contrast on authored white panel surfaces', async () => {
+  const [shell, dialogs, responsive] = await Promise.all(['shell-library', 'inspector-dialogs', 'responsive']
+    .map(name => readFile(new URL(`../dist/styles/${name}.css`, import.meta.url), 'utf8')));
+  assert.match(shell, /:root\s*\{[^}]*\bbackground:#fff\s*;/);
+  assert.match(dialogs, /\.inspector\s*\{[^}]*\bbackground:#fff\s*\}/);
+  // These are the audited declarations, not a CSS cascade engine. Time labels
+  // have higher specificity than the later grouped labels; both need coverage.
+  const colors = [
+    responsive.match(/\.panel-label,\.field-label,\.slider-label\s*\{[^}]*\bcolor:(#[\da-f]{6})\s*\}/i)?.[1],
+    dialogs.match(/\.time-fields label\s*\{[^}]*\bcolor:(#[\da-f]{6})\s*;/i)?.[1],
+  ];
+  const ratios = colors.map(color => {
+    assert.match(color ?? '', /^#[\da-f]{6}$/i);
+    const [r, g, b] = color.slice(1).match(/../g).map(hex => {
+      const channel = Number.parseInt(hex, 16) / 255;
+      return channel <= .04045 ? channel / 12.92 : ((channel + .055) / 1.055) ** 2.4;
+    });
+    return 1.05 / (.2126 * r + .7152 * g + .0722 * b + .05);
+  });
+  // WCAG 2.2 SC 1.4.3 normal-text threshold; do not round before comparing.
+  assert.deepEqual(ratios.map(ratio => ratio >= 4.5), [true, true], `Label contrast on white: ${ratios}`);
+});
+
 test('preview serves modules with correct MIME types and never serves repository files', async t => {
   const server = createPreviewServer();
   server.listen(0, '127.0.0.1');

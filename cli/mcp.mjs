@@ -41,20 +41,29 @@ async function handle(bytes, dispatch) {
 async function main() {
   const commands = startupCommands(process.argv.slice(2));
   const { dispatch } = createMcpSession({ commands });
-  let pending = Buffer.alloc(0);
+  let pending = Buffer.alloc(0), pendingLength = 0;
   for await (const chunk of process.stdin) {
     let start = 0;
     for (let end = chunk.indexOf(10); end !== -1; end = chunk.indexOf(10, start)) {
-      if (pending.length + end - start > MAX_MESSAGE_BYTES) throw new Error('Message exceeds 10 MiB.');
-      const line = Buffer.concat([pending, chunk.subarray(start, end)]);
+      if (pendingLength + end - start > MAX_MESSAGE_BYTES) throw new Error('Message exceeds 10 MiB.');
+      const line = Buffer.concat([pending.subarray(0, pendingLength), chunk.subarray(start, end)]);
       pending = Buffer.alloc(0);
+      pendingLength = 0;
       await handle(line, dispatch);
       start = end + 1;
     }
-    if (pending.length + chunk.length - start > MAX_MESSAGE_BYTES) throw new Error('Message exceeds 10 MiB.');
-    pending = Buffer.concat([pending, chunk.subarray(start)]);
+    const required = pendingLength + chunk.length - start;
+    if (required > MAX_MESSAGE_BYTES) throw new Error('Message exceeds 10 MiB.');
+    // Grow only unfinished tails; avoid recopying their prefix on every fragment.
+    if (required > pending.length) {
+      const grown = Buffer.alloc(Math.min(MAX_MESSAGE_BYTES, Math.max(required, pending.length * 2)));
+      pending.copy(grown, 0, 0, pendingLength);
+      pending = grown;
+    }
+    if (chunk.length > start) chunk.copy(pending, pendingLength, start);
+    pendingLength = required;
   }
-  if (pending.length) await handle(pending, dispatch);
+  if (pendingLength) await handle(pending.subarray(0, pendingLength), dispatch);
 }
 
 try {

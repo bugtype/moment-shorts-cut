@@ -36,6 +36,7 @@ import { retimeOutputLayers } from './effects.mjs';
 import { applyTemplate, visualPreset } from './template-catalog.mjs';
 import { createTemplateWorkspace } from './template-workspace.mjs';
 import { createCompositionRenderer } from './composition-renderer.mjs';
+import { videoFrame } from './typography.mjs';
 import { createProjectStore } from './project-store.mjs';
 import { createPlayback } from './playback.mjs';
 import { createExportFlow } from './export-flow.mjs';
@@ -246,6 +247,7 @@ const app = {
 
     query: $, queryAll: $$, document, window, canvas, ctx, video, audio, sample, modal, savePreview,
     composition, templatePreview, templateWorkspace, projectStore,
+    videoRegion: (project, rect) => videoFrame(project.design, rect.width, rect.height),
     get captionPanel() { return captionWorkspace; },
     sources, persistence, videoExport, transcription, captionGeneration, audioRecording,
     inspectorView, timelineView, inputHistory,

@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import vm from 'node:vm';
 import {createAppFixture} from './fixtures/app.mjs';
 import {setLocale,initLocale,translateFor} from '../dist/i18n.mjs';
+import {createCanvasTrace} from './fixtures/canvas-trace.mjs';
 
 const pointer=(x,y,extra={})=>({pointerId:7,clientX:x,clientY:y,...extra});
 async function fixture(mode='video'){
@@ -68,4 +69,44 @@ test('Guide exposes localized Shift instruction and locale changes leave gesture
    assert.equal(f.evaluate('state.panX'),.8);assert.equal(f.evaluate('state.panY'),.02);assert.equal(f.evaluate('history.length'),1);
   }
  }finally{initLocale();}
+});
+
+
+test('video drag tracks rendered displacement in full and framed regions without changing other data', async () => {
+ for (const [layout, top, bottom, scale, zoom, fit] of [
+  ['full', .25, .79, .5, 1, 'cover'],
+  ['framed', .25, .79, .5, 1, 'cover'],
+  ['framed', .15, .69, 1, 2, 'contain'],
+  ['framed', .4, .65, .5, 1, 'cover'],
+ ]) {
+  const f=await createAppFixture(), trace=createCanvasTrace(), canvas=f.element('#preview');
+  f.element('#sourceVideo').traceName='source-video';
+  f.context.captureComposition=(draw,args)=>draw(trace.context,...args);
+  vm.runInContext(`
+   state=initial();state.kind='video';state.fileName='generated.mp4';
+   state.design.layout='${layout}';state.design.top=${top};state.design.bottom=${bottom};
+   state.fit='${fit}';state.effects.motion='none';state.zoom=${zoom};state.panX=.1;state.panY=-.1;
+   sources.videoFile={name:'generated.mp4',size:1};current=1;switchPanel('settings');history=[];future=[];
+   globalThis.dragSaves=0;scheduleSave=()=>dragSaves++;
+   const originalDraw=composition.draw;composition.draw=(_target,...args)=>captureComposition(originalDraw,args);
+   resizePreview();
+  `,f.context);
+  canvas.getBoundingClientRect=()=>({left:13,top:17,width:canvas.width*scale,height:canvas.height*scale});
+  const sourceDraw=()=>trace.events.findLast(event=>event[1]==='drawImage'&&event[2]==='source-video');
+  const beforeDraw=sourceDraw(), before=f.evaluate('state');
+  assert.ok(beforeDraw,'the actual app painted the ready source');
+  canvas.onpointerdown(pointer(100,100));canvas.onpointermove(pointer(120,140));
+  assert.equal(f.evaluate('history.length'),1);assert.equal(f.evaluate('dragSaves'),0);
+  for(const [id,callback] of [...f.pendingFrames]){f.pendingFrames.delete(id);callback(1000);}
+  const movedDraw=sourceDraw();
+  for(const [index,delta] of [[3,20],[4,40]])
+   assert.ok(Math.abs((movedDraw[index]-beforeDraw[index])*scale-delta)<1e-9,`${layout}: source follows pointer on axis ${index}`);
+  const after=f.evaluate('state'), expected=structuredClone(before);
+  expected.panX=after.panX;expected.panY=after.panY;
+  assert.deepEqual(after,expected,'only pan coordinates changed');assert.equal(f.evaluate('current'),1);
+  canvas.onpointercancel(pointer(120,140));canvas.onlostpointercapture(pointer(120,140));
+  assert.equal(f.evaluate('dragSaves'),1);assert.equal(f.evaluate('history.length'),1);
+  vm.runInContext('undo()',f.context);assert.deepEqual(f.evaluate('state'),before);
+  vm.runInContext('undo(true)',f.context);assert.deepEqual(f.evaluate('state'),after);
+ }
 });

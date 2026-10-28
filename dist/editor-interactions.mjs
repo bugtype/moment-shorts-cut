@@ -1,7 +1,7 @@
 const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
 
 // Called with the editor's lifetime bindings; each canvas owns one drag transaction.
-export function bindPreviewDrag(canvas, { getProject, blocked, pause, selection, snapshot, preview, commit }) {
+export function bindPreviewDrag(canvas, { getProject, blocked, pause, selection, snapshot, preview, commit, videoRegion }) {
     let drag = null;
     canvas.onpointerdown = e => {
         if (blocked() || drag)
@@ -34,14 +34,23 @@ export function bindPreviewDrag(canvas, { getProject, blocked, pause, selection,
             return;
         }
         const r = canvas.getBoundingClientRect();
+        let width = r.width, height = r.height;
+        if (drag.mode === 'video' && videoRegion) {
+            const region = videoRegion(state, r);
+            if (!region || !Number.isFinite(region.w) || !Number.isFinite(region.h) || region.w <= 0 || region.h <= 0)
+                return;
+            // Source pan is relative to its video region, not the whole composition.
+            width = region.w;
+            height = region.h;
+        }
         const dx = e.clientX - drag.x, dy = e.clientY - drag.y;
         if (drag.axis === 'pending') {
             if (dx === 0 && dy === 0) return;
             // Choose the physical direction once; aspect ratio must not bias it.
             drag.axis = Math.abs(dx) >= Math.abs(dy) ? 'x' : 'y';
         }
-        const x = drag.px + dx / r.width;
-        const y = drag.py + dy / r.height;
+        const x = drag.px + dx / width;
+        const y = drag.py + dy / height;
         const mode = drag.mode;
         const target = mode === 'video' || mode === 'caption' ? state
             : mode === 'scene' ? state.overlays.find(c => c.id === drag.sceneId)

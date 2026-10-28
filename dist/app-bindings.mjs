@@ -211,6 +211,7 @@ export function bindUi(app) {
     });
     bindPreviewDrag(app.canvas, {
         getProject: () => app.state,
+        videoRegion: app.videoRegion,
         blocked: () => app.exporting || app.persistence.restorePhase === 'restoring',
         pause: () => app.pause(),
         selection: () => {

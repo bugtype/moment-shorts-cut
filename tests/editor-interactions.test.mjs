@@ -4,13 +4,13 @@ import { bindPreviewDrag, bindEditorKeyboard } from '../dist/editor-interactions
 import { createDemoProject } from '../dist/core/project.mjs';
 import { newCard } from '../dist/effects.mjs';
 
-function fixture(mode = 'video') {
+function fixture(mode = 'video', videoRegion) {
   let project = createDemoProject(), blocked = false;
   if (mode === 'scene') project.overlays = [newCard(12)];
   const events = [], history = [];
   const canvas = { setPointerCapture: id => events.push(['capture', id]), getBoundingClientRect: () => ({ width: 100, height: 200 }) };
   bindPreviewDrag(canvas, {
-    getProject: () => project, blocked: () => blocked,
+    getProject: () => project, videoRegion, blocked: () => blocked,
     pause: () => events.push('pause'), selection: () => ({ mode, scene: mode === 'scene' ? project.overlays[0] : null }),
     snapshot: () => history.push(structuredClone(project)),
     preview: () => events.push('preview'), commit: () => events.push('commit'),
@@ -272,4 +272,40 @@ test('axis gestures retain pointer ownership, no-motion behavior and exactly one
  f.canvas.onlostpointercapture(pointer(0,0));f.canvas.onpointercancel(pointer(0,0));f.canvas.onpointerup(pointer(0,0));
  assert.equal(f.events.filter(event=>event==='commit').length,1,'capture loss commits the existing partial edit, not rollback');
  const before=structuredClone(f.project);f.canvas.onpointermove(shifted(90,90));assert.deepEqual(f.project,before);
+});
+
+
+test('video-region normalization stays live, skips invalid sizes, and retains ownership and clamps', () => {
+ let fraction=.5, calls=0;
+ const f=fixture('video',(project,rect)=>{assert.equal(project,f.project);calls++;return {w:rect.width,h:rect.height*fraction};});
+ f.canvas.onpointerdown(pointer(0,0));f.canvas.onpointermove(pointer(10,20));
+ assert.equal(f.project.panX,.1);assert.equal(f.project.panY,.2);
+ fraction=.25;f.canvas.onpointermove(pointer(10,20));assert.equal(f.project.panY,.4);
+ f.canvas.getBoundingClientRect=()=>({width:100,height:400});
+ f.canvas.onpointermove(pointer(10,20));assert.equal(f.project.panY,.2,'live resize retains original gesture anchor');
+ assert.equal(f.history.length,1);f.canvas.onpointerup(pointer(10,20));
+ assert.equal(f.events.filter(event=>event==='commit').length,1);
+ f.canvas.onpointerdown(pointer(0,0));const count=calls;
+ f.replace(createDemoProject());f.canvas.onpointermove(pointer(20,20));assert.equal(calls,count,'replacement aborts before geometry');
+ for(const dimensions of [{w:0,h:100},{w:100,h:0},{w:Infinity,h:100},{w:100,h:NaN}]) {
+  let region=dimensions;
+  const bad=fixture('video',()=>region), before=structuredClone(bad.project);
+  bad.canvas.onpointerdown(pointer(0,0));bad.canvas.onpointermove(pointer(10,20));
+  assert.deepEqual(bad.project,before);assert.equal(bad.history.length,0);
+  region={w:100,h:100};bad.canvas.onpointermove(pointer(10,20));
+  assert.equal(bad.project.panY,.2);assert.equal(bad.history.length,1);
+ }
+ const bounded=fixture('video',()=>({w:100,h:50}));
+ bounded.canvas.onpointerdown(pointer(0,0));bounded.canvas.onpointermove(pointer(1000,1000));bounded.canvas.onpointerup(pointer(0,0));
+ assert.equal(bounded.project.panX,1);assert.equal(bounded.project.panY,1);
+ bounded.canvas.onpointerdown(pointer(0,0));bounded.canvas.onpointermove(pointer(10,10));bounded.canvas.onpointerup(pointer(0,0));
+ assert.equal(bounded.history.length,1,'outward clamped no-op adds no history');
+ bounded.canvas.onpointerdown(pointer(0,0));bounded.canvas.onpointermove(pointer(-1000,-1000));bounded.canvas.onpointerup(pointer(0,0));
+ assert.equal(bounded.project.panX,-1);assert.equal(bounded.project.panY,-1);
+ const locked=fixture('video',()=>({w:100,h:10}));
+ locked.canvas.onpointerdown(shifted(0,0));locked.canvas.onpointermove(shifted(20,10));
+ assert.equal(locked.project.panX,.2);assert.equal(locked.project.panY,0,'Shift dominance uses client deltas, not normalized region');
+ const title=fixture('title',()=>assert.fail('non-video modes must not read video geometry'));
+ title.canvas.onpointerdown(pointer(0,0));title.canvas.onpointermove(pointer(10,20));
+ assert.equal(title.history.length,1);
 });

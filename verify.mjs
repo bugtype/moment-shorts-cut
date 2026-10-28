@@ -209,7 +209,8 @@ for(const mode of ['video','title','credit','caption','scene']){
   preview.onpointermove(pointer(260,180));preview.onpointermove(pointer(270,200));
   assert.equal(evaluate('history.length'),1,mode+' coalesces real moves');assert.equal(evaluate('future.length'),0);
   const moved=evaluate('state');assert.notDeepEqual(moved,original);preview[end](pointer());
-  assert.deepEqual(position(),[.5+20/540,.5+40/960],mode+' retains existing coordinate conversion');
+  const region=mode==='video'?typographyModule.videoFrame(original.design,540,960):{w:540,h:960};
+  assert.deepEqual(position(),[.5+20/region.w,.5+40/region.h],mode+' uses its rendered coordinate region');
   assert.equal(evaluate('dragSaves'),1,mode+' saves one changed gesture');
   preview.onpointermove(pointer(300,300));preview[end](pointer());assert.deepEqual(evaluate('state'),moved);assert.equal(evaluate('dragSaves'),1);
   vm.runInContext('undo()',context);assert.deepEqual(evaluate('state'),original);

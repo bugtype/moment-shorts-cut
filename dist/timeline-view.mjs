@@ -70,7 +70,11 @@ export function renderCaptionTrack(track, occurrences, duration, speed) {
     button.dataset.captionIndex = String(caption.captionIndex);
     button.dataset.captionTime = String(caption.start);
     setAttr(button, 'aria-label', 'shell.captionA11y', {index: caption.captionIndex + 1, seconds: (caption.start / speed).toFixed(1), caption: caption.text});
-    button.textContent = caption.text;
+    // Equal textContent assignments still replace Text children. Reuse only the
+    // canonical nonempty leaf; the setter keeps repairing all other shapes.
+    const child = button.firstChild;
+    if (!caption.text || !child || child.nodeType !== 3 || button.childNodes.length !== 1 || child.data !== caption.text)
+      button.textContent = caption.text;
     button.style.left = `${caption.start / duration * 100}%`;
     button.style.width = `${(caption.end - caption.start) / duration * 100}%`;
     // Keep the pointer/keyboard target alive while a field commits on blur.

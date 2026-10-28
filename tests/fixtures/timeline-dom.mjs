@@ -8,7 +8,20 @@ export function createTrack() {
     set(value) { this.writes++; this.html = value; },
   });
   track.ownerDocument = {createElement() {
-    const node = {dataset: {}, style: {}, attributes: {}, textContent: ''};
+    const node = {dataset: {}, style: {}, attributes: {}, childNodes: []};
+    // Model textContent's replacement semantics, not native selection or events.
+    Object.defineProperties(node, {
+      firstChild: {get() { return this.childNodes[0] ?? null; }},
+      textContent: {
+        configurable: true,
+        get() { return this.childNodes.map(child => child.nodeType === 3 ? child.data : child.nodeType === 1 ? child.textContent : '').join(''); },
+        set(value) {
+          const text = value === null ? '' : String(value);
+          this.childNodes = text ? [{nodeType: 3, data: text}] : [];
+        },
+      },
+    });
+    node.getAttribute = name => node.attributes[name] ?? null;
     node.setAttribute = (name, value) => { node.attributes[name] = value; };
     node.remove = () => {
       const index = track.children.indexOf(node);

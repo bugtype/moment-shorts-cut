@@ -5,6 +5,19 @@ import {replaceCaptionText, inspectCaptionTextReplacement} from './core/caption-
 export function createCaptionSearch({query:$, getProject, focusCaption, edit, execute, toast, blocked, replaceRange}) {
     const fields = {find:'', replacement:''};
     let project = null, query = '', selected = null, anchor = null;
+    const displayedText = text => text.replace(/\r\n?/g, '\n');
+    function matchesDisplayedText(value, text) {
+        return value===text || value===displayedText(text);
+    }
+    function selectText(index, text, start, end) {
+        const input=$(`[data-caption-text="${index}"]`);
+        if (!input) return;
+        const first=displayedText(text.slice(0,start)).length;
+        const last=start===end ? first : displayedText(text.slice(0,end)).length;
+        // A nonempty match of either CRLF half selects the displayed LF; a caret stays collapsed.
+        const insidePair=start!==end && text[start-1]==='\r' && text[start]==='\n';
+        input.setSelectionRange(first-(insidePair ? 1 : 0),last);
+    }
     function sync() {
         if (project!==getProject() || query!==fields.find) {
             project=getProject(); query=fields.find; selected=null; anchor=null;
@@ -79,13 +92,13 @@ export function createCaptionSearch({query:$, getProject, focusCaption, edit, ex
         if (!selected) return;
         const match=selected;
         focusCaption(match.index);
-        $(`[data-caption-text="${match.index}"]`)?.setSelectionRange(match.start,match.start+query.length);
+        selectText(match.index,match.text,match.start,match.start+query.length);
     }
     function replaceMatch() {
         if (blocked()) return;
         const match=selected, current=getProject();
         if (!match || project!==current || query!==fields.find || current.captions[match.index]!==match.caption || match.caption.text!==match.text ||
-            $(`[data-caption-text="${match.index}"]`)?.value!==match.text) {
+            !matchesDisplayedText($(`[data-caption-text="${match.index}"]`)?.value,match.text)) {
             toast(message('panels.searchStale')); return;
         }
         if (fields.find===fields.replacement) return;
@@ -101,7 +114,7 @@ export function createCaptionSearch({query:$, getProject, focusCaption, edit, ex
         project=getProject(); query=fields.find; selected=null;
         anchor={index:match.index,caption:project.captions[match.index],text:value,start:match.start+replacement.length};
         update(); focusCaption(match.index);
-        $(`[data-caption-text="${match.index}"]`)?.setSelectionRange(match.start,anchor.start);
+        selectText(match.index,value,match.start,anchor.start);
     }
     function replaceAll() {
         if (blocked()) return;

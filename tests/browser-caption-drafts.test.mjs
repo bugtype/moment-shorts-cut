@@ -58,6 +58,62 @@ async function fixture(locale = 'ko', caption = {start:0,end:1,text:'Original'})
 const snapshot = f => f.evaluate('({state,history,future,current,selected})');
 const effect = {patch:{brightness:1.1}};
 
+test('current-match correction uses textarea offsets while retaining authored line endings', async () => {
+  try {
+    for (const text of ['앞\r\n찾기 찾기', '앞\r찾기', '\n찾기', '😀& </textarea>\r\n찾기']) {
+      const caption = {start:0,end:2,text,basis:'timeline',timing:'estimated',speaker:'1',keywords:'keep'};
+      const f = await fixture('ko', caption), row = () => f.query('[data-caption-text="0"]');
+      assert.equal((await f.context.window.moment.execute('project.get')).ok, true);
+      assert.equal(f.evaluate('captionWorkspace.hasPendingEdits()'), false);
+      f.query('#captionFind').value = '찾기'; f.query('#captionFind').oninput();
+      f.query('#captionReplacement').value = '고침'; f.query('#captionReplacement').oninput();
+      f.query('#nextCaptionMatch').onclick();
+      const displayed = row().value, start = displayed.indexOf('찾기');
+      assert.deepEqual([row().selectionStart,row().selectionEnd], [start,start+2]);
+      const before = snapshot(f);
+      row().value += ' draft'; f.query('#replaceCaptionMatch').onclick();
+      assert.deepEqual(snapshot(f), before);
+      assert.equal(f.element('#toast').textContent, t('panels.searchStale'));
+      row().value = displayed; f.query('#replaceCaptionMatch').onclick();
+      const expected = {...caption, text:text.replace('찾기','고침')};
+      assert.deepEqual(f.evaluate('state.captions'), [expected]);
+      assert.equal(f.evaluate('history.length'), 1);
+      assert.deepEqual([row().selectionStart,row().selectionEnd], [start,start+2]);
+      if (text.endsWith('찾기 찾기')) {
+        f.query('#nextCaptionMatch').onclick();
+        const next = row().value.indexOf('찾기');
+        assert.deepEqual([row().selectionStart,row().selectionEnd], [next,next+2]);
+      }
+      vm.runInContext('undo()', f.context); assert.deepEqual(f.evaluate('state.captions'), [caption]);
+      vm.runInContext('undo(true)', f.context); assert.deepEqual(f.evaluate('state.captions'), [expected]);
+    }
+  } finally { initLocale(); }
+});
+
+test('literal LF matches and CRLF joins map visible ranges without changing raw replacements', async () => {
+  for (const [text,find,replacement,expected,selected,inserted] of [
+    ['A\r\nB','\n','X','A\rXB',[1,2],[2,3]],
+    ['A\rX\nB','X','','A\r\nB',[2,3],[2,2]],
+    ['A\rX B','X','\n','A\r\n B',[2,3],[1,2]],
+    ['\r\n\r\nA','\n','X','\rX\r\nA',[0,1],[1,2]],
+  ]) {
+    const f = await fixture('ko', {start:0,end:2,text});
+    const row = () => f.query('[data-caption-text="0"]');
+    f.query('#captionFind').value = find; f.query('#captionFind').oninput();
+    f.query('#captionReplacement').value = replacement; f.query('#captionReplacement').oninput();
+    f.query('#nextCaptionMatch').onclick();
+    assert.deepEqual([row().selectionStart,row().selectionEnd], selected);
+    f.query('#replaceCaptionMatch').onclick();
+    assert.equal(f.evaluate('state.captions[0].text'), expected);
+    assert.equal(f.evaluate('history.length'), 1);
+    assert.deepEqual([row().selectionStart,row().selectionEnd], inserted);
+    if (text === '\r\n\r\nA') {
+      f.query('#nextCaptionMatch').onclick();
+      assert.deepEqual([row().selectionStart,row().selectionEnd], [2,3]);
+    }
+  }
+});
+
 test('overlong caption drafts preserve valid state and retry through the current row', async () => {
   try {
     for (const locale of ['ko', 'en', 'zh-CN']) {

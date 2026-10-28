@@ -32,6 +32,17 @@ test('replace one UTF16 literal match, skip inserted query on Next, preserve met
     vm.runInContext('undo(true)',f.context);assert.equal(f.evaluate('state.captions[0].text'),'😀 Mina $&$1 met Mina');
 });
 
+test('current-match row check accepts raw test ports and normalized textarea values with one read',async()=>{
+    for(const displayed of ['A\r\nword','A\nword']) for(const find of ['word','\r','\r\n']){
+        const f=await fixture(['A\r\nword']);f.find(find,'edit');f.next();
+        assert.deepEqual([f.doc.activeElement.selectionStart,f.doc.activeElement.selectionEnd],find==='word'?[2,6]:[1,2]);
+        const row=f.row(0);let reads=0,value=displayed;
+        Object.defineProperty(row,'value',{configurable:true,get:()=>{reads++;return value;},set:next=>{value=next;}});
+        f.replace();assert.equal(f.evaluate('state.captions[0].text'),'A\r\nword'.replace(find,'edit'));
+        assert.equal(reads,1);assert.equal(f.evaluate('history.length'),1);
+    }
+});
+
 test('nonoverlap search, crosspage focus and replacement anchor survive rerenders',async()=>{
     const f=await fixture(Array.from({length:101},(_,i)=>i===50?'aaaa':i===100?'aa':'none'));
     f.find('aa','aa!');f.next();assert.match(f.element('#panelContent').innerHTML,/data-caption-text="50"/);f.row(50);f.replace();

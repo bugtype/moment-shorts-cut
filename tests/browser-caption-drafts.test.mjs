@@ -111,6 +111,53 @@ test('overlong caption drafts preserve valid state and retry through the current
   } finally { initLocale(); }
 });
 
+test('caption row clocks respect field limits on a longer repeated timeline, independently of speed', async () => {
+  try {
+    for (const speed of [1, 2]) {
+      const f = await fixture('en', {start:0,end:60,text:'반복 편집',basis:'timeline'});
+      f.context.testSpeed = speed;
+      vm.runInContext("state.duration=180;state.clips=[{start:0,end:180}];state.speed=testSpeed;", f.context);
+      const clips = Array.from({length:481}, () => ({start:0,end:180}));
+      assert.equal((await f.context.window.moment.execute('timeline.replace', {clips})).ok, true);
+      assert.equal(f.evaluate('duration()'), 86580);
+      const timers = [];
+      f.context.setTimeout = (_callback, delay) => timers.push(delay);
+      const end = () => f.query('[data-caption-end="0"]');
+      end().value = '86400'; end().onchange();
+      assert.equal(f.evaluate('state.captions[0].end'), 86400);
+      assert.equal((await f.context.window.moment.execute('project.get')).ok, true);
+      const boundaryExport = await f.context.window.moment.execute('captions.export', {format:'srt'});
+      assert.equal(boundaryExport.ok, true);
+      assert.ok(boundaryExport.data.text.includes(speed === 1 ? '24:00:00,000' : '12:00:00,000'));
+      assert.equal((await f.context.window.moment.execute('effects.update', effect)).ok, true);
+      vm.runInContext('undo()', f.context);
+      const before = snapshot(f), saves = timers.filter(delay => delay === 500).length;
+      const saveTimer = vm.runInContext('persistence.saveTimer', f.context);
+      assert.equal(before.future.length, 1);
+      for (const side of ['end', 'start']) {
+        const input = f.query(`[data-caption-${side}="0"]`);
+        assert.equal(typeof input.onchange, 'function');
+        input.value = '86400.001'; input.onchange();
+        assert.deepEqual(snapshot(f), before);
+        assert.equal(timers.filter(delay => delay === 500).length, saves);
+        assert.equal(vm.runInContext('persistence.saveTimer', f.context), saveTimer);
+        assert.equal(f.element('#toast').textContent, t('panels.captionTimingInvalid'));
+        assert.notEqual(f.query(`[data-caption-${side}="0"]`), input);
+      }
+      end().value = '86399'; end().onchange();
+      assert.equal(f.evaluate('state.captions[0].end'), 86399);
+      assert.equal(f.evaluate('history.length'), before.history.length + 1);
+      assert.equal(f.evaluate('future.length'), 0);
+      assert.equal(timers.filter(delay => delay === 500).length, saves + 1);
+      assert.equal((await f.context.window.moment.execute('project.get')).ok, true);
+      vm.runInContext("state.captions[0].basis='source';state.captions[0].end=60;renderPanel();", f.context);
+      const sourceBefore = snapshot(f);
+      end().value = '181'; end().onchange();
+      assert.deepEqual(snapshot(f), sourceBefore);
+    }
+  } finally { initLocale(); }
+});
+
 for (const locale of ['ko','en','zh-CN']) {
   test(`browser execute protects pending caption fields and composition (${locale})`, async () => {
     try {

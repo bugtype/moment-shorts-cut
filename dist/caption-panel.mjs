@@ -249,7 +249,7 @@ export function createCaptionPanel({
             $$(`[data-caption-${side}]`).forEach(el => el.onchange = () => {
                 const i = +el.dataset[side === 'start' ? 'captionStart' : 'captionEnd'];
                 const c = getProject().captions[i], value = +el.value;
-                if (!el.value.trim() || !Number.isFinite(value) || value < 0 ||
+                if (!el.value.trim() || !Number.isFinite(value) || value < 0 || value > 86400 ||
                     value > (c.basis === 'timeline' ? getDuration() : getProject().duration) ||
                     (side === 'start' ? value >= c.end : value <= c.start)) {
                     toast(message('panels.captionTimingInvalid'));

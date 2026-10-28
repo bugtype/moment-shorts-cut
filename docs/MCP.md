@@ -39,7 +39,7 @@ node examples/use-mcp-client.mjs
 This example launches real subprocesses, discovers tools, imports and edits a demo
 document, checks an invalid edit leaves it unchanged, extracts SRT/JSON and a render
 plan, then reimports the document in a fresh session. It uses no user files and
-writes no project files. Its JSON summary is a protocol smoke test, not a video.
+writes no project files. It also runs the isolated [correction-to-export recipe](#review-correct-and-export-captions) below. Its JSON summary is a protocol smoke test, not a video.
 
 ### Optional official Python SDK smoke test
 
@@ -539,7 +539,7 @@ the example. Discover exact input fields in the [tool catalog](#tool-catalog).
 
 | Task | Recipes |
 |---|---|
-| Captions | [Check overlaps](#check-caption-time-overlaps) · [Inspect timing density](#inspect-caption-timing-density) · [Import](#import-subtitle-text-with-an-explicit-clock) · [Split long cues](#split-long-captions-in-an-authored-range) · [Split at caret](#split-one-caption-at-a-text-boundary) · [Merge](#merge-two-adjacent-authored-captions) · [Insert/remove](#insert-one-caption-or-remove-a-range) · [Edit one cue](#edit-one-authored-caption) · [Correct text](#correct-caption-text-without-replacing-cues) · [Shift timing](#shift-caption-timing-without-replacing-text) · [Assign speakers](#assign-a-speaker-to-an-authored-range) · [Style](#adjust-global-caption-appearance) |
+| Captions | [Review → correct → export](#review-correct-and-export-captions) · [Unified review](#unified-advisory-caption-review) · [Check overlaps](#check-caption-time-overlaps) · [Inspect timing density](#inspect-caption-timing-density) · [Import](#import-subtitle-text-with-an-explicit-clock) · [Split long cues](#split-long-captions-in-an-authored-range) · [Split at caret](#split-one-caption-at-a-text-boundary) · [Merge](#merge-two-adjacent-authored-captions) · [Insert/remove](#insert-one-caption-or-remove-a-range) · [Edit one cue](#edit-one-authored-caption) · [Correct text](#correct-caption-text-without-replacing-cues) · [Shift timing](#shift-caption-timing-without-replacing-text) · [Assign speakers](#assign-a-speaker-to-an-authored-range) · [Style](#adjust-global-caption-appearance) |
 | Timeline | [Read project structure](#read-project-structure-without-full-content) · [Read clip clocks](#read-timeline-positions-in-pages) · [Split a clip](#split-one-clip-occurrence) · [Repeat a clip or range](#repeat-one-clip-occurrence) · [Move a clip](#move-one-clip-to-a-final-position) |
 | Composition | [Credit](#set-a-source-credit-independently) · [Effects](#adjust-video-effects-independently) · [Edit a card](#edit-an-existing-timed-card) · [Add/remove cards](#create-scripted-cards-without-importing-a-whole-project) · [Stacking](#change-card-stacking) |
 | Grouped/template edits | [Preview summary](#preview-an-edit-summary-without-committing) · [One commit](#apply-related-edits-in-one-commit) · [Inspect a built-in](#inspect-a-built-in-template-before-applying) · [Export a composition](#export-the-current-composition-as-a-template) · [Apply a template file](#apply-an-exported-custom-template) |
@@ -1153,6 +1153,30 @@ Keys remain canonical, indexes are zero-based and times are after-speed output
 seconds. No authored caption text or project name is included in the contents.
 Use it with unchanged project settings; an empty filtered list is not an all-checks
 pass, and the file is not a project backup or portable set of edit targets.
+
+### Review, correct and export captions
+
+The dependency-free [Node MCP example](../examples/use-mcp-client.mjs) runs this
+whole workflow in its own synthetic session via the actual stdio server. Run
+`node examples/use-mcp-client.mjs`; it does not access user files, media or a model.
+The fixture is a 30-second demo with four Korean cues, not a speech reference.
+
+| Step | Existing tool / required check |
+|---|---|
+| Import and inspect | `moment_project_import`, then `moment_captions_inspect` with explicit `review`: reading speed 8 non-whitespace graphemes/s, minimum 1s, maximum 5s, overlaps, all findings. The fixture has 5 findings; read counts and omitted totals, not only displayed issues. |
+| Correct wording | `moment_captions_text_replace`: `구독 해요.` → `구독해요.` in two rows; timing/metadata stay intact. |
+| Split the long row | `moment_captions_split_long` on current index 1, count 1, limit 12. This adds one row and marks both split times estimated—not speech-aligned. |
+| Re-read indexes | `moment_captions_list` returns five current authored rows. The old third/fourth rows are now indexes 3/4; never reuse a finding's old index after structural edits. |
+| Repair timing | `moment_captions_timing_shift` moves the current source row by +0.2s; `moment_captions_update` extends the current timeline row to 16s. The example also verifies an out-of-range shift fails without mutation. |
+| Inspect again | Call `moment_captions_inspect` with the same explicit criteria against the latest project; all counts become 0 in this fixture. This is not speech alignment, native text fit or compliance verification. |
+| Export and preserve | `moment_captions_export` returns the exact five-cue SRT. Separately retrieve `moment_project_get` and save its full `structuredContent.data` document through the client's authorized file workflow. |
+
+Numbers above are test choices, not Korean delivery recommendations. Source and
+stored timeline times are before speed; findings/export times are after speed.
+These are separate edits, not one atomic batch or a reserved preview. Re-read
+again if another writer changes state. SRT omits speaker/keyword/estimated metadata;
+keep the project JSON and original media separately. Neither SRT nor project JSON
+contains those media files, and this example does not render video or recognize speech.
 
 ### Split long captions in an authored range
 

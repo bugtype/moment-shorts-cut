@@ -17,6 +17,7 @@ Use the essential boundaries in [SKILL.md](../SKILL.md). If needed, consult shar
 | Insert one cue or remove a range | [Open](#insert-one-cue-or-remove-a-range) |
 | Edit one authored caption | [Open](#edit-one-authored-caption) |
 | Correct repeated caption text | [Open](#correct-repeated-caption-text) |
+| Review, correct and export without losing metadata | [Verified MCP recipe](../../../../docs/MCP.md#review-correct-and-export-captions) |
 | Check overlapping caption times | [Open](#check-overlapping-caption-times) |
 | Inspect caption timing density | [Open](#inspect-caption-timing-density) |
 | Split one caption at the caret boundary | [Open](#split-one-caption-at-the-caret-boundary) |
@@ -295,7 +296,10 @@ are separate occurrences; overlap findings represent affected occurrences, not a
 Changed criteria require a new inspection. A filter change recomputes the matching
 report when the previous inspection is current; it does not filter only the first
 20 rows. **Captions** focuses the authored row without seeking; **View range** pauses
-and seeks the occurrence before focusing its row. Reopen after project/media changes.
+and seeks the occurrence before focusing its row. If project/media changes while
+this dialog stays open, **Inspect** builds a fresh report with the entered criteria;
+old result actions remain invalid. Navigating to a row closes the dialog. Reopening
+starts with blank numeric criteria, overlaps enabled and the all-findings filter.
 Inspection/navigation does not edit, save project settings or add undo history.
 Thresholds are not retained in editor settings, no automatic fixes are applied,
 and the separate **Caption timing overlaps** entry remains available.

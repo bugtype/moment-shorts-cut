@@ -232,4 +232,64 @@ await withClient(async ({data}) => {
   await data('moment_project_import', {document: saved});
   assert.deepEqual(await data('moment_project_get'), saved);
 });
+
+// One isolated correction workflow, not Korean speech recognition or media validation.
+await withClient(async ({call, data}) => {
+  const project = createDemoProject();
+  project.duration = 30; project.clips = [{start: 0, end: 30}];
+  project.captions = [
+    {start: 1, end: 3, text: '구독 해요.', speaker: '0', keywords: '구독'},
+    {start: 4, end: 10, text: '오늘은 자막을 고쳐요. 다음은 시간을 맞춰요.', speaker: '0', keywords: '자막'},
+    {start: 9.8, end: 12, text: '구독 해요.', speaker: '0', keywords: '구독'},
+    {start: 15, end: 15.4, text: '감사합니다.', basis: 'timeline', speaker: '1', keywords: '감사'},
+  ];
+  await data('moment_project_import', {document: createProjectDocument(project)});
+  // Caller-chosen fixture checks, not a Korean delivery standard.
+  const criteria = {review: {maxGraphemesPerSecond: 8, minDuration: 1, maxDuration: 5,
+    includeOverlaps: true, filter: 'all'}, limit: 20};
+  const initial = await data('moment_captions_inspect', criteria);
+  assert.deepEqual(initial.counts, {readingSpeed: 1, tooShort: 1, tooLong: 1, overlap: 2});
+  assert.equal(initial.totalFindings, 5);
+  assert.equal(initial.omittedFindings, 0);
+  assert.equal((await data('moment_captions_text_replace', {find: '구독 해요.', replacement: '구독해요.'})).matches, 2);
+  const split = await data('moment_captions_split_long', {captionIndex: 1, count: 1, limit: 12});
+  assert.equal(split.addedCaptions, 1);
+
+  // Splitting changes positional indexes. Read the current rows, not old findings.
+  const page = await data('moment_captions_list', {offset: 0, limit: 50});
+  assert.equal(page.captions.length, 5);
+  const shiftedRow = page.captions[3], shortRow = page.captions[4];
+  assert.equal(shiftedRow.caption.text, '구독해요.');
+  assert.equal(shiftedRow.caption.start, 9.8);
+  assert.equal(shortRow.caption.basis, 'timeline');
+  const beforeShift = await data('moment_project_get');
+  const rejected = await call('moment_captions_timing_shift', {
+    basis: 'source', delta: 100, captionIndex: shiftedRow.captionIndex, count: 1,
+  });
+  assert.equal(rejected.isError, true);
+  assert.equal(rejected.structuredContent.error.code, 'INVALID_ARGUMENT');
+  assert.deepEqual(await data('moment_project_get'), beforeShift);
+  await data('moment_captions_timing_shift', {basis: 'source', delta: .2, captionIndex: shiftedRow.captionIndex, count: 1});
+  await data('moment_captions_update', {captionIndex: shortRow.captionIndex, patch: {end: 16}});
+  const review = await data('moment_captions_inspect', criteria);
+  assert.equal(review.totalOccurrences, 5);
+  assert.equal(review.totalFindings, 0);
+  assert.deepEqual(review.counts, {readingSpeed: 0, tooShort: 0, tooLong: 0, overlap: 0});
+  const expected = [
+    {...project.captions[0], text: '구독해요.'},
+    {...project.captions[1], end: 7, text: '오늘은 자막을 고쳐요.', timing: 'estimated'},
+    {...project.captions[1], start: 7, text: '다음은 시간을 맞춰요.', timing: 'estimated'},
+    {...project.captions[2], start: 10, end: 12.2, text: '구독해요.'},
+    {...project.captions[3], end: 16},
+  ];
+  const srt = await data('moment_captions_export', {format: 'srt'});
+  assert.equal(srt.text, '1\n00:00:01,000 --> 00:00:03,000\n구독해요.\n\n' +
+    '2\n00:00:04,000 --> 00:00:07,000\n오늘은 자막을 고쳐요.\n\n' +
+    '3\n00:00:07,000 --> 00:00:10,000\n다음은 시간을 맞춰요.\n\n' +
+    '4\n00:00:10,000 --> 00:00:12,200\n구독해요.\n\n' +
+    '5\n00:00:15,000 --> 00:00:16,000\n감사합니다.\n');
+  // Save this full document separately through an authorized client file workflow.
+  // SRT omits metadata/estimated flags; neither artifact contains source media.
+  assert.deepEqual(await data('moment_project_get'), createProjectDocument({...project, captions: expected}));
+});
 console.log(JSON.stringify({ok: true, tools: 41, recoveredFromInvalidInput: true, reimported: true, rendered: false}));

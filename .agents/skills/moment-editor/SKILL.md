@@ -15,6 +15,7 @@ description: Edit Moment Shorts Studio project JSON through its CLI or MCP tools
 | Edit effects/cards or work with templates | [Composition workflows](references/composition.md) | Shared commands; browser-library operations stay separate |
 | Edit clips or handle files, grouped edits and recovery | [Project/timeline workflows](references/project-editing.md) | Handoff, clocks, preview/batch, saving and recovery |
 | Connect or troubleshoot MCP | [MCP guide](../../../docs/MCP.md) | `node cli/mcp.mjs`, not HTTP |
+| Verify actual media/export behavior | [Export QA](../../../docs/EXPORT_QA.md), [browser QA](../../../docs/BROWSER_QA.md) | Authorized browser execution; calibration, plans and protocol examples are not rendered editor output |
 | Change repository code | [Engineering workflow](references/contributing.md#engineering-workflow), owner map and [repository conventions](../../../CONTRIBUTING.md) | `dist/` is maintained source, not build output |
 
 Inspect live schemas with `node cli/moment.mjs commands` or `tools/list`; for one CLI command, use `node cli/moment.mjs commands captions.update` with its exact canonical name. Omit the name for the full catalog. Discovery does not read a project or execute the command; do not invent fields or duplicate shared validation.

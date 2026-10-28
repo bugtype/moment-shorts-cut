@@ -448,7 +448,7 @@ See [Subtitle format boundaries](captions.md#subtitle-format-boundaries).
 |---|---|
 | `INVALID_ARGUMENT` | Inspect `error.path` and the live schema. Unknown fields and invalid ranges are rejected before commit. |
 | `NOT_FOUND` | Verify `session`, built-in template IDs, or the exact card ID in `project.overlays`. Do not silently switch targets or recreate a missing card. |
-| `CONFLICT` | For live-browser caption/name drafts, finish/commit or restore the pending input and end composition, then re-read and retry. Do not clear drafts through a replacement import. Other hosts define their own conflict policy. |
+| `CONFLICT` | For live-browser caption, project-name, Frame-trim or Title/card drafts, follow the field-specific [draft boundaries above](#live-browser-project-name-drafts): finish/commit (Apply range for Frame trim) or restore the pending input and end composition, then re-read and retry. Do not clear drafts through a replacement import. Other hosts define their own conflict policy. |
 | `BUSY` | Finish/cancel the browser job before retrying there. Standalone stdio is not that browser session. |
 | `UNSUPPORTED_VERSION` | Use a compatible editor. Do not falsify the document's version number. |
 

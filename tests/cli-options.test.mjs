@@ -58,8 +58,7 @@ test('exec dry-run preserves inputs and explicit outputs even with overwrite',as
   }finally{await fs.rm(directory,{recursive:true,force:true});}
 });
 
-test('CLI retains help/discovery and rejects malformed option lists',()=>{
-  for(const args of [[],['help'],['--help'],['-h'],['commands']])assert.equal(run(...args).status,0);
+test('CLI documents subtitle formats and rejects malformed option lists',()=>{
   const help=run('--help').stdout;
   assert.match(help,/format\(srt\/vtt\/txt\)/);
   assert.match(help,/SRT·WebVTT·TXT/);

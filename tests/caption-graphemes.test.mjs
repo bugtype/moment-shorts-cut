@@ -1,9 +1,5 @@
-import {LocalizedError} from '../dist/core/validation.mjs';
-import {message as msg} from '../dist/i18n.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import vm from 'node:vm';
-import {readFileSync} from 'node:fs';
 import {splitCaptionText} from '../dist/effects.mjs';
 import {createDemoProject,createProjectDocument,readProjectDocument} from '../dist/core/project.mjs';
 
@@ -41,13 +37,4 @@ test('split timing uses grapheme weights, retains whitespace boundaries and leav
  }
  const oversized={...createDemoProject(),captions:[{start:0,end:1,text:'a'+'\u0301'.repeat(2000)}]};
  assert.throws(()=>createProjectDocument(oversized),{code:'INVALID_ARGUMENT'},'a single grapheme cannot bypass the UTF-16 limit');
-});
-
-test('missing native segmentation rejects splitting without changing input or preventing module load',()=>{
- const source=readFileSync(new URL('../dist/caption-splitting.mjs',import.meta.url),'utf8').replace(/^import .*;$/gm,'').replaceAll('export ','');
- for(const Intl of [undefined,{}]){
-  const split=vm.runInNewContext(source+';splitCaptionText',{Intl,LocalizedError,msg});
-  const caption={start:0,end:1,text:'unchanged'},before=structuredClone(caption);
-  assert.throws(()=>split(caption),/문자 분할/);assert.deepEqual(caption,before);
- }
 });

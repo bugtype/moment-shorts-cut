@@ -41,14 +41,19 @@ test('CLI discovery retains strict option and extra-argument priority without fi
   try {
     const existing = path.join(directory, 'existing.json'), missing = path.join(directory, 'missing.json');
     await fs.writeFile(existing, 'authored settings');
-    for (const name of [undefined, 'captions.update', 'unknown.command', '']) {
-      for (const tail of [['--help'], ['--out', existing, '--overwrite'], ['--project', missing],
-        ['--args-file', '-'], ['--json', '{}'], ['--dry-run'], ['--'], ['-h'],
-        ['captions.export', 'project.get']]) {
-        const result = run('commands', ...(name === undefined ? [] : [name]), ...tail);
-        assert.equal(result.status, 1); assert.equal(result.stdout, '');
-        assert.equal(JSON.parse(result.stderr).error.code, 'CLI_USAGE');
-      }
+    // Parsing rejects these tails before command lookup; avoid crossing every
+    // rejected option with every name while retaining each parser/name boundary.
+    const tails = [['--help'], ['--out', existing, '--overwrite'], ['--project', missing],
+      ['--args-file', '-'], ['--json', '{}'], ['--dry-run'], ['--'], ['-h'],
+      ['captions.export', 'project.get']];
+    const cases = tails.map(tail => ['captions.update', ...tail]);
+    for (const name of [undefined, 'unknown.command', ''])
+      cases.push([...(name === undefined ? [] : [name]), '--out', existing, '--overwrite']);
+    cases.push(['captions.export', 'project.get'], ['--help']);
+    for (const args of cases) {
+      const result = run('commands', ...args);
+      assert.equal(result.status, 1); assert.equal(result.stdout, '');
+      assert.equal(JSON.parse(result.stderr).error.code, 'CLI_USAGE');
     }
     assert.equal(await fs.readFile(existing, 'utf8'), 'authored settings');
     assert.deepEqual(await fs.readdir(directory), ['existing.json']);

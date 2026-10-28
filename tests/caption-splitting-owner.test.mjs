@@ -73,6 +73,13 @@ test('missing segmenter stays unavailable after import, without a codepoint or l
       assert.strictEqual(module[name],owner[name]);
       assert.throws(()=>module[name]({text:'ab',start:0,end:2},1),error=>error.messageKey==='errors.safeSplit');
     }
+    // Retain default-argument refusal, localized feedback and input preservation
+    // through the actual module, rather than a source-stripped VM duplicate.
+    const {setLocale}=await import(new URL('./i18n.mjs',ownerUrl).href);
+    setLocale('ko',{persist:false});
+    const caption={start:0,end:1,text:'unchanged'},before=structuredClone(caption);
+    assert.throws(()=>owner.splitCaptionText(caption),/문자 분할/);
+    assert.deepEqual(caption,before);
   `);
 });
 

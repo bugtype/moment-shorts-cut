@@ -149,11 +149,15 @@ test('malformed UTF-8 inside JSON strings cannot be silently repaired and overwr
       for(const prefix of ['', '\ufeff']){
         const damagedBytes=insert(damagedText,bytes,prefix),argBytes=insert(argumentText,bytes,prefix);
         await fs.writeFile(damaged,damagedBytes);await fs.writeFile(args,argBytes);
-        for(const command of [
+        const commands = [
           ['exec','project.update','--project',damaged,'--json','{"patch":{"zoom":1.5}}','--out',damaged],
           ['exec','project.update','--project',project,'--args-file',args,'--out',project],
           ['exec','project.update','--project',project,'--args-file',args,'--out',missing],
-        ]){
+        ];
+        // Both file routes use the same byte parser. Cover every encoding/BOM
+        // through project input, and both argument-output routes with one encoding.
+        const routes = bytes[0] === 0xff ? commands : commands.slice(0,1);
+        for(const command of routes){
           const result=run(...command,'--overwrite');
           assert.equal(result.status,1);assert.equal(result.stdout,'');
           const error=JSON.parse(result.stderr).error;

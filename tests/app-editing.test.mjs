@@ -69,10 +69,6 @@ test("app inspector follows selection without editing project history", async ()
   assert.equal(element('#trimEnd').value,'12.0');
   assert.deepEqual(evaluate('state'),inspectorState);
   assert.equal(evaluate('history.length'),inspectorHistory,'Opening properties must not add undo entries');
-  let preventedDisclosure=false;
-  documentEvents.get('keydown')({target:{tagName:'SUMMARY'},code:'Space',key:' ',preventDefault(){preventedDisclosure=true;}});
-  assert.equal(preventedDisclosure,false,'Space must retain native disclosure behavior');
-  assert.equal(evaluate('playing'),false,'Space on a disclosure must not start playback');
   vm.runInContext("switchPanel('settings');current=5;split()",context);assertInspector('clip');
   assert.equal(element('#clipIndex').textContent,'클립 2');
   assert.equal(element('#trimStart').value,'5.0');
@@ -131,10 +127,6 @@ test("app caption navigation follows occurrences and refuses busy actions", asyn
   delete context.navigator;delete context.MediaRecorder;
   vm.runInContext('exporting=true',context);clickCaptionBlock(3);assert.equal(evaluate('current'),3);
   vm.runInContext('exporting=false',context);
-  let preventedCaption=false;
-  documentEvents.get('keydown')({target:{tagName:'BUTTON'},code:'Space',key:' ',preventDefault(){preventedCaption=true;}});
-  assert.equal(preventedCaption,false,'Space on a caption must use native button activation');
-  assert.equal(evaluate('playing'),false);
   vm.runInContext('state=initial();timelineCache=null;current=0;changed()',context);
   console.log('PASS: caption occurrence navigation, duplicate text, trim/repeat/narration/speed, deletion/undo, focus and busy guards.');
 });

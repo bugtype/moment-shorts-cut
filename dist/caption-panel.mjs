@@ -67,7 +67,8 @@ export function createCaptionPanel({
             toast(message('panels.shifted', {count:result.shiftedCaptions}));
         } catch (error) { toast(error.messageKey ? error : formatError(error)); }
     }
-    function splitLongCaptions() {
+    function splitLongCaptions(event) {
+        if (composing || event?.isComposing || event?.keyCode === 229) return;
         const limit = Number($('#captionChunkSize').value), captions = [];
         try {
             for (const caption of getProject().captions) {

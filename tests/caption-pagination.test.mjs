@@ -95,6 +95,34 @@ test('blocked add/delete/split neither focus nor announce success and full list 
  const full=fixture(10000);full.query('#addCaption').onclick();assert.equal(full.project().captions.length,10000);assert.equal(full.history.length,0);
 });
 
+test('whole-list split keeps composing drafts mounted and permits a committed retry',()=>{
+ for(const mode of ['owner','event','key229']){
+  const f=fixture(1), originalText='오늘은 자막을 고쳐요. 다음은 시간을 맞춰요.';
+  f.project().captions[0].text=originalText;f.render();
+  const input=f.query('[data-caption-text="0"]'), button=f.query('#splitLongCaptions');
+  input.value='오늘은 자막을 바꿔요. 다음은 시간을 맞춰요.';
+  f.query('#captionChunkSize').value='12';
+  if(mode==='owner')f.target.oncompositionstart();
+  const before=structuredClone(f.project()),html=f.target.innerHTML;
+  const event=mode==='event'?{isComposing:true}:mode==='key229'?{keyCode:229}:{};
+  button.onclick(event);button.onclick(event);
+  assert.deepEqual(f.project(),before);
+  assert.equal(f.history.length,0);assert.deepEqual(f.log,[]);
+  assert.equal(f.target.innerHTML,html);
+  assert.equal(f.query('[data-caption-text="0"]'),input,'Do not detach the composing input');
+  assert.equal(input.value,'오늘은 자막을 바꿔요. 다음은 시간을 맞춰요.');
+  if(mode==='owner')f.target.oncompositionend();
+  assert.deepEqual(f.project(),before);assert.equal(f.history.length,0,'Composition end must not run a deferred split');
+  input.onchange(); // Explicit completed edit, not an implicit commit by Split.
+  assert.equal(f.history.length,1);
+  button.onclick({isComposing:false,keyCode:13});
+  assert.equal(f.history.length,2);
+  assert.deepEqual(f.project().captions.map(c=>c.text),['오늘은 자막을 바꿔요.','다음은 시간을 맞춰요.']);
+  assert.ok(f.project().captions.every(c=>c.basis==='source'&&c.timing==='estimated'));
+  assert.notEqual(f.query('[data-caption-text="0"]'),input,'A successful explicit split still remounts');
+ }
+});
+
 test('markup hides pagination for <=50 cues and bounds a supplied page after array shrink',()=>{
  const css=fs.readFileSync(new URL('../dist/styles/workspace-state.css',import.meta.url),'utf8');
  assert.match(css,/\.caption-pages\[hidden\]\s*\{\s*display:\s*none/);

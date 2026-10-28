@@ -308,3 +308,36 @@ test('composition and detached add/delete controls cannot dispatch commands or s
   assert.deepEqual(f.commands, []);
   assert.deepEqual(f.log, []);
 });
+
+test('actual whole-list split refuses composition without history, save or focus changes', async () => {
+  for (const mode of ['owner', 'event', 'key229']) {
+    const f = await createAppFixture();
+    vm.runInContext("state.captions=[{start:0,end:6,text:'오늘은 자막을 고쳐요. 다음은 시간을 맞춰요.',speaker:'0',keywords:'자막'}];history=[];future=[JSON.stringify(state)];current=2;globalThis.splitSaves=0;scheduleSave=()=>splitSaves++;switchPanel('captions');", f.context);
+    const input = f.element('[data-caption-text="0"]'), button = f.element('#splitLongCaptions');
+    input.value = '작성 중인 한글'; input.focus();
+    f.element('#captionChunkSize').value = '12';
+    if (mode === 'owner') f.element('#panelContent').oncompositionstart();
+    const snapshot = () => f.evaluate('({state,history,future,current,saves:splitSaves})');
+    const before = snapshot(), html = f.element('#panelContent').innerHTML, focusCount = f.focusEvents.length;
+    const split = f.context.splitCaptionText; let splitCalls = 0;
+    f.context.splitCaptionText = (...args) => { splitCalls++; return split(...args); };
+    const event = mode === 'event' ? {isComposing:true} : mode === 'key229' ? {keyCode:229} : {};
+    button.onclick(event); button.onclick(event);
+    assert.deepEqual(snapshot(), before);
+    assert.equal(splitCalls, 0, 'Refuse before inspecting or splitting committed text');
+    assert.equal(f.element('#panelContent').innerHTML, html);
+    assert.equal(f.doc.activeElement, input); assert.equal(f.focusEvents.length, focusCount);
+    assert.equal(input.value, '작성 중인 한글');
+    if (mode === 'owner') f.element('#panelContent').oncompositionend();
+    assert.deepEqual(snapshot(), before); assert.equal(splitCalls, 0);
+    input.value = before.state.captions[0].text; // Restore the draft before the explicit retry.
+    button.onclick();
+    assert.equal(splitCalls, 1);
+    assert.deepEqual(f.evaluate('state.captions.map(c=>c.text)'), ['오늘은 자막을 고쳐요.', '다음은 시간을 맞춰요.']);
+    assert.equal(f.evaluate('history.length'), 1); assert.equal(f.evaluate('future.length'), 0);
+    assert.equal(f.evaluate('splitSaves'), 1); assert.equal(f.evaluate('current'), 2);
+    assert.equal(f.doc.activeElement, f.element('#splitLongCaptions'));
+    const after = snapshot(); button.onclick();
+    assert.deepEqual(snapshot(), after, 'The detached pre-render button remains inert');
+  }
+});

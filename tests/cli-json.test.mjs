@@ -92,6 +92,9 @@ test('JSON reads enforce actual bytes after growth and preserve outputs on size/
       for(const mode of ['boundary','oversize','read-error']){
         // Isolated child-process fixture: a writer changes input after stat.
         await fs.writeFile(loader,`import fs from 'node:fs/promises';
+import nativeFs from 'node:fs';
+import {syncBuiltinESMExports} from 'node:module';
+const stream=nativeFs.createReadStream;
 const target=${JSON.stringify(input)},mode=${JSON.stringify(mode)},stat=fs.stat,read=fs.readFile;
 fs.stat=async function(file,...args){
  const info=await stat.call(this,file,...args);
@@ -101,10 +104,12 @@ fs.stat=async function(file,...args){
  }
  return info;
 };
-fs.readFile=function(file,...args){
- if(file===target&&mode==='read-error')return Promise.reject(Object.assign(new Error('fixture read failed'),{code:'EACCES'}));
- return read.call(this,file,...args);
-};`);
+nativeFs.createReadStream=function(file,...args){
+ const source=stream.call(this,file,...args);
+ if(file===target&&mode==='read-error')source.once('open',()=>source.destroy(Object.assign(new Error('fixture read failed'),{code:'EACCES'})));
+ return source;
+};
+syncBuiltinESMExports();`);
         for(const destination of mode==='boundary'?[output]:[output,missing,input]){
           await fs.writeFile(input,initial);await fs.writeFile(output,'existing output');
           const result=spawnSync(process.execPath,['--import',pathToFileURL(loader).href,cli,...args,'--out',destination,'--overwrite'],{encoding:'utf8'});

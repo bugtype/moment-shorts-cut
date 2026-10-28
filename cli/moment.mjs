@@ -1,5 +1,7 @@
 #!/usr/bin/env node
 import fs from 'node:fs/promises';
+import { createReadStream } from 'node:fs';
+import { finished } from 'node:stream/promises';
 import path from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { isUtf8 } from 'node:buffer';
@@ -57,14 +59,25 @@ async function jsonFile(file) {
   const info = await fs.stat(file);
   if (info.size > MAX_JSON_FILE_BYTES)
     throw new CommandError('FILE_TOO_LARGE', 'JSON 입력은 10 MiB 이하만 지원합니다.');
-  return parseJsonBytes(await fs.readFile(file));
+  // The end offset is inclusive: request at most one byte beyond the limit.
+  const stream = createReadStream(file, { end: MAX_JSON_FILE_BYTES });
+  try {
+    const value = await jsonStream(stream);
+    await finished(stream, { cleanup: true });
+    return value;
+  } catch (error) {
+    // Finish releasing the file before reporting, without masking the primary error.
+    stream.destroy();
+    await finished(stream, { cleanup: true }).catch(() => {});
+    throw error;
+  }
 }
 
-async function jsonStdin() {
+async function jsonStream(stream) {
   const chunks = [];
   let size = 0;
   // Keep bytes intact across chunk boundaries; decode once after bounded EOF.
-  for await (const chunk of process.stdin) {
+  for await (const chunk of stream) {
     size += chunk.length;
     if (size > MAX_JSON_FILE_BYTES)
       throw new CommandError('FILE_TOO_LARGE', 'JSON 입력은 10 MiB 이하만 지원합니다.');
@@ -130,7 +143,7 @@ async function main() {
   if (opts['--project'])
     state = readProjectDocument(await jsonFile(opts['--project']));
   const args = opts['--args-file'] === '-'
-    ? await jsonStdin()
+    ? await jsonStream(process.stdin)
     : opts['--args-file'] ? await jsonFile(opts['--args-file']) : JSON.parse(opts['--json'] || '{}');
   const result = await service.execute(command, args);
   if (!result.ok) {

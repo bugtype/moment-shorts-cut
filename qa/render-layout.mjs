@@ -26,9 +26,10 @@ for(const [i,template] of TEMPLATES.entries()){
  const canvas=createCanvas(540,960),c=canvas.getContext('2d');
  const fraction=template.id==='recipe'?.4:.1,time=12*fraction;
  paint(c,540,960,p,{source:sample,sw:540,sh:960,ready:true,sourceTime:time,time,total:12,elapsed:time,remaining:12-time,progress:fraction});
- fs.writeFileSync(path.join(out,`${template.id}.png`),canvas.toBuffer('image/png'));
+ const png=canvas.toBuffer('image/png');
+ fs.writeFileSync(path.join(out,`${template.id}.png`),png);
  const x=25+(i%5)*295,y=120+Math.floor(i/5)*550;
- sc.fillStyle='#28332d';sc.font='600 18px "Noto Sans KR"';sc.fillText(template.name,x,y);const still=await loadImage(canvas.toBuffer('image/png'));sc.drawImage(still,x,y+16,265,471);
+ sc.fillStyle='#28332d';sc.font='600 18px "Noto Sans KR"';sc.fillText(template.name,x,y);const still=await loadImage(png);sc.drawImage(still,x,y+16,265,471);
  const j=['reference','explainer','interview','recipe'].indexOf(template.id);
  if(j>=0){const cx=20+j*265;cc.fillStyle='#28332d';cc.font='600 16px "Noto Sans KR"';cc.fillText(template.name,cx,40);cc.drawImage(still,cx,60,245,435);}
  // Midpoint and end-state samples catch timed-question/answer layout regressions.

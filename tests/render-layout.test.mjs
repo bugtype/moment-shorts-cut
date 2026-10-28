@@ -4,17 +4,28 @@ import {cp, mkdtemp, mkdir, readFile, readdir, rm, writeFile} from 'node:fs/prom
 import {tmpdir} from 'node:os';
 import path from 'node:path';
 import {spawnSync} from 'node:child_process';
+import {createHash} from 'node:crypto';
 import {TEMPLATES} from '../dist/template-catalog.mjs';
 
 // Explicit CLI adapter: records commands in JSON, never creates native PNG pixels.
 const adapter = `
 const fs = require('node:fs');
 const path = require('node:path');
+const {createHash} = require('node:crypto');
 const fonts = []; let serial = 0;
+const encodes = [], decodes = [], firstBuffers = new Map();
+const digest = buffer => createHash('sha256').update(buffer).digest('hex');
+const failure = process.env.MOMENT_LAYOUT_TEST_FAILURE;
+process.on('exit', () => fs.writeFileSync(__filename + '.json', JSON.stringify({encodes, decodes})));
 module.exports = {
   GlobalFonts: {registerFromPath(file, family) { fonts.push([path.basename(file), family]); }},
   async loadImage(input) {
-    if (Buffer.isBuffer(input)) return JSON.parse(input.toString());
+    if (Buffer.isBuffer(input)) {
+      const image = JSON.parse(input.toString());
+      decodes.push({id:image.id, digest:digest(input), reused:input === firstBuffers.get(image.id)});
+      if (failure === 'decode') throw Error('Injected first-frame decode failure');
+      return image;
+    }
     if (path.basename(input) !== 'sample.svg') throw Error('Unexpected input image');
     fs.readFileSync(input);
     return {id:'sample', width:540, height:960};
@@ -33,7 +44,11 @@ module.exports = {
     canvas.getContext = type => { if (type !== '2d') throw Error('Unexpected context'); return context; };
     canvas.toBuffer = type => {
       if (type !== 'image/png') throw Error('Unexpected encoding');
-      return Buffer.from(JSON.stringify({synthetic:true, id:canvas.id, width:canvas.width, height:canvas.height, events, fonts}));
+      encodes.push(canvas.id);
+      if (failure === 'encode') throw Error('Injected first-frame encode failure');
+      const buffer = Buffer.from(JSON.stringify({synthetic:true, id:canvas.id, width:canvas.width, height:canvas.height, events, fonts}));
+      if (!firstBuffers.has(canvas.id)) firstBuffers.set(canvas.id, buffer);
+      return buffer;
     };
     return canvas;
   },
@@ -59,13 +74,29 @@ test('layout QA CLI uses the shared compositor and keeps every current template 
     ].sort();
     const run = (...extra) => spawnSync(process.execPath, [script, implementation, ...extra], {
       cwd:tmpdir(), encoding:'utf8', timeout:15000, maxBuffer:1024 * 1024,
+      env:{...process.env, MOMENT_LAYOUT_TEST_FAILURE:''},
     });
     const read = async name => JSON.parse(await readFile(path.join(qa, name), 'utf8'));
+    const receipt = async () => JSON.parse(await readFile(implementation + '.json', 'utf8'));
+    const checkEncoding = async () => {
+      const {encodes, decodes} = await receipt();
+      assert.equal(encodes.length, expected.length, 'one encoding per saved output');
+      assert.equal(decodes.length, TEMPLATES.length);
+      for (const [index, template] of TEMPLATES.entries()) {
+        const bytes = await readFile(path.join(qa, template.id + '.png'));
+        const frame = JSON.parse(bytes.toString());
+        assert.deepEqual(decodes[index], {
+          id:frame.id, digest:createHash('sha256').update(bytes).digest('hex'), reused:true,
+        }, template.id + ' decodes the exact saved Buffer');
+        assert.equal(encodes.filter(id => id === frame.id).length, timed.includes(template.id) ? 3 : 1);
+      }
+    };
     const result = run(path.join(directory, 'fonts'));
     assert.equal(result.status, 0, result.stderr);
     assert.equal(result.stderr, '');
     assert.equal(result.stdout, 'Rendered all templates and timed headline states with the production compositor.\n');
     assert.deepEqual((await readdir(qa)).filter(name => name.endsWith('.png')).sort(), expected);
+    await checkEncoding();
     for (const name of expected.filter(name => !['all-templates.png', 'after-layout.png'].includes(name))) {
       const frame = await read(name);
       assert.equal(frame.synthetic, true);
@@ -95,6 +126,39 @@ test('layout QA CLI uses the shared compositor and keeps every current template 
     assert.equal(repeated.stderr, '');
     assert.deepEqual((await read('reference.png')).fonts, []);
     assert.deepEqual((await readdir(qa)).filter(name => name.endsWith('.png')).sort(), expected);
+    await checkEncoding();
+    // Faults are injected into the real copied CLI; no native codec is involved.
+    const firstOutput = path.join(qa, TEMPLATES[0].id + '.png');
+    for (const failure of ['encode', 'write', 'decode']) {
+      for (const name of expected) await rm(path.join(qa, name), {force:true});
+      let writeFailureCode;
+      if (failure === 'write') {
+        await mkdir(firstOutput);
+        await assert.rejects(writeFile(firstOutput, 'probe'), error => {
+          writeFailureCode = error.code;
+          return typeof writeFailureCode === 'string';
+        });
+      }
+      const failed = spawnSync(process.execPath, [script, implementation], {
+        cwd:tmpdir(), encoding:'utf8', timeout:15000, maxBuffer:1024 * 1024,
+        env:{...process.env, MOMENT_LAYOUT_TEST_FAILURE:failure},
+      });
+      assert.equal(failed.status, 1, failed.stderr);
+      assert.equal(failed.stdout, '');
+      assert.match(failed.stderr, new RegExp(failure === 'write' ? writeFailureCode : 'Injected first-frame ' + failure + ' failure'));
+      const failedReceipt = await receipt();
+      assert.equal(failedReceipt.encodes.length, 1);
+      assert.equal(failedReceipt.decodes.length, failure === 'decode' ? 1 : 0);
+      if (failure === 'write') await rm(firstOutput, {recursive:true});
+      assert.deepEqual((await readdir(qa)).filter(name => name.endsWith('.png')), failure === 'decode' ? [TEMPLATES[0].id + '.png'] : []);
+      if (failure === 'decode') {
+        const bytes = await readFile(firstOutput);
+        assert.deepEqual(failedReceipt.decodes[0], {
+          id:JSON.parse(bytes.toString()).id,
+          digest:createHash('sha256').update(bytes).digest('hex'), reused:true,
+        });
+      }
+    }
   } finally {
     await rm(directory, {recursive:true, force:true});
   }

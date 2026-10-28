@@ -275,7 +275,7 @@ export function createPlayback(app, {
         else
             app.current = Math.min(app.duration(), app.current + (now - app.lastTick) / 1000 * state.speed);
         app.lastTick = now;
-        if (state.kind === 'video' && app.video.seeking)
+        if (state.kind === 'video' && (app.video.seeking || app.video.readyState < 3))
             pauseAudio();
         else
             syncAudio();

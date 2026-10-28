@@ -1,8 +1,7 @@
 import { LocalizedError } from './core/validation.mjs';
 import { message as msg } from './i18n.mjs';
 const captionSegmenter=typeof globalThis.Intl?.Segmenter==='function'?new Intl.Segmenter(undefined,{granularity:'grapheme'}):null;
-function trimGraphemes(parts) {
-  let start=0,end=parts.length;
+function trimGraphemes(parts, start = 0, end = parts.length) {
   while(start<end&&/^\s+$/u.test(parts[start]))start++;
   while(end>start&&/^\s+$/u.test(parts[end-1]))end--;
   return parts.slice(start,end);
@@ -31,9 +30,9 @@ export function splitCaptionText(caption, limit = 18) {
   while (rest.length > limit) {
     let cut = rest.lastIndexOf(' ', limit);
     if (cut < limit * .45) cut = limit;
-    const part=trimGraphemes(rest.slice(0,cut));
+    const part=trimGraphemes(rest,0,cut);
     if(part.length)pieces.push(part);
-    rest=trimGraphemes(rest.slice(cut));
+    rest=trimGraphemes(rest,cut);
   }
   if (rest.length) pieces.push(rest);
   const weight = pieces.reduce((n, part) => n + part.length, 0);

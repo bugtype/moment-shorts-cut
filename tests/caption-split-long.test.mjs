@@ -146,3 +146,95 @@ test('CLI dry-run/save splits once and invalid range preserves existing output',
     await rm(dir, {recursive: true, force: true});
   }
 });
+
+test('long-cue trimming avoids duplicate slice copies without changing split timing', () => {
+  const moduleUrl = new URL('../dist/caption-splitting.mjs', import.meta.url).href;
+  const script = `
+    import assert from 'node:assert/strict';
+    const {splitCaptionText} = await import(${JSON.stringify(moduleUrl)});
+    const originalSlice = Array.prototype.slice;
+    let calls = 0, elements = 0;
+    Array.prototype.slice = function(...args) {
+      const owned = (new Error().stack.split('\\n')[2] || '').includes('/dist/caption-splitting.mjs:');
+      const result = originalSlice.apply(this, args);
+      if (owned) { calls++; elements += result.length; }
+      return result;
+    };
+    const caption = {start:1,end:7,text:'가'.repeat(1988),speaker:'0',timing:'authored'};
+    for (const limit of [12,18,24]) {
+      calls = 0; elements = 0;
+      const parts = splitCaptionText(caption, limit), count = Math.ceil(caption.text.length / limit);
+      assert.equal(parts.length, count);
+      assert.equal(parts.map(part => part.text).join(''), caption.text);
+      assert.equal(parts[0].start, caption.start);
+      assert.equal(parts.at(-1).end, caption.end);
+      assert.ok(parts.every((part,index) => part.end > part.start && part.speaker === '0' &&
+        part.timing === 'estimated' && (!index || part.start === parts[index-1].end)));
+      // One initial trim, then one piece and one remaining-suffix copy per split.
+      const copiedBound = caption.text.length + (count-1)*limit +
+        (count-1)*caption.text.length - limit*(count-1)*count/2;
+      assert.ok(elements > caption.text.length && elements <= copiedBound, 'Trimmed ranges must not be copied twice');
+      assert.ok(calls > 0 && calls <= 1 + 2*(count-1));
+    }
+    const short = {...caption,text:'  짧은 자막  '};
+    assert.equal(splitCaptionText(short)[0], short);
+    assert.equal(caption.timing, 'authored');
+  `;
+  const result = spawnSync(process.execPath, ['--input-type=module', '--eval', script], {
+    encoding: 'utf8', timeout: 10000, maxBuffer: 1024 * 1024,
+  });
+  assert.equal(result.signal, null, result.error?.message);
+  assert.equal(result.status, 0, result.stderr);
+  assert.equal(result.stdout, '');
+  assert.equal(result.stderr, '');
+});
+
+test('trim ranges preserve custom segmentation order, whitespace and iterator failures', () => {
+  const moduleUrl = new URL('../dist/caption-splitting.mjs', import.meta.url).href;
+  const script = `
+    import assert from 'node:assert/strict';
+    const trace = [], segments = [' ', '\\t', '가', '👩🏽‍💻', ' ', 'e\\u0301', '나', '\\n', ' ', '다', '라', ' '];
+    const segmentationError = new Error('second segmentation'), itemError = new Error('item access');
+    let calls = 0;
+    Intl.Segmenter = class {
+      constructor(language, options) { trace.push(['construct', language, options]); }
+      segment(text) {
+        const call = ++calls; trace.push(['segment', call, text]);
+        if (call === 2) throw segmentationError;
+        return (function* () {
+          try {
+            for (const [index, value] of segments.entries()) yield {get segment() {
+              trace.push(['item', call, index]);
+              if (call === 3 && index === 2) throw itemError;
+              return value;
+            }};
+          } finally { trace.push(['close', call]); }
+        })();
+      }
+    };
+    const {splitCaptionText} = await import(${JSON.stringify(moduleUrl)});
+    assert.deepEqual(trace, [['construct', undefined, {granularity:'grapheme'}]]);
+    const caption = {start:1,end:7,text:segments.join(''),basis:'timeline',speaker:'1'};
+    const result = splitCaptionText(caption, {valueOf() { trace.push(['limit']); return 3; }});
+    assert.deepEqual(result, ['가👩🏽‍💻', 'e\\u0301나', '다라'].map((text,index) =>
+      ({...caption,text,start:1+index*2,end:3+index*2,timing:'estimated'})));
+    assert.deepEqual(trace.slice(1), [
+      ['limit'], ['segment',1,caption.text],
+      ...segments.map((_,index) => ['item',1,index]), ['close',1],
+    ]);
+    assert.throws(() => splitCaptionText(caption, 3), error => error === segmentationError);
+    assert.throws(() => splitCaptionText(caption, 3), error => error === itemError);
+    assert.deepEqual(trace.slice(-5), [
+      ['segment',3,caption.text], ['item',3,0], ['item',3,1], ['item',3,2], ['close',3],
+    ]);
+    assert.deepEqual(splitCaptionText(caption, 3), result);
+    assert.equal(calls, 4, 'No cross-call segmentation cache or implicit retry');
+  `;
+  const result = spawnSync(process.execPath, ['--input-type=module', '--eval', script], {
+    encoding: 'utf8', timeout: 10000, maxBuffer: 1024 * 1024,
+  });
+  assert.equal(result.signal, null, result.error?.message);
+  assert.equal(result.status, 0, result.stderr);
+  assert.equal(result.stdout, '');
+  assert.equal(result.stderr, '');
+});

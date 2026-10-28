@@ -20,8 +20,9 @@ test('delayed audio readiness does not erase a focused project-name draft or add
   resume(){return new Promise(resolve=>{resume=resolve;});}
  };
  f.context.localStorage.setItem=(...args)=>writes.push(args);
- vm.runInContext('history=[];future=[];globalThis.nameSaves=0;scheduleSave=()=>nameSaves++',f.context);
+ vm.runInContext("sources.audioFile={name:'voice.wav'};state.audioName='voice.wav';history=[];future=[];globalThis.nameSaves=0;scheduleSave=()=>nameSaves++",f.context);
  const pending=vm.runInContext('ensureAudio()',f.context);const input=draft(f),before=stateOf(f);
+ assert.equal(typeof resume,'function','required added audio must enter the delayed native resume');
  resume();await pending;
  assert.equal(input.value,'Uncommitted 日本語 🎬');assert.equal(input.selectionStart,2);assert.equal(input.selectionEnd,7);
  assert.equal(f.doc.activeElement,input);assert.deepEqual(stateOf(f),before);assert.equal(f.evaluate('nameSaves'),0);assert.deepEqual(writes,[]);

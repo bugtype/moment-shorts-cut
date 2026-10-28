@@ -63,7 +63,8 @@ export function createPlayback(app, {
     }
 
     async function ensureAudio() {
-        if (!audioGraphReady) {
+        // Cold silent demos need no graph; partial setup and exports still do.
+        if (!audioGraphReady && (audioCtx || app.state.kind !== 'demo' || app.sources.audioFile || app.exporting)) {
             // Retry only unfinished setup: a media element cannot acquire a second source node.
             audioCtx ||= createAudioContext();
             destination ||= audioCtx.createMediaStreamDestination();
@@ -84,7 +85,7 @@ export function createPlayback(app, {
             audioGraphReady = true;
         }
         applyVolumes(app.muted);
-        await audioCtx.resume();
+        await audioCtx?.resume();
         app.renderInspector();
     }
 

@@ -513,6 +513,63 @@ test('overlong caption drafts preserve valid state and retry through the current
   } finally { initLocale(); }
 });
 
+test('invalid caption times reset only their field without discarding another row draft', async () => {
+  try {
+    for (const [side, basis, locale] of [
+      ['start', 'source', 'ko'],
+      ['end', 'timeline', 'en'],
+    ]) {
+      const f = await fixture(locale, {start:1e-7,end:3,text:'\n원본\r\n문장',basis,
+        timing:'estimated',speaker:'1',keywords:'유지'});
+      f.context.otherCaption = {start:3,end:5,text:'다른 행',basis,speaker:'0',keywords:'원래'};
+      vm.runInContext('state.captions.push(otherCaption);renderPanel();', f.context);
+      assert.equal((await f.context.window.moment.execute('effects.update', effect)).ok, true);
+      vm.runInContext('undo();globalThis.refusalSaves=0;scheduleSave=()=>refusalSaves++;', f.context);
+      const before = snapshot(f), markup = f.panel.innerHTML;
+      assert.equal(before.future.length, 1);
+      assert.equal(f.evaluate('captionWorkspace.hasPendingEdits()'), false, 'normalized untouched text is clean');
+      const draftText = '한'.repeat(2001);
+      const draft = f.query('[data-caption-text="1"]'); draft.value = draftText;
+      draft.setSelectionRange(2, 4);
+      draft.onchange(); assert.equal(f.element('#toast').textContent, t('errors.cueLength'));
+      const input = f.query(`[data-caption-${side}="0"]`);
+      input.focus(); input.value = '-1'; input.onchange();
+      assert.deepEqual(snapshot(f), before); assert.equal(f.evaluate('refusalSaves'), 0);
+      assert.equal(f.element('#toast').textContent, t('panels.captionTimingInvalid'));
+      assert.equal(f.query('[data-caption-text="1"]').value, draftText, 'unrelated draft survives refusal');
+      assert.equal(f.panel.innerHTML, markup);
+      assert.equal(f.query(`[data-caption-${side}="0"]`), input);
+      assert.equal(input.value, decimalTime(before.state.captions[0][side]));
+      assert.equal(f.doc.activeElement, input);
+      assert.equal(f.query('[data-caption-text="1"]'), draft);
+      assert.equal(draft.value, draftText);
+      assert.deepEqual([draft.selectionStart, draft.selectionEnd], [2, 4]);
+      assert.equal(f.evaluate('captionWorkspace.hasPendingEdits()'), true);
+      draft.value = '아직 확정하지 않은 수정';
+      input.value = '-1'; input.onchange();
+      assert.deepEqual(snapshot(f), before); assert.equal(f.evaluate('refusalSaves'), 0);
+      assert.equal(draft.value, '아직 확정하지 않은 수정');
+      input.value = side === 'start' ? '.25' : '2.75'; input.onchange();
+      const accepted = f.evaluate('state'), expected = structuredClone(before.state);
+      expected.captions[0][side] = Number(input.value);
+      assert.deepEqual(accepted, expected);
+      assert.equal(f.evaluate('history.length'), before.history.length + 1);
+      assert.equal(f.evaluate('future.length'), 0); assert.equal(f.evaluate('refusalSaves'), 1);
+      assert.equal(f.query('[data-caption-text="1"]'), draft);
+      assert.equal(draft.value, '아직 확정하지 않은 수정');
+      assert.equal(f.evaluate('captionWorkspace.hasPendingEdits()'), true);
+      draft.value = before.state.captions[1].text;
+      assert.equal(f.evaluate('captionWorkspace.hasPendingEdits()'), false);
+      assert.equal((await f.context.window.moment.execute('project.get')).ok, true);
+      vm.runInContext('undo()', f.context); assert.deepEqual(f.evaluate('state'), before.state);
+      const afterUndo = snapshot(f), saves = f.evaluate('refusalSaves');
+      input.value = '-1'; input.onchange(); // A later real render still retires this callback.
+      assert.deepEqual(snapshot(f), afterUndo); assert.equal(f.evaluate('refusalSaves'), saves);
+      vm.runInContext('undo(true)', f.context); assert.deepEqual(f.evaluate('state'), accepted);
+    }
+  } finally { initLocale(); }
+});
+
 test('caption row clocks respect field limits on a longer repeated timeline, independently of speed', async () => {
   try {
     for (const speed of [1, 2]) {
@@ -544,7 +601,8 @@ test('caption row clocks respect field limits on a longer repeated timeline, ind
         assert.equal(timers.filter(delay => delay === 500).length, saves);
         assert.equal(vm.runInContext('persistence.saveTimer', f.context), saveTimer);
         assert.equal(f.element('#toast').textContent, t('panels.captionTimingInvalid'));
-        assert.notEqual(f.query(`[data-caption-${side}="0"]`), input);
+        assert.equal(f.query(`[data-caption-${side}="0"]`), input);
+        assert.equal(input.value, decimalTime(before.state.captions[0][side]));
       }
       end().value = '86399'; end().onchange();
       assert.equal(f.evaluate('state.captions[0].end'), 86399);

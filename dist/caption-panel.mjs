@@ -4,6 +4,7 @@ import { createCaptionSearch } from './caption-search.mjs';
 import { MAX_CAPTIONS } from './captions.mjs';
 import { splitCaptionText } from './caption-splitting.mjs';
 import { CAPTION_PAGE_SIZE, captionsPanelMarkup } from './panel-markup.mjs';
+import { decimalTime } from './ui-format.mjs';
 
 export function createCaptionPanel({
     query: $, queryAll: $$, getProject, getDuration, sourceTime, edit, refresh, toast, execute, inspect, view, overlaps, removeRange, shiftRange, splitRange, speakerRange, replaceRange, exportRange, importFile, blocked = () => false,
@@ -280,7 +281,7 @@ export function createCaptionPanel({
                     value > (c.basis === 'timeline' ? getDuration() : getProject().duration) ||
                     (side === 'start' ? value >= c.end : value <= c.start)) {
                     toast(message('panels.captionTimingInvalid'));
-                    refresh();
+                    el.value = decimalTime(c[side]);
                     return;
                 }
                 edit(() => c[side] = value);

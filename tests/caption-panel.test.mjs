@@ -70,9 +70,22 @@ test('caption row handlers read the current project and preserve field metadata'
   const end = f.query('[data-caption-end]');
   end.value = '7'; end.onchange();
   assert.equal(f.project().captions[0].end, 4);
-  assert.equal(f.log.at(-1), 'refresh');
+  assert.equal(end.value, '4');
+  assert.deepEqual(f.log.at(-1), ['toast', formatError({messageKey:'panels.captionTimingInvalid'})]);
+  assert.ok(!f.log.includes('refresh'));
   end.value = '5'; end.onchange();
   assert.equal(f.project().captions[0].end, 5);
+  f.project().captions[0].start = 1e-7;
+  for (const side of ['start', 'end']) {
+    const input = f.query(`[data-caption-${side}]`), before = structuredClone(f.project());
+    for (const value of ['', 'not-a-number', 'Infinity', '-1', '7', '86400.001', side === 'start' ? '5' : '0']) {
+      const calls = f.log.length;
+      input.value = value; input.onchange();
+      assert.deepEqual(f.project(), before);
+      assert.equal(input.value, side === 'start' ? '0.0000001' : '5');
+      assert.deepEqual(f.log.slice(calls), [['toast', formatError({messageKey:'panels.captionTimingInvalid'})]]);
+    }
+  }
 });
 
 test('caption text commits keep the UTF-16 limit without truncating or normalizing drafts', () => {

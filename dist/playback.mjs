@@ -331,7 +331,10 @@ export function createPlayback(app, {
     function resizePreview() {
         const state = app.state;
         const [w, h] = state.ratio.split(':').map(Number);
-        app.canvas.width = w / h >= 1 ? 960 : 540;
+        const width = w / h >= 1 ? 960 : 540;
+        if (app.canvas.width !== width)
+            app.canvas.width = width;
+        // Retain one unconditional reset of the bitmap and drawing context.
         app.canvas.height = Math.round(app.canvas.width * h / w);
         const wrap = app.query('#canvasWrap'), stage = app.query('#stage');
         wrap.style.aspectRatio = `${w}/${h}`;

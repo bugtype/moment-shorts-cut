@@ -638,6 +638,44 @@ for (const locale of ['ko','en','zh-CN']) {
   });
 }
 
+test('whole-list split refuses exhausted precision atomically and permits corrected retry', async () => {
+  try {
+    const phrase = '오늘은 자막을 고쳐요. 다음은 시간을 맞춰요.';
+    const f = await fixture('en', {start:0,end:1,text:phrase,speaker:'0',keywords:'자막'});
+    f.context.precisionCue = {start:1,end:1+Number.EPSILON,text:phrase,basis:'timeline',speaker:'1',keywords:'유지'};
+    vm.runInContext("state.captions.push(precisionCue);renderPanel();history=[];future=[JSON.stringify(state)];current=.5;globalThis.precisionSaves=0;scheduleSave=()=>precisionSaves++;globalThis.precisionProject=state;", f.context);
+    assert.equal((await f.context.window.moment.execute('project.get')).ok, true, 'The authored input is valid');
+    const input = f.query('[data-caption-text="0"]'), button = f.query('#splitLongCaptions');
+    f.query('#captionChunkSize').value = '12'; input.focus(); input.setSelectionRange(1,3);
+    const before = snapshot(f), markup = f.panel.innerHTML;
+    const split = f.context.splitCaptionText, calls = [];
+    f.context.splitCaptionText = (caption, limit) => { calls.push(caption.start); return split(caption, limit); };
+    for (let attempt = 0; attempt < 2; attempt++) {
+      button.onclick({});
+      assert.deepEqual(snapshot(f), before, 'A later precision failure must not commit earlier pieces');
+      assert.equal(f.evaluate('state===precisionProject'), true);
+      assert.equal(f.evaluate('precisionSaves'), 0);
+      assert.equal(f.element('#toast').textContent, t('errors.splitPrecision'));
+      assert.equal(f.panel.innerHTML, markup); assert.equal(f.query('#splitLongCaptions'), button);
+      assert.equal(f.query('[data-caption-text="0"]'), input); assert.equal(f.doc.activeElement, input);
+      assert.equal(input.selectionStart,1); assert.equal(input.selectionEnd,3);
+    }
+    assert.deepEqual(calls,[0,1,0,1], 'The valid earlier row is processed before the failing row');
+    const end = f.query('[data-caption-end="1"]'); end.value = '2'; end.onchange();
+    const corrected = snapshot(f), saves = f.evaluate('precisionSaves');
+    assert.equal(corrected.state.captions[1].end,2);
+    const expected = corrected.state.captions.flatMap(caption => split(caption,12));
+    button.onclick({});
+    assert.deepEqual(f.evaluate('state.captions'),expected);
+    assert.equal(f.evaluate('history.length'),corrected.history.length+1);
+    assert.equal(f.evaluate('future.length'),0); assert.equal(f.evaluate('precisionSaves'),saves+1);
+    assert.equal((await f.context.window.moment.execute('project.get')).ok,true);
+    const after = snapshot(f); button.onclick({}); assert.deepEqual(snapshot(f),after);
+    vm.runInContext('undo()',f.context); assert.deepEqual(f.evaluate('state'),corrected.state);
+    vm.runInContext('undo(true)',f.context); assert.deepEqual(f.evaluate('state'),after.state);
+  } finally { initLocale(); }
+});
+
 test('queued commands detect later drafts; explicit human commit or restoring the value permits retry',async()=>{
   const f=await fixture('en'), input=f.query('[data-caption-text="0"]');let hooks=0;
   const pending=f.context.window.moment.execute('effects.update',effect,()=>hooks++);

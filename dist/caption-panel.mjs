@@ -90,6 +90,8 @@ export function createCaptionPanel({
                     toast(message('panels.captionLimit'));
                     return;
                 }
+                if (parts.some(part => !Number.isFinite(part.start) || !Number.isFinite(part.end) || part.end <= part.start))
+                    throw Object.assign(new Error(), message('errors.splitPrecision'));
                 captions.push(...parts);
             }
         }

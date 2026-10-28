@@ -75,6 +75,24 @@ test('caption row handlers read the current project and preserve field metadata'
   assert.equal(f.project().captions[0].end, 5);
 });
 
+test('caption text commits keep the UTF-16 limit without truncating or normalizing drafts', () => {
+  const f = fixture(), input = f.query('[data-caption-text]');
+  for (const text of ['한'.repeat(2000), '🎬'.repeat(1000), 'e\u0301'.repeat(1000), '', ' \n ']) {
+    input.value = text;
+    input.onchange();
+    assert.equal(f.project().captions[0].text, text);
+  }
+  for (const text of ['한'.repeat(2001), '🎬'.repeat(1000) + '한', 'e\u0301'.repeat(1000) + 'e', '한'.repeat(100000)]) {
+    const before = structuredClone(f.project()), calls = f.log.length;
+    input.value = text;
+    input.onchange();
+    assert.deepEqual(f.project(), before);
+    assert.equal(input.value, text);
+    assert.equal(f.log.length, calls + 1);
+    assert.deepEqual(f.log.at(-1), ['toast', formatError({messageKey:'errors.cueLength'})]);
+  }
+});
+
 test('caption delete/add retain focus scrolling and route existing actions', () => {
   const f = fixture();
   f.project().captions = [{ start: 0, end: 1, text: 'only' }];

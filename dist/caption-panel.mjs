@@ -238,6 +238,10 @@ export function createCaptionPanel({
                 focusCaption(Math.min(index, getProject().captions.length - 1));
         });
         $$('[data-caption-text]').forEach(el => el.onchange = () => {
+            if (el.value.length > 2000) {
+                toast(message('errors.cueLength'));
+                return;
+            }
             edit(() => getProject().captions[+el.dataset.captionText].text = el.value);
             search.update();
         });

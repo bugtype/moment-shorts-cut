@@ -56,6 +56,61 @@ async function fixture(locale = 'ko', caption = {start:0,end:1,text:'Original'})
 const snapshot = f => f.evaluate('({state,history,future,current,selected})');
 const effect = {patch:{brightness:1.1}};
 
+test('overlong caption drafts preserve valid state and retry through the current row', async () => {
+  try {
+    for (const locale of ['ko', 'en', 'zh-CN']) {
+      const f = await fixture(locale, {start:0,end:1,text:'원래 자막',basis:'timeline',timing:'estimated',speaker:'1',keywords:'원래'});
+      const timers = [], writes = [];
+      f.context.setTimeout = (_callback, delay) => timers.push(delay);
+      f.context.localStorage.setItem = (key, value) => writes.push([key, value]);
+      assert.equal((await f.context.window.moment.execute('effects.update', effect)).ok, true);
+      assert.equal((await f.context.window.moment.execute('effects.update', {patch:{brightness:1.2}})).ok, true);
+      vm.runInContext('undo()', f.context);
+      assert.equal(f.evaluate('history.length'), 1);
+      assert.equal(f.evaluate('future.length'), 1);
+      const input = f.query('[data-caption-text="0"]');
+      assert.equal(typeof input.onchange, 'function');
+      const before = snapshot(f), markup = f.panel.innerHTML;
+      const saveTimer = vm.runInContext('persistence.saveTimer', f.context);
+      const saves = timers.filter(delay => delay === 500).length;
+      input.value = '한'.repeat(2001); input.focus(); input.setSelectionRange(7, 9);
+      f.panel.oncompositionstart();
+      input.onchange();
+      f.panel.oncompositionend();
+      assert.deepEqual(snapshot(f), before);
+      assert.equal(vm.runInContext('persistence.saveTimer', f.context), saveTimer);
+      assert.equal(timers.filter(delay => delay === 500).length, saves);
+      assert.deepEqual(writes, []);
+      assert.equal(f.panel.innerHTML, markup);
+      assert.equal(f.query('[data-caption-text="0"]'), input);
+      assert.equal(input.value, '한'.repeat(2001));
+      assert.equal(f.doc.activeElement, input);
+      assert.equal(input.selectionStart, 7); assert.equal(input.selectionEnd, 9);
+      assert.equal(f.element('#toast').textContent, t('errors.cueLength'));
+      assert.equal((await f.context.window.moment.execute('project.get')).ok, true);
+      assert.equal((await f.context.window.moment.execute('captions.export', {format:'srt'})).ok, true);
+      assert.equal((await f.context.window.moment.execute('effects.update', effect)).error.code, 'CONFLICT');
+      assert.deepEqual(snapshot(f), before);
+
+      input.value = '🎬'.repeat(1000); input.onchange();
+      assert.equal(f.evaluate('state.captions[0].text'), input.value);
+      assert.equal(f.evaluate('history.length'), 2);
+      assert.equal(f.evaluate('future.length'), 0);
+      assert.equal(timers.filter(delay => delay === 500).length, saves + 1);
+      assert.equal(f.query('[data-caption-text="0"]'), input);
+      assert.equal(f.doc.activeElement, input);
+      const accepted = f.evaluate('state');
+      assert.deepEqual(accepted.captions[0], {...before.state.captions[0], text:input.value});
+      assert.equal((await f.context.window.moment.execute('project.get')).ok, true);
+      assert.equal((await f.context.window.moment.execute('captions.export', {format:'srt'})).ok, true);
+      await vm.runInContext('saveProject()', f.context);
+      assert.deepEqual(JSON.parse(writes.at(-1)[1]), accepted);
+      vm.runInContext('undo()', f.context); assert.deepEqual(f.evaluate('state'), before.state);
+      vm.runInContext('undo(true)', f.context); assert.deepEqual(f.evaluate('state'), accepted);
+    }
+  } finally { initLocale(); }
+});
+
 for (const locale of ['ko','en','zh-CN']) {
   test(`browser execute protects pending caption fields and composition (${locale})`, async () => {
     try {

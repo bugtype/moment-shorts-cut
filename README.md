@@ -118,7 +118,7 @@ these opening boundaries stay fixed for outputs of at least 12 seconds and compr
 only for shorter outputs. **Later clip-length or speed edits proportionally retime
 the cards**, so review the opening again and adjust card times as needed.
 Match your footage and claims to the example text yourself; templates do not reorder
-footage, create split screens or verify facts. [Research, six practical cases, implementation plan and review criteria (Korean)](docs/SHORTS_HOOK_TEMPLATES.md)
+footage, create split screens or verify facts. [Research, six practical cases and review criteria (Korean)](docs/SHORTS_HOOK_TEMPLATES.md)
 explain the design. For a cover candidate, use [Save preview PNG](#save-a-preview-image)
 at the desired moment; it saves the current canvas size and does not upload or set a
 YouTube thumbnail. A template does not guarantee views or completion.
@@ -462,13 +462,7 @@ Generated arguments can be piped as one JSON object with [`--args-file -`](INTEG
 | Connect an AI client | Local stdio MCP server: `node cli/mcp.mjs` | [Client setup, tools, errors and recovery](docs/MCP.md) |
 | Integrate with your own code | Same-page `window.moment` or the reusable service/adapter | `node examples/use-editor-service.mjs` |
 
-**Design/card drafts:** this same-page guard also covers text in **Title → Title / Dialogue / Credit**, Title/Credit timing, and text/timing in **Effects → Timed cards**. Finish the field edit or restore its original value and end composition, then re-read and retry. Ordinary committed typing stays allowed. These times are output seconds after speed; a blank Title/Credit end still means until the end. Sliders, colors and Motion · Color are not included.
-
-**Unapplied trim range:** the same guard covers start/end drafts and active composition in the **Frame** panel. Use **Apply range**, or restore both original values and finish composition, before re-reading and retrying. Source-second precision is unchanged; untouched or numerically equivalent values are not drafts. This does not extend to every numeric input.
-
-**Project-name drafts:** `window.moment.execute` also returns `CONFLICT` while the header name has an uncommitted value or active composition. Finish/commit the name edit or restore its original value and end composition, then re-read and retry. The name is not silently committed or discarded; explicit local replacements keep their existing behavior.
-
-**Live caption drafts:** same-page `window.moment.execute` returns `CONFLICT` before a project commit while the open caption panel has uncommitted row edits or an active composition. Finish/commit the edit or restore its original value, then re-read and retry; the API does not blur, auto-save or discard the draft. Reads, previews and genuine no-op results remain available. This does not change CLI/MCP, explicit file import, local UI edits or Undo, and is not a guard for every editor input. [Exact boundary](INTEGRATIONS.md#브라우저와-파일-왕복)
+**Same-page draft protection:** `window.moment.execute` refuses a project commit with `CONFLICT` while protected caption rows, the project name, Frame trim, or Title/Dialogue/Credit/card text or Title/Credit/card timing have pending edits or active composition. Commit the edit (use **Apply range** for trim), or restore its original value and end composition; then re-read and retry. It does not auto-commit or discard drafts. Reads, previews and genuine no-op results remain available. This is not protection for every input, and does not change CLI/MCP, explicit file imports, local UI edits or Undo. [Exact fields and retry rules](INTEGRATIONS.md#브라우저와-파일-왕복)
 
 Run `node examples/use-mcp-client.mjs` for an executable handshake → import → edit → SRT → restart/reimport example. It launches local Node processes and keeps its exported document in memory; it does not write your files or connect to a browser.
 
@@ -482,48 +476,21 @@ Run `node examples/use-mcp-client.mjs` for an executable handshake → import �
 
 ### Captions
 
-| Task | Use | Keep in mind |
-|---|---|---|
-| Read nearby authored captions | [`captions.list`](INTEGRATIONS.md#저장된-자막을-나눠-조회) | Read up to 50 exact cues per page, then target a current index with `captions.update`. Pre-speed times; live pages are not snapshots or project backups. |
-| Insert a caption or remove a range | [`captions.insert` / `captions.remove`](INTEGRATIONS.md#자막-하나-추가연속-범위-삭제) | Use the current authored index; no sorting or retiming of other cues. Re-read after uncertain results—blind retries can affect the wrong cue. |
-| Edit one authored caption | [`captions.update`](INTEGRATIONS.md#자막-하나만-수정) | Patch text, timing, speaker or keywords without resending all cues. Read the current array index first; basis and estimated-timing metadata are preserved. |
-| Apply reviewed, different corrections to several rows | [Text-only batch example](examples/correct-caption-text.mjs) | Inspect current indexes, preview then batch up to 20 `captions.update` text patches. Changes only text, unlike subtitle replacement import; preserves timing and metadata. Atomicity is per batch. |
-| Correct repeated wording | [`captions.text.replace`](INTEGRATIONS.md#자막-문구-일괄-교정) | Literal, case-sensitive, non-overlapping; no regex/Unicode normalization. Preserves timing, speaker/keyword metadata and order. Blank or overlong results reject the whole edit. Browser UI previews occurrence counts and applies one undo step. |
-| Locate a caption in the edit | Row action **View in video** | One occurrence seeks directly; repeated occurrences let you choose. Temporal navigation only, not an edit. |
-| Review individual matches | Browser previous/next search controls | Wrap through every literal occurrence, including multiple matches in one row and trimmed-out captions; reveal its page and select the exact substring. Current/total counts are occurrences, not rows. Navigation does not seek, edit or save. |
-| Replace one match | **Replace match** after selecting a search result | Replaces only that substring in one undo step, preserving cue timing/metadata. Highlights the replacement; Next continues after it. Same replacement is a no-op; blank/overlong cue results are rejected. Finish pending row edits and reselect stale matches instead of overwriting them. |
-| Replace within authored rows | Enter Find/Replacement, then **Replace in range…** | Review the captured literal text and inclusive **1-based** first/last rows (default: selected match’s row, otherwise the current page’s first row; one row). Live counts cover that range; confirm one undoable edit. Outside cues/timing/metadata stay unchanged. Not a persistent selection; Match/All/search navigation remain separate. |
-| Find/replace across line breaks | Two-row Find and Replacement fields | Type or paste actual newlines; `\n` stays literal backslash + n. Matching remains case-sensitive and non-overlapping, without regex; replacements preserve cue timing and metadata. |
-| Shift a constant subtitle delay | [`captions.timing.shift`](INTEGRATIONS.md#자막-시간을-앞뒤로-이동) | Choose source/timeline and signed seconds **before speed**. Optional authored-row range, then basis filtering; omitted range moves all matching cues. Any out-of-bounds result rejects the whole edit. Browser caption tools apply a real change as one undo step. |
-| Review overlapping times | **Caption timing overlaps** or [`captions.overlaps`](INTEGRATIONS.md#자막-시간-겹침-점검) | One representative conflict per overlapping output occurrence, not all pairs or a visibility prediction. Read total/flagged/omitted counts. |
-| Review caption timing | Browser **Caption review** or [`captions.inspect`](INTEGRATIONS.md#편집-후-자막-표시-속도-점검) | Optional reading-speed/duration thresholds and overlap findings after cuts, repeats and speed; [save the shown JSON findings](docs/CAPTION_WORKFLOWS.md#review-timing). Advisory only; no automatic correction or compliance claim. |
-| Export only selected authored captions | [`captions.export`](INTEGRATIONS.md#선택한-원본-자막-행만-출력) with `captionIndex`/`count` | Browser **Authored row range… → Save**, or CLI/MCP; all clips/speed and full-output timestamps remain, including repetitions. Not a time-window crop or redaction guarantee. |
-| Split long captions in bulk or a range | [`captions.split.long`](INTEGRATIONS.md#긴-자막을-전체-또는-범위로-분할) | 12/18/24-grapheme targets, estimated timing and trimmed split-boundary whitespace. API or browser **Range…** can target authored rows; the original split button still covers all cues. |
-| Split one caption at the caret | [`captions.split`](INTEGRATIONS.md#자막-하나를-커서-위치에서-분할) or the row split action | Keeps literal text and metadata; estimates timing by grapheme counts, not speech alignment. A caret boundary must not cut an emoji/combined character. Separate from bulk long-caption splitting. |
-| Merge adjacent captions | [`captions.merge`](INTEGRATIONS.md#인접한-자막-합치기) or row action **Merge with next caption** | Combines the next authored row, even across pages. Requires matching clock/speaker/keywords and non-overlapping chronological times; merged text also appears across any gap. One browser undo step. |
-| Change appearance | [`captions.style.update`](INTEGRATIONS.md#자막-스타일-수정) | Size, position, colors, animation and the two speaker labels/colors: only supplied fields change, without resubmitting the project. Visual styles are absent from plain SRT/VTT. |
-| Clear keyword emphasis | **Text → Dialogue → Clear keyword emphasis…**, then confirm | Clears global and every cue’s keyword fields in one undo step, not caption text/timing/speakers or highlight-box styling. Cancel or already-empty keywords add no edit; if the project changes, reopen to confirm. |
-| Add caption rows without replacing work | [`captions.append`](INTEGRATIONS.md#기존-자막을-유지하며-여러-행-추가) | Nonempty cue array; keeps existing rows/metadata, including out-of-output cues. Combined limit 10,000; no sorting, shifting or deduplication. Retrying an accepted append duplicates cues. |
-| Import subtitle text | [`captions.import`](INTEGRATIONS.md#srtvtt-본문을-명령으로-가져오기) | Default `replace` replaces all captions; `mode:"append"` keeps existing rows and adds parsed cues. Supply contents, not a path, and source/timeline time **before speed**, not output time. API: 100,000 UTF-16 code units; browser files: 2 MiB. |
-
-For browser steps and their warnings, see [Caption workflows](docs/CAPTION_WORKFLOWS.md).
+| Task | Start here |
+|---|---|
+| Import files, review timing and find a cue in the video | [Browser caption workflows](docs/CAPTION_WORKFLOWS.md) |
+| Correct wording, split or merge rows | [Text editing](docs/CAPTION_WORKFLOWS.md#edit-text) · [Split/merge](docs/CAPTION_WORKFLOWS.md#split-merge) |
+| Edit a range, assign speakers or save an excerpt | [Range workflows](docs/CAPTION_WORKFLOWS.md#remove-range) · [Speaker assignment](docs/CAPTION_WORKFLOWS.md#assign-speaker) · [Export](docs/CAPTION_WORKFLOWS.md#save-excerpt) |
+| Automate reviewed corrections | [CLI contracts](INTEGRATIONS.md#작업별-편집-예제) · [MCP correction recipe](docs/MCP.md#review-correct-and-export-captions) · [Text-only batch example](examples/correct-caption-text.mjs) |
 
 ### Clips and composition
 
 | Task | Use | Keep in mind |
 |---|---|---|
-| Inspect project structure | [`project.summary`](INTEGRATIONS.md#프로젝트-구조-먼저-확인) | Ratio, speed, source/timeline/output durations and authored counts without text. Media flags are requirements, not readiness. Follow with paged reads; save the full document with `project.get`. |
-| Inspect clip positions and clocks | [`timeline.list`](INTEGRATIONS.md#타임라인-구간과-시간-나눠-조회) | Up to 50 indexed clips per page with source, pre-speed timeline and after-speed output times. Re-read positional indexes after edits. |
 | Move a clip directly | **Move clip…** in the clip inspector or **Frame**, or [`timeline.move`](INTEGRATIONS.md#클립을-지정한-위치로-이동) | UI positions are 1-based; API indices are 0-based final destinations. Same position/cancel are no-ops. |
-| Inspect a built-in template | [`template.inspect`](INTEGRATIONS.md#기본-템플릿-적용-전-점검) | Read metadata and proposed title/credit/card text and times before applying; not a rendered preview or reserved state. |
-| Review a proposed edit bundle | [`project.preview`](INTEGRATIONS.md#편집-묶음의-반영-전-요약) | Read-only counts and changed-field summary, not a visual preview or state reservation. Later batch revalidates. |
-| Apply related edits together | [`project.batch`](INTEGRATIONS.md#여러-편집을-한-번에-반영) | Validate 1–20 supported edits in sequence, then commit once; a rejected step leaves the project unchanged. Not a JSON-RPC batch or a cross-host storage transaction. |
 | Keep source sections currently omitted | Desktop Frame inspector or **Frame** panel → **Keep gaps…** | Review the remaining source intervals and confirm a full timeline replacement; source order, not current order/repeats. |
 | Remove consecutive clips | Clip inspector or **Frame** → **Remove clip range…** | Enter inclusive first/last positions (1-based); at least one clip must remain. One undoable edit. |
 | Repeat consecutive clips | Clip inspector or **Frame** → **Duplicate clip range…**, or [`timeline.duplicate`](INTEGRATIONS.md#클립-구간-복제) | UI uses inclusive 1-based first/last positions; API uses 0-based `clipIndex` plus optional `count` (default 1). |
-| Split one clip | [`timeline.split`](INTEGRATIONS.md#클립-구간-분할) | Original source time, not output time; identify the intended occurrence and check boundaries. No full-timeline replacement. |
-| Adjust video effects | [`effects.update`](INTEGRATIONS.md#영상-효과-수정) | Brightness, contrast, motion, boundary overlays and progress styling without replacing content or timing. Boundary overlays are not crossfades. |
-| Set a source credit | [`credit.update`](INTEGRATIONS.md#출처-크레딧-수정) | Text, appearance and output-time visibility without changing title/captions/cards. Maximum 100 UTF-16 code units; not included in subtitle files. |
 | Set text coordinates | Title, credit, shared caption or selected card → **Position…** | Enter horizontal/vertical percentages and Apply together; unchanged axes retain their stored values. |
 | Move a card without resizing | Selected card → **Move in time…** | Enter a new start in output seconds **after speed**; both endpoints update together as one undoable edit. |
 | Script timed cards | [`overlays.add`, `overlays.update`, `overlays.remove`](INTEGRATIONS.md#스크립트에-맞춰-카드-추가삭제) | Individual IDs and output time **after speed**, without replacing the project. Additions append; `overlays.move` changes card stacking. In the selected card’s stacking controls, **Bring forward / Send backward** moves one stored-card position (including disabled/off-time cards); **Bring to front / Send to back** jumps to an edge. One undo step, no timing/content change; only card order, not its layer relationship to captions. |

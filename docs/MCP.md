@@ -211,123 +211,7 @@ that validation.
 | `moment_captions_inspect` | `maxGraphemesPerSecond` or `review`, optional `limit` | Read-only rate report or unified caption review |
 | `moment_render_plan` | optional `quality`, `format` | Plan, project snapshot, output settings, required media and `rendered:false` |
 
-Omitting `format` preserves the existing SRT output. To request plain WebVTT, call
-`moment_captions_export` with these arguments after importing your document:
-
-```json
-{"projectId":"session","format":"vtt"}
-```
-
-Save `structuredContent.data.text` as UTF-8 `.vtt`; the server does not save files.
-
-For edited caption text without timing, call the same tool with:
-
-```json
-{"projectId":"session","format":"txt"}
-```
-
-Save `structuredContent.data.text` as UTF-8 `.txt`. TXT emits one paragraph per
-derived cue in clip/repetition/source-or-timeline/speed-adjusted output order.
-Repeated or split clips can repeat words: this is not a deduplicated or word-accurate
-transcript. Timestamps, IDs, speaker labels, titles, cards and styling are omitted.
-Literal `<>&`, whitespace and multiline text are preserved, CR/CRLF become LF,
-cues are separated by a blank line, and nonempty output ends in a newline.
-Blank-line payloads and sub-millisecond intervals are allowed; NUL is rejected.
-Empty output is `""`. TXT is not accepted by subtitle import and cannot restore
-cue timing. The same 10,000-derived-cue/raw-text budget applies; complete UTF-8
-output including separators must fit 2 MiB. The raw-text budget is checked before
-newline normalization, so a smaller normalized TXT can still fail that guard.
-The service emits no BOM.
-
-### Export selected authored caption rows
-
-`moment_captions_export` accepts optional `captionIndex` and `count` alongside
-all existing format/review options:
-
-```json
-{"projectId":"session","format":"vtt","captionIndex":1,"count":1}
-```
-
-| Range arguments | Selection |
-|---|---|
-| Neither | All authored cues, preserving existing default output |
-| Index only | That zero-based authored position through the end |
-| Count only | First N authored cues |
-| Both | Exact contiguous authored range |
-
-An explicit index must exist (`0..9999`); count is integer `1..10000` and must fit.
-Invalid/empty explicit ranges or null values reject with `INVALID_ARGUMENT` at
-`arguments.captionIndex`/`arguments.count`, never clamp. Direct JavaScript options
-with an explicitly present `undefined` range field also reject. Existing format/review
-validation still precedes range validation. This selects
-**authored rows before projection**, not output occurrences or a time window.
-All clips and speed still apply: source captions repeat in repeated clips,
-timeline placement remains unchanged, and timestamps keep full-output coordinates.
-There is no rebasing to zero or cropping to a requested time interval.
-
-The response stays `{format,text}`. Review TXT uses the selected cues' actual
-assigned speaker labels. Whole-project validation remains; derived occurrence,
-raw-text, final-file and format limits apply to the selected output. The command
-remains read-only and excluded from batches. Browser Save defaults to all cues;
-**Authored row range… → Save** opens explicit inclusive 1-based row fields.
-The same exporter preserves full-output clocks/repeats; range filenames add
-`.rows-FIRST-LAST`. This is not a page selection or rebased time window.
-This is neither a backup nor a privacy-redaction guarantee: inspect chosen text
-and used speaker labels before sharing. Re-read positional indexes after edits.
-[Runnable CLI range export](../INTEGRATIONS.md#선택한-원본-자막-행만-출력).
-
-### Frame ratios and render-plan dimensions
-
-`moment_project_update` accepts `patch.ratio` values `"9:16"`, `"4:5"`, `"1:1"`
-and `"16:9"`. A changed ratio resets zoom/pan through existing update rules;
-review framing and text/card placement afterward—ratio changes do not redesign
-existing content. For 4:5, `moment_render_plan` returns 720×900 at quality
-720 or 1080×1350 at quality 1080 (short-edge quality). Its `rendered:false` is
-not a generated video. Browser preview/preview PNG is the fixed 540×675 bitmap.
-
-```json
-{"projectId":"session","patch":{"ratio":"4:5"}}
-```
-
-Existing files and the previous three ratios' sizes remain unchanged. API 1 and
-project schema 4 remain unchanged too, but older builds reject new 4:5 project
-files; this is not forward compatibility or a migration. Portable templates do
-not contain or change ratio. Dimensions do not establish platform acceptance,
-native codec support or browser pixel verification.
-[All four sizes and executable CLI recipe](../INTEGRATIONS.md#화면-비율과-출력-크기)
-
-### Caption review TXT
-
-Opt in to a human-readable timing/speaker review using the existing export tool:
-
-```json
-{"projectId":"session","format":"txt","review":true}
-```
-
-`review` defaults to `false`; `true` requires `format:"txt"` or fails with
-`INVALID_ARGUMENT` at `arguments.review`. The result remains
-`{format:"txt",text}`. Save the text as UTF-8 `.review.txt`, without a BOM.
-
-| Mode | Content |
-|---|---|
-| Plain TXT (default) | Existing caption paragraphs, without timestamps or speaker names |
-| Review TXT | After-speed output seconds per derived occurrence, an explicitly assigned nonempty speaker label when present, and literal cue text |
-
-Repeated/overlapping occurrences remain separate in stable output order. Numeric
-times use ordinary string conversion, not frame/millisecond rounding. Missing or
-empty labels are omitted, never inferred. Metadata headings use current UI locale;
-the standalone CLI/MCP default is Korean, with no command locale parameter.
-Authored labels/text are not translated; CRLF/CR normalize to LF.
-
-This is not subtitle import, rendered-visibility prediction, an audio-verified
-transcript or project backup. Media/project names, source coordinates, keywords,
-graphics text and styling are excluded. Empty output is `""`; the browser skips
-the file. Existing 10,000-occurrence/raw-text budgets apply, plus a final 2 MiB
-UTF-8 budget including headings, labels and separators. NUL in exported text or
-a used label is rejected with `INVALID_ARGUMENT`, not stripped; unused labels do not block export.
-Exceeding an output budget returns `CAPTION_OUTPUT_LIMIT`.
-`review:false` or omission leaves existing SRT/VTT/plain TXT bytes unchanged.
-[Executable CLI recipe](../INTEGRATIONS.md#자막-검토용-txt)
+[Export formats, selected rows, dimensions and review text](#export-formats-and-text).
 
 ### Project and template changes
 
@@ -539,10 +423,131 @@ the example. Discover exact input fields in the [tool catalog](#tool-catalog).
 
 | Task | Recipes |
 |---|---|
+| Export | [SRT/VTT/TXT](#export-formats-and-text) · [Selected rows](#export-selected-authored-caption-rows) · [Review TXT](#caption-review-txt) · [Output dimensions](#frame-ratios-and-render-plan-dimensions) |
 | Captions | [Review → correct → export](#review-correct-and-export-captions) · [Unified review](#unified-advisory-caption-review) · [Check overlaps](#check-caption-time-overlaps) · [Inspect timing density](#inspect-caption-timing-density) · [Import](#import-subtitle-text-with-an-explicit-clock) · [Split long cues](#split-long-captions-in-an-authored-range) · [Split at caret](#split-one-caption-at-a-text-boundary) · [Merge](#merge-two-adjacent-authored-captions) · [Insert/remove](#insert-one-caption-or-remove-a-range) · [Edit one cue](#edit-one-authored-caption) · [Correct text](#correct-caption-text-without-replacing-cues) · [Shift timing](#shift-caption-timing-without-replacing-text) · [Assign speakers](#assign-a-speaker-to-an-authored-range) · [Style](#adjust-global-caption-appearance) |
 | Timeline | [Read project structure](#read-project-structure-without-full-content) · [Read clip clocks](#read-timeline-positions-in-pages) · [Split a clip](#split-one-clip-occurrence) · [Repeat a clip or range](#repeat-one-clip-occurrence) · [Move a clip](#move-one-clip-to-a-final-position) |
 | Composition | [Credit](#set-a-source-credit-independently) · [Effects](#adjust-video-effects-independently) · [Edit a card](#edit-an-existing-timed-card) · [Add/remove cards](#create-scripted-cards-without-importing-a-whole-project) · [Stacking](#change-card-stacking) |
 | Grouped/template edits | [Preview summary](#preview-an-edit-summary-without-committing) · [One commit](#apply-related-edits-in-one-commit) · [Inspect a built-in](#inspect-a-built-in-template-before-applying) · [Export a composition](#export-the-current-composition-as-a-template) · [Apply a template file](#apply-an-exported-custom-template) |
+
+### Export formats and text
+
+Omitting `format` preserves the existing SRT output. To request plain WebVTT, call
+`moment_captions_export` with these arguments after importing your document:
+
+```json
+{"projectId":"session","format":"vtt"}
+```
+
+Save `structuredContent.data.text` as UTF-8 `.vtt`; the server does not save files.
+
+For edited caption text without timing, call the same tool with:
+
+```json
+{"projectId":"session","format":"txt"}
+```
+
+Save `structuredContent.data.text` as UTF-8 `.txt`. TXT emits one paragraph per
+derived cue in clip/repetition/source-or-timeline/speed-adjusted output order.
+Repeated or split clips can repeat words: this is not a deduplicated or word-accurate
+transcript. Timestamps, IDs, speaker labels, titles, cards and styling are omitted.
+Literal `<>&`, whitespace and multiline text are preserved, CR/CRLF become LF,
+cues are separated by a blank line, and nonempty output ends in a newline.
+Blank-line payloads and sub-millisecond intervals are allowed; NUL is rejected.
+Empty output is `""`. TXT is not accepted by subtitle import and cannot restore
+cue timing. The same 10,000-derived-cue/raw-text budget applies; complete UTF-8
+output including separators must fit 2 MiB. The raw-text budget is checked before
+newline normalization, so a smaller normalized TXT can still fail that guard.
+The service emits no BOM.
+
+### Export selected authored caption rows
+
+`moment_captions_export` accepts optional `captionIndex` and `count` alongside
+all existing format/review options:
+
+```json
+{"projectId":"session","format":"vtt","captionIndex":1,"count":1}
+```
+
+| Range arguments | Selection |
+|---|---|
+| Neither | All authored cues, preserving existing default output |
+| Index only | That zero-based authored position through the end |
+| Count only | First N authored cues |
+| Both | Exact contiguous authored range |
+
+An explicit index must exist (`0..9999`); count is integer `1..10000` and must fit.
+Invalid/empty explicit ranges or null values reject with `INVALID_ARGUMENT` at
+`arguments.captionIndex`/`arguments.count`, never clamp. Direct JavaScript options
+with an explicitly present `undefined` range field also reject. Existing format/review
+validation still precedes range validation. This selects
+**authored rows before projection**, not output occurrences or a time window.
+All clips and speed still apply: source captions repeat in repeated clips,
+timeline placement remains unchanged, and timestamps keep full-output coordinates.
+There is no rebasing to zero or cropping to a requested time interval.
+
+The response stays `{format,text}`. Review TXT uses the selected cues' actual
+assigned speaker labels. Whole-project validation remains; derived occurrence,
+raw-text, final-file and format limits apply to the selected output. The command
+remains read-only and excluded from batches. Browser Save defaults to all cues;
+**Authored row range… → Save** opens explicit inclusive 1-based row fields.
+The same exporter preserves full-output clocks/repeats; range filenames add
+`.rows-FIRST-LAST`. This is not a page selection or rebased time window.
+This is neither a backup nor a privacy-redaction guarantee: inspect chosen text
+and used speaker labels before sharing. Re-read positional indexes after edits.
+[Runnable CLI range export](../INTEGRATIONS.md#선택한-원본-자막-행만-출력).
+
+### Frame ratios and render-plan dimensions
+
+`moment_project_update` accepts `patch.ratio` values `"9:16"`, `"4:5"`, `"1:1"`
+and `"16:9"`. A changed ratio resets zoom/pan through existing update rules;
+review framing and text/card placement afterward—ratio changes do not redesign
+existing content. For 4:5, `moment_render_plan` returns 720×900 at quality
+720 or 1080×1350 at quality 1080 (short-edge quality). Its `rendered:false` is
+not a generated video. Browser preview/preview PNG is the fixed 540×675 bitmap.
+
+```json
+{"projectId":"session","patch":{"ratio":"4:5"}}
+```
+
+Existing files and the previous three ratios' sizes remain unchanged. API 1 and
+project schema 4 remain unchanged too, but older builds reject new 4:5 project
+files; this is not forward compatibility or a migration. Portable templates do
+not contain or change ratio. Dimensions do not establish platform acceptance,
+native codec support or browser pixel verification.
+[All four sizes and executable CLI recipe](../INTEGRATIONS.md#화면-비율과-출력-크기)
+
+### Caption review TXT
+
+Opt in to a human-readable timing/speaker review using the existing export tool:
+
+```json
+{"projectId":"session","format":"txt","review":true}
+```
+
+`review` defaults to `false`; `true` requires `format:"txt"` or fails with
+`INVALID_ARGUMENT` at `arguments.review`. The result remains
+`{format:"txt",text}`. Save the text as UTF-8 `.review.txt`, without a BOM.
+
+| Mode | Content |
+|---|---|
+| Plain TXT (default) | Existing caption paragraphs, without timestamps or speaker names |
+| Review TXT | After-speed output seconds per derived occurrence, an explicitly assigned nonempty speaker label when present, and literal cue text |
+
+Repeated/overlapping occurrences remain separate in stable output order. Numeric
+times use ordinary string conversion, not frame/millisecond rounding. Missing or
+empty labels are omitted, never inferred. Metadata headings use current UI locale;
+the standalone CLI/MCP default is Korean, with no command locale parameter.
+Authored labels/text are not translated; CRLF/CR normalize to LF.
+
+This is not subtitle import, rendered-visibility prediction, an audio-verified
+transcript or project backup. Media/project names, source coordinates, keywords,
+graphics text and styling are excluded. Empty output is `""`; the browser skips
+the file. Existing 10,000-occurrence/raw-text budgets apply, plus a final 2 MiB
+UTF-8 budget including headings, labels and separators. NUL in exported text or
+a used label is rejected with `INVALID_ARGUMENT`, not stripped; unused labels do not block export.
+Exceeding an output budget returns `CAPTION_OUTPUT_LIMIT`.
+`review:false` or omission leaves existing SRT/VTT/plain TXT bytes unchanged.
+[Executable CLI recipe](../INTEGRATIONS.md#자막-검토용-txt)
 
 ### Preview an edit summary without committing
 

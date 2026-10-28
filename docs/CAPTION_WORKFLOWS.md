@@ -6,6 +6,9 @@
 
 | Task |
 |---|
+| [Find and replace text](#edit-text) |
+| [Split or merge one row](#split-merge) |
+| [Clear keyword emphasis](#keyword-emphasis) |
 | [Save a caption excerpt](#save-excerpt) |
 | [Find a caption in the video](#view-in-video) |
 | [Review caption timing](#review-timing) |
@@ -16,6 +19,34 @@
 | [Import and review subtitle files](#import-subtitles) |
 | [Shift timing in a range](#shift-range) |
 | [Assign a speaker to a range](#assign-speaker) |
+
+<a id="edit-text"></a>
+
+## Find and replace text
+
+- **Correct repeated wording.** **Replace all** · API reference [`captions.text.replace`](../INTEGRATIONS.md#자막-문구-일괄-교정) — Literal, case-sensitive, non-overlapping; no regex/Unicode normalization. Preserves timing, speaker/keyword metadata and order. Blank or overlong results reject the whole edit. Browser UI previews occurrence counts and applies one undo step.
+
+- **Review individual matches.** Browser previous/next search controls — Wrap through every literal occurrence, including multiple matches in one row and trimmed-out captions; reveal its page and select the exact substring. Current/total counts are occurrences, not rows. Navigation does not seek, edit or save.
+
+- **Replace one match.** **Replace match** after selecting a search result — Replaces only that substring in one undo step, preserving cue timing/metadata. Highlights the replacement; Next continues after it. Same replacement is a no-op; blank/overlong cue results are rejected. Finish pending row edits and reselect stale matches instead of overwriting them.
+
+- **Replace within authored rows.** Enter Find/Replacement, then **Replace in range…** — Review the captured literal text and inclusive **1-based** first/last rows (default: selected match’s row, otherwise the current page’s first row; one row). Live counts cover that range; confirm one undoable edit. Outside cues/timing/metadata stay unchanged. Not a persistent selection; Match/All/search navigation remain separate.
+
+- **Find/replace across line breaks.** Two-row Find and Replacement fields — Type or paste actual newlines; `\n` stays literal backslash + n. Matching remains case-sensitive and non-overlapping, without regex; replacements preserve cue timing and metadata.
+
+<a id="split-merge"></a>
+
+## Split or merge one row
+
+- **Split one caption at the caret.** [`captions.split`](../INTEGRATIONS.md#자막-하나를-커서-위치에서-분할) or the row split action — Keeps literal text and metadata; estimates timing by grapheme counts, not speech alignment. A caret boundary must not cut an emoji/combined character. Separate from bulk long-caption splitting.
+
+- **Merge adjacent captions.** [`captions.merge`](../INTEGRATIONS.md#인접한-자막-합치기) or row action **Merge with next caption** — Combines the next authored row, even across pages. Requires matching clock/speaker/keywords and non-overlapping chronological times; merged text also appears across any gap. One browser undo step.
+
+<a id="keyword-emphasis"></a>
+
+## Clear keyword emphasis
+
+- **Clear keyword emphasis.** **Text → Dialogue → Clear keyword emphasis…**, then confirm — Clears global and every cue’s keyword fields in one undo step, not caption text/timing/speakers or highlight-box styling. Cancel or already-empty keywords add no edit; if the project changes, reopen to confirm.
 
 <a id="save-excerpt"></a>
 

@@ -341,7 +341,8 @@ JavaScript에서 직접 호출할 때도 JSON으로 왕복 가능한 값을 전�
 | 구성 | 파일 | 역할 |
 |---|---|---|
 | 프로젝트 모델 | `dist/core/project.mjs` | 기본값, 저장 문서 v1, 상태 검증, 시간 기준, SRT/VTT/TXT |
-| 편집 명령 | `dist/core/commands.mjs` | 입력 JSON Schema, 복사본 변경, 검증 후 결과 반환 |
+| 명령 카탈로그 | `dist/core/command-catalog.mjs` | 명령 설명, 입력 JSON Schema, 배치 허용 목록 |
+| 편집 명령 | `dist/core/commands.mjs` | 복사본 변경, 검증 후 결과 반환 |
 | 공통 서비스 | `dist/integration/editor-service.mjs` | 명령 직렬 실행, 저장 포트, 공통 결과·오류, 미디어 작업 포트 |
 
 ### 사용자 인터페이스
@@ -1884,7 +1885,7 @@ const adapter = createMcpToolAdapter({
 개별 도구에서 제외한 명령도 기존 27개 중첩 허용 목록/스키마에 남습니다. batch는
 수정도 실행합니다. 토큰·비용·속도 보장은 아니며, [클라이언트 인수 배열과 제약](docs/MCP.md#choose-a-smaller-tool-list-optional)을 확인하세요.
 
- 현재 사이트는 정적 배포이고 `/mcp`가 없습니다. 별도의 원격 HTTP MCP 서버를 켜려면 서버 런타임과 프로젝트 저장소를 추가하고, Sites의 MCP 기능 선언 및 인증된 엔드포인트를 구현해야 합니다. 이 단계에서 미디어 저장소도 연결해야 브라우저가 닫힌 뒤 작업할 수 있습니다.
+현재 사이트는 정적 배포이고 `/mcp` 엔드포인트를 제공하지 않습니다. 원격 HTTP 호스트는 별도 구현이며, 위의 전송·인증·프로젝트별 권한·저장 책임을 충족해야 합니다. 로컬 stdio 연결만으로 원격 미디어 작업이 제공되는 것은 아닙니다.
 
 로컬 호스트의 공식 규격: https://modelcontextprotocol.io/specification/2025-11-25/server/tools
 

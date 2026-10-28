@@ -122,3 +122,106 @@ test('navigation controller ignores invalid authored indices without opening or 
         modal:{open:false},openModal:()=>actions++,blocked:()=>false,pause:()=>actions++,seek:()=>actions++,toast:()=>actions++});
     navigation.open(-1);navigation.open(999);assert.equal(actions,0);
 });
+
+test('single-clip row navigation skips unused snapshots through edits, Undo and Redo', async () => {
+    const f = await fixture(), nativeStringify = JSON.stringify;
+    let active = false, tracked, calls = 0;
+    JSON.stringify = function(value, ...args) {
+        if (active && value === tracked) calls++;
+        return nativeStringify.call(this, value, ...args);
+    };
+    const open = () => {
+        tracked = vm.runInContext('state', f.context);
+        calls = 0; active = true;
+        try { f.open(); } finally { active = false; }
+        return calls;
+    };
+    try {
+        const draft = f.element('[data-caption-text="0"]'), originalValue = draft.value;
+        draft.value = '작성 중 자막'; draft.focus();
+        let before = f.snapshot();
+        assert.equal(open(), 0, 'A direct seek has no delayed action needing a snapshot');
+        assert.equal(f.evaluate('current'), 1);
+        assert.equal(f.element('#modal').open, false);
+        assert.equal(f.doc.activeElement, draft);
+        assert.equal(draft.value, '작성 중 자막');
+        assert.deepEqual(f.snapshot(), before);
+        draft.value = originalValue;
+
+        vm.runInContext('state.captions[0].start=0;state.captions[0].end=5;current=0', f.context);
+        before = f.snapshot();
+        assert.equal(open(), 0, 'A trimmed-out cue also has no delayed action');
+        assert.equal(f.evaluate('current'), 0);
+        assert.equal(f.element('#modal').open, false);
+        assert.deepEqual(f.snapshot(), before);
+        vm.runInContext('state.captions[0].start=6;state.captions[0].end=8', f.context);
+
+        const result = await f.context.window.moment.execute('timeline.duplicate', {clipIndex: 0});
+        assert.equal(result.ok, true, JSON.stringify(result));
+        assert.equal(f.evaluate('state.clips.length'), 2);
+        before = f.snapshot();
+        assert.equal(open(), 1, 'A repeated-clip chooser keeps its snapshot');
+        assert.equal(f.element('#modal').open, true);
+        assert.deepEqual(f.snapshot(), before);
+        f.element('#modal').close();
+
+        f.element('#undoButton').onclick();
+        assert.equal(f.evaluate('state.clips.length'), 1);
+        before = f.snapshot();
+        assert.equal(open(), 0);
+        assert.deepEqual(f.snapshot(), before);
+        f.element('#redoButton').onclick();
+        assert.equal(f.evaluate('state.clips.length'), 2);
+        before = f.snapshot();
+        assert.equal(open(), 1);
+        f.element('#captionOccurrence1').onclick();
+        assert.equal(f.evaluate('current'), 6);
+        assert.equal(f.evaluate('playing'), false);
+        assert.equal(f.element('#modal').open, false);
+        assert.deepEqual(f.snapshot(), before);
+    } finally { JSON.stringify = nativeStringify; }
+});
+
+test('multi-clip snapshot still precedes media callbacks, including mutation and failure', () => {
+    for (const fails of [false, true]) {
+        const project = {captions: [{start:6,end:8,text:'Original'}],
+            clips: [{start:5,end:10},{start:5,end:10}], speed: 2};
+        const trace = [], nodes = new Map(), modal = {open: false}, failure = new Error('media');
+        const query = selector => {
+            if (!nodes.has(selector)) nodes.set(selector, {innerHTML:'', focus() {}});
+            return nodes.get(selector);
+        };
+        let seeks = 0;
+        const navigation = createCaptionNavigation({
+            getProject: () => project,
+            getMedia: () => {
+                trace.push('media');
+                if (fails) throw failure;
+                project.captions[0].text = 'Changed during media lookup';
+                return [];
+            },
+            query, modal, blocked: () => false,
+            openModal: () => { trace.push('modal'); modal.open = true; },
+            pause: () => trace.push('pause'), seek: () => seeks++, toast: () => trace.push('toast'),
+        });
+        const nativeStringify = JSON.stringify;
+        JSON.stringify = function(value, ...args) {
+            if (value === project) trace.push('snapshot');
+            return nativeStringify.call(this, value, ...args);
+        };
+        try {
+            if (fails) {
+                assert.throws(() => navigation.open(0), error => error === failure);
+                assert.deepEqual(trace, ['snapshot', 'media']);
+                assert.equal(modal.open, false);
+            } else {
+                navigation.open(0);
+                assert.deepEqual(trace, ['snapshot', 'media', 'modal']);
+                query('#captionOccurrence0').onclick();
+                assert.deepEqual(trace, ['snapshot', 'media', 'modal', 'snapshot']);
+                assert.match(query('#captionOccurrences').innerHTML, /role="status"/);
+            }
+            assert.equal(seeks, 0);
+        } finally { JSON.stringify = nativeStringify; }
+    }
+});

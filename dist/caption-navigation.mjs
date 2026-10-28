@@ -10,7 +10,8 @@ export function createCaptionNavigation({getProject, getMedia, query: $, modal, 
         if (blocked() || modal.open) return;
         const project = getProject(), caption = project.captions[captionIndex];
         if (!caption) return;
-        const owner = ++generation, contents = JSON.stringify(project), media = getMedia();
+        // With at most one clip, this cue cannot open a delayed chooser.
+        const owner = ++generation, contents = project.clips.length > 1 ? JSON.stringify(project) : null, media = getMedia();
         // Navigation needs timing only; repeated long text must not hit subtitle export limits.
         const occurrences = captionOccurrences([{...caption, text: ''}], project.clips, project.speed);
         if (!occurrences.length) { toast(message('panels.noCaptionOccurrence')); return; }

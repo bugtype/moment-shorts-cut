@@ -126,7 +126,6 @@ export function createDesignWorkspace(app) {
                 const card = app.state.overlays.find(item => item.id === id);
                 if (!card) return false;
                 copiedAppearance = structuredClone(Object.fromEntries(appearanceKeys.filter(key => Object.hasOwn(card, key)).map(key => [key, card[key]])));
-                app.renderPanel();
                 app.toast(message('panels.styleCopied'));
                 return true;
             },

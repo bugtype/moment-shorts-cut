@@ -108,3 +108,28 @@ test('card duplicate, reorder and remove keep current controls usable and old ha
   assert.equal(f.evaluate('state.overlays.find(c=>c.id===selectedCard).text'),'Current card edit');
  }
 });
+
+
+test('read-only card appearance copy keeps rejected timing and composition drafts attached',async()=>{
+ try {
+  const f=await fixture();open(f,'card');
+  vm.runInContext("globalThis.copySaves=0;scheduleSave=()=>copySaves++;future=['retained redo'];",f.context);
+  const end=f.query('[data-card="end"]'),copy=f.query('#copySceneAppearance'),paste=f.query('#pasteSceneAppearance');
+  const before=f.evaluate('({state,history,future,copySaves,current,selectedCard})');
+  end.value='0';end.onchange();const validity=end.validationMessage;
+  assert.ok(validity);assert.equal(f.evaluate('designWorkspace.hasPendingInput()'),true);
+  copy.onclick();
+  assert.equal(f.query('[data-card="end"]'),end);assert.equal(end.isConnected,true);assert.equal(end.value,'0');
+  assert.equal(end.validationMessage,validity);assert.equal(f.evaluate('designWorkspace.hasPendingInput()'),true);
+  assert.equal(paste.disabled,false);assert.equal(f.doc.activeElement,copy);
+  assert.deepEqual(f.evaluate('({state,history,future,copySaves,current,selectedCard})'),before);
+  end.value='4';end.onchange();assert.equal(f.evaluate('state.overlays[0].end'),4);assert.equal(f.evaluate('history.length'),1);
+  const input=control(f,'card');input.oncompositionstart();input.value='한글 입력';input.oninput({isComposing:true});
+  const pending=f.evaluate('({state,history,future,copySaves})');copy.onclick();
+  assert.equal(control(f,'card'),input);assert.equal(input.value,'한글 입력');assert.equal(f.evaluate('designWorkspace.hasPendingInput()'),true);
+  assert.deepEqual(f.evaluate('({state,history,future,copySaves})'),pending);
+  input.oncompositionend();assert.equal(f.evaluate('state.overlays[0].text'),'한글 입력');assert.equal(f.evaluate('history.length'),2);
+  const oldCopy=copy.onclick;vm.runInContext('renderPanel()',f.context);const fresh=f.query('[data-card="end"]');
+  fresh.value='5';oldCopy();assert.equal(f.query('[data-card="end"]'),fresh);assert.equal(fresh.value,'5','truly stale Copy cannot remount a newer draft');
+ } finally {initLocale();}
+});

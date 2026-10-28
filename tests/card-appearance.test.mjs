@@ -30,10 +30,20 @@ test('paste requires clipboard/current target and shared busy guard without phan
  vm.runInContext('exporting=false;state.overlays=[];',context);button(f,'pasteSceneAppearance').onclick();assert.equal(evaluate('state.overlays.length'),0);assert.equal(evaluate('history.length'),0);
 });
 test('mounted style controls disable empty paste and reject stale/replaced-project callbacks',()=>{
- let p=project(),controls,copied=false,copies=0,pastes=0,focus='';const root={querySelector:()=>controls,querySelectorAll:()=>[]};
+ let p=project(),controls,copied=false,copies=0,pastes=0,focus='',remountOnCopy=true,copyFailure=false;const root={querySelector:()=>controls,querySelectorAll:()=>[]};
  Object.defineProperty(root,'innerHTML',{set(){controls={nodes:new Map(),querySelector(id){return this.nodes.get(id)||null;},querySelectorAll(){return [];}};const owned=controls;
  Object.defineProperty(owned,'innerHTML',{set(html){for(const m of html.matchAll(/<button[^>]*id="([^"]+)"[^>]*>/g))owned.nodes.set('#'+m[1],{disabled:/\bdisabled/.test(m[0]),focus(){assert.equal(this.disabled,false);focus=m[1];}});}});}});
- const render=()=>{const source=p;mountEffectsPanel(root,{state:p,total:12,tab:'cards',selected:'target',current:()=>p===source,hasCopiedAppearance:copied,copyAppearance(){copies++;copied=true;render();return true;},pasteAppearance(){pastes++;render();return true;}});};
+ const render=()=>{const source=p;mountEffectsPanel(root,{state:p,total:12,tab:'cards',selected:'target',current:()=>p===source,hasCopiedAppearance:copied,copyAppearance(){if(copyFailure==='throw')throw new Error('copy failed');if(copyFailure)return false;copies++;copied=true;if(remountOnCopy)render();return true;},pasteAppearance(){pastes++;render();return true;}});};
  render();assert.equal(controls.querySelector('#pasteSceneAppearance').disabled,true);const old=controls.querySelector('#copySceneAppearance').onclick;old();assert.equal(copies,1);assert.equal(controls.querySelector('#pasteSceneAppearance').disabled,false);assert.equal(focus,'copySceneAppearance');old();assert.equal(copies,1);
  const stale=controls.querySelector('#pasteSceneAppearance').onclick;p=structuredClone(p);stale();assert.equal(pastes,0);render();controls.querySelector('#pasteSceneAppearance').onclick();assert.equal(pastes,1);assert.equal(focus,'pasteSceneAppearance');
+ copied=false;remountOnCopy=false;render();
+ const currentCopy=controls.querySelector('#copySceneAppearance'),currentPaste=controls.querySelector('#pasteSceneAppearance');
+ assert.equal(currentPaste.disabled,true);const priorFocus=focus;
+ copyFailure=true;currentCopy.onclick();assert.equal(currentPaste.disabled,true);assert.equal(focus,priorFocus);
+ copyFailure='throw';assert.throws(()=>currentCopy.onclick(),/copy failed/);assert.equal(currentPaste.disabled,true);
+ copyFailure=false;const beforeCopies=copies;currentCopy.onclick();currentCopy.onclick();
+ assert.equal(copies,beforeCopies+2,'still-current Copy can be repeated');
+ assert.equal(controls.querySelector('#pasteSceneAppearance'),currentPaste);assert.equal(currentPaste.disabled,false);
+ assert.equal(focus,'copySceneAppearance');
+ copied=false;render();currentCopy.onclick();assert.equal(copies,beforeCopies+2);assert.equal(controls.querySelector('#pasteSceneAppearance').disabled,true);
 });

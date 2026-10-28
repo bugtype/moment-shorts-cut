@@ -216,6 +216,11 @@ export function mountEffectsPanel(root, api) {
             api.current?.() === false
           ) return;
           if (!api[action](card.id)) return;
+          if (action === 'copyAppearance' && renderOwners.get(root) === owner &&
+            root.querySelector('#effectControls') === target && api.current?.() !== false) {
+            const paste = target.querySelector('#pasteSceneAppearance');
+            if (paste) paste.disabled = false;
+          }
           const button = root.querySelector('#effectControls')?.querySelector('#' + id);
           if (button && !button.disabled) button.focus();
         };

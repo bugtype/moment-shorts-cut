@@ -13,16 +13,17 @@ async function fixture(locale = 'ko', caption = {start:0,end:1,text:'Original'})
   assert.equal(getLocale(),locale);assert.equal(f.doc.documentElement.lang,locale);
   const panel = f.element('#panelContent');
   const originalQuery = f.doc.querySelector, originalAll = f.doc.querySelectorAll;
-  let controls = new Map(), rows = [], markup = '', generation = 0;
+  let controls = new Map(), rows = [], splitButtons = [], markup = '', generation = 0;
   const query = selector => controls.get(selector) || originalQuery(selector);
   f.doc.querySelector = query;
   f.doc.querySelectorAll = selector => {
+    if (selector === '[data-split-caption]') return splitButtons;
     const field = selector.match(/^\[data-caption-(text|start|end|keywords|speaker)\]$/)?.[1];
     return field ? rows.map(row => row[field]) : originalAll(selector);
   };
   panel.querySelector = query;
   Object.defineProperty(panel, 'innerHTML', { configurable: true, get: () => markup, set: value => {
-    markup = value; controls = new Map(); rows = []; generation++;
+    markup = value; controls = new Map(); rows = []; splitButtons = []; generation++;
     const node = key => f.element(`api-draft-${generation}-${key}`);
     for (const [, id] of value.matchAll(/\bid="([\w-]+)"/g)) {
       const el = node(id); el.id = id; controls.set('#' + id, el);
@@ -50,6 +51,10 @@ async function fixture(locale = 'ko', caption = {start:0,end:1,text:'Original'})
       }
       rows.push(row);
     }
+    for (const [, index] of value.matchAll(/data-split-caption="(\d+)"/g)) {
+      const button = node(`split-${index}`); button.dataset.splitCaption = index;
+      controls.set(`[data-split-caption="${index}"]`, button); splitButtons.push(button);
+    }
   }});
   f.context.seedCaption = caption;
   vm.runInContext("state.captions=[seedCaption]; switchPanel('captions'); history=[]; future=[];", f.context);
@@ -57,6 +62,84 @@ async function fixture(locale = 'ko', caption = {start:0,end:1,text:'Original'})
 }
 const snapshot = f => f.evaluate('({state,history,future,current,selected})');
 const effect = {patch:{brightness:1.1}};
+
+test('caret splitting maps normalized rows to literal authored halves and preserves Undo/Redo', async () => {
+  try {
+    for (const [text,caret,parts,time] of [
+      ['앞\r\n뒤끝',3,['앞\r\n뒤','끝'],4.5],
+      ['A\r\nB',1,['A','\r\nB'],2],
+      ['A\r\nB',2,['A\r\n','B'],4],
+      ['\nA\r\nBC',4,['\nA\r\nB','C'],4.8],
+      ['A\rBC',2,['A\r','BC'],3],
+      ['😀\r\ne\u0301Z',5,['😀\r\ne\u0301','Z'],4.5],
+    ]) {
+      const caption = {start:0,end:6,text,basis:'timeline',speaker:'1',keywords:'유지'};
+      const f = await fixture('ko', caption), before = f.evaluate('state');
+      const input = f.query('[data-caption-text="0"]'); input.focus(); input.setSelectionRange(caret,caret);
+      assert.equal(f.evaluate('captionWorkspace.hasPendingEdits()'), false);
+      f.query('[data-split-caption="0"]').onclick();
+      const after = f.evaluate('state'), expected = structuredClone(before);
+      expected.captions = [{...caption,text:parts[0],end:time,timing:'estimated'},
+        {...caption,text:parts[1],start:time,timing:'estimated'}];
+      assert.deepEqual(after, expected); assert.equal(f.evaluate('history.length'), 1);
+      assert.equal(f.doc.activeElement, f.query('[data-caption-text="1"]'));
+      vm.runInContext('undo()', f.context); assert.deepEqual(f.evaluate('state'), before);
+      vm.runInContext('undo(true)', f.context); assert.deepEqual(f.evaluate('state'), after);
+    }
+  } finally { initLocale(); }
+});
+
+test('normalized caret ports refuse malformed positions and retain core boundary checks', async () => {
+  try {
+    for (const [text,caret,key] of [
+      ['A\r\n\r\nB',5,'panels.chooseCaret'],
+      ['A\r\n\r\nB',1.5,'panels.chooseCaret'],
+      ['A\r\n\r\nB',-1,'panels.chooseCaret'],
+      ['A\r\n\r\nB',0,'errors.splitCaret'],
+      ['A\r\n\r\nB',4,'errors.splitCaret'],
+      ['\r\nAB',1,'errors.splitEmpty'],
+      ['😀\r\ne\u0301Z',1,'errors.splitBoundary'],
+      ['😀\r\ne\u0301Z',4,'errors.splitBoundary'],
+    ]) {
+      const f = await fixture('ko', {start:0,end:6,text}), input = f.query('[data-caption-text="0"]');
+      const before = snapshot(f); input.focus(); input.setSelectionRange(caret,caret);
+      f.query('[data-split-caption="0"]').onclick();
+      assert.deepEqual(snapshot(f), before); assert.equal(f.doc.activeElement, input);
+      assert.equal(f.element('#toast').textContent, t(key));
+    }
+  } finally { initLocale(); }
+});
+
+test('caret splitting preserves raw-port offsets and refuses real drafts, ranges and changed text', async () => {
+  try {
+    for (const caret of [2,5]) {
+      const text = 'A\r\n\r\nB', f = await fixture('ko', {start:0,end:6,text});
+      const input = f.query('[data-caption-text="0"]'); input.value = text; input.setSelectionRange(caret,caret);
+      const before = snapshot(f); f.query('[data-split-caption="0"]').onclick();
+      if (caret === 2) {
+        assert.deepEqual(snapshot(f), before); assert.equal(f.element('#toast').textContent, t('errors.splitBoundary'));
+      } else {
+        assert.deepEqual(f.evaluate('state.captions.map(c=>c.text)'), ['A\r\n\r\n','B']);
+        assert.equal(f.evaluate('state.captions[0].end'), 4.5); assert.equal(f.evaluate('history.length'), 1);
+      }
+    }
+    for (const mode of ['draft','range','changed']) {
+      const f = await fixture('ko', {start:0,end:6,text:'앞\r\n뒤끝'}), input = f.query('[data-caption-text="0"]');
+      input.focus(); input.setSelectionRange(3,mode === 'range' ? 4 : 3);
+      if (mode === 'draft') input.value = '다른 초안';
+      if (mode === 'changed') vm.runInContext("state.captions[0].text='외부 변경'", f.context);
+      const before = snapshot(f); f.query('[data-split-caption="0"]').onclick();
+      assert.deepEqual(snapshot(f), before); assert.equal(f.doc.activeElement, input);
+      assert.equal(f.element('#toast').textContent, t(mode === 'range' ? 'panels.chooseCaret' : 'panels.finishTyping'));
+      if (mode === 'draft') {
+        input.value = '가나'; input.onchange(); input.setSelectionRange(1,1);
+        f.query('[data-split-caption="0"]').onclick();
+        assert.deepEqual(f.evaluate('state.captions.map(c=>c.text)'), ['가','나']);
+        assert.equal(f.evaluate('history.length'), 2);
+      }
+    }
+  } finally { initLocale(); }
+});
 
 test('whole-list split preserves refused and uncommitted row drafts until explicit corrected retry', async () => {
   try {

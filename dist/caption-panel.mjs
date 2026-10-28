@@ -222,11 +222,24 @@ export function createCaptionPanel({
                 toast(message('panels.chooseCaret'));
                 return;
             }
-            if (input.value !== getProject().captions[index]?.text) {
+            const value = input.value, text = getProject().captions[index]?.text;
+            if (value !== text && value !== text?.replace(/\r\n?/g, '\n')) {
                 toast(message('panels.finishTyping'));
                 return;
             }
-            if (execute('captions.split', { captionIndex: index, textOffset: input.selectionStart }))
+            let textOffset = input.selectionStart;
+            if (value !== text) {
+                if (!Number.isInteger(textOffset) || textOffset < 0 || textOffset > value.length) {
+                    toast(message('panels.chooseCaret'));
+                    return;
+                }
+                // Only normalized textarea positions need conversion; raw-value ports keep their offsets.
+                let sourceOffset = 0;
+                for (let i = 0; i < textOffset; i++)
+                    sourceOffset += text[sourceOffset] === '\r' && text[sourceOffset + 1] === '\n' ? 2 : 1;
+                textOffset = sourceOffset;
+            }
+            if (execute('captions.split', { captionIndex: index, textOffset }))
                 focusCaption(index + 1);
         });
         $$('[data-merge-caption]').forEach(button => button.onclick = () => {

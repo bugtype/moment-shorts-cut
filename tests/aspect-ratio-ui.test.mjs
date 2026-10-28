@@ -85,15 +85,18 @@ test('4:5 preview PNG copies the actual 540 by 675 bitmap without project edits'
     vm.runInContext("setRatio('4:5');panel='settings';renderPanel();download=(blob,name)=>ratioDownloads.push({blob,name});",f.context);
     f.doc.createElement=tag=>{
         assert.equal(tag,'canvas');
-        const canvas={getContext:()=>({drawImage:source=>{canvas.source=source;}}),toBlob(callback){canvas.callback=callback;}};
+        const canvas={getContext:()=>({drawImage:source=>{canvas.source=source;}}),toBlob(callback){
+            canvas.callback=callback;canvas.encoded=[canvas.width,canvas.height];
+        }};
         copies.push(canvas);
         return canvas;
     };
     const before=f.evaluate('({state,history,current,playing})');
     f.element('#savePreviewPng').onclick();
-    assert.equal(copies[0].width,540);
-    assert.equal(copies[0].height,675);
+    assert.deepEqual(copies[0].encoded,[540,675]);
+    assert.deepEqual([copies[0].width,copies[0].height],[0,0]);
     assert.equal(copies[0].source,f.element('#preview'));
+    assert.deepEqual([copies[0].source.width,copies[0].source.height],[540,675]);
     copies[0].callback(new Blob(['mock pixels'],{type:'image/png'}));
     assert.match(downloads[0].name,/\.preview-540x675\.png$/);
     assert.deepEqual(f.evaluate('({state,history,current,playing})'),before);

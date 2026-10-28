@@ -31,12 +31,19 @@ export function createPreviewExport({ getProject, getMedia, getCanvas, createCan
                 catch {
                     if (request === generation) toast(message('shell.previewPngError'));
                 }
-                finally { snapshot = null; }
             }, 'image/png');
         }
         catch {
-            snapshot = null;
             if (request === generation) toast(message('shell.previewPngError'));
+        }
+        finally {
+            // Native toBlob copies the bitmap before returning. Release only our
+            // scratch surface; its independent encoding and callback may continue.
+            if (snapshot) {
+                try { snapshot.width = 0; } catch { /* Best-effort native cleanup. */ }
+                try { snapshot.height = 0; } catch { /* Preserve the primary error. */ }
+            }
+            snapshot = null;
         }
     };
 }

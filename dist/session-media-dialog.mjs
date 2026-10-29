@@ -30,7 +30,11 @@ export function createSessionMediaDialog({getProject, persistence, controller, q
                 setText(status, 'shell.sessionMediaSelected');
             };
         }
-        check.onchange = () => { if (owns() && pending) cancel(); };
+        check.onchange = () => {
+            if (!owns() || !pending) return;
+            cancel();
+            if (owns()) setText(status, 'shell.sessionMediaCancelled');
+        };
         button.onclick = async event => {
             if (!owns() || pending || blocked() || event?.isComposing || event?.keyCode === 229) return;
             if (getProject() !== project || JSON.stringify(getProject()) !== contents) { setText(status, 'shell.sessionMediaStale'); return; }

@@ -71,14 +71,39 @@ test('demo without required files still requires confirmation and retains storag
     assert.equal(f.evaluate('sessionMedia.mediaReady()'),true);assert.deepEqual(f.snapshot(),before);assert.deepEqual(f.writes,[]);
 });
 
-test('pending relink cancelled by replacement or close/reopen cannot attach or close a new dialog',async()=>{
-    for(const replace of [true,false]){
-        const f=await fixture({pending:true});f.open();f.choose();const pending=f.connect();
-        if(replace)vm.runInContext("modalOpen('Other','Other')",f.context);
-        else {f.element('#modal').close();f.element('#modal').onclose();f.open();f.element('#modal').onclose();}
+test('pending relink cancellation reports withdrawn confirmation and fences replacement or reopened dialogs',async()=>{
+    for(const mode of ['replace','reopen','confirmation']){
+        const f=await fixture({pending:true}),before=f.snapshot();f.open();f.choose();const pending=f.connect();
+        const check=f.element('#sessionMediaConfirmed'),retainedChange=check.onchange,status=f.element('#sessionMediaStatus');
+        assert.equal(status.getAttribute('data-i18n'),'shell.sessionMediaConnecting');
+        if(mode==='replace')vm.runInContext("modalOpen('Other','Other')",f.context);
+        else if(mode==='reopen'){f.element('#modal').close();f.element('#modal').onclose();f.open();f.element('#modal').onclose();}
+        else {
+            check.checked=false;check.onchange();
+            assert.equal(status.getAttribute('data-i18n'),'shell.sessionMediaCancelled');
+            assert.equal(f.element('#connectSessionMedia').disabled,false);
+            try {
+                for(const [locale,label] of [['ko','파일 연결을 취소했습니다.'],['en','File connection cancelled.'],['zh-CN','文件连接已取消。']]){
+                    setLocale(locale,{persist:false});assert.equal(status.textContent,label);
+                }
+            } finally {setLocale('ko',{persist:false});}
+        }
         await pending;assert.equal(f.evaluate('sessionMedia.mediaReady()'),false);assert.equal(f.element('#modal').open,true);
-        assert.deepEqual(f.writes,[]);
-        if(!replace){f.choose();const retry=f.connect();assert.equal(f.element('#connectSessionMedia').disabled,true);f.probes.at(-1).finish();await retry;assert.equal(f.evaluate('sessionMedia.mediaReady()'),true);}
+        assert.deepEqual(f.snapshot(),before);assert.deepEqual(f.writes,[]);assert.deepEqual(f.revoked,['blob:session-1']);
+        if(mode!=='replace'){
+            if(mode==='confirmation'){
+                await f.element('#connectSessionMedia').onclick();
+                assert.equal(status.getAttribute('data-i18n'),'shell.sessionMediaConfirmation');
+                check.onchange();assert.equal(status.getAttribute('data-i18n'),'shell.sessionMediaConfirmation','nonpending changes retain feedback');
+            }else f.choose();
+            const retry=f.connect();assert.equal(f.element('#connectSessionMedia').disabled,true);
+            if(mode==='reopen')retainedChange();
+            f.probes[0].finish();await Promise.resolve();
+            assert.equal(f.element('#sessionMediaStatus').getAttribute('data-i18n'),'shell.sessionMediaConnecting');
+            assert.equal(f.element('#connectSessionMedia').disabled,true,'stale callback does not cancel retry');
+            f.probes.at(-1).finish();await retry;assert.equal(f.evaluate('sessionMedia.mediaReady()'),true);
+            assert.deepEqual(f.snapshot(),before);assert.deepEqual(f.writes,[]);
+        }
     }
 });
 

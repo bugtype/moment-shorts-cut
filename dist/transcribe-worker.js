@@ -1,6 +1,7 @@
 import { message as msg } from './i18n.mjs';
 let transcriber;
 self.onmessage = async event => {
+  let invoking = false;
   try {
     const { pipeline, env } = await import('https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.8.1/dist/transformers.min.js');
     env.allowLocalModels = false;
@@ -18,6 +19,7 @@ self.onmessage = async event => {
         }
       });
     self.postMessage({ type: 'progress', ...msg('errors.recognizing') });
+    invoking = true;
     const result = await transcriber(event.data.audio, {
       language: event.data.language,
       task: 'transcribe',
@@ -25,9 +27,10 @@ self.onmessage = async event => {
       chunk_length_s: 30,
       stride_length_s: 5
     });
+    invoking = false;
     self.postMessage({ type: 'result', result });
   } catch (error) {
-    // Failed runtime/model initialization may retain a rejected cache in this worker.
-    self.postMessage({ type: 'error', ...(!transcriber ? { fatal: true } : {}), ...msg('errors.recognitionFailed') });
+    // Initialization caches and the runtime inference queue can retain rejection.
+    self.postMessage({ type: 'error', ...(!transcriber || invoking ? { fatal: true } : {}), ...msg('errors.recognitionFailed') });
   }
 };

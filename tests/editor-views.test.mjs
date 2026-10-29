@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
 import { createInspectorView } from '../dist/inspector-view.mjs';
 import { createTimelineView } from '../dist/timeline-view.mjs';
 import { createDemoProject, validateProject, timelineDuration } from '../dist/core/project.mjs';
@@ -190,10 +191,11 @@ test('time updates keep their throttle and label cache local to each view', () =
   assert.doesNotThrow(() => withoutStatus.updateTime(state, 6, duration, true));
 });
 
-test('ratio and fit selections synchronize visual and accessible state in both editor surfaces', () => {
+test('ratio, fit and caption style selections synchronize visual and accessible state', () => {
   const { query } = controls();
-  const groups = Object.fromEntries(['ratio', 'fit'].map(key => [key,
-    Array.from({ length: 2 }, () => (key === 'ratio' ? ['9:16', '4:5', '1:1', '16:9'] : ['cover', 'contain']).map(value => {
+  const choices = {ratio:['9:16', '4:5', '1:1', '16:9'], fit:['cover', 'contain'], style:['impact', 'highlight', 'minimal']};
+  const groups = Object.fromEntries(Object.entries(choices).map(([key, values]) => [key,
+    Array.from({ length: key === 'style' ? 1 : 2 }, () => values.map(value => {
       const button = { dataset: { [key]: value }, attributes: {}, active: false };
       button.classList = { toggle: (_, active) => { button.active = active; } };
       button.setAttribute = (name, value) => { button.attributes[name] = String(value); };
@@ -202,12 +204,16 @@ test('ratio and fit selections synchronize visual and accessible state in both e
   ]));
   const inspector = createInspectorView(query, selector => groups[selector.slice(6, -1)] || []);
   const state = createDemoProject();
-  for (const [ratio, fit] of [['9:16', 'cover'], ['4:5', 'cover'], ['1:1', 'contain'], ['16:9', 'cover']]) {
-    Object.assign(state, { ratio, fit });
+  const html = fs.readFileSync(new URL('../dist/index.html', import.meta.url), 'utf8');
+  const styles = [...html.matchAll(/<button\b[^>]*data-style="([^"]+)"[^>]*>/g)];
+  assert.deepEqual(styles.map(match => match[1]), choices.style);
+  for (const [tag, style] of styles) assert.ok(tag.includes(`aria-pressed="${style === state.style}"`));
+  for (const [ratio, fit, style] of [['9:16', 'cover', 'impact'], ['4:5', 'cover', 'highlight'], ['1:1', 'contain', 'minimal'], ['16:9', 'cover', 'impact']]) {
+    Object.assign(state, { ratio, fit, style });
     inspector.render(state, 0, false, false);
     assert.equal(query('#ratioShortcut').attributes['aria-label'], `화면 비율 변경, 현재 ${ratio}`);
-    for (const key of ['ratio', 'fit']) {
-      assert.equal(groups[key].filter(button => button.active).length, 2);
+    for (const key of Object.keys(choices)) {
+      assert.equal(groups[key].filter(button => button.active).length, key === 'style' ? 1 : 2);
       for (const button of groups[key]) {
         assert.equal(button.active, button.dataset[key] === state[key]);
         assert.equal(button.attributes['aria-pressed'], String(button.active));

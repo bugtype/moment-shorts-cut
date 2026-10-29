@@ -40,14 +40,13 @@ export function createInspectorView($, $$) {
         setAttr($('#ratioShortcut'), 'aria-label', 'panels.ratioCurrent', {ratio:state.ratio});
         const output = outputDimensions(state.ratio, 1080);
         $('#previewSize').textContent = `${output.width} × ${output.height}`;
-        for (const key of ['ratio', 'fit']) {
+        for (const key of ['ratio', 'fit', 'style']) {
             $$(`[data-${key}]`).forEach(button => {
                 const active = button.dataset[key] === state[key];
                 button.classList.toggle('active', active);
                 button.setAttribute('aria-pressed', active);
             });
         }
-        $$('[data-style]').forEach(b => b.classList.toggle('active', b.dataset.style === state.style));
         $('#zoom').value = state.zoom;
         $('#zoomValue').textContent = `${Math.round(state.zoom * 100)}%`;
         $('#volume').value = state.volume;

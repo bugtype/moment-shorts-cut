@@ -93,6 +93,9 @@ export function createMediaSources({ video, audio }, {
         sources.thumbnail = '';
         video.removeAttribute('src');
         audio.removeAttribute('src');
+        // Removing src alone does not reset the retired native media resource.
+        try { video.load(); } catch { /* Keep the remaining cleanup independent. */ }
+        try { audio.load(); } catch { /* Preserve registry and URL cleanup. */ }
         if (sources.sourceURL)
             revokeURL(sources.sourceURL);
         if (sources.audioURL)

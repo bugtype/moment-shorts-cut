@@ -248,6 +248,7 @@ export function createWorkspacePanels(app) {
                 app.sources.audioFile = null;
                 app.state.audioName = '';
                 app.audio.removeAttribute('src');
+                try { app.audio.load(); } catch { /* Best-effort native resource reset. */ }
                 if (app.sources.audioURL)
                     app.revokeObjectURL(app.sources.audioURL);
                 app.persistMedia();

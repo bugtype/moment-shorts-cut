@@ -103,12 +103,28 @@ test('card textarea leading newlines survive clean checks, append edits and Undo
  }
 });
 
-test('bad input cannot masquerade as the unchanged nullable blank end',async()=>{
- for(const kind of ['title','credit']) {
-  const f=await fixture();open(f,kind);const end=control(f,kind,'end');assert.equal(end.value,'');
-  end.validity.badInput=true;assert.equal((await edit(f)).error?.code,'CONFLICT');
-  end.validity.badInput=false;assert.equal((await edit(f)).ok,true);
- }
+test('bad numeric end input refuses API and local commits instead of becoming a nullable blank',async()=>{
+ try {for(const kind of ['title','credit'])for(const initial of [null,8]) {
+  const locale=initial===null?'ko':kind==='title'?'en':'zh-CN';
+  const f=await fixture(locale,`state.design.${kind}.end=${initial};future.push(JSON.stringify(state));`);open(f,kind);
+  const end=control(f,kind,'end');assert.equal(end.value,initial===null?'':'8');
+  end.value='';end.validity.badInput=true;end.focus();let reports=0;
+  end.reportValidity=()=>{reports++;return false;};const before=state(f);
+  assert.equal((await edit(f)).error?.code,'CONFLICT');
+  end.onchange();assert.deepEqual(state(f),before);assert.equal(f.evaluate('designSaves'),0);
+  assert.equal(end.validationMessage,t('panels.timingInvalid'));assert.equal(reports,1);
+  assert.equal(control(f,kind,'end'),end);assert.equal(f.doc.activeElement,end);assert.equal(end.value,'');
+  end.validity.badInput=false;
+  if(initial===null)assert.equal((await edit(f)).ok,true);
+  else {
+   end.value='6';end.onchange();assert.equal(f.evaluate(`state.design.${kind}.end`),6);
+   assert.equal(end.validationMessage,'');assert.equal(reports,1);assert.equal(f.evaluate('designSaves'),1);
+   assert.equal(f.evaluate('history.length'),1);assert.equal(f.evaluate('future.length'),0);
+   const accepted=state(f).state;
+   vm.runInContext('undo()',f.context);assert.deepEqual(state(f).state,before.state);
+   vm.runInContext('undo(true)',f.context);assert.deepEqual(state(f).state,accepted);
+  }
+ }}finally{initLocale();}
 });
 
 test('invalid numeric commit keeps its draft; restored values and committed nullable end permit retry',async()=>{

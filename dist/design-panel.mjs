@@ -215,7 +215,7 @@ export function mountDesignPanel(root, api) {
         const start = path.endsWith('.start') ? value : target.start;
         const end = path.endsWith('.end') ? value : target.end;
         if (
-          start == null || !Number.isFinite(start) || (end != null && !Number.isFinite(end)) ||
+          input.validity?.badInput || start == null || !Number.isFinite(start) || (end != null && !Number.isFinite(end)) ||
           start < 0 || start > total || (end != null && (end <= start || end > total))
         ) {
           setValidity(input, 'panels.timingInvalid');

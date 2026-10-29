@@ -281,10 +281,17 @@
   color:#deded5
 }
 .safe-guide {
+  position:absolute;
   inset:0;
   border:0;
   z-index:5;
   pointer-events:none
+}
+.safe-guide span {
+  position:absolute;
+  bottom:-18px;
+  color:#fff;
+  font-size:8px
 }
 .safe-guide .safe-top {
   position:absolute;

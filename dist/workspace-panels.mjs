@@ -265,12 +265,23 @@ export function createWorkspacePanels(app) {
                 // Compare the displayed output time before inverse conversion can drift.
                 // An out-of-range stored offset still takes the existing clamp path.
                 if (offset >= 0 && offset <= app.duration() && value === offset / app.state.speed) return;
+                const next = clamp(value * app.state.speed, 0, app.duration()), delta = next - offset;
+                if (next > 86400) {
+                    app.toast(message('errors.numberRange'));
+                    return;
+                }
+                const captions = app.state.captions.map(caption => caption.basis === 'timeline'
+                    ? { ...caption, start: Math.max(0, caption.start + delta), end: Math.max(.001, caption.end + delta) }
+                    : caption);
+                if (captions.some(caption => caption.basis === 'timeline' &&
+                    (!Number.isFinite(caption.start) || !Number.isFinite(caption.end) || caption.start < 0 ||
+                        caption.end > 86400 || caption.end <= caption.start))) {
+                    app.toast(message('errors.shiftRange'));
+                    return;
+                }
                 app.edit(() => {
-                    const next = clamp(value * app.state.speed, 0, app.duration()), delta = next - app.state.audioOffset;
                     app.state.audioOffset = next;
-                    app.state.captions = app.state.captions.map(caption => caption.basis === 'timeline'
-                        ? { ...caption, start: Math.max(0, caption.start + delta), end: Math.max(.001, caption.end + delta) }
-                        : caption);
+                    app.state.captions = captions;
                 }, true);
             };
             bindAudioGain('audioVolume', 'audioVolume', generation);

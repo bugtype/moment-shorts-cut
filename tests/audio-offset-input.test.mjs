@@ -170,3 +170,46 @@ test('out-of-range audio starts retain explicit clamp, caption shift and Undo be
         assert.deepEqual(f.evaluate('state'), before.state);
     }
 });
+
+test('audio-start preflight preserves valid project domains atomically and permits corrected retry', async () => {
+    for (const kind of ['offset', 'caption', 'collapsed']) {
+        const f = await fixture(kind === 'offset' ? 2 : 1);
+        const extended = kind !== 'collapsed', offset = kind === 'offset' ? 86399 : kind === 'caption' ? 2 : 0;
+        const boundary = kind === 'collapsed' ? {start: 0, end: 1e-17} : {start: 86399, end: 86400};
+        vm.runInContext(`
+            state.duration=${extended ? 180 : 12};state.clips=Array.from({length:${extended ? 481 : 1}},()=>({start:0,end:state.duration}));
+            state.audioOffset=${offset};state.captions=[
+                {start:1,end:3,text:'Earlier timeline row',basis:'timeline',keywords:'Earlier'},
+                {start:${kind === 'offset' ? 2 : boundary.start},end:${kind === 'offset' ? 4 : boundary.end},text:'Later timeline row',basis:'timeline',speaker:'1',timing:'estimated'},
+                {start:1,end:2,text:'Unshifted source row',speaker:'0'}];
+            validateProject(state);timelineCache=null;renderPanel();history=[];future=[JSON.stringify(state)];offsetSaves=0;
+            globalThis.sourceCue=state.captions[2];globalThis.offsetSaveTimer={pending:true};persistence.saveTimer=offsetSaveTimer;
+        `, f.context);
+        f.input = f.element('#audioOffset');f.input.value = String(offset / (kind === 'offset' ? 2 : 1));
+        f.input.focus();
+        const before = f.snapshot(), input = f.input, markup = f.element('#panelContent').innerHTML, focus = f.focusEvents.length;
+        const invalid = kind === 'offset' ? '43200.5' : kind === 'caption' ? '3' : '1';
+        f.change(invalid);
+        assert.deepEqual(f.snapshot(), before, `${kind}: refusal precedes offset, earlier-row, history, Redo and save mutations`);
+        assert.equal(input.value, invalid);assert.equal(f.element('#audioOffset'), input);
+        assert.equal(f.element('#panelContent').innerHTML, markup);assert.equal(f.doc.activeElement, input);assert.equal(f.focusEvents.length, focus);
+        assert.equal(vm.runInContext('persistence.saveTimer===offsetSaveTimer && state.captions[2]===sourceCue', f.context), true);
+        assert.equal(f.element('#toast').getAttribute('data-i18n'), kind === 'offset' ? 'errors.numberRange' : 'errors.shiftRange');
+        vm.runInContext('validateProject(state)', f.context);
+
+        const corrected = kind === 'offset' ? '43200' : kind === 'caption' ? '1' : '.1';
+        f.change(corrected);
+        const after = f.snapshot(), next = Number(corrected) * before.state.speed, delta = next - offset;
+        assert.equal(after.state.audioOffset, next);assert.equal(after.history.length, 1);assert.equal(after.future.length, 0);assert.equal(after.saves, 1);
+        assert.deepEqual(after.state.captions, before.state.captions.map(caption => caption.basis === 'timeline'
+            ? {...caption, start: Math.max(0, caption.start + delta), end: Math.max(.001, caption.end + delta)} : caption));
+        assert.equal(vm.runInContext('state.captions[2]===sourceCue', f.context), true);
+        vm.runInContext('validateProject(state);undo()', f.context);assert.deepEqual(f.evaluate('state'), before.state);
+        vm.runInContext('undo(true);validateProject(state)', f.context);assert.deepEqual(f.evaluate('state'), after.state);
+        if (kind === 'caption') {
+            f.input = f.element('#audioOffset');f.change('2');
+            assert.equal(f.evaluate('state.captions[1].end'), 86400, 'exact upper cue endpoint is accepted, not clamped or rounded');
+            vm.runInContext('validateProject(state)', f.context);
+        }
+    }
+});

@@ -43,6 +43,7 @@ test('bad numeric input is not an omitted criterion and validity-only changes in
    input.value=value;run.onclick();assert.equal(f.query('#captionInspectionResults').innerHTML,'');oldSave();
    const error=f.events.filter(([kind])=>kind==='toast').at(-1)[1];
    assert.equal(error.messageKey,'errors.finiteNumber');assert.equal(error.path,'$.review.'+key);
+   assert.deepEqual(f.events.at(-1),['focus',id],'focus follows the existing validation path');
    assert.equal(f.downloads.length,0);assert.equal(f.modal.open,true);assert.deepEqual(f.project(),before);
   }
   input.validity.badInput=false;run.onclick();f.query('#saveCaptionFindings').onclick();
@@ -52,7 +53,9 @@ test('bad numeric input is not an omitted criterion and validity-only changes in
  }
  const f=fixture();f.controller.open();f.query('#captionInspectionMin').validity={badInput:true};
  f.run('0');assert.equal(f.events.at(-2)[1].path,'$.review.minDuration','nonfinite validation still precedes finite domain checks');
+ assert.deepEqual(f.events.at(-1),['focus','captionInspectionMin']);
  f.run('NaN');assert.equal(f.events.at(-2)[1].path,'$.review.maxGraphemesPerSecond','first nonfinite field keeps precedence');
+ assert.deepEqual(f.events.at(-1),['focus','captionInspectionThreshold']);
  f.query('#captionInspectionMin').validity.badInput=false;f.run('1');
  const oldSave=f.query('#saveCaptionFindings').onclick;f.query('#captionInspectionMin').validity.badInput=true;
  f.query('#captionInspectionFilter').value='too-long';f.query('#captionInspectionFilter').onchange();
@@ -67,7 +70,8 @@ test('actual app inspection rejects incomplete duration input and recovers witho
  f.element('#captionInspectionMax').value='5';const before=f.evaluate('JSON.stringify({state,history,future,current,inspectionSaves})');
  f.element('#runCaptionInspection').onclick();assert.equal(f.element('#captionInspectionResults').innerHTML,'');
  assert.equal(f.element('#saveCaptionFindings').onclick,undefined);assert.equal(downloads.length,0);
- assert.equal(f.doc.activeElement,f.element('#captionInspectionThreshold'),'existing error focus remains unchanged');
+ assert.equal(f.doc.activeElement,input,'focus returns to the incomplete minimum duration');
+ assert.equal(input.value,'');assert.equal(f.element('#captionInspectionMax').value,'5');
  input.value='.5';input.validity.badInput=false;f.element('#runCaptionInspection').onclick();f.element('#saveCaptionFindings').onclick();
  assert.equal(downloads.length,1);const report=JSON.parse(await downloads[0].blob.text());
  assert.equal(report.thresholds.minDuration,.5);assert.equal(report.thresholds.maxDuration,5);
@@ -130,12 +134,16 @@ test('duration-only review finds flashes and lingering cues without inventing a 
  let html=f.query('#captionInspectionResults').innerHTML;
  assert.match(html,/짧은 표시 시간/);assert.match(html,/긴 표시 시간/);assert.match(html,/전체 결과 2개/);
  assert.doesNotMatch(html,/>Yes</);assert.deepEqual(f.project(),before);
- for(const [min,max] of [['0','5'],['2','1'],['Infinity','5'],['NaN','5']]){
+ for(const [min,max,field] of [['0','5','Min'],['.5','0','Max'],['2','1','Max'],['Infinity','5','Min'],['NaN','5','Min']]){
   f.query('#captionInspectionMin').value=min;f.query('#captionInspectionMax').value=max;f.run('');
   assert.equal(f.query('#inspectCaption0'),null);
+  assert.deepEqual(f.events.at(-1),['focus','captionInspection'+field]);
  }
  f.query('#captionInspectionMin').value='';f.query('#captionInspectionMax').value='';f.run('');
  assert.equal(f.events.at(-2)[0],'toast');assert.equal(f.query('#inspectCaption0'),null);
+ assert.equal(f.events.at(-2)[1].path,'arguments.review');assert.deepEqual(f.events.at(-1),['focus','captionInspectionThreshold']);
+ f.project().name=1;f.run('1');
+ assert.equal(f.events.at(-2)[1].path,'project.name');assert.deepEqual(f.events.at(-1),['focus','captionInspectionThreshold']);
 });
 
 test('filter recomputes before limit, preserves global totals, and invalidates prior callbacks',()=>{

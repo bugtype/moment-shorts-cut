@@ -23,6 +23,7 @@ export function createCaptionInspectionDialog({getProject, getMedia = () => [], 
             `<select class="panel-select" id="captionInspectionFilter">${kinds.map(kind => `<option value="${kind}" ${mark('advisory.'+kind)}>${t('advisory.'+kind)}</option>`).join('')}</select>` +
             `<div id="captionInspectionResults" aria-live="polite"></div>`);
         const input = $('#captionInspectionThreshold'), minimum = $('#captionInspectionMin'), maximum = $('#captionInspectionMax');
+        const criteriaInputs = [[input,'maxGraphemesPerSecond'],[minimum,'minDuration'],[maximum,'maxDuration']];
         const overlaps = $('#captionInspectionOverlaps'), filter = $('#captionInspectionFilter');
         const run = $('#runCaptionInspection'), results = $('#captionInspectionResults');
         overlaps.checked = true; filter.value = 'all';
@@ -52,7 +53,7 @@ export function createCaptionInspectionDialog({getProject, getMedia = () => [], 
             snapshot = null; results.innerHTML = '';
             try {
                 const review = {includeOverlaps: overlaps.checked, filter: filter.value};
-                for (const [control,key] of [[input,'maxGraphemesPerSecond'],[minimum,'minDuration'],[maximum,'maxDuration']]) {
+                for (const [control,key] of criteriaInputs) {
                     // Incomplete native numeric input can expose an empty value; it is not an omitted check.
                     if (control.validity?.badInput) review[key] = NaN;
                     else if (control.value.trim() !== '') review[key] = Number(control.value);
@@ -103,7 +104,10 @@ export function createCaptionInspectionDialog({getProject, getMedia = () => [], 
                 });
             } catch (error) {
                 toast(error?.messageKey ? error : error.message || message('shell.inspectFailed'));
-                input.focus();
+                const path = error?.path;
+                const invalid = criteriaInputs.find(([, key]) =>
+                    path === `$.review.${key}` || path === `arguments.review.${key}`);
+                (invalid?.[0] || input).focus();
             }
         }
         run.onclick = inspect;

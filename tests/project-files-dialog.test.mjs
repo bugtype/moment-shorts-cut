@@ -57,6 +57,36 @@ test('actual file picker import closes only owned dialog, supports undo and prot
     vm.runInContext('undo()',f.context);assert.deepEqual(f.evaluate('state'),before);
   }
 });
+test('older settings reads retain their error result without replacing newer picker feedback',async()=>{
+  for(const ending of ['valid','malformed','read-error']){
+    const f=await createAppFixture();
+    vm.runInContext('history=[];future=[JSON.stringify(state)];globalThis.importSaves=0;scheduleSave=()=>importSaves++;',f.context);
+    const old=createProjectDocument(f.evaluate('state')),latest=structuredClone(old);latest.project.name='Newest settings';
+    let resolve,reject,value='selected';const cleared=[];
+    const input=f.element('#projectInput');Object.defineProperty(input,'value',{get:()=>value,set:next=>{value=next;cleared.push(next);}});
+    f.element('#projectFilesButton').onclick();input.click=()=>{};
+    const button=f.element('#importProjectSettingsButton');button.onclick();
+    const pending=input.onchange({target:{files:[{size:1,arrayBuffer:()=>new Promise((a,b)=>{resolve=a;reject=b;})}]}});
+    button.onclick();const applied=await input.onchange({target:{files:[new Blob([JSON.stringify(latest)])]}});
+    assert.equal(applied.ok,true);assert.equal(f.evaluate('state.name'),'Newest settings');
+    assert.equal(f.evaluate('history.length'),1);assert.equal(f.evaluate('future.length'),0);assert.equal(f.context.importSaves,1);
+    assert.equal(f.element('#modal').open,false);
+    const notice=f.element('#toast').textContent,before=f.evaluate('[state,history,future,importSaves]'),focus=f.focusEvents.length;
+    assert.equal(notice,translateFor('ko','errors.settingsApplied'));
+    if(ending==='read-error')reject(new Error('older reader failed'));
+    else resolve(await new Blob([ending==='valid'?JSON.stringify(old):'{broken']).arrayBuffer());
+    const result=JSON.parse(JSON.stringify(await pending));
+    const message=ending==='read-error'?'older reader failed':translateFor('ko',ending==='valid'?'errors.importConflict':'errors.settingsCheck');
+    assert.deepEqual(result,{ok:false,error:{code:'IMPORT_FAILED',message}},'the original caller still receives its exact failure');
+    assert.equal(f.element('#toast').textContent,notice,'obsolete failures must not overwrite the newest import feedback');
+    assert.deepEqual(f.evaluate('[state,history,future,importSaves]'),before);assert.equal(f.focusEvents.length,focus);
+    assert.equal(f.element('#modal').open,false);assert.deepEqual(cleared,['',''],'both readers retain their original input cleanup');
+    latest.project.name='Corrected retry';f.element('#projectFilesButton').onclick();f.element('#importProjectSettingsButton').onclick();
+    assert.equal((await input.onchange({target:{files:[new Blob([JSON.stringify(latest)])]}})).ok,true);
+    assert.equal(f.evaluate('state.name'),'Corrected retry');assert.equal(f.evaluate('history.length'),2);assert.equal(f.context.importSaves,2);
+    assert.equal(f.element('#toast').textContent,translateFor('ko','errors.settingsApplied'));
+  }
+});
 test('actual pending import retains conflict and busy protection without closing the dialog',async()=>{
   for(const change of ["state.name='concurrent'",'loadingMedia=true']){
     const f=await createAppFixture();const doc=createProjectDocument(f.evaluate('state'));doc.project.name='must not apply';

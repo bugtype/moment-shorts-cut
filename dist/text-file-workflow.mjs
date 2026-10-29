@@ -32,8 +32,9 @@ export function createTextFileWorkflow({
         return guard;
     }
     async function importProjectSettings(file, closeImportedDialog = closeModal) {
+        let beforeCommit;
         try {
-            const beforeCommit = guardTextImport();
+            beforeCommit = guardTextImport();
             assertProjectFileSize(file.size);
             const text = await readUtf8File(file, true);
             let document;
@@ -50,7 +51,8 @@ export function createTextFileWorkflow({
             return result;
         }
         catch (error) {
-            toast((error.messageKey ? error : error.message) || msg('errors.settingsCheck'));
+            if (!beforeCommit || beforeCommit.isLatest())
+                toast((error.messageKey ? error : error.message) || msg('errors.settingsCheck'));
             return { ok: false, error: { code: 'IMPORT_FAILED', message: formatError(error) } };
         }
         finally {

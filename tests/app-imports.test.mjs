@@ -196,7 +196,7 @@ test('browser command API, imports and subtitle output guards', async () => {
   // Newest selection wins, including cross-format imports and failed newer reads.
   for(const first of ['json','srt'])for(const second of ['json','srt'])for(const reverse of [false,true]){
    resetImportFixture();const old=delayedImport(first,'older'),latest=delayedImport(second,'newest');
-   if(reverse){latest.finish();await latest.pending;const before=importSnapshot();old.finish();await old.pending;assert.deepEqual(importSnapshot(),before);}
+   if(reverse){latest.finish();await latest.pending;const before=importSnapshot(),notice=element('#toast').textContent;old.finish();await old.pending;assert.deepEqual(importSnapshot(),before);assert.equal(element('#toast').textContent,notice,'superseded JSON/SRT failures preserve newest feedback');}
    else{const before=importSnapshot();old.finish();await old.pending;assert.deepEqual(importSnapshot(),before);latest.finish();await latest.pending;}
    assert.equal(evaluate(second==='json'?'state.name':'state.captions[0].text'),'newest');
    assert.equal(evaluate('history.length'),1);assert.equal(context.importSaves,1);
@@ -204,7 +204,7 @@ test('browser command API, imports and subtitle output guards', async () => {
   for(const kind of ['json','srt']){
    resetImportFixture();const old=delayedImport(kind);context.importFile=new Blob(['invalid']);
    await vm.runInContext(kind==='json'?'importProjectSettings(importFile)':'importSrt(importFile)',context);
-   const before=importSnapshot();old.finish();await old.pending;assert.deepEqual(importSnapshot(),before);
+   const before=importSnapshot(),notice=element('#toast').textContent;old.finish();await old.pending;assert.deepEqual(importSnapshot(),before);assert.equal(element('#toast').textContent,notice,'the newest invalid file keeps its own diagnostic');
    const retry=delayedImport(kind,'retried');retry.finish();await retry.pending;
    assert.equal(evaluate(kind==='json'?'state.name':'state.captions[0].text'),'retried');
   }

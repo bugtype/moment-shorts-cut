@@ -64,8 +64,13 @@ export function createTemplatePreview({ composition, getMedia, modal, openModal:
             frame = 0;
         };
         const animate = now => {
-            if (!valid() || !running) {
+            const validScene = valid();
+            if (!validScene || !running) {
                 stop();
+                if (!validScene && current()) {
+                    setText($('#toggleTemplateDemo'), 'templates.play');
+                    setText($('#templateSceneStatus'), 'templates.sceneStale');
+                }
                 return;
             }
             if (now - lastPreview >= 1000 / 30) {
@@ -82,6 +87,17 @@ export function createTemplatePreview({ composition, getMedia, modal, openModal:
                 setText($('#toggleTemplateDemo'), 'templates.play');
             }
             else {
+                const validScene = valid();
+                if (!current()) return;
+                const status = $('#templateSceneStatus');
+                if (!validScene) {
+                    setText(status, 'templates.sceneStale');
+                    return;
+                }
+                if (status.getAttribute('data-i18n') === 'templates.sceneStale') {
+                    status.textContent = '';
+                    status.removeAttribute('data-i18n');
+                }
                 running = true;
                 started = clock();
                 setText($('#toggleTemplateDemo'), 'templates.pause');

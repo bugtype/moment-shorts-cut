@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import vm from 'node:vm';
 import { createAppFixture } from './fixtures/app.mjs';
 import { applyTemplate, TEMPLATES } from '../dist/template-catalog.mjs';
-import { setLocale, initLocale } from '../dist/i18n.mjs';
+import { setLocale, initLocale, translateFor } from '../dist/i18n.mjs';
 
 async function fixture() {
     const f = await createAppFixture();
@@ -82,4 +82,51 @@ test('failed-invalid and restoring metadata never apply a template',async()=>{
         f.open();const before=f.evaluate('state');f.element('#applyTemplateStyle').onclick({});
         assert.deepEqual(f.evaluate('state'),before);assert.equal(f.evaluate('history.length'),0);
     }
+});
+
+
+test('stale sample playback shows stopped status after delayed raster load and can reopen cleanly', async () => {
+    const f = await createAppFixture(), app = vm.runInContext('app', f.context);
+    assert.equal(app.sampleRaster, null);
+    vm.runInContext('pause();templatePreview.open(TEMPLATES[0]);', f.context);
+    const before = f.evaluate('({state,history,future,current,selected,timer:persistence.saveTimer})');
+    const button = f.element('#toggleTemplateDemo'), status = f.element('#templateSceneStatus');
+    button.focus(); const focus = f.doc.activeElement;
+    button.onclick({});
+    assert.equal(button.getAttribute('data-i18n'), 'templates.pause');
+    const [id, callback] = [...f.pendingFrames][0];
+    app.sample.complete = true; app.sample.onload();
+    assert.ok(app.sampleRaster);
+    f.pendingFrames.delete(id); callback(performance.now());
+    for (const [frame, draw] of [...f.pendingFrames]) { f.pendingFrames.delete(frame); draw(performance.now()); }
+    assert.equal(f.pendingFrames.size, 0);
+    assert.equal(button.getAttribute('data-i18n'), 'templates.play');
+    assert.equal(status.getAttribute('data-i18n'), 'templates.sceneStale');
+    assert.equal(f.doc.activeElement, focus);
+    try {
+        for (const locale of ['ko', 'en', 'zh-CN']) {
+            setLocale(locale, {persist:false});
+            assert.equal(button.textContent, translateFor(locale, 'templates.play'));
+            assert.equal(status.textContent, translateFor(locale, 'templates.sceneStale'));
+        }
+    } finally { initLocale(); }
+    button.onclick({});
+    assert.equal(f.pendingFrames.size, 0, 'stale Play refuses before scheduling a doomed frame');
+    vm.runInContext('templatePreview.open(TEMPLATES[0]);', f.context);
+    button.onclick({}); assert.equal(f.pendingFrames.size, 1, 'freshly reopened scene plays');
+    const [, freshCallback] = [...f.pendingFrames][0];
+    const freshLabel = button.textContent, freshStatus = status.textContent;
+    callback(performance.now());
+    assert.equal(button.textContent, freshLabel); assert.equal(status.textContent, freshStatus);
+    assert.equal(f.pendingFrames.size, 1, 'old callback cannot stop or repaint the replacement');
+    button.onclick({}); assert.equal(f.pendingFrames.size, 0);
+    const pausedStatus = status.textContent;
+    freshCallback(performance.now());
+    assert.equal(button.getAttribute('data-i18n'), 'templates.play');
+    assert.equal(status.textContent, pausedStatus, 'retained valid callback after Pause is not a stale scene');
+    assert.equal(f.pendingFrames.size, 0);
+    f.element('#modal').close(); f.element('#modal').onclose();
+    const closedLabel = button.textContent; freshCallback(performance.now());
+    assert.equal(button.textContent, closedLabel);
+    assert.deepEqual(f.evaluate('({state,history,future,current,selected,timer:persistence.saveTimer})'), before);
 });

@@ -5,7 +5,7 @@ import { TEMPLATES, saveCustomTemplate } from '../dist/template-catalog.mjs';
 import { createDemoProject } from '../dist/core/project.mjs';
 import { message } from '../dist/i18n.mjs';
 
-function fixture() {
+function fixture(scene) {
   const controls = new Map(), frames = new Map(), draws = [], dialogs = [], applications = [];
   let frame = 0, time = 100, media = { source: { name: 'sample' }, ready: true };
   const query = selector => {
@@ -21,7 +21,7 @@ function fixture() {
   const modal = { open: true, classList: { add() {} } };
   const preview = createTemplatePreview({
     composition: { draw: (...args) => draws.push(args) },
-    getMedia: () => media, modal, query,
+    getMedia: () => media, modal, query, scene,
     openModal: (...args) => { dialogs.push(args); modal.open = true; },
     onApply: (template, withContent) => applications.push([template, withContent]),
   }, {
@@ -72,6 +72,21 @@ test('preview play, pause, modal close and apply own only their animation loop',
   assert.equal(f.frames.size, 0);
   f.query('#applyTemplateStructure').onclick();
   assert.deepEqual(f.applications, [[template, false], [template, true]]);
+
+  let valid = false;
+  const recovery = fixture(() => ({valid:()=>valid}));
+  recovery.preview.open(template);
+  const play = recovery.query('#toggleTemplateDemo'), status = recovery.query('#templateSceneStatus');
+  play.onclick(); assert.equal(recovery.frames.size, 0);
+  assert.equal(status.getAttribute('data-i18n'), 'templates.sceneStale');
+  valid = true; play.onclick(); assert.equal(recovery.frames.size, 1);
+  assert.equal(status.textContent, ''); assert.equal(status.getAttribute('data-i18n'), null);
+  play.onclick();
+  status.setAttribute('data-i18n', 'templates.sceneUnavailable'); status.textContent = 'capture error';
+  play.onclick(); assert.equal(recovery.frames.size, 1);
+  assert.equal(status.getAttribute('data-i18n'), 'templates.sceneUnavailable');
+  assert.equal(status.textContent, 'capture error', 'valid Play clears only its obsolete stale feedback');
+  play.onclick();
 });
 
 test('preview markup escapes template text and retains explicit application consequences', () => {

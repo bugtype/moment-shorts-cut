@@ -131,7 +131,7 @@ const sessionMediaDialog = createSessionMediaDialog({
 
 const templatePreview = createTemplatePreview({
     composition, scene: () => createTemplateScene(app),
-    getMedia: () => ({ source: sampleRaster || sample, ready: sample.complete }),
+    getMedia: () => ({ source: sampleRaster || sample, ready: sample.complete && !!sampleRaster }),
     modal,
     openModal: (title, body, foot) => modalOpen(title, body, foot),
     query: $,
@@ -333,10 +333,12 @@ const clipDuplicate = createClipDuplicateDialog(app);
 const captionFlow = createCaptionFlow(app);
 
 sample.onload = () => {
-    sampleRaster = document.createElement('canvas');
-    sampleRaster.width = 540;
-    sampleRaster.height = 960;
-    sampleRaster.getContext('2d').drawImage(sample, 0, 0, 540, 960);
+    const raster = document.createElement('canvas');
+    raster.width = 540;
+    raster.height = 960;
+    raster.getContext('2d').drawImage(sample, 0, 0, 540, 960);
+    // complete also includes failed images; publish only successfully drawn pixels.
+    sampleRaster = raster;
     requestDraw();
     if (panel === 'templates')
         renderPanel();

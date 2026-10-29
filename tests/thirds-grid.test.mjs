@@ -87,7 +87,7 @@ test('guides remain a clipped noninteractive DOM sibling, below editing handles 
 
 test('enabled guide is excluded from preview PNG and output PNG renderer inputs', async () => {
     const f=await createAppFixture(), copies=[], scenes=[];
-    vm.runInContext("switchPanel('settings');sample.complete=true;video.paused=audio.paused=true",f.context);
+    vm.runInContext("switchPanel('settings');sample.complete=true;sampleRaster={width:540,height:960};video.paused=audio.paused=true",f.context);
     toggle(f,'thirdsGridPanel',true);
     const before=f.evaluate('({state,width:canvas.width,height:canvas.height})');
     f.doc.fonts.status='loaded';

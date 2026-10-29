@@ -8,7 +8,7 @@ import { setLocale, initLocale } from '../dist/i18n.mjs';
 async function fixture() {
     const f = await createAppFixture();
     f.context.draws = [];
-    vm.runInContext('state=initial();current=2;selected=0;sample.complete=true;composition.draw=(...args)=>draws.push(args);',f.context);
+    vm.runInContext('state=initial();current=2;selected=0;sample.complete=true;sampleRaster={width:540,height:960};composition.draw=(...args)=>draws.push(args);',f.context);
     f.open = () => vm.runInContext('pause();templatePreview.open(TEMPLATES[1]);',f.context);
     f.current = () => { f.element('#templatePreviewMode').value='current'; f.element('#templatePreviewMode').onchange({}); };
     return f;

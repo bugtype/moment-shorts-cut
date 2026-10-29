@@ -20,7 +20,7 @@ export function createScenePngExport(app, {
         (app.state.kind !== 'video' || (!app.video.seeking &&
             app.video.readyState >= 2 && !app.video.error && app.video.videoWidth > 0 && app.video.videoHeight > 0)) &&
         (!app.sources.audioFile || (!app.audio.seeking && app.audio.readyState >= 2 && !app.audio.error)) &&
-        (app.state.kind !== 'demo' || app.sample.complete);
+        (app.state.kind !== 'demo' || (app.sample.complete && !!app.sampleRaster));
 
     const pausedReady = () => nativeReady() && !app.playing && app.video.paused && app.audio.paused;
 

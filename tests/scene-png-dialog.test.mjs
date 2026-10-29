@@ -10,7 +10,7 @@ async function fixture({ mockPaint = true } = {}) {
     f.doc.fonts.status = 'loaded';
     f.context.paints = paints;
     f.context.downloads = downloads;
-    vm.runInContext(`sample.complete=true;video.paused=audio.paused=true;
+    vm.runInContext(`sample.complete=true;sampleRaster={width:540,height:960};video.paused=audio.paused=true;
         video.pause=()=>{video.paused=true;};audio.pause=()=>{audio.paused=true;};
         panel='settings'; renderPanel();
 

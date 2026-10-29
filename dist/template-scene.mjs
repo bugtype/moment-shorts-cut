@@ -12,7 +12,7 @@ export function createTemplateScene(app) {
     const canApply = () => valid() && !busy() && (app.persistence.restorePhase === 'ready' ||
         (app.persistence.restorePhase === 'failed' && app.persistence.recoveryValid));
     const canCapture = () => valid() && !busy() && app.mediaReady() &&
-        (project.kind === 'demo' ? app.sample.complete : app.video.readyState >= 2 && !app.video.seeking);
+        (project.kind === 'demo' ? app.sample.complete && !!app.sampleRaster : app.video.readyState >= 2 && !app.video.seeking);
     function capture() {
         if (!canCapture()) return null;
         const source = project.kind === 'demo' ? (app.sampleRaster || app.sample) : app.video;

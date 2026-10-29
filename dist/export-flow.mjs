@@ -137,7 +137,7 @@ export function createExportFlow(app, {
                     showCompleted({ ...details, blob });
                 },
             });
-            modal.innerHTML = `<div class="modal-head"><h2 id="modalTitle">${text("shell.exportRunning")}</h2><strong id="exportPercent">0%</strong></div><p class="modal-copy">${text("shell.exportKeepOpen")}</p><div class="progress"><i id="exportProgress"></i></div><button class="button full" id="cancelRunningExport">${text("shell.exportCancel")}</button>`;
+            modal.innerHTML = `<div class="modal-head"><h2 id="modalTitle">${text("shell.exportRunning")}</h2><strong id="exportPercent">0%</strong></div><p class="modal-copy">${text("shell.exportKeepOpen")}</p><div class="progress" id="exportProgressStatus" role="progressbar" aria-labelledby="modalTitle" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><i id="exportProgress"></i></div><button class="button full" id="cancelRunningExport">${text("shell.exportCancel")}</button>`;
             $('#cancelRunningExport').onclick = cancel;
             recorder.start(250);
             await app.play();

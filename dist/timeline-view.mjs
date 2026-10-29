@@ -294,6 +294,13 @@ export function createTimelineView($, clock = () => performance.now()) {
                 bar.style.width = progress + '%';
             if (label)
                 label.textContent = progress + '%';
+            const status = $('#exportProgressStatus');
+            if (status) {
+                if (Number.isFinite(progress))
+                    status.setAttribute('aria-valuenow', String(clamp(progress, 0, 100)));
+                else
+                    status.removeAttribute('aria-valuenow');
+            }
         }
     }
     return { render, renderLayers, resize, updateTime, setCollapsed, isCollapsed: () => collapsed, setZoom, cycleZoom, getZoom: () => zoom, zoomLevels: () => [...ZOOM_LEVELS] };

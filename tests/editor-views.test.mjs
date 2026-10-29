@@ -13,6 +13,7 @@ function controls() {
       classList: { toggle() {} }, clientWidth: 600, attributes: {},
       querySelectorAll: () => [],
       setAttribute(name, value) { this.attributes[name] = String(value); if (name === 'title') this.title = String(value); },
+      removeAttribute(name) { delete this.attributes[name]; },
     });
     return elements.get(key);
   };
@@ -168,14 +169,25 @@ test('time updates keep their throttle and label cache local to each view', () =
   const duration = () => { reads++;return 12; };
   view.updateTime(state, 3, duration, true);
   assert.equal(f.query('#exportPercent').textContent, '25%');
+  assert.equal(f.query('#exportProgressStatus').attributes['aria-valuenow'], '25');
   assert.equal(f.query('#playhead').style.transform, 'translateX(150px)');
   now = 150;view.updateTime(state, 4, duration, true, false);
   assert.equal(reads, 1);assert.equal(f.query('#seek').value, 3);
+  assert.equal(f.query('#exportProgressStatus').attributes['aria-valuenow'], '25');
   now = 200;view.updateTime(state, 6, duration, true, false);
   assert.equal(reads, 2);assert.equal(f.query('#exportProgress').style.width, '50%');
+  assert.equal(f.query('#exportProgressStatus').attributes['aria-valuenow'], '50');
+  for (const [current, len, expected] of [[12, 12, '100'], [-1, 12, '0'], [24, 12, '100'], [0, 0, undefined], [0, 12, '0']]) {
+    view.updateTime(state, current, () => len, true);
+    assert.equal(f.query('#exportProgressStatus').attributes['aria-valuenow'], expected);
+    assert.equal(f.query('#exportPercent').textContent, Math.round(current / len * 100) + '%', 'visual arithmetic is unchanged');
+  }
   const other = controls(), second = createTimelineView(other.query, () => now);
   second.updateTime(state, 6, duration, false);
   assert.match(other.query('#timeDisplay').innerHTML, /00:06/);
+  assert.equal(other.query('#exportProgressStatus').attributes['aria-valuenow'], undefined);
+  const withoutStatus = createTimelineView(key => key === '#exportProgressStatus' ? null : other.query(key));
+  assert.doesNotThrow(() => withoutStatus.updateTime(state, 6, duration, true));
 });
 
 test('ratio and fit selections synchronize visual and accessible state in both editor surfaces', () => {

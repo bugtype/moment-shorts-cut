@@ -314,6 +314,7 @@ test('media persistence, recording and export ownership', async () => {
    for(let i=0;i<5;i++)await Promise.resolve();assert.equal(entered,true,stage+' await reached');
    assert.match(element('#modal').innerHTML,/내보내기 준비 중/);
    assert.match(element('#modal').innerHTML,/id="cancelRunningExport"/);
+   assert.doesNotMatch(element('#modal').innerHTML,/role="progressbar"/,'preparation has no invented numeric progress');
    const staleCancel=element('#cancelRunningExport').onclick;
    const cancelledCounts=[recorderStarts,downloads];
    staleCancel();
@@ -322,7 +323,10 @@ test('media persistence, recording and export ownership', async () => {
    assert.equal(evaluate('videoExport.recorder'),null);
    assert.deepEqual([recorderStarts,downloads],cancelledCounts);
    vm.runInContext('ensureAudio=async()=>{};seekVideo=async()=>{};',context);doc.fonts.ready=Promise.resolve();
-   if(retry)await vm.runInContext('startExport({mime:"video/webm;codecs=vp8,opus",ext:"webm"},1080)',context);
+   if(retry){
+    await vm.runInContext('startExport({mime:"video/webm;codecs=vp8,opus",ext:"webm"},1080)',context);
+    assert.equal(element('#exportProgressStatus').getAttribute('aria-valuenow'),'0','a new export starts at zero');
+   }
    const active=vm.runInContext('videoExport.recorder',context),before=evaluate('({state,exporting,exportCancelled,playing})'),counts=[recorderStarts,stoppedExportTracks,downloads];
    element('#toast').textContent='current state';
    staleCancel();

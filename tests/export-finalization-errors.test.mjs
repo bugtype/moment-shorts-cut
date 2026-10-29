@@ -71,6 +71,16 @@ async function start(f, includeAudio = true) {
   await f.element('#startExport').onclick();
   const recorder = f.recorders.at(-1);
   assert.equal(recorder.state, 'recording');
+  const html = f.element('#modal').innerHTML;
+  const progress = html.match(/<div\b[^>]*\bid="exportProgressStatus"[^>]*>/g);
+  assert.equal(progress?.length, 1, 'running export has one named progress indicator');
+  const attributes = Object.fromEntries([...progress[0].matchAll(/([\w-]+)="([^"]*)"/g)].map(match => [match[1], match[2]]));
+  for (const [name, value] of Object.entries({role:'progressbar', 'aria-labelledby':'modalTitle', 'aria-valuemin':'0', 'aria-valuemax':'100', 'aria-valuenow':'0'}))
+    assert.equal(attributes[name], value);
+  assert.equal(attributes['aria-live'], undefined);
+  assert.equal(attributes.tabindex, undefined);
+  assert.equal((html.match(/\bid="modalTitle"/g) || []).length, 1);
+  assert.match(html, /<h2 id="modalTitle">[^]*data-i18n="shell.exportRunning"/);
   return { recorder, data: recorder.ondataavailable, stop: recorder.onstop, error: recorder.onerror,
     cancel: f.element('#cancelRunningExport').onclick };
 }
@@ -147,11 +157,17 @@ for (const locale of ['ko', 'en', 'zh-CN']) {
 for (const includeAudio of [true, false]) {
   test(`successful completion keeps its review dialog and one download (audio ${includeAudio})`, async () => {
     const f = await fixture(), before = snapshot(f), active = await start(f, includeAudio);
+    for (const [current, percent] of [[3, '25'], [12, '100']]) {
+      vm.runInContext(`current=${current};updateTime()`, f.context);
+      assert.equal(f.element('#exportProgressStatus').getAttribute('aria-valuenow'), percent);
+      assert.equal(f.element('#exportPercent').textContent, percent + '%');
+    }
     vm.runInContext('stopExport(false)', f.context);
     active.data(finalData()); active.stop();
     assert.equal(f.downloads.length, 1);
     assert.equal(f.evaluate('modal.open'), true);
     assert.match(f.element('#modal').innerHTML, /shell.exportDone/);
+    assert.doesNotMatch(f.element('#modal').innerHTML, /role="progressbar"/);
     assert.equal(f.evaluate('exporting'), false);
     assert.deepEqual(snapshot(f), before);
     assert.ok(active.recorder.stream.getTracks().every(track => track.stops === 1));

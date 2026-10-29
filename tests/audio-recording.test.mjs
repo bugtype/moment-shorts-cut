@@ -132,6 +132,33 @@ for (const [mimeType, extension] of [
   });
 }
 
+test('final data supplies the recording MIME only when the inactive recorder has cleared it', async () => {
+  for (const [mime, extension, reset, manual] of [
+    ['audio/ogg;codecs=opus', 'oga', true, true],
+    ['audio/mp4;codecs=mp4a.40.2', 'm4a', true, false],
+    ['audio/webm', 'webm', false, true],
+  ]) {
+    const f = fixture();
+    await f.session.start(() => true);
+    const recorder = f.session.current, stopped = recorder.onstop;
+    recorder.mimeType = mime;
+    const empty = new Blob([], {type: 'audio/mp4'}), untyped = new Blob(['head']);
+    const chunk = new Blob(['synthetic recording'], {type: reset ? mime : 'audio/ogg'});
+    recorder.ondataavailable({data: empty}); recorder.ondataavailable({data: untyped});
+    if (manual) f.session.stop(); else recorder.state = 'inactive';
+    if (reset) recorder.mimeType = '';
+    recorder.ondataavailable({data: chunk});
+    await stopped(); await stopped();
+    const files = f.events.filter(event => event[0] === 'file');
+    assert.equal(files.length, 1); assert.equal(files[0][1].name, `내 목소리.${extension}`);
+    assert.equal(files[0][1].type, mime, 'Existing recorder MIME stays authoritative when nonempty');
+    assert.deepEqual(files[0][1].parts, [untyped, chunk]);
+    assert.equal(files[0][1].parts[0], untyped); assert.equal(files[0][1].parts[1], chunk);
+    assert.equal(f.track.stops, 1); assert.equal(f.timers.size, 0); assert.equal(f.session.current, null);
+    assert.equal(f.events.filter(event => event[0] === 'error').length, 0);
+  }
+});
+
 
 test('elapsed time is read-only recorder state, retained through handoff and reset for a new recording', async () => {
   let finish;

@@ -81,7 +81,8 @@ export function createAudioRecording({ prepare, onProgress, onReady, onError, on
                         onError(msg('errors.recordingEmpty'));
                         return;
                     }
-                    const mime = recorder.mimeType;
+                    // An unconstrained recorder may clear its MIME before final events.
+                    const mime = recorder.mimeType || chunks.find(chunk => chunk.type)?.type || '';
                     // Name Ogg audio by its container without guessing a codec or changing bytes.
                     const extension = mime.split(';', 1)[0].trim().toLowerCase() === 'audio/ogg'
                         ? 'oga' : mime.includes('mp4') ? 'm4a' : 'webm';

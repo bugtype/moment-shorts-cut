@@ -6,7 +6,7 @@ import { getLocale, initLocale } from '../dist/i18n.mjs';
 
 // Actual recording → media loader → original-download owners with synthetic data
 // and deferred metadata only; no microphone, native encoder or decoder is used.
-async function fixture(locale) {
+async function fixture(locale, {resetMime = false} = {}) {
   const f = await createAppFixture(), writes = [], downloads = [], timers = new Map();
   initLocale({ languages: [locale], storage: null, document: f.doc });
   assert.equal(getLocale(), locale);
@@ -19,7 +19,7 @@ async function fixture(locale) {
     MediaRecorder: class {
       state = 'inactive'; mimeType = 'audio/ogg;codecs=opus';
       start() { this.state = 'recording'; }
-      stop() { this.state = 'inactive'; }
+      stop() { this.state = 'inactive'; if (resetMime) this.mimeType = ''; }
     },
     Audio: class { duration = 2; removeAttribute() {} load() {} },
     setInterval: callback => { timers.set(1, callback); return 1; },
@@ -38,8 +38,8 @@ async function fixture(locale) {
   await f.element('#recordButton').onclick();
   const recorder = vm.runInContext('audioRecording.current', f.context);
   const chunk = new Blob(['synthetic recording\0bytes'], { type: recorder.mimeType });
-  recorder.ondataavailable({ data: chunk });
   await f.element('#recordButton').onclick();
+  recorder.ondataavailable({ data: chunk });
   const finishing = recorder.onstop();
   assert.equal(f.evaluate('loadingMedia'), true);
   assert.equal(track.stops, 1);
@@ -50,7 +50,8 @@ async function fixture(locale) {
 for (const locale of ['ko', 'en', 'zh-CN']) {
   test(`Ogg recording handoff and original download preserve its File and filename (${locale})`, async () => {
     try {
-      const f = await fixture(locale);
+      // One locale exercises the spec's stop-time reset; the others retain MIME.
+      const f = await fixture(locale, {resetMime: locale === 'en'});
       assert.equal(f.writes.length, 0, 'Wait for metadata before connecting or persisting');
       f.settle();
       await f.finishing;
@@ -74,7 +75,7 @@ for (const locale of ['ko', 'en', 'zh-CN']) {
 
 test('Ogg recording metadata failure does not connect or save the candidate', async () => {
   try {
-    const f = await fixture('en');
+    const f = await fixture('en', {resetMime: true});
     f.reject(new Error('synthetic metadata failure'));
     await f.finishing;
     assert.equal(f.evaluate('sources.audioFile'), null);

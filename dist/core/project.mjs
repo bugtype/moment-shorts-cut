@@ -263,10 +263,10 @@ export function projectSubtitles(p, options = {}) {
   let captionIndexOffset = 0;
   if (hasIndex || hasCount) {
     const first = hasIndex ? options.captionIndex : 0;
-    if (hasIndex && (!Number.isInteger(first) || first < 0 || first > 9999 || first >= p.captions.length))
+    if (hasIndex && (!Number.isInteger(first) || first < 0 || first > MAX_CAPTIONS-1 || first >= p.captions.length))
       fail(msg('errors.replaceCaptionIndex'), 'arguments.captionIndex');
     const count = hasCount ? options.count : p.captions.length - first;
-    if (hasCount && (!Number.isInteger(count) || count < 1 || count > 10000 || first + count > p.captions.length))
+    if (hasCount && (!Number.isInteger(count) || count < 1 || count > MAX_CAPTIONS || first + count > p.captions.length))
       fail(msg('errors.replaceCaptionCount'), 'arguments.count');
     p = {...p, captions: p.captions.slice(first, first + count)};
     captionIndexOffset = first;

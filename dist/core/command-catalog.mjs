@@ -195,19 +195,19 @@ const definitions = [
   command(
     'captions.split.long',
     '선택한 원본 자막 배열 범위의 긴 자막을 나눕니다. 범위 생략 시 전체이며, 경계 공백을 정리하고 글자 수에 비례한 추정 시간을 사용합니다.',
-    object({limit: choice(12, 18, 24), captionIndex: {type: 'integer', minimum: 0, maximum: 9999}, count: {type: 'integer', minimum: 1, maximum: MAX_CAPTIONS}}),
+    object({limit: choice(12, 18, 24), captionIndex: {type: 'integer', minimum: 0, maximum: MAX_CAPTIONS-1}, count: {type: 'integer', minimum: 1, maximum: MAX_CAPTIONS}}),
     true
   ),
   command(
     'captions.split',
     '자막 하나를 문자 커서 위치에서 나눕니다. 시간은 문자 수 비례 추정이며 음성과 확인해야 합니다.',
-    object({captionIndex: {type: 'integer', minimum: 0, maximum: 9999}, textOffset: {type: 'integer', minimum: 1, maximum: 1999}}, ['captionIndex', 'textOffset']),
+    object({captionIndex: {type: 'integer', minimum: 0, maximum: MAX_CAPTIONS-1}, textOffset: {type: 'integer', minimum: 1, maximum: 1999}}, ['captionIndex', 'textOffset']),
     true
   ),
   command(
     'captions.merge',
     '인접한 두 자막을 합칩니다. 시간 기준·화자·강조 단어가 같고 시간이 겹치지 않아야 합니다.',
-    object({captionIndex: {type: 'integer', minimum: 0, maximum: 9998}}, ['captionIndex']),
+    object({captionIndex: {type: 'integer', minimum: 0, maximum: MAX_CAPTIONS-2}}, ['captionIndex']),
     true
   ),
   command(
@@ -231,7 +231,7 @@ const definitions = [
   command(
     'captions.update',
     '지정한 자막 하나의 본문·시간·화자·강조 단어만 수정합니다. 시간 기준과 추정 시간 경고는 유지합니다.',
-    object({captionIndex: {type: 'integer', minimum: 0, maximum: 9999}, patch: captionPatchSchema}, ['captionIndex', 'patch']),
+    object({captionIndex: {type: 'integer', minimum: 0, maximum: MAX_CAPTIONS-1}, patch: captionPatchSchema}, ['captionIndex', 'patch']),
     true
   ),
   command(
@@ -246,8 +246,8 @@ const definitions = [
     object({
       find: {...string(2000), minLength: 1},
       replacement: string(2000),
-      captionIndex: {type: 'integer', minimum: 0, maximum: 9999},
-      count: {type: 'integer', minimum: 1, maximum: 10000},
+      captionIndex: {type: 'integer', minimum: 0, maximum: MAX_CAPTIONS-1},
+      count: {type: 'integer', minimum: 1, maximum: MAX_CAPTIONS},
     }, ['find', 'replacement']),
     true
   ),
@@ -257,8 +257,8 @@ const definitions = [
     object({
       basis: choice('source', 'timeline'),
       delta: {type: 'number'},
-      captionIndex: {type: 'integer', minimum: 0, maximum: 9999},
-      count: {type: 'integer', minimum: 1, maximum: 10000},
+      captionIndex: {type: 'integer', minimum: 0, maximum: MAX_CAPTIONS-1},
+      count: {type: 'integer', minimum: 1, maximum: MAX_CAPTIONS},
     }, ['basis', 'delta']),
     true
   ),
@@ -266,8 +266,8 @@ const definitions = [
     'captions.speaker.assign',
     '원본 순서의 자막 범위에 기존 화자 슬롯을 지정합니다. 본문·시간·소유권은 바꾸지 않습니다.',
     object({
-      captionIndex: {type: 'integer', minimum: 0, maximum: 9999},
-      count: {type: 'integer', minimum: 1, maximum: 10000},
+      captionIndex: {type: 'integer', minimum: 0, maximum: MAX_CAPTIONS-1},
+      count: {type: 'integer', minimum: 1, maximum: MAX_CAPTIONS},
       speaker: choice('', '0', '1'),
     }, ['captionIndex', 'count', 'speaker']),
     true
@@ -317,8 +317,8 @@ const definitions = [
     '편집 구간과 배속을 반영한 SRT, WebVTT 또는 TXT 대본을 반환합니다. 선택한 원본 자막 배열 범위를 내보내며 범위 생략 시 전체를 내보냅니다. TXT의 review 옵션은 출력 시간과 지정된 화자명을 포함합니다.',
     object({
       format: choice('srt', 'vtt', 'txt'), review: boolean,
-      captionIndex: {type: 'integer', minimum: 0, maximum: 9999},
-      count: {type: 'integer', minimum: 1, maximum: 10000},
+      captionIndex: {type: 'integer', minimum: 0, maximum: MAX_CAPTIONS-1},
+      count: {type: 'integer', minimum: 1, maximum: MAX_CAPTIONS},
     })
   ),
   command(

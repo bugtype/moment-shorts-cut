@@ -218,6 +218,9 @@
     transition:none!important;
     scroll-behavior:auto!important
   }
+  .spinner {
+    animation:none
+  }
 }
 /* Keep secondary Korean copy readable on compact editor panels. */
 .panel-intro {

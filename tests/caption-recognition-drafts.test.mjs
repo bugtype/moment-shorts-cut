@@ -91,6 +91,8 @@ for (const ending of ['result', 'error', 'cancel']) for (const [field, value] of
 
 test('a committed row edit conflicts once, then a fresh recognition can succeed and Undo', async () => {
   const f = await fixture(), run = await f.start(), input = f.query('[data-caption-text="0"]');
+  assert.match(f.query('#generateCaptions').innerHTML, /<span class="spinner"><\/span>/);
+  assert.ok(f.query('#generateCaptions').innerHTML.includes(t('errors.preparingCancel')));
   input.value = 'Committed correction'; input.onchange();
   await f.finish(run);
   assert.equal(f.evaluate('state.captions[0].text'), 'Committed correction');

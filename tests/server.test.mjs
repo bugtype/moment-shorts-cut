@@ -115,6 +115,9 @@ test('preview serves modules with correct MIME types and never serves repository
   assert.match(responsive, /\.brand>span:last-child \{\s*display:none\s*\}/);
   assert.match(responsive, /\.project-title \{\s*display:flex;\s*flex:1 1 auto;\s*min-width:0\s*\}/);
   const dialogs = await (await fetch(`${origin}/styles/inspector-dialogs.css`)).text();
+  // Keep the normal busy indicator, but suppress only its rotation for reduced motion.
+  assert.match(dialogs, /\.spinner\s*\{[^}]*animation:spin 1s linear infinite/);
+  assert.match(responsive, /@media\(prefers-reduced-motion:reduce\)\s*\{\s*\*\s*\{[^}]*\}\s*\.spinner\s*\{\s*animation:none\s*\}\s*\}/);
   // Short landscape screens compact the modal after the base rhythm so its
   // primary action never hides below the fold.
   const compactDialog = dialogs.indexOf('@media(max-height:560px)');

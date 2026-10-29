@@ -9,9 +9,14 @@ import { createProjectDocument, readProjectDocument, validateProject } from '../
 // Native metadata and IndexedDB are simulated; loader, validation and save owners are real.
 async function fixture(withVideo = false) {
   const f = await createAppFixture(), urls = new Map(), revoked = [], events = new Map(), timers = new Set();
-  const seeks = [], pendingMetadata = [];
+  const seeks = [], pendingMetadata = [], audioResets = [];
   let nextURL = 0, settingsWrites = 0, raw;
   const video = f.element('#sourceVideo'), audio = f.element('#sourceAudio');
+  audio.pause = () => { audio.paused = true; };
+  audio.load = () => {
+    audioResets.push({ src: audio.getAttribute('src'), paused: audio.paused, playing: f.evaluate('playing') });
+    audio.readyState = 0; audio.duration = NaN; audio.playbackRate = 1;
+  };
   video.addEventListener = (name, callback) => events.set(name, callback);
   video.removeEventListener = name => events.delete(name);
   let source = '', nativeTime = 0, failSeek = false;
@@ -55,7 +60,7 @@ async function fixture(withVideo = false) {
     state = initial(); state.audioName = oldAudio.name;
     state.design.title.lines = ['Keep my title', '']; state.design.title.end = 3;
     sources.audioFile = oldAudio; sources.audioURL = 'blob:original-audio';
-    audio.src = sources.audioURL;
+    audio.src = sources.audioURL; audio.setAttribute('src', sources.audioURL);
     if (oldVideo) {
       state.kind = 'video'; state.fileName = oldVideo.name; sources.videoFile = oldVideo;
       sources.sourceURL = URL.createObjectURL(oldVideo); video.src = sources.sourceURL; video.currentTime = 4;
@@ -70,7 +75,7 @@ async function fixture(withVideo = false) {
   Object.assign(vm.runInContext('projectStore', f.context), createProjectStore(storage.factory));
   f.context.localStorage.getItem = () => raw;
   f.context.localStorage.setItem = (_key, value) => { raw = value; settingsWrites++; };
-  return { ...f, video, audio, urls, revoked, events, timers, storage, seeks, pendingMetadata,
+  return { ...f, video, audio, urls, revoked, events, timers, storage, seeks, pendingMetadata, audioResets,
     failSeek: () => { failSeek = true; }, raw: () => raw, settingsWrites: () => settingsWrites };
 }
 
@@ -100,6 +105,7 @@ for (const withVideo of [false, true]) {
       assert.doesNotThrow(() => readProjectDocument(createProjectDocument(f.evaluate('state'))));
       assert.match(f.element('#toast').textContent, /0.001.*86,?400/);
       assert.equal(f.audio.src, 'blob:original-audio');
+      assert.deepEqual(f.audioResets, [], 'precommit failure does not retire the original audio');
       assert.equal(f.revoked.includes('blob:original-audio'), false);
       if (withVideo) {
         assert.equal(f.urls.get(f.video.src).name, 'original.mp4');
@@ -128,6 +134,9 @@ for (const duration of [.001, 1 / 30, 12, 86400]) {
     assert.equal(project.design.title.end, duration / 4);
     assert.equal(project.audioName, '');
     assert.equal(f.evaluate('sources.audioFile'), null);
+    assert.deepEqual(f.audioResets, [{ src: null, paused: true, playing: false }]);
+    assert.equal(f.audio.readyState, 0);
+    assert.equal(f.audio.playbackRate, project.speed);
     assert.deepEqual(f.evaluate('history'), []);
     assert.deepEqual(f.evaluate('future'), []);
     assert.doesNotThrow(() => validateProject(project));
@@ -143,7 +152,12 @@ for (const duration of [.001, 1 / 30, 12, 86400]) {
 
 test('retrying a valid file after rejected metadata commits only the valid replacement', async () => {
   const f = await fixture(true), original = snapshot(f);
+  vm.runInContext('loadingMedia = true;', f.context);
+  await load(f, 6);
+  assert.deepEqual(snapshot(f), original); assert.deepEqual(f.audioResets, []);
+  vm.runInContext('loadingMedia = false;', f.context);
   await load(f, 86401);
+  assert.deepEqual(f.audioResets, []);
   assert.deepEqual(snapshot(f), original);
   await load(f, 6);
   await vm.runInContext('saveProject()', f.context);
@@ -151,6 +165,10 @@ test('retrying a valid file after rejected metadata commits only the valid repla
   assert.equal(f.storage.attempts.length, 1);
   assert.equal(f.settingsWrites(), 1);
   assert.equal(f.storage.records.get('video').duration, 6);
+  await load(f, 8); // Already-empty audio retirement is harmless on the next replacement.
+  assert.equal(f.audioResets.length, 2);
+  assert.equal(f.evaluate('state.duration'), 8);
+  assert.equal(f.evaluate('sources.audioFile'), null);
 });
 
 test('valid out-of-timeline title timing is retimed on a copy, not newly restricted', async () => {

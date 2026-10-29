@@ -53,6 +53,8 @@ export function createMediaLoader(app, {
             app.sources.audioFile = null;
             app.audio.pause();
             app.audio.removeAttribute('src');
+            // The validated replacement no longer needs the old added-audio resource.
+            try { app.audio.load(); } catch { /* Keep committed replacement cleanup independent. */ }
             if (app.sources.audioURL)
                 revokeObjectURL(app.sources.audioURL);
             app.sources.audioURL = '';

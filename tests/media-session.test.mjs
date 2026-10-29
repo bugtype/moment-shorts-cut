@@ -117,7 +117,7 @@ test('save waits for the latest queued media write and rechecks the restore lock
 
 test('explicit media retirement resets native resources without reviving stale playback', async () => {
   // Actual app callbacks with injected load/play semantics, not native decoder or memory QA.
-  for (const [action, throwing] of [['remove', null], ['reset', null], ['remove', 'audio'], ['reset', 'video'], ['reset', 'audio']]) {
+  for (const [action, throwing] of [['remove', null], ['reset', null], ['remove', 'audio'], ['reset', 'video'], ['reset', 'audio'], ['replace', null], ['replace', 'audio']]) {
     const f = await createAppFixture(), events = [], nodes = [], pending = [];
     const run = code => vm.runInContext(code, f.context);
     let contexts = 0, retry = false;
@@ -137,7 +137,7 @@ test('explicit media retirement resets native resources without reviving stale p
       media.pause = () => { media.paused = true; events.push([kind, 'pause']); };
       media.play = () => {
         media.paused = false;
-        if (retry || (kind === 'video' && action === 'remove')) return Promise.resolve();
+        if (retry || (kind === 'video' && action !== 'reset')) return Promise.resolve();
         return new Promise((resolve, reject) => pending.push({kind, reject}));
       };
       media.load = () => {
@@ -156,15 +156,29 @@ test('explicit media retirement resets native resources without reviving stale p
     const started = run('play()');
     for (let i = 0; i < 8; i++) await Promise.resolve();
     assert.equal(pending.length, 1, 'the intended native play promise is pending');
-    assert.equal(pending[0].kind, action === 'remove' ? 'audio' : 'video');
+    assert.equal(pending[0].kind, action === 'reset' ? 'video' : 'audio');
     const before = f.evaluate('({state,history,future,playRequest})');
     events.length = 0;
     if (action === 'remove') f.element('#removeAudio').onclick();
-    else { run('confirmReset()'); f.element('#confirmReset').onclick(); }
-    const retired = action === 'remove' ? ['audio'] : ['video', 'audio'];
+    else if (action === 'replace') {
+      const video = f.element('#sourceVideo'), readiness = new Map();
+      video.addEventListener = (name, callback) => readiness.set(name, callback);
+      video.removeEventListener = name => readiness.delete(name);
+      Object.defineProperty(video, 'src', { set(value) {
+        this.setAttribute('src', value); this.duration = 6; this.readyState = 4;
+      }});
+      f.context.URL.createObjectURL = () => 'blob:replacement';
+      const createElement = f.doc.createElement;
+      f.doc.createElement = tag => { const element = createElement(tag); element.toDataURL = () => 'data:thumbnail'; return element; };
+      const replacing = run("loadVideo({name:'replacement.mp4',type:'video/mp4',size:1})");
+      readiness.get('loadeddata')();
+      await replacing;
+      assert.equal(readiness.size, 0);
+    } else { run('confirmReset()'); f.element('#confirmReset').onclick(); }
+    const retired = action === 'reset' ? ['video', 'audio'] : ['audio'];
     assert.deepEqual(events.filter(event => event[1] === 'load'), retired.map(kind => [kind, 'load', null, true, false]));
     assert.deepEqual(events.slice(0, 2), [['video', 'pause'], ['audio', 'pause']]);
-    assert.deepEqual(events.filter(event => event[0] === 'revoke'), retired.map(kind => ['revoke', `blob:${kind}`]));
+    assert.deepEqual(events.filter(event => event[0] === 'revoke'), (action === 'replace' ? ['video', 'audio'] : retired).map(kind => ['revoke', `blob:${kind}`]));
     assert.equal(f.evaluate('sources.audioFile'), null);
     assert.equal(f.evaluate('state.audioName'), '');
     assert.equal(f.evaluate('persistCount'), 1); assert.equal(f.evaluate('saveCount'), 1);
@@ -175,6 +189,12 @@ test('explicit media retirement resets native resources without reviving stale p
       assert.deepEqual(f.evaluate('({history,future})'), {history:before.history,future:before.future});
       assert.equal(f.element('#sourceVideo').getAttribute('src'), 'blob:video');
       assert.equal(f.element('#sourceVideo').readyState, 4);
+    } else if (action === 'replace') {
+      assert.equal(f.evaluate('state.kind'), 'video');
+      assert.equal(f.evaluate('state.fileName'), 'replacement.mp4');
+      assert.equal(f.element('#sourceVideo').getAttribute('src'), 'blob:replacement');
+      assert.deepEqual(f.evaluate('({history,future})'), {history:[],future:[]});
+      assert.equal(f.evaluate('sources.audioURL'), '');
     } else {
       assert.equal(f.evaluate('state.kind'), 'demo');
       assert.deepEqual(f.evaluate('({history,future})'), {history:[],future:[]});

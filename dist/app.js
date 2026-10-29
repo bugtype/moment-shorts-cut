@@ -24,12 +24,10 @@ import { createTemplatePreview } from './template-preview.mjs';
 import { createVideoExport } from './video-export.mjs';
 import { createAudioRecording } from './audio-recording.mjs';
 import { createTranscriptionClient } from './transcription-client.mjs';
-import { icon, fmt } from './ui-format.mjs';
-import { createDemoProject, srtTimestamp } from './core/project.mjs';
+import { createDemoProject } from './core/project.mjs';
 import { prepareCommand } from './core/commands.mjs';
 import { CommandError } from './core/validation.mjs';
 import { createEditorService } from './integration/editor-service.mjs';
-import { editedCaptions } from './captions.mjs';
 import { createTimelineView } from './timeline-view.mjs';
 import { createInputHistory } from './input-history.mjs';
 import { retimeOutputLayers } from './effects.mjs';
@@ -479,12 +477,6 @@ function modalOpen(title, body, footer = '') { shellPresentation.modalOpen(title
 function confirmReset() { return editingActions.confirmReset(); }
 function download(blob, name) {
     downloadBlob(blob, name, {document, URL, setTimer: setTimeout});
-}
-function srtTime(t) {
-    return srtTimestamp(t);
-}
-function outputCaptions() {
-    return editedCaptions(state.captions, state.clips, state.speed);
 }
 function generateCaptions() { return captionFlow.generateCaptions(); }
 function recoveryBlocked(show = true) { return persistence.recoveryBlocked(show); }

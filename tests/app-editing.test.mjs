@@ -14,8 +14,24 @@ test("app initialization preserves source mapping, subtitle clocks and split und
   vm.runInContext('state.clips=[{start:2,end:5},{start:8,end:12}]; state.speed=2; state.captions=[{start:1,end:4,text:"A"},{start:9,end:11,text:"B"}];',context);
   assert.equal(evaluate('duration()'),7);
   assert.deepEqual(evaluate('locate(4)'),{index:1,source:9,offset:3});
-  assert.deepEqual(evaluate('outputCaptions()'),[{start:0,end:1,text:'A'},{start:2,end:3,text:'B'}]);
-  assert.equal(evaluate('srtTime(3661.125)'),'01:01:01,125');
+  const subtitleState = evaluate('({state,history,future})');
+  const downloadHandler = vm.runInContext('download', context);
+  let subtitle;
+  context.captureSubtitle = (blob, name) => { subtitle = {blob, name}; };
+  try {
+    vm.runInContext('download=captureSubtitle', context);
+    assert.equal(vm.runInContext("downloadSubtitles('srt')", context), true);
+  } finally {
+    context.restoreDownload = downloadHandler;
+    vm.runInContext('download=restoreDownload;delete globalThis.restoreDownload;delete globalThis.captureSubtitle;', context);
+  }
+  assert.ok(subtitle);
+  assert.equal(subtitle.name, evaluate('state.name') + '.srt');
+  assert.equal(subtitle.blob.type, 'text/plain;charset=utf-8');
+  assert.equal(Buffer.from(await subtitle.blob.arrayBuffer()).toString('utf8'),
+    '\ufeff1\n00:00:00,000 --> 00:00:01,000\nA\n\n2\n00:00:02,000 --> 00:00:03,000\nB\n');
+  assert.deepEqual(evaluate('({state,history,future})'), subtitleState);
+  assert.equal(projectModule.srtTimestamp(3661.125),'01:01:01,125');
   await vm.runInContext('importSrt(new Blob(["1\\n00:00:01,250 --> 00:00:03,500\\n테스트 자막\\n\\n2\\n00:00:10,000 --> 00:00:14,000\\n끝 자막"]))',context);
   assert.deepEqual(evaluate('state.captions'),[{start:1.25,end:3.5,text:'테스트 자막'},{start:10,end:12,text:'끝 자막'}]);
   vm.runInContext('state=initial();timelineCache=null;current=5;split();',context);

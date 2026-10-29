@@ -7,7 +7,7 @@ import {createAppFixture} from './fixtures/app.mjs';
 // This is not microphone, native DOM, IME, recording or audio-decoding verification.
 async function fixture(locale = 'en') {
   const f = await createAppFixture(), panel = f.element('#panelContent'), query = f.doc.querySelector;
-  let button, markup = '', generation = 0, timerId = 0, accept, reject, metadataReady, metadataFailed;
+  let button, markup = '', generation = 0, timerId = 0, now = 0, accept, reject, metadataReady, metadataFailed;
   const timers = new Map(), recorders = [], tracks = [];
   f.doc.querySelector = selector => selector === '#recordButton' && button ? button : query(selector);
   Object.defineProperty(panel, 'innerHTML', {configurable: true, get: () => markup, set: value => {
@@ -32,6 +32,7 @@ async function fixture(locale = 'en') {
   f.context.URL = {createObjectURL: () => 'blob:synthetic-recording', revokeObjectURL() {}};
   f.context.setInterval = callback => {timers.set(++timerId, callback); return timerId;};
   f.context.clearInterval = id => timers.delete(id);
+  f.context.performance = {now: () => now};
   f.context.waitRecordingMetadata = () => new Promise((resolve, fail) => {metadataReady = resolve; metadataFailed = fail;});
   vm.runInContext(`setLocale('${locale}',{persist:false});sources.waitForMedia=waitRecordingMetadata;
     persistMedia=()=>{};snapshot();state.name='Changed name';changed();switchPanel('audio');`, f.context);
@@ -47,7 +48,7 @@ async function fixture(locale = 'en') {
     const track = {stops: 0, stop() {this.stops++;}}; tracks.push(track);
     accept({getTracks: () => [track]});
   };
-  const tick = () => {for (const callback of [...timers.values()]) callback();};
+  const tick = (milliseconds = 1000) => {now += milliseconds; for (const callback of [...timers.values()]) callback();};
   const finish = () => {
     const recorder = recorders.at(-1);
     recorder.ondataavailable({data: new Blob(['synthetic recording bytes'])});
@@ -70,6 +71,10 @@ for (const locale of ['ko', 'en', 'zh-CN']) {
       f.check('shell.recordDone', {active: true, time: '00:02'});
       f.element('#redoButton').onclick();
       f.check('shell.recordDone', {active: true, time: '00:02'});
+      f.tick(5000);
+      f.check('shell.recordDone', {active: true, time: '00:07'});
+      vm.runInContext('renderPanel()', f.context);
+      f.check('shell.recordDone', {active: true, time: '00:07'});
       assert.equal(f.recorders.length, 1); assert.equal(f.tracks[0].stops, 0);
       const state = f.evaluate('({state,history,future})');
       await f.button.onclick();

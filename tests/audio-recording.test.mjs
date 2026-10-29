@@ -2,11 +2,11 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createAudioRecording } from '../dist/audio-recording.mjs';
 
-function fixture({ acquire, makeRecorder, onReady, onStateChange } = {}) {
+function fixture({ acquire, makeRecorder, onReady, onStateChange, clock } = {}) {
   const timers = new Map(), events = [], recorders = [];
   const track = { stops: 0, stop() { this.stops++; } };
   const stream = { getTracks: () => [track] };
-  let nextTimer = 0;
+  let nextTimer = 0, now = 0;
   const session = createAudioRecording({
     prepare: () => events.push('prepare'),
     onProgress: seconds => events.push(['progress', seconds]),
@@ -29,8 +29,9 @@ function fixture({ acquire, makeRecorder, onReady, onStateChange } = {}) {
       return recorder;
     },
     createFile: (parts, name, options) => ({ parts, name, ...options }),
-    setTimer: (callback, delay) => { assert.equal(delay, 1000); timers.set(++nextTimer, callback); return nextTimer; },
+    setTimer: (callback, delay) => { assert.equal(delay, 1000); timers.set(++nextTimer, () => {now += 1000; callback();}); return nextTimer; },
     clearTimer: timer => timers.delete(timer),
+    clock: clock || (() => now),
   });
   return { session, timers, events, recorders, stream, track };
 }
@@ -158,6 +159,42 @@ test('elapsed time is read-only recorder state, retained through handoff and res
   tick();
   assert.equal(f.session.elapsed, 0, 'Old timer cannot advance the new recording');
   f.session.current.onerror();
+});
+
+test('delayed recording callbacks measure active time and stop at the existing elapsed threshold', async () => {
+  let now = 0, grant, reads = 0;
+  const f = fixture({acquire: () => new Promise(resolve => {grant = resolve;}),
+    clock: () => {reads++; return now;}});
+  const pending = f.session.start(() => true);
+  now = 200000; grant(f.stream); await pending;
+  assert.equal(f.session.elapsed, 0, 'Permission wait is not recording time');
+  const recorder = f.session.current, tick = [...f.timers.values()][0], stopped = recorder.onstop;
+  for (const [time, elapsed] of [[200000, 0], [205000, 5], [205000, 5], [379999, 179]]) {
+    now = time; tick(); assert.equal(f.session.elapsed, elapsed); assert.equal(recorder.stopCalls, 0);
+  }
+  now = 380250; tick();
+  assert.equal(f.session.elapsed, 180); assert.equal(recorder.stopCalls, 1); assert.equal(f.timers.size, 0);
+  const beforeLate = reads; now = 500000; tick(); f.session.stop();
+  assert.equal(reads, beforeLate); assert.equal(recorder.stopCalls, 1);
+  recorder.ondataavailable({data: {size: 1}}); await stopped();
+  assert.equal(f.track.stops, 1); assert.equal(f.session.current, null);
+  assert.deepEqual(f.events.filter(event => event[0] === 'progress'),
+    [['progress', 0], ['progress', 0], ['progress', 5], ['progress', 5], ['progress', 179], ['progress', 180]]);
+  now = 600000; const retry = f.session.start(() => true);
+  now = 700000; grant(f.stream); await retry;
+  assert.equal(f.session.elapsed, 0);
+  const current = f.session.current, nextTick = [...f.timers.values()][0];
+  now = 701000; nextTick(); assert.equal(f.session.elapsed, 1);
+  const beforeStale = reads; tick(); await stopped();
+  assert.equal(reads, beforeStale); assert.equal(f.session.current, current); assert.equal(f.session.elapsed, 1);
+  current.ondataavailable({data: {size: 2}}); f.session.stop(); await current.onstop();
+  assert.equal(f.track.stops, 2); assert.equal(f.events.filter(event => event[0] === 'file').length, 2);
+
+  const failed = fixture({clock: () => {throw new Error('Synthetic initial clock failure');}});
+  await failed.session.start(() => true);
+  assert.equal(failed.session.current, null); assert.equal(failed.session.requesting, false);
+  assert.equal(failed.track.stops, 1); assert.equal(failed.recorders[0].stopCalls, 1);
+  assert.equal(failed.timers.size, 0); assert.equal(failed.events.filter(event => event[0] === 'error').length, 1);
 });
 
 test('optional presentation observers cannot strand requests, finalization or native cleanup', async () => {

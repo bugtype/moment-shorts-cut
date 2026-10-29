@@ -79,8 +79,9 @@ test('media persistence, recording and export ownership', async () => {
   
   // Recorder state becomes inactive before its final events; own timers and streams survive that gap.
   vm.runInContext('globalThis.savedRecordingAudio=loadAudio;',context);
-  const oldInterval=context.setInterval,oldClearInterval=context.clearInterval,recordTimers=new Map(),recordStreams=[],sessions=[];
-  let timerId=0,micRequests=0,recordFailure='';
+  const oldInterval=context.setInterval,oldClearInterval=context.clearInterval,oldPerformance=context.performance,recordTimers=new Map(),recordStreams=[],sessions=[];
+  let timerId=0,micRequests=0,recordFailure='',recordTime=0;
+  context.performance={now:()=>recordTime};
   context.setInterval=fn=>{recordTimers.set(++timerId,fn);return timerId;};context.clearInterval=id=>recordTimers.delete(id);
   context.File=class extends Blob {constructor(parts,name,options){super(parts,options);this.name=name;}};
   context.navigator.mediaDevices.getUserMedia=async()=>{micRequests++;const track={stops:0,stop(){this.stops++;}},stream={track,getTracks:()=>[track]};recordStreams.push(stream);return stream;};
@@ -119,8 +120,8 @@ test('media persistence, recording and export ownership', async () => {
   }
   recordFailure='';await vm.runInContext('toggleRecording()',context);
   const timedRecorder=sessions.at(-1),timedTick=recordTimers.get(timerId),timedStop=timedRecorder.onstop;
-  for(let i=0;i<181;i++)timedTick();assert.equal(timedRecorder.stopCalls,1);assert.equal(recordTimers.size,0);await timedStop();assert.equal(timedRecorder.stream.track.stops,1);
-  vm.runInContext('loadAudio=savedRecordingAudio;delete globalThis.savedRecordingAudio;',context);context.setInterval=oldInterval;context.clearInterval=oldClearInterval;
+  for(let i=0;i<181;i++){recordTime+=1000;timedTick();}assert.equal(timedRecorder.stopCalls,1);assert.equal(recordTimers.size,0);await timedStop();assert.equal(timedRecorder.stream.track.stops,1);
+  vm.runInContext('loadAudio=savedRecordingAudio;delete globalThis.savedRecordingAudio;',context);context.setInterval=oldInterval;context.clearInterval=oldClearInterval;context.performance=oldPerformance;
   // Exercise the actual audio metadata handoff with synthetic bytes, never a native decoder.
   vm.runInContext('globalThis.savedRecordingMedia={waitForMedia:sources.waitForMedia,persistMedia,scheduleSave};globalThis.recordingWrites=0;persistMedia=()=>recordingWrites++;scheduleSave=()=>recordingWrites++;',context);
   context.Audio=class {duration=1;removeAttribute(){}load(){}};

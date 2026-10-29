@@ -6,6 +6,7 @@ export function createAudioRecording({ prepare, onProgress, onReady, onError, on
     createFile = (chunks, name, options) => new File(chunks, name, options),
     setTimer = (callback, delay) => setInterval(callback, delay),
     clearTimer = timer => clearInterval(timer),
+    clock = () => performance.now(),
 } = {}) {
     let current = null, requesting = false, activeTimer, elapsed = 0;
     // Presentation observes state; it must not interrupt native resource cleanup.
@@ -98,11 +99,13 @@ export function createAudioRecording({ prepare, onProgress, onReady, onError, on
                 }
             };
             recorder.start();
+            const started = clock();
             onProgress(0);
             activeTimer = timer = setTimer(() => {
                 if (finished || current !== recorder || recorder.state !== 'recording')
                     return;
-                elapsed++;
+                // Timers can fire late; measure recording time, not callback count.
+                elapsed = Math.max(0, Math.floor((clock() - started) / 1000));
                 onProgress(elapsed);
                 if (elapsed >= 180)
                     stop();

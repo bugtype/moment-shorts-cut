@@ -192,6 +192,7 @@ export async function createAppFixture({sessionMediaDependencies = {}, fontSet} 
       createFile: (chunks, name, options) => new context.File(chunks, name, options),
       setTimer: (callback, delay) => context.setInterval(callback, delay),
       clearTimer: timer => context.clearInterval(timer),
+      clock: () => context.performance.now(),
     }), shiftCaptionTiming, mountDesignPanel, ...panelMarkup, icon, esc, fmt, decimalTime,
   });
   // Load extracted app modules in this VM so timers, promises and DOM access keep the

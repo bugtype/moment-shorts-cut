@@ -17,7 +17,7 @@ The editor also exposes a shared command core, a project JSON CLI with SRT/VTT/T
 
 ## Quick start
 
-You need **Git and Node.js 20 or later**, including npm. There are no npm dependencies to install and no build step.
+You need **Git and Node.js 20 or later**, including npm. For new setups, [Node.js 24 LTS](https://nodejs.org/en/about/previous-releases) is recommended. There are no npm dependencies to install and no build step.
 
 ```sh
 git clone https://github.com/bugtype/moment-shorts-cut.git

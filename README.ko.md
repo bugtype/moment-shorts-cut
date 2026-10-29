@@ -17,7 +17,7 @@ Moment는 한국어·영어·중국어 간체 UI를 제공하는 로컬 중심 �
 
 ## 빠른 시작
 
-**Git과 Node.js 20 이상(npm 포함)**이 필요합니다. npm 의존성 설치나 별도 빌드 과정은 없습니다.
+**Git과 Node.js 20 이상(npm 포함)**이 필요합니다. 새 환경에는 [Node.js 24 LTS](https://nodejs.org/en/about/previous-releases)를 권장합니다. npm 의존성 설치나 별도 빌드 과정은 없습니다.
 
 ```sh
 git clone https://github.com/bugtype/moment-shorts-cut.git

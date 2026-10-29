@@ -17,7 +17,7 @@ Moment 是本地优先的视频编辑器，提供韩语、英语和简体中文�
 
 ## 快速开始
 
-需要 **Git 和 Node.js 20 或更高版本**，包括 npm。没有需要安装的 npm 依赖，也没有构建步骤。
+需要 **Git 和 Node.js 20 或更高版本**，包括 npm。新环境建议使用 [Node.js 24 LTS](https://nodejs.org/en/about/previous-releases)。没有需要安装的 npm 依赖，也没有构建步骤。
 
 ```sh
 git clone https://github.com/bugtype/moment-shorts-cut.git

@@ -1,10 +1,4 @@
 /* Template browser and the shared story/effects controls. */
-.eyebrow {
-  font-size:9px;
-  font-weight:700;
-  letter-spacing:1.2px;
-  color:#dd6547
-}
 .gallery-heading {
   display:flex;
   align-items:center;
@@ -171,10 +165,6 @@
 .template-demo-stage .button {
   width:100%;
   margin-top:10px
-}
-.template-details .panel-intro {
-  line-height:1.9;
-  font-size:12px
 }
 .template-details .notice {
   font-size:11px;
@@ -385,9 +375,6 @@
   .template-demo-stage {
     max-width:190px;
     margin:auto
-  }
-  .template-details .panel-intro {
-    margin-top:0
   }
   .template-flow {
     line-height:2

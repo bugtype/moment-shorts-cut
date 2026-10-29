@@ -23,14 +23,6 @@
 .inspector-section:nth-child(2) {
   padding-top:6px
 }
-.small-badge {
-  font-size:7px;
-  letter-spacing:.6px;
-  background:#f1f3ed;
-  color:#8a957f;
-  padding:4px 5px;
-  border-radius:3px
-}
 .ratio-grid {
   display:grid;
   grid-template-columns:repeat(2,minmax(0,1fr));
@@ -422,13 +414,6 @@ dialog::backdrop {
   border-radius:3px;
   padding:2px 5px;
   color:#808c73
-}
-.export-overlay {
-  position:fixed;
-  inset:0;
-  background:#f4f6efaa;
-  z-index:20;
-  pointer-events:auto
 }
 body.exporting .workspace,body.exporting .topbar {
   pointer-events:none;

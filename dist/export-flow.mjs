@@ -13,6 +13,24 @@ export function createExportFlow(app, {
 
     let dialogGeneration = 0, completed = null;
 
+    function dialogOwnsFocus() {
+        try {
+            const document = modal.ownerDocument;
+            return !!(modal.open && document?.hasFocus?.() && modal.contains?.(document.activeElement));
+        } catch { return false; }
+    }
+
+    // Replacing a focused child leaves viewport focus; do not override a new focus target.
+    function focusReplacement(button, previouslyOwned) {
+        if (!previouslyOwned) return;
+        try {
+            const document = modal.ownerDocument;
+            if (modal.open && document?.hasFocus?.() && modal.contains?.(button) &&
+                (document.activeElement === document.body || document.activeElement === document.documentElement))
+                button.focus({preventScroll: true});
+        } catch { /* Focus feedback must not interrupt recording or download cleanup. */ }
+    }
+
     // One immutable finished-file snapshot, not a cache of current project edits.
     // Handlers retain only ownership tokens; clearing this cell releases our Blob reference.
     function showCompleted(result) {
@@ -20,8 +38,9 @@ export function createExportFlow(app, {
         completed = result;
         result = null;
         const { name, quality, extension, duration } = completed;
+        const previouslyOwnedFocus = dialogOwnsFocus();
         modal.innerHTML = `<div class="modal-head"><h2 id="modalTitle">${text("shell.exportDone")}</h2></div><p class="modal-copy">${esc(name)}<br>${quality}p · ${extension.toUpperCase()} · ${fmt(duration)}</p><div class="notice" id="exportDownloadStatus" role="status">${text("shell.exportReview")}</div><div class="modal-foot"><button class="button" id="exportDone">${text("shell.backToEditor")}</button><button class="button primary" id="downloadExportAgain">${text("shell.exportDownloadAgain")}</button></div>`;
-        const retry = $('#downloadExportAgain');
+        const retry = $('#downloadExportAgain'), done = $('#exportDone');
         const owns = () => generation === dialogGeneration && completed && modal.open && $('#downloadExportAgain') === retry;
         const release = () => { if (generation === dialogGeneration) completed = null; };
         const attempt = () => {
@@ -38,11 +57,12 @@ export function createExportFlow(app, {
         };
         modal.onreplace = release;
         modal.onclose = () => { if (!modal.open) release(); };
-        $('#exportDone').onclick = () => { if (owns()) { release(); modal.close(); } };
+        done.onclick = () => { if (owns()) { release(); modal.close(); } };
         retry.onclick = event => {
             if (owns() && !event?.isComposing && event?.keyCode !== 229) attempt();
         };
         attempt();
+        if (owns() && $('#exportDone') === done) focusReplacement(done, previouslyOwnedFocus);
     }
 
     function supportedTypes() {
@@ -101,8 +121,13 @@ export function createExportFlow(app, {
                 if (request === videoExport.request)
                     stopExport(true);
             };
+            const preparingOwnedFocus = dialogOwnsFocus();
             modal.innerHTML = `<div class="modal-head"><h2 id="modalTitle">${text("shell.exportPreparing")}</h2></div><button class="button full" id="cancelRunningExport">${text("shell.exportCancel")}</button>`;
-            $('#cancelRunningExport').onclick = cancel;
+            const preparingCancel = $('#cancelRunningExport');
+            preparingCancel.onclick = cancel;
+            if (request !== videoExport.request) return;
+            focusReplacement(preparingCancel, preparingOwnedFocus);
+            if (request !== videoExport.request) return;
             await app.ensureAudio();
             if (request !== videoExport.request)
                 return;
@@ -137,8 +162,13 @@ export function createExportFlow(app, {
                     showCompleted({ ...details, blob });
                 },
             });
+            const runningOwnedFocus = dialogOwnsFocus();
             modal.innerHTML = `<div class="modal-head"><h2 id="modalTitle">${text("shell.exportRunning")}</h2><strong id="exportPercent">0%</strong></div><p class="modal-copy">${text("shell.exportKeepOpen")}</p><div class="progress" id="exportProgressStatus" role="progressbar" aria-labelledby="modalTitle" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><i id="exportProgress"></i></div><button class="button full" id="cancelRunningExport">${text("shell.exportCancel")}</button>`;
-            $('#cancelRunningExport').onclick = cancel;
+            const runningCancel = $('#cancelRunningExport');
+            runningCancel.onclick = cancel;
+            if (request !== videoExport.request) return;
+            focusReplacement(runningCancel, runningOwnedFocus);
+            if (request !== videoExport.request) return;
             recorder.start(250);
             await app.play();
         }

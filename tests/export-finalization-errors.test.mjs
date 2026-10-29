@@ -63,11 +63,12 @@ async function fixture() {
   return { ...f, recorders, tracks, sourceTrack, downloads, blobs, revoked, timers, fail: value => { failure = value; } };
 }
 
-async function start(f, includeAudio = true) {
+async function start(f, includeAudio = true, focusStart = false) {
   vm.runInContext('exportDialog()', f.context);
   f.element('#exportFormat').value = '0';
   f.element('#exportQuality').value = '720';
   f.element('#exportIncludeAudio').checked = includeAudio;
+  if (focusStart) f.element('#startExport').focus();
   await f.element('#startExport').onclick();
   const recorder = f.recorders.at(-1);
   assert.equal(recorder.state, 'recording');
@@ -259,4 +260,132 @@ test('stale result handlers cannot discard a newer completed export', async () =
   assert.equal(f.downloads.length, 3);
   assert.equal(f.blobs.at(-1), newest);
   assert.equal(f.recorders.length, 2);
+});
+
+// Model removal of a focused modal child, not native browser/AT behavior or Tab navigation.
+function trackModalFocus(f) {
+  const rawElement = f.element, query = f.doc.querySelector, modal = rawElement('#modal');
+  const control = {foreground: true, onFocus: null};
+  let html = '', serial = 0, children = new Map();
+  Object.defineProperty(modal, 'innerHTML', {get: () => html, set(value) {
+    if ([...children.values()].includes(f.doc.activeElement)) f.doc.activeElement = f.doc.body;
+    for (const child of children.values()) child.isConnected = false;
+    html = String(value); children = new Map();
+    for (const [, id] of html.matchAll(/\bid="([\w-]+)"/g)) {
+      const child = rawElement('#export-focus-' + (++serial) + '-' + id), focus = child.focus;
+      child.id = id; child.isConnected = true;
+      child.focus = options => { focus.call(child, options); control.onFocus?.(child); };
+      children.set('#' + id, child);
+    }
+  }});
+  modal.ownerDocument = f.doc;
+  modal.contains = child => child === modal || [...children.values()].includes(child);
+  f.doc.hasFocus = () => control.foreground;
+  f.doc.querySelector = selector => children.get(selector) || query(selector);
+  f.element = selector => f.doc.querySelector(selector);
+  return control;
+}
+
+test('export transfers owned focus through all phases and keeps explicit download retry focus', async () => {
+  const f = await fixture(); trackModalFocus(f);
+  let ready; f.doc.fonts.ready = new Promise(resolve => {ready = resolve;});
+  const before = snapshot(f), running = start(f, true, true);
+  const preparing = f.element('#cancelRunningExport');
+  assert.equal(f.doc.activeElement, preparing);
+  ready(); const active = await running, recording = f.element('#cancelRunningExport');
+  assert.notEqual(recording, preparing); assert.equal(preparing.isConnected, false);
+  assert.equal(f.doc.activeElement, recording);
+  f.fail('click'); vm.runInContext('stopExport(false)', f.context);
+  active.data(finalData()); active.stop();
+  assert.equal(recording.isConnected, false);
+  assert.equal(f.doc.activeElement, f.element('#exportDone'));
+  assert.match(f.element('#exportDownloadStatus').textContent, /다운로드/);
+  f.fail(null); const retry = f.element('#downloadExportAgain'); retry.focus(); retry.onclick();
+  assert.equal(f.doc.activeElement, retry); assert.equal(f.downloads.length, 1);
+  assert.equal(f.blobs[0], f.blobs[1]); assert.deepEqual(snapshot(f), before);
+  assert.ok(f.focusEvents.filter(event => event.target.id === 'exportDone' ||
+    event.target.id === 'cancelRunningExport').every(event => event.options?.preventScroll === true));
+  f.element('#exportDone').onclick();
+});
+
+test('export focus does not override outside, background or download-selected controls and tolerates missing focus ports', async () => {
+  for (const mode of ['outside', 'background', 'background-later', 'download-control', 'download-dialog', 'missing', 'query-throw', 'throwing']) {
+    const f = await fixture(), control = trackModalFocus(f), before = snapshot(f);
+    let ready;
+    if (mode === 'background-later') f.doc.fonts.ready = new Promise(resolve => {ready = resolve;});
+    const outside = f.element('#projectName');
+    if (mode === 'outside') outside.focus();
+    if (mode === 'background') control.foreground = false;
+    if (mode === 'missing') delete f.doc.hasFocus;
+    if (mode === 'query-throw') f.doc.hasFocus = () => {throw new Error('Focus query failed');};
+    if (mode === 'throwing') control.onFocus = () => {throw new Error('Focus feedback failed');};
+    // The throwing port is installed after the explicit Start focus, not on user activation.
+    const throwing = control.onFocus; control.onFocus = null;
+    vm.runInContext('exportDialog()', f.context);
+    f.element('#exportFormat').value = '0'; f.element('#exportQuality').value = '720';
+    if (mode !== 'outside') f.element('#startExport').focus();
+    control.onFocus = throwing;
+    const pending = f.element('#startExport').onclick();
+    if (ready) {
+      assert.equal(f.doc.activeElement, f.element('#cancelRunningExport'));
+      control.foreground = false; ready();
+    }
+    await pending;
+    const recorder = f.recorders.at(-1), data = recorder.ondataavailable, stop = recorder.onstop;
+    assert.equal(recorder.state, 'recording', mode);
+    if (['outside', 'background', 'background-later', 'missing', 'query-throw'].includes(mode))
+      assert.equal(f.doc.activeElement, mode === 'outside' ? outside : f.doc.body, mode);
+    f.context.onDownloadFocus = () => {
+      if (mode === 'download-control') f.element('#downloadExportAgain').focus();
+      if (mode === 'download-dialog') {
+        vm.runInContext('showHelp()', f.context); f.element('#findToolsButton').focus();
+      }
+    };
+    vm.runInContext('const originalDownload=download;download=(...args)=>{originalDownload(...args);onDownloadFocus();}', f.context);
+    vm.runInContext('stopExport(false)', f.context); data(finalData()); stop();
+    assert.equal(f.downloads.length, 1, mode); assert.equal(f.evaluate('exporting'), false, mode);
+    if (mode === 'download-control') assert.equal(f.doc.activeElement, f.element('#downloadExportAgain'));
+    else if (mode === 'download-dialog') assert.equal(f.doc.activeElement, f.element('#findToolsButton'));
+    else if (mode === 'throwing') assert.equal(f.doc.activeElement, f.element('#exportDone'));
+    else assert.equal(f.doc.activeElement, mode === 'outside' ? outside : f.doc.body, mode);
+    assert.deepEqual(snapshot(f), before, mode);
+  }
+});
+
+test('synchronous focus cancellation cannot start stale export resources and permits explicit retry', async () => {
+  for (const scenario of ['Preparing', 'Running', 'PreparingRetry']) {
+    const phase = scenario.startsWith('Preparing') ? 'Preparing' : 'Running';
+    const f = await fixture(), control = trackModalFocus(f), before = snapshot(f);
+    let cancelled = false, staleCancel, retry, audioSetups = 0;
+    f.context.countAudioSetup = () => {audioSetups++;};
+    vm.runInContext('const baseEnsureAudio=ensureAudio;ensureAudio=async()=>{countAudioSetup();return baseEnsureAudio();}', f.context);
+    control.onFocus = child => {
+      if (child.id !== 'cancelRunningExport' || !f.element('#modal').innerHTML.includes('shell.export' + phase)) return;
+      control.onFocus = null; cancelled = true; staleCancel = child.onclick; child.onclick();
+      if (scenario === 'PreparingRetry') retry = start(f, true, true);
+      throw new Error('Secondary focus failure after cancellation');
+    };
+    vm.runInContext('exportDialog()', f.context);
+    f.element('#exportFormat').value = '0'; f.element('#exportQuality').value = '720';
+    f.element('#startExport').focus(); await f.element('#startExport').onclick();
+    assert.equal(cancelled, true);
+    if (retry) {
+      const active = await retry, focused = f.doc.activeElement;
+      assert.equal(audioSetups, 2, 'Only retry preparation and retry playback set up audio');
+      assert.equal(f.recorders.length, 1); assert.equal(f.evaluate('exporting'), true);
+      staleCancel(); assert.equal(f.doc.activeElement, focused); assert.equal(f.evaluate('exporting'), true);
+      active.cancel(); assert.deepEqual(snapshot(f), before); continue;
+    }
+    assert.equal(f.evaluate('exporting'), false);
+    assert.equal(f.element('#modal').open, false); assert.equal(f.pendingFrames.size, 0);
+    assert.equal(f.recorders.length, phase === 'Preparing' ? 0 : 1);
+    assert.equal(audioSetups, phase === 'Preparing' ? 0 : 1);
+    assert.ok(f.recorders.every(recorder => recorder.state === 'inactive' && recorder.stops === 0));
+    assert.ok(f.tracks.filter(track => track !== f.sourceTrack).every(track => track.stops === 1));
+    assert.equal(f.sourceTrack.stops, 0); assert.equal(f.downloads.length, 0);
+    assert.deepEqual(snapshot(f), before);
+    const active = await start(f, true, true), focused = f.doc.activeElement;
+    staleCancel(); assert.equal(f.doc.activeElement, focused); assert.equal(f.evaluate('exporting'), true);
+    active.cancel(); assert.equal(f.evaluate('exporting'), false);
+  }
 });

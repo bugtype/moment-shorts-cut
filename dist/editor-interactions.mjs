@@ -4,7 +4,7 @@ const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
 export function bindPreviewDrag(canvas, { getProject, blocked, pause, selection, snapshot, preview, commit, videoRegion }) {
     let drag = null;
     canvas.onpointerdown = e => {
-        if (blocked() || drag)
+        if (e.button !== 0 || blocked() || drag)
             return;
         pause();
         const { scene, mode } = selection(), state = getProject();

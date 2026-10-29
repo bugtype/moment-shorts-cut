@@ -18,7 +18,7 @@ function fixture(mode = 'video', videoRegion) {
   return { canvas, events, history, get project() { return project; },
     replace: value => { project = value; }, block: () => { blocked = true; } };
 }
-const pointer = (x, y) => ({ clientX: x, clientY: y, pointerId: 7 });
+const pointer = (x, y) => ({ clientX: x, clientY: y, pointerId: 7, button: 0 });
 
 test('drag snapshots only its first real movement and commits once on pointer cancellation', () => {
   const f = fixture();
@@ -308,4 +308,30 @@ test('video-region normalization stays live, skips invalid sizes, and retains ow
  const title=fixture('title',()=>assert.fail('non-video modes must not read video geometry'));
  title.canvas.onpointerdown(pointer(0,0));title.canvas.onpointermove(pointer(10,20));
  assert.equal(title.history.length,1);
+});
+
+test('only primary-button contact starts preview dragging; active pointer transitions retain ownership', () => {
+  for (const button of [-1, 1, 2, 3, 4, 5, undefined]) {
+    const f = fixture();
+    f.canvas.onpointerdown({...pointer(0, 0), button});
+    f.canvas.onpointermove({...pointer(10, 20), button:-1});
+    f.canvas.onpointerup({...pointer(10, 20), button});
+    assert.deepEqual(f.events, []); assert.deepEqual(f.history, []);
+    assert.equal(f.project.panX, 0); assert.equal(f.project.panY, 0);
+  }
+  for (const pointerType of ['mouse', 'touch', 'pen']) {
+    const f = fixture();
+    // Pointer identity/primary status is separate from the initiating button.
+    f.canvas.onpointerdown({...pointer(0, 0), pointerType, isPrimary:false});
+    f.canvas.onpointermove({...pointer(10, 20), button:-1, buttons:1});
+    f.canvas.onpointerdown({...pointer(80, 80), pointerId:8, button:2});
+    f.canvas.onpointermove({...pointer(90, 90), pointerId:8, button:-1});
+    f.canvas.onpointerup({...pointer(90, 90), pointerId:8, button:2});
+    f.canvas.onpointermove({...pointer(20, 40), button:2, buttons:3});
+    f.canvas.onpointerup({...pointer(20, 40), button:2, buttons:0});
+    f.canvas.onlostpointercapture(pointer(20, 40));
+    assert.equal(f.project.panX, .2); assert.equal(f.project.panY, .2);
+    assert.equal(f.history.length, 1);
+    assert.equal(f.events.filter(event => event === 'commit').length, 1);
+  }
 });

@@ -175,7 +175,7 @@ console.log('PASS: no default opaque boxes, headline safe bounds, saved-project 
 vm.runInContext('state=initial();timelineCache=null;applyTemplate(state,TEMPLATES.find(t=>t.id==="explainer"),true);current=1;textLayer="title";switchPanel("text");',context);
 const originalTitlePosition=evaluate('[state.design.title.x,state.design.title.y]');
 const originalScenePosition=evaluate('[state.overlays[0].x,state.overlays[0].y]');
-element('#preview').onpointerdown({clientX:250,clientY:160,pointerId:1});
+element('#preview').onpointerdown({clientX:250,clientY:160,pointerId:1,button:0});
 element('#preview').onpointermove({clientX:260,clientY:180,pointerId:1});
 element('#preview').onpointerup({pointerId:1});
 assert.deepEqual(evaluate('[state.design.title.x,state.design.title.y]'),originalTitlePosition,'dragging a timed headline must not move the hidden base title');
@@ -184,7 +184,7 @@ assert.equal(element('#layerSelection').dataset.label,'구간별 타이틀');
 console.log('PASS: dragging the visible timed headline edits the correct layer and its selection guide.');
 
 // Preview gestures use actual clamped coordinate changes, not pointer activation, as history boundaries.
-const preview=element('#preview'),pointer=(x=250,y=160)=>({clientX:x,clientY:y,pointerId:1});
+const preview=element('#preview'),pointer=(x=250,y=160)=>({clientX:x,clientY:y,pointerId:1,button:0});
 vm.runInContext('globalThis.originalDragSave=scheduleSave;globalThis.dragSaves=0;scheduleSave=()=>dragSaves++;',context);
 for(const mode of ['video','title','credit','caption','scene']){
  const setup=mode==='video'?"panel='settings'":mode==='scene'?"panel='effects';effectTab='cards';state.overlays=[newCard(12)];selectedCard=state.overlays[0].id":"panel='text';textLayer="+JSON.stringify(mode);

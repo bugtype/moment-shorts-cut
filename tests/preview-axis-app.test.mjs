@@ -5,7 +5,7 @@ import {createAppFixture} from './fixtures/app.mjs';
 import {setLocale,initLocale,translateFor} from '../dist/i18n.mjs';
 import {createCanvasTrace} from './fixtures/canvas-trace.mjs';
 
-const pointer=(x,y,extra={})=>({pointerId:7,clientX:x,clientY:y,...extra});
+const pointer=(x,y,extra={})=>({pointerId:7,button:0,clientX:x,clientY:y,...extra});
 async function fixture(mode='video'){
  const f=await createAppFixture();
  vm.runInContext(`state=initial();state.overlays=${mode==='scene'?"[{...newCard(12),id:'axis',role:'free',enabled:true,x:.5,y:.02}]":'[]'};
@@ -108,5 +108,31 @@ test('video drag tracks rendered displacement in full and framed regions without
   assert.equal(f.evaluate('dragSaves'),1);assert.equal(f.evaluate('history.length'),1);
   vm.runInContext('undo()',f.context);assert.deepEqual(f.evaluate('state'),before);
   vm.runInContext('undo(true)',f.context);assert.deepEqual(f.evaluate('state'),after);
+ }
+});
+
+test('auxiliary preview input preserves playback and Redo; subsequent primary drag still edits', async () => {
+ for (const button of [1, 2]) {
+  const f=await fixture();
+  vm.runInContext('future=[JSON.stringify(state)]',f.context);
+  await vm.runInContext('play()',f.context);
+  assert.equal(f.evaluate('playing'),true);
+  const captures=[];f.canvas.setPointerCapture=id=>captures.push(id);
+  const state=()=>f.evaluate('({state,history,future,current,selected,playing,playRequest,axisSaves,frameHandle})');
+  const before=state(),focus=f.doc.activeElement,frames=[...f.pendingFrames.keys()];
+  const buttons=button===1?4:2;
+  f.canvas.onpointerdown(pointer(0,0,{pointerType:'mouse',button,buttons}));
+  f.canvas.onpointermove(pointer(20,20,{button:-1,buttons}));
+  f.canvas.onpointerup(pointer(20,20,{button,buttons:0}));
+  f.canvas.onlostpointercapture(pointer(20,20));
+  assert.deepEqual(state(),before);assert.deepEqual(captures,[]);
+  assert.deepEqual([...f.pendingFrames.keys()],frames);assert.equal(f.doc.activeElement,focus);
+  f.canvas.onpointerdown(pointer(0,0));f.canvas.onpointermove(pointer(20,20,{button:-1}));f.canvas.onpointerup(pointer(20,20));
+  assert.equal(f.evaluate('playing'),false);assert.deepEqual(captures,[7]);
+  assert.notEqual(f.evaluate('state.panX'),before.state.panX);
+  assert.equal(f.evaluate('history.length'),1);assert.equal(f.evaluate('future.length'),0);assert.equal(f.evaluate('axisSaves'),1);
+  const edited=f.evaluate('state');
+  vm.runInContext('undo()',f.context);assert.deepEqual(f.evaluate('state'),before.state);
+  vm.runInContext('undo(true)',f.context);assert.deepEqual(f.evaluate('state'),edited);
  }
 });

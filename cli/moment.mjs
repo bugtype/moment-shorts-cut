@@ -89,8 +89,16 @@ async function jsonStream(stream) {
 async function writeOutput(file, text, overwrite) {
   const absolute = path.resolve(file),
     temporary = path.join(path.dirname(absolute), `.moment-${randomUUID()}.tmp`);
+  // Cleanup owns this path only after exclusive creation succeeds.
+  const handle = await fs.open(temporary, 'wx', 0o600);
   try {
-    await fs.writeFile(temporary, text, {flag: 'wx', mode: 0o600});
+    try {
+      await handle.writeFile(text);
+    } catch (error) {
+      try { await handle.close(); } catch { /* Preserve the write failure. */ }
+      throw error;
+    }
+    await handle.close();
     if (overwrite)
       await fs.rename(temporary, absolute);
     else {

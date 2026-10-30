@@ -188,8 +188,10 @@ export function bindUi(app) {
             app.effectTab = 'cards';
             const card = app.state.overlays.find(item => item.id === id);
             app.pause();
-            if (card)
-                app.seekTo(Math.min(card.end - .001, card.start + .2) * app.state.speed);
+            if (card) {
+                const time = Math.min(card.end - .001, card.start + .2);
+                app.seekTo((time > card.start ? time : card.start + (card.end - card.start) / 2) * app.state.speed);
+            }
             app.switchPanel('effects');
         }
         else {

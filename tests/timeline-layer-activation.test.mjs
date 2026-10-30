@@ -254,3 +254,30 @@ test('valid subnormal output duration retains legacy markup fallback without nor
     f.assertStorageUntouched();
     // This asserts fallback selection and raw markup, not native CSS parsing behavior.
 });
+
+test('timeline card activation keeps short targets inside their interval and retains the output clamp', async () => {
+    for (const [start, end, speed, outputTarget] of [
+        [.007, .0075, 1.7, .007 + (.0075 - .007) / 2],
+        [0, .0005, 4, .00025],
+        [2.9, 6, 4, 3], // The existing seek clamp still owns the output endpoint.
+    ]) {
+        const f = await setup(speed);
+        vm.runInContext(`state.overlays[0].start=${start};state.overlays[0].end=${end};
+            validateProject(state);history=[structuredClone(state)];future=[structuredClone(state)];
+            playing=true;renderTimeline();`, f.context);
+        const button = f.button('card'), before = f.snapshot();
+        assert.ok(button?.isConnected, 'activate an actual rendered layer target');
+        f.track.onclick({ target: button });
+        assert.equal(f.evaluate('current'), outputTarget * speed);
+        if (end <= 12 / speed) {
+            const time = f.evaluate('current / state.speed');
+            assert.ok(time > start && time < end, 'representative short card target remains inside its interval');
+        }
+        assert.equal(f.evaluate('selectedCard'), 'card-a');
+        assert.equal(f.evaluate('effectTab'), 'cards');
+        assert.equal(f.evaluate('panel'), 'effects');
+        assert.equal(f.evaluate('playing'), false);
+        assert.deepEqual(f.snapshot(), before);
+        f.assertStorageUntouched();
+    }
+});

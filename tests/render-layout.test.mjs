@@ -12,13 +12,20 @@ const adapter = `
 const fs = require('node:fs');
 const path = require('node:path');
 const {createHash} = require('node:crypto');
-const fonts = []; let serial = 0;
+const fonts = []; let serial = 0, sourceLoads = 0;
 const encodes = [], decodes = [], firstBuffers = new Map();
 const digest = buffer => createHash('sha256').update(buffer).digest('hex');
 const failure = process.env.MOMENT_LAYOUT_TEST_FAILURE;
-process.on('exit', () => fs.writeFileSync(__filename + '.json', JSON.stringify({encodes, decodes})));
+process.on('exit', () => fs.writeFileSync(__filename + '.json', JSON.stringify({encodes, decodes, fonts, canvases:serial, sourceLoads})));
 module.exports = {
-  GlobalFonts: {registerFromPath(file, family) { fonts.push([path.basename(file), family]); }},
+  GlobalFonts: {registerFromPath(file, family) {
+    fonts.push([path.basename(file), family]);
+    if (failure === 'font-null' && file.endsWith('400.ttf')) return null;
+    if (failure === 'font-false' && file.endsWith('600.ttf')) return false;
+    if (failure === 'font-throw' && file.endsWith('600.ttf')) throw Error('Injected font registration failure');
+    // Current FontKey, legacy true and custom void success returns stay accepted.
+    return file.endsWith('400.ttf') ? {typefaceId:400} : file.endsWith('600.ttf') ? true : undefined;
+  }},
   async loadImage(input) {
     if (Buffer.isBuffer(input)) {
       const image = JSON.parse(input.toString());
@@ -27,6 +34,7 @@ module.exports = {
       return image;
     }
     if (path.basename(input) !== 'sample.svg') throw Error('Unexpected input image');
+    sourceLoads++;
     fs.readFileSync(input);
     return {id:'sample', width:540, height:960};
   },
@@ -129,6 +137,20 @@ test('layout QA CLI uses the shared compositor and keeps every current template 
     await checkEncoding();
     // Faults are injected into the real copied CLI; no native codec is involved.
     const firstOutput = path.join(qa, TEMPLATES[0].id + '.png');
+    const previous = await readFile(firstOutput);
+    for (const [failure, weight, requests] of [['font-null',400,1],['font-false',600,2],['font-throw',600,2]]) {
+      const failed = spawnSync(process.execPath, [script, implementation, path.join(directory, 'fonts')], {
+        cwd:tmpdir(), encoding:'utf8', timeout:15000, maxBuffer:1024 * 1024,
+        env:{...process.env, MOMENT_LAYOUT_TEST_FAILURE:failure},
+      });
+      assert.equal(failed.status, 1, failed.stderr); assert.equal(failed.stdout, '');
+      assert.match(failed.stderr, failure === 'font-throw' ? /Injected font registration failure/ : new RegExp('Font registration failed: .*NotoSansKR-' + weight + '\\.ttf'));
+      const trace = await receipt();
+      assert.equal(trace.fonts.length, requests); assert.equal(trace.sourceLoads, 0); assert.equal(trace.canvases, 0);
+      assert.deepEqual(trace.encodes, []); assert.deepEqual(trace.decodes, []);
+      assert.deepEqual(await readFile(firstOutput), previous, 'failed preparation must not overwrite prior QA output');
+      assert.deepEqual((await readdir(qa)).filter(name => name.endsWith('.png')).sort(), expected);
+    }
     for (const failure of ['encode', 'write', 'decode']) {
       for (const name of expected) await rm(path.join(qa, name), {force:true});
       let writeFailureCode;

@@ -11,7 +11,11 @@ import { TEMPLATES, applyTemplate } from '../dist/template-catalog.mjs';
 const require=createRequire(import.meta.url);
 const {createCanvas,loadImage,GlobalFonts}=require(process.argv[2]||'@napi-rs/canvas');
 const fontDir=process.argv[3];
-if(fontDir)for(const weight of [400,600,900])GlobalFonts.registerFromPath(path.join(fontDir,`NotoSansKR-${weight}.ttf`),'Noto Sans KR');
+if(fontDir)for(const weight of [400,600,900]){
+ const fontPath=path.join(fontDir,`NotoSansKR-${weight}.ttf`);
+ const registered=GlobalFonts.registerFromPath(fontPath,'Noto Sans KR');
+ if(registered===false||registered===null)throw new Error(`Font registration failed: ${fontPath}`);
+}
 const root=path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 const {draw:paint}=createCompositionRenderer(()=>createCanvas(1,1));
 const sample=await loadImage(path.join(root,'dist/sample.svg'));

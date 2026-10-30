@@ -118,7 +118,7 @@ export function bindEditorKeyboard(document, { blocked, togglePlayback, undo, se
             if (modified || target?.tagName === 'BUTTON')
                 return;
             e.preventDefault();
-            togglePlayback();
+            if (!e.repeat) togglePlayback();
         }
         if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') {
             e.preventDefault();

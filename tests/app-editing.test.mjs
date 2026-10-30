@@ -407,7 +407,7 @@ test("app mounted design controls preserve focus-only redo and group typing", as
 });
 
 test("app keyboard shortcuts preserve native control activation", async () => {
-  const { context, evaluate, element, doc, focusEvents, documentEvents } = await createAppFixture();
+  const { context, evaluate, element, doc, focusEvents, documentEvents, pendingFrames } = await createAppFixture();
   vm.runInContext("switchPanel('text')",context);
   assert.equal(evaluate('panel'), 'text');
   // Space belongs to focused controls; global playback still works elsewhere.
@@ -419,12 +419,31 @@ test("app keyboard shortcuts preserve native control activation", async () => {
   const keyboardState=evaluate('state'),keyboardHistory=evaluate('history.length');
   for(const playing of [false,true]){
    vm.runInContext(`playing=${playing}`,context);
-   for(const tag of ['BUTTON','INPUT','TEXTAREA','SELECT','SUMMARY']){
-    assert.equal(keydown(tag,' '),false,`Space must retain native ${tag} behavior`);
+   for(const repeat of [false,true]) for(const tag of ['BUTTON','INPUT','TEXTAREA','SELECT','SUMMARY']){
+    assert.equal(keydown(tag,' ',{repeat}),false,`Space must retain native ${tag} behavior`);
     assert.equal(evaluate('playing'),playing,'Focused controls must not toggle playback');
    }
   }
   assert.equal(keydown('BODY',' '),true);assert.equal(evaluate('playing'),false,'Space outside a control pauses playback');
+  vm.runInContext('globalThis.keyboardEnsureAudio=ensureAudio;globalThis.keyboardAudioResolvers=[];ensureAudio=()=>new Promise(resolve=>keyboardAudioResolvers.push(resolve));',context);
+  try {
+   assert.equal(keydown('BODY',' ',{repeat:false}),true);
+   const request=evaluate('playRequest');
+   for(let i=0;i<2;i++) assert.equal(keydown('BODY',' ',{repeat:true}),true);
+   assert.equal(evaluate('playRequest'),request,'held Space must not supersede a pending playback start');
+   assert.equal(evaluate('playing'),false);
+   vm.runInContext('keyboardAudioResolvers[0]()',context);await new Promise(resolve=>setImmediate(resolve));
+   assert.equal(evaluate('playing'),true);assert.equal(pendingFrames.size,1);
+   for(let i=0;i<2;i++) assert.equal(keydown('BODY',' ',{repeat:true}),true);
+   assert.equal(evaluate('playing'),true);assert.equal(evaluate('playRequest'),request);assert.equal(pendingFrames.size,1);
+   assert.equal(keydown('BODY',' ',{repeat:false}),true);assert.equal(evaluate('playing'),false);
+   const pausedRequest=evaluate('playRequest');
+   assert.equal(keydown('BODY',' ',{repeat:true}),true);
+   assert.equal(evaluate('playing'),false);assert.equal(evaluate('playRequest'),pausedRequest);assert.equal(pendingFrames.size,0);
+  } finally {
+   vm.runInContext('ensureAudio=keyboardEnsureAudio;keyboardAudioResolvers.forEach(resolve=>resolve());pause();',context);
+   await new Promise(resolve=>setImmediate(resolve));
+  }
   assert.deepEqual(evaluate('state'),keyboardState);assert.equal(evaluate('history.length'),keyboardHistory);
   vm.runInContext('current=3',context);
   keydown('BUTTON','ArrowRight');assert.equal(evaluate('current'),4,'Button focus must not disable timeline arrow shortcuts');

@@ -51,7 +51,7 @@ test('blocked, disabled and replaced targets never apply stale gesture mutations
 test('keyboard controller retains native form/button Space behavior and global shortcut order', () => {
   let handler, blocked = false;
   const events = [], document = { addEventListener(name, callback) { assert.equal(name, 'keydown');handler = callback; } };
-  bindEditorKeyboard(document, { blocked: () => blocked, togglePlayback: () => events.push('toggle'), undo: redo => events.push(['undo', redo]), seekBy: delta => events.push(['seek', delta]) });
+  bindEditorKeyboard(document, { blocked: () => blocked, togglePlayback: () => events.push('toggle'), undo: redo => events.push(['undo', redo]), seekBy: delta => events.push(['seek', delta]), stepOutput: delta => events.push(['step', delta]), navigateCut: delta => { events.push(['cut', delta]);return true; } });
   const press = (tagName, key, extra = {}) => handler({ target: { tagName }, key, code: key === ' ' ? 'Space' : key, preventDefault: () => events.push('prevent'), ...extra });
   for (const tag of ['INPUT', 'TEXTAREA', 'SELECT', 'SUMMARY', 'BUTTON']) press(tag, ' ');
   assert.deepEqual(events, []);
@@ -59,6 +59,15 @@ test('keyboard controller retains native form/button Space behavior and global s
   assert.deepEqual(events, ['prevent', 'toggle', 'prevent', ['undo', true], ['seek', -1], ['seek', 1]]);
   blocked = true;press('BODY', ' ');press('BODY', 'ArrowRight');
   assert.equal(events.length, 6);
+  blocked = false;events.length = 0;
+  press('BODY', ' ', { repeat: true });press('BODY', ' ', { repeat: true });
+  assert.deepEqual(events, ['prevent', 'prevent'], 'a held Space does not become a fresh activation after focus changes');
+  press('BODY', ' ', { repeat: false });press('BODY', ' ', { repeat: true });
+  assert.deepEqual(events.slice(2), ['prevent', 'toggle', 'prevent']);
+  events.length = 0;
+  press('BODY', 'ArrowRight', { repeat: true });press('BODY', '.', { repeat: true });
+  press('BODY', ']', { repeat: true });press('BODY', 'z', { ctrlKey: true, repeat: true });
+  assert.deepEqual(events, [['seek', 1], 'prevent', ['step', 1], ['cut', 1], 'prevent', 'prevent', ['undo', undefined]]);
 });
 
 test('preview drag ignores other fingers and records one history entry for its owner', () => {

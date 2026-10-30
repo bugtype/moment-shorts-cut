@@ -334,6 +334,11 @@ sample.onload = () => {
     raster.width = 540;
     raster.height = 960;
     raster.getContext('2d').drawImage(sample, 0, 0, 540, 960);
+    raster.addEventListener('contextrestored', () => {
+        if (sampleRaster !== raster) return;
+        raster.getContext('2d').drawImage(sample, 0, 0, 540, 960);
+        requestDraw();
+    });
     // complete also includes failed images; publish only successfully drawn pixels.
     sampleRaster = raster;
     requestDraw();

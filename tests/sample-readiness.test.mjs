@@ -10,15 +10,20 @@ async function fixture() {
   const counts = {raw:0, raster:0, video:0, background:0};
   const invalid = Object.assign(new Error('broken image'), {name:'InvalidStateError'});
   let broken = false, rasterError;
-  const guard = context => new Proxy(context, {get(target, key) {
+  const guard = (context, surface) => new Proxy(context, {get(target, key) {
     if (key === 'fillRect') return (...args) => { counts.background++; return target.fillRect(...args); };
     if (key === 'drawImage') return (source, ...args) => {
       if (source === app.sample) {
         counts.raw++;
         if (broken) throw invalid;
         if (rasterError) throw rasterError;
+        if (surface) surface.samplePainted = true;
       }
-      if (source === app.sampleRaster) counts.raster++;
+      if (source === app.sampleRaster) {
+        counts.raster++;
+        if (surface) surface.samplePainted = source.samplePainted;
+      }
+      if (surface) surface.copiedSource = source;
       if (source === app.video) counts.video++;
       return target.drawImage(source, ...args);
     };
@@ -29,7 +34,7 @@ async function fixture() {
   const create = f.doc.createElement;
   f.doc.createElement = (...args) => {
     const canvas = create(...args), context = canvas.getContext();
-    canvas.getContext = () => guard(context);
+    canvas.getContext = () => guard(context, canvas);
     return canvas;
   };
   return {...f, app, counts, invalid,
@@ -38,9 +43,19 @@ async function fixture() {
       Object.assign(app.sample, {complete, naturalWidth:0, naturalHeight:0});
     },
     failRaster: error => { rasterError = error; },
+    restore(raster) {
+      // Model only this backing store's loss and its registered restore callback.
+      raster.samplePainted = false;
+      const [key] = [...f.elementEvents].find(([key]) => f.element(key) === raster);
+      for (const handler of f.elementEvents.get(key).get('contextrestored') || [])
+        handler.call(raster, {type:'contextrestored'});
+    },
   };
 }
 const snapshot = f => f.evaluate('({state,history,future,selected,timer:persistence.saveTimer})');
+const flush = f => {
+  for (const [id, callback] of f.pendingFrames) { f.pendingFrames.delete(id); callback(performance.now()); }
+};
 
 test('loading, broken and pending-load samples use fallback; a broken image cannot strand playback', async () => {
   const f = await fixture(), before = snapshot(f), focus = f.doc.activeElement;
@@ -104,4 +119,65 @@ test('successful SVG raster publication restores draw/capture; failed rasterizat
   vm.runInContext("state.kind='video';video.videoWidth=1920;video.videoHeight=1080;video.readyState=4;",f.context);
   assert.doesNotThrow(() => vm.runInContext('draw()', f.context)); assert.equal(f.counts.video, 1);
   vm.runInContext("state.kind='demo'",f.context); assert.deepEqual(snapshot(f), before);
+});
+
+test('own sample restoration repairs Scene PNG source without remounting or replacing a pending Frame PNG', async () => {
+  const f = await fixture(), encoded = [], downloads = [];
+  f.image(true); f.app.sample.onload(); flush(f);
+  assert.equal((await f.context.window.moment.execute('title.update', {patch:{lines:['복원 후 저장','샘플 확인']}})).ok, true);
+  vm.runInContext("video.paused=audio.paused=true;switchPanel('settings')", f.context); flush(f);
+  f.doc.fonts.status = 'loaded';
+  f.context.downloads = downloads;
+  vm.runInContext('download=(blob,name)=>downloads.push({blob,name})', f.context);
+  const create = f.doc.createElement;
+  f.doc.createElement = (...args) => {
+    const canvas = create(...args);
+    canvas.toBlob = callback => encoded.push({callback, source:canvas.copiedSource, samplePainted:canvas.samplePainted});
+    return canvas;
+  };
+  const before = snapshot(f), raster = f.app.sampleRaster, writes = f.counts.raw;
+  const name = f.element('#projectName'), panel = f.element('#panelContent'), html = panel.innerHTML;
+  name.value = 'unfinished name'; name.focus();
+  f.element('#savePreviewPng').onclick();
+  assert.equal(encoded.length, 1); assert.equal(encoded[0].source, f.app.canvas);
+  f.restore(raster); f.restore(raster);
+  assert.equal(raster.samplePainted, true, 'restoration must repaint the lost sample backing');
+  assert.equal(f.counts.raw, writes + 2); assert.equal(f.app.sampleRaster, raster);
+  assert.deepEqual([raster.width,raster.height], [540,960]);
+  assert.equal(f.pendingFrames.size, 1, 'restores coalesce through existing requestDraw');
+  assert.equal(f.element('#panelContent'), panel); assert.equal(panel.innerHTML, html);
+  assert.equal(f.element('#projectName'), name); assert.equal(name.value, 'unfinished name');
+  assert.equal(f.doc.activeElement, name); assert.deepEqual(snapshot(f), before);
+  flush(f); assert.equal(f.pendingFrames.size, 0);
+  const frameBlob = new Blob(['captured displayed frame'], {type:'image/png'});
+  encoded[0].callback(frameBlob);
+  assert.equal(downloads.length, 1); assert.equal(downloads[0].blob, frameBlob);
+  f.element('#openScenePng').onclick(); f.element('#saveScenePng').onclick();
+  assert.equal(encoded.length, 2); assert.equal(encoded[1].samplePainted, true);
+  f.restore(raster); // A separate pending Scene PNG keeps the same source owner too.
+  encoded[1].callback(new Blob(['synthetic scene PNG'], {type:'image/png'}));
+  assert.equal(downloads.length, 2); assert.match(downloads[1].name, /\.scene-1080x1920\.png$/);
+  flush(f); assert.equal(f.pendingFrames.size, 0);
+  assert.deepEqual(snapshot(f), before);
+});
+
+test('sample restore errors remain observable and retryable; retired surfaces and playback keep their owners', async () => {
+  const f = await fixture(), failure = new Error('restore draw failed');
+  f.image(true); f.app.sample.onload(); flush(f);
+  const raster = f.app.sampleRaster, before = snapshot(f);
+  f.failRaster(failure);
+  assert.throws(() => f.restore(raster), error => error === failure);
+  assert.equal(f.app.sampleRaster, raster); assert.equal(raster.samplePainted, false);
+  assert.equal(f.pendingFrames.size, 0, 'failed repaint does not claim success or queue retries');
+  f.failRaster(undefined); f.restore(raster);
+  assert.equal(raster.samplePainted, true); assert.equal(f.pendingFrames.size, 1); flush(f);
+  f.app.sample.onload(); flush(f);
+  const replacement = f.app.sampleRaster, writes = f.counts.raw;
+  assert.notEqual(replacement, raster); f.restore(raster);
+  assert.equal(f.counts.raw, writes); assert.equal(f.pendingFrames.size, 0);
+  assert.equal(f.app.sampleRaster, replacement); assert.equal(replacement.samplePainted, true);
+  vm.runInContext("playing=true;panel='templates';renderPanel=()=>{throw Error('unexpected remount')}", f.context);
+  f.restore(replacement);
+  assert.equal(replacement.samplePainted, true); assert.equal(f.pendingFrames.size, 0);
+  assert.equal(f.evaluate('playing'), true); assert.deepEqual(snapshot(f), before);
 });

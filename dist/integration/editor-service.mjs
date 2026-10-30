@@ -153,7 +153,7 @@ export function createEditorService({ getProject, commitProject, jobs, formatErr
         assertJson(args);
         input = structuredClone(args);
       } catch (error) {
-        return Promise.resolve(errorResult(name, error, formatErrorMessage));
+        return Promise.resolve(errorResult(typeof name === 'string' ? name : '', error, formatErrorMessage));
       }
       const result = queue.then(() => run(name, input, beforeCommit));
       queue = result.then(() => undefined, () => undefined);

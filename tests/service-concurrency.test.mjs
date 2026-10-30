@@ -7,6 +7,24 @@ import {createEditorService} from '../dist/integration/editor-service.mjs';
 
 function deferred(){let resolve,reject;const promise=new Promise((a,b)=>{resolve=a;reject=b;});return {promise,resolve,reject};}
 
+test('early input failures return serializable command names without changing diagnostics or storage',async()=>{
+ const state=createDemoProject(),before=structuredClone(state);let gets=0,commits=0;
+ const service=createEditorService({getProject(){gets++;return state;},commitProject(){commits++;}});
+ const cyclic={};cyclic.self=cyclic;
+ for(const [name,args,hook] of [[1n,{invalid:undefined},undefined],[cyclic,{},false]]){
+  const expected=await service.execute('project.summary',args,hook);
+  const rejected=await service.execute(name,args,hook);
+  assert.equal(rejected.ok,false);assert.equal(rejected.command,'');
+  assert.equal(expected.command,'project.summary');assert.equal(expected.error.code,'INVALID_ARGUMENT');
+  assert.deepEqual(rejected.error,expected.error);
+  assert.deepEqual(JSON.parse(JSON.stringify(rejected)),{...expected,command:''});
+ }
+ assert.equal((await service.execute({},{})).command,'','queued name validation uses the same representation');
+ assert.equal(gets,0);assert.equal(commits,0);assert.deepEqual(state,before);
+ assert.equal((await service.execute('project.summary')).ok,true);
+ assert.equal(gets,1);assert.equal(commits,0);assert.deepEqual(state,before);
+});
+
 test('synchronous getter prepares and invokes commit before another microtask can edit the model',async()=>{
  let state=createDemoProject(),gets=0,commits=0;
  const service=createEditorService({getProject(){gets++;return structuredClone(state);},commitProject(next){commits++;state=next;}});

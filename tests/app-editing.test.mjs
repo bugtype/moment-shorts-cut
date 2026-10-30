@@ -6,6 +6,64 @@ import { createAppFixture } from './fixtures/app.mjs';
 
 // Each workflow owns its VM and controls; unrelated cases must not depend on earlier edits.
 
+test('resetting default effects preserves Redo and mounted controls without a phantom edit', async () => {
+  const f = await createAppFixture();
+  vm.runInContext('history=[];future=[];effectTab="motion";current=3;globalThis.saves=0;scheduleSave=()=>saves++;switchPanel("effects");', f.context);
+  assert.equal((await f.context.window.moment.execute('effects.update', {patch:{brightness:1.2}})).ok, true);
+  vm.runInContext('undo()', f.context);
+  assert.equal(f.evaluate('state.effects.brightness'), 1);
+  assert.equal(f.evaluate('history.length'), 0);
+  assert.equal(f.evaluate('future.length'), 1);
+  const root = f.element('#panelContent'), button = f.element('#panelContent #effectControls #resetEffects');
+  assert.match(f.element('#panelContent #effectControls').innerHTML, /id="resetEffects"/);
+  let markup = root.innerHTML, renders = 0;
+  Object.defineProperty(root, 'innerHTML', {get:()=>markup, set:value=>{ markup=value; renders++; }});
+  button.focus();
+  for (const reordered of [false, true]) {
+    if (reordered) vm.runInContext('state.effects=Object.fromEntries(Object.entries(state.effects).reverse())', f.context);
+    vm.runInContext('globalThis.beforeProject=state;globalThis.beforeEffects=state.effects;', f.context);
+    const before = f.evaluate('JSON.stringify({state,history,future,saves,current,selected})');
+    button.onclick();button.onclick();
+    assert.equal(f.evaluate('JSON.stringify({state,history,future,saves,current,selected})'), before);
+    assert.equal(f.evaluate('state===beforeProject && state.effects===beforeEffects'), true);
+    assert.equal(renders, 0, 'the real callback must not remount the panel');
+    assert.equal(f.doc.activeElement, button);
+  }
+  vm.runInContext('undo(true)', f.context);
+  assert.equal(f.evaluate('state.effects.brightness'), 1.2, 'the original edit remains redoable');
+});
+
+test('a real effects reset remains one undoable replacement with existing refusal guards', async () => {
+  for (const setup of ['state.effects.brightness=1.2;state.effects.motion="in";', 'state.effects.extra="retained on Undo";', 'state.effects.vignette=-0;']) {
+    const f = await createAppFixture();
+    vm.runInContext(`${setup}history=[];future=[JSON.stringify(state)];effectTab="motion";current=3;globalThis.saves=0;scheduleSave=()=>saves++;switchPanel("effects");`, f.context);
+    const original = f.evaluate('state');
+    projectModule.validateProject(original);
+    const read = () => f.evaluate('({state,history,future,saves,current,selected})');
+    for (const blocked of ['exporting', 'restoring']) {
+      vm.runInContext(blocked === 'exporting' ? 'exporting=true' : 'persistence.restorePhase="restoring"', f.context);
+      const before = read();
+      f.element('#panelContent #effectControls #resetEffects').onclick();
+      assert.deepEqual(read(), before);
+      vm.runInContext('exporting=false;persistence.restorePhase="ready"', f.context);
+    }
+    f.element('#panelContent #effectControls #resetEffects').onclick();
+    const expected = structuredClone(original);
+    expected.effects = f.evaluate('defaultEnhancements().effects');
+    assert.deepEqual(f.evaluate('state'), expected);
+    assert.equal(f.evaluate('Object.is(state.effects.vignette, 0)'), true);
+    assert.equal(f.evaluate('history.length'), 1);
+    assert.equal(f.evaluate('future.length'), 0);
+    assert.equal(f.evaluate('saves'), 1);
+    assert.equal(f.evaluate('current'), 3);
+    projectModule.validateProject(f.evaluate('state'));
+    vm.runInContext('undo()', f.context);
+    assert.deepEqual(f.evaluate('state'), original);
+    vm.runInContext('undo(true)', f.context);
+    assert.deepEqual(f.evaluate('state'), expected);
+  }
+});
+
 test("app initialization preserves source mapping, subtitle clocks and split undo", async () => {
   const { context, evaluate, element, doc, focusEvents, documentEvents } = await createAppFixture();
   for(const p of ['media','templates','captions','audio','text','effects','settings'])vm.runInContext(`switchPanel('${p}')`,context);

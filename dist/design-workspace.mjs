@@ -151,7 +151,11 @@ export function createDesignWorkspace(app) {
                 app.edit(() => app.state.overlays.forEach(card => card.enabled = !visible), true);
             },
             reset() {
-                app.edit(() => app.state.effects = defaultEnhancements().effects, true);
+                const effects = app.state.effects, defaults = defaultEnhancements().effects;
+                if (Object.keys(effects).length === Object.keys(defaults).length &&
+                    Object.entries(defaults).every(([key, value]) => Object.hasOwn(effects, key) && Object.is(effects[key], value)))
+                    return;
+                app.edit(() => app.state.effects = defaults, true);
             },
             add() {
                 if (app.state.overlays.length >= 12)

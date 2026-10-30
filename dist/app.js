@@ -244,12 +244,12 @@ const app = {
     get panelRevision() { return workspacePanels.revision(); },
 
     query: $, queryAll: $$, document, window, canvas, ctx, video, audio, sample, modal, savePreview,
-    composition, templatePreview, templateWorkspace, projectStore,
+    composition, templateWorkspace,
     videoRegion: (project, rect) => videoFrame(project.design, rect.width, rect.height),
     get captionPanel() { return captionWorkspace; },
-    sources, persistence, videoExport, transcription, captionGeneration, audioRecording,
+    sources, persistence, videoExport, captionGeneration, audioRecording,
     inspectorView, timelineView, inputHistory,
-    initial, icons, clamp, visualSettings,
+    initial, icons, visualSettings,
     setUiLocale: value => setLocale(value),
     duration: () => duration(), locate: t => locate(t),
     updateTime: force => updateTime(force),
@@ -262,7 +262,6 @@ const app = {
     persistMedia: () => persistMedia(), saveProject: show => saveProject(show),
     mediaReady: () => sessionMedia.mediaReady(), mediaBlocked: (show = true) => sessionMedia.mediaBlocked(show),
     recoveryBlocked: (show = true) => recoveryBlocked(show),
-    settingsUnavailable: () => settingsUnavailable(),
     runEditorCommand: (name, args) => runEditorCommand(name, args),
     showProjectFiles: () => shellPresentation.showProjectFiles(),
     openKeepGaps: trigger => clipComplementDialog.open(trigger),
@@ -279,8 +278,7 @@ const app = {
     importSrt: (file, options) => importSrt(file, options),
     importProjectSettings: (file, closeOwnedDialog) => importProjectSettings(file, closeOwnedDialog),
     captureSettingsImportClose: () => shellPresentation.captureImportClose(),
-    downloadProjectSettings: () => downloadProjectSettings(),
-    exportDialog: () => exportDialog(), startExport: (type, quality) => startExport(type, quality),
+    exportDialog: () => exportDialog(),
     stopExport: cancelled => stopExport(cancelled),
     get loopPreview() { return playback.loopPreview; }, setLoopPreview: value => playback.setLoopPreview(value),
     play: () => play(), pause: () => pause(), seekTo: t => seekTo(t),
@@ -295,7 +293,6 @@ const app = {
     renderDesignPanel: target => renderDesignPanel(target),
     renderEffects: target => renderEffects(target),
     selectedSceneLayer: () => selectedSceneLayer(),
-    previewDesign: change => previewDesign(change),
     revokeObjectURL: url => URL.revokeObjectURL(url),
 };
 
@@ -464,7 +461,6 @@ function renderDesignPanel(target) { designWorkspace.renderDesignPanel(target); 
 function renderEffects(target) { designWorkspace.renderEffects(target); }
 function updateLayerGuide() { designWorkspace.updateLayerGuide(); }
 function selectedSceneLayer() { return designWorkspace.selectedSceneLayer(); }
-function previewDesign(change) { designWorkspace.previewDesign(change); }
 function exportDialog() { exportFlow.exportDialog(); }
 function startExport(type, quality) { return exportFlow.startExport(type, quality); }
 function stopExport(cancelled) { exportFlow.stopExport(cancelled); }

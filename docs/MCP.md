@@ -395,7 +395,7 @@ the label array; preserve other labels and re-read indexes after intervening edi
 No automatic repair is performed, and other export diagnostics keep their existing
 paths and precedence.
 
-Background: [RFC 8259 §8.2](https://www.rfc-editor.org/rfc/rfc8259.txt) describes unpaired-surrogate interoperability risks; the [File API Blob processing rules](https://w3c.github.io/FileAPI/#processing-blob-parts) describe their replacement during string encoding.
+Background: [RFC 8259 §8.2](https://www.rfc-editor.org/rfc/rfc8259.txt) describes unpaired-surrogate interoperability risks; the [File API Blob processing rules](https://w3c.github.io/FileAPI/#process-blob-parts) describe their replacement during string encoding.
 
 ## Boundaries and extension points
 

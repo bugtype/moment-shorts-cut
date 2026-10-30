@@ -35,14 +35,21 @@ test('actual app axis drag uses the selected layer and one complete undo/redo tr
  }
 });
 
-test('returning a preview drag to its stored origin retains Redo without saving or remounting',async()=>{
- for(const [mode,end] of [['video','onpointerup'],['title','onpointercancel'],['scene','onlostpointercapture']]){
+test('stationary and returning preview drags retain Redo without saving or remounting',async()=>{
+ for(const [mode,end] of [['video','onpointerup'],['title','onpointercancel'],['caption','onpointerup'],['scene','onlostpointercapture']]){
   const f=await fixture(mode);
   assert.equal((await f.context.window.moment.execute('effects.update',{patch:{brightness:1.1}})).ok,true);
   f.element('#undoButton').onclick();
   vm.runInContext(`axisSaves=0;globalThis.dragRemounts=0;globalThis.dragHistory=history;globalThis.dragFuture=future;
    const originalPanel=renderPanel;renderPanel=()=>{dragRemounts++;originalPanel();};`,f.context);
   const before=f.evaluate('({state,history,future})');assert.equal(before.future.length,1);
+  // Pressure can change without coordinates; do not clamp an untouched authored position.
+  f.canvas.onpointerdown(pointer(0,0,{pointerType:'pen',pressure:.2}));
+  f.canvas.onpointermove(pointer(0,0,{pointerType:'pen',button:-1,pressure:.6}));
+  f.canvas[end](pointer(0,0));
+  assert.deepEqual(f.evaluate('({state,history,future})'),before,`${mode}: no initial movement`);
+  assert.equal(f.evaluate('history===dragHistory&&future===dragFuture'),true);
+  assert.equal(f.evaluate('axisSaves'),0);assert.equal(f.evaluate('dragRemounts'),0);
   f.canvas.onpointerdown(pointer(0,0,{shiftKey:true}));f.canvas.onpointermove(pointer(10,2));
   assert.equal(f.evaluate('history.length'),1,'the first real movement still snapshots immediately');
   assert.equal(f.evaluate('future.length'),0);

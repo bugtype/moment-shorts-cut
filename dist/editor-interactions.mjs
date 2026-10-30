@@ -44,6 +44,8 @@ export function bindPreviewDrag(canvas, { getProject, blocked, pause, selection,
             height = region.h;
         }
         const dx = e.clientX - drag.x, dy = e.clientY - drag.y;
+        if (!drag.changed && dx === 0 && dy === 0)
+            return;
         if (drag.axis === 'pending') {
             if (dx === 0 && dy === 0) return;
             // Choose the physical direction once; aspect ratio must not bias it.

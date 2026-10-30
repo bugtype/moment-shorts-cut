@@ -10,6 +10,8 @@ import {createDemoProject,createProjectDocument,projectSubtitles} from '../dist/
 import {prepareCommand,commandDefinition} from '../dist/core/commands.mjs';
 import {createEditorService} from '../dist/integration/editor-service.mjs';
 import {createAppFixture} from './fixtures/app.mjs';
+import {createTypographyRenderer} from '../dist/typography.mjs';
+import {createCanvasTrace} from './fixtures/canvas-trace.mjs';
 
 const patch={speakerLabels:['민수','嘉宾'],speakerColors:['#aAbBcC','#12345678'],style:'minimal',captionSize:44,captionX:.45,captionY:.8,captionColor:'#aAbBcC',captionAccent:'#12345678',captionStroke:2,captionItalic:false,captionAnimation:'fade'};
 test('caption style patch changes only supplied fields and leaves plain subtitles and timing unchanged',()=>{
@@ -71,4 +73,33 @@ test('CLI caption style dry-run and saved documents preserve source; invalid pat
   result=run([...args,'--out',output]);assert.equal(result.status,0,result.stderr);const saved=await fs.readFile(output,'utf8');assert.equal(JSON.parse(saved).project.captionColor,'#aAbBcC');
   result=run(['--json','{"patch":{"captionColor":"red"}}','--out',output,'--overwrite']);assert.equal(result.status,1);assert.equal(await fs.readFile(output,'utf8'),saved);assert.equal(await fs.readFile(input,'utf8'),original);
  }finally{await fs.rm(dir,{recursive:true,force:true});}
+});
+
+// Actual mounted callbacks and canvas commands, not native layout or pixel checks.
+test('caption presets apply their displayed italic defaults and retain custom highlight styling',async()=>{
+ for(const style of ['impact','accent','highlight','minimal'])for(const route of ['panel',...(style==='accent'?[]:['inspector'])]) {
+  const f=await createAppFixture(),root=f.element('#panelContent'),queryAll=root.querySelectorAll;
+  const buttons=['impact','accent','highlight','minimal'].map(value=>{const button=f.element('preset-'+value);button.dataset.captionPreset=value;return button;});
+  root.querySelectorAll=selector=>selector==='[data-caption-preset]'?buttons:queryAll(selector);
+  vm.runInContext("textLayer='caption';switchPanel('text');history=[];future=[];globalThis.presetSaves=0;scheduleSave=()=>presetSaves++;",f.context);
+  assert.ok(root.innerHTML.includes(`data-caption-preset="${style}"`));
+  const before=f.evaluate('state');
+  if(route==='panel')buttons.find(button=>button.dataset.captionPreset===style).onclick();
+  else f.documentEvents.get('click')({target:{closest:selector=>selector==='[data-style]'?{dataset:{style}}:null}});
+  const after=f.evaluate('state'),italic=style==='impact'||style==='accent';
+  assert.deepEqual(after,{...before,style,captionItalic:italic,captionStroke:style==='minimal'?2:3},`${route} ${style}`);
+  assert.equal(f.evaluate('history.length'),1);assert.equal(f.evaluate('presetSaves'),1);
+  vm.runInContext('undo()',f.context);assert.deepEqual(f.evaluate('state'),before);
+  vm.runInContext('undo(true)',f.context);assert.deepEqual(f.evaluate('state'),after);
+  if(style==='highlight') {
+   for(const customItalic of [false,true]) {
+    const project=prepareCommand(after,'captions.style.update',{patch:{captionItalic:customItalic}}).project;
+    project.design.title.enabled=false;project.design.credit.enabled=false;
+    const trace=createCanvasTrace(),renderer=createTypographyRenderer(trace.makeCanvas);
+    renderer.draw(trace.context,540,960,project,1,1,{start:0,end:2,text:'한글 Example'});
+    const fonts=trace.events.filter(event=>event[1]==='font');assert.ok(fonts.length);
+    assert.ok(fonts.every(event=>event[2].startsWith('italic ')===customItalic));
+   }
+  }
+ }
 });

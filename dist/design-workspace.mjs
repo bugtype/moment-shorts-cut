@@ -96,7 +96,7 @@ export function createDesignWorkspace(app) {
             captionStyle(style) {
                 app.edit(() => {
                     app.state.style = style;
-                    app.state.captionItalic = style !== 'minimal';
+                    app.state.captionItalic = style !== 'minimal' && style !== 'highlight';
                     app.state.captionStroke = style === 'minimal' ? 2 : 3;
                 }, true);
             }

@@ -63,6 +63,40 @@ test('clipped count excludes discarded entries and exact-duration ends', () => {
   assert.equal(parseSubtitlesWithReport(valid, .25).report.clippedCaptions, 1);
 });
 
+test('hour fields accept long and zero-padded values without changing clipping or legacy shorthand', () => {
+  for (const separator of [',', '.']) {
+    const input = [
+      cue(`99:59:59${separator}000`, `100:00:01${separator}000`, 'boundary'),
+      cue(`000:00:02${separator}000`, `000:00:03${separator}000`, 'padded'),
+      cue(`0:00:04${separator}000`, `00:05${separator}000`, 'legacy'),
+      cue(`100:00:00${separator}000`, `100:00:02${separator}000`, 'clipped'),
+      cue(`100:00:02${separator}000`, `100:00:03${separator}000`, 'outside'),
+      cue(`100:00:00${separator}000`, `99:59:59${separator}000`, 'reversed'),
+      cue(`100:60:00${separator}000`, `101:00:01${separator}000`, 'invalid minutes'),
+      cue(`100:00:00${separator}000`, `100:00:01${separator}0000`, 'invalid fraction'),
+    ].join('\n\n');
+    assert.deepEqual(parseSubtitlesWithReport(input, 360001), {
+      captions: [{start:359999,end:360001,text:'boundary'}, {start:2,end:3,text:'padded'},
+        {start:4,end:5,text:'legacy'}, {start:360000,end:360001,text:'clipped'}],
+      report: {acceptedCaptions:4,clippedCaptions:1,discardedRecognizedEntries:2},
+    });
+  }
+});
+
+test('overflowing hour fields are discarded before text limits and cannot become clipped cues', () => {
+  // Cover numeric conversion overflow and finite hours that overflow during * 3600.
+  for (const hours of ['9'.repeat(400), '1' + '0'.repeat(307)]) {
+    for (const [start, end] of [[`${hours}:00:00,000`, `${hours}:00:01,000`], ['00:00:00,000', `${hours}:00:01,000`]]) {
+      const invalid = cue(start, end, 'x'.repeat(2001));
+      assert.deepEqual(parseSubtitlesWithReport(`${valid}\n\n${invalid}`, 12), {
+        captions: [{start:0,end:2,text:'accepted'}],
+        report: {acceptedCaptions:1,clippedCaptions:0,discardedRecognizedEntries:1},
+      });
+      assert.throws(() => parseSubtitlesWithReport(invalid, 12), error => error.messageKey === 'errors.noSubtitles');
+    }
+  }
+});
+
 test('legacy wrapper and detailed parser preserve permissive NOTE/STYLE and decoding behavior', () => {
   const cases = [
     valid,

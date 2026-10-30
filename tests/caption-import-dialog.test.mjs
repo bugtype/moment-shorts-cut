@@ -123,6 +123,40 @@ test('only parser-clamped output endpoint maps to exact captured timeline end', 
     assert.equal(f.evaluate('history.length'), 1);
 });
 
+test('long-hour output review retains both cues and Apply refuses atomically at the existing caption time limit', async () => {
+    const f = await fixture(), project = f.evaluate('state');
+    project.duration = 1002;
+    project.speed = .25;
+    project.clips = [{start:0,end:1}, ...Array.from({length:500}, () => ({start:10,end:190})), {start:1000,end:1001}];
+    project.captions = [{start:0,end:1,text:'처음'}, {start:1000,end:1001,text:'끝'}];
+    assert.equal((await f.context.window.moment.execute('project.import', {document:createProjectDocument(project)})).ok, true);
+    vm.runInContext("switchPanel('captions');future=[structuredClone(state)];globalThis.saves=0;persistence.scheduleSave=()=>saves++;", f.context);
+    const output = projectSubtitles(project);
+    assert.match(output, /100:00:04,000 --> 100:00:08,000/);
+    const snapshot = () => f.evaluate('({state,history,future,current,selected,saves})');
+    const before = snapshot();
+    f.open();
+    f.file(new Blob([output]));
+    f.clock('output');
+    assert.deepEqual({...((await f.confirm()).report)}, {acceptedCaptions:2,clippedCaptions:0,discardedRecognizedEntries:0});
+    assert.deepEqual(snapshot(), before, 'Review is read-only');
+    const result = await f.confirm();
+    assert.equal(result.ok, false);
+    assert.equal(result.error.code, 'INVALID_ARGUMENT');
+    assert.equal(result.error.path, 'arguments.captions[1].start');
+    assert.deepEqual(snapshot(), before, 'refusal must not partially replace, clear Redo or schedule a save');
+    assert.equal(f.evaluate('!!modal.open'), true);
+    assert.equal(f.element('#confirmSubtitleImport').disabled, false);
+    // A corrected ordinary-duration file with the same legal padding can retry.
+    f.file(new Blob(['WEBVTT\n\n000:00:02.000 --> 000:00:03.000\n수정']));
+    assert.equal((await f.confirm()).report.acceptedCaptions, 1);
+    assert.equal((await f.confirm()).ok, true);
+    assert.deepEqual(f.evaluate('state.captions'), [{start:.5,end:.75,text:'수정',basis:'timeline'}]);
+    assert.equal(f.evaluate('saves'), 1);
+    vm.runInContext('undo()', f.context);
+    assert.deepEqual(f.evaluate('state'), before.state);
+});
+
 test('cancel, file/mode changes, close/reopen and modal replacement silence stale pending attempts', async () => {
     for (const cancel of ['cancel', 'mode', 'file', 'replace', 'close']) {
         const f = await fixture(), d = deferredFile();

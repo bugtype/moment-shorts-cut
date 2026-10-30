@@ -7,11 +7,16 @@ import { esc, fmt } from './ui-format.mjs';
 export function adjacentCut(clips, current, direction) {
   if (!Number.isFinite(current) || ![-1, 1].includes(direction)) return null;
   const boundaries = [0];
+  let offset = 0;
   for (const clip of clips) {
     const length = clip.end - clip.start;
     if (!Number.isFinite(length) || length <= 0) return null;
-    boundaries.push(boundaries.at(-1) + length);
+    // Match locateTimelineEntry's internal boundary arithmetic, not a nearby
+    // rounded target that can still select the preceding source clip.
+    boundaries.push(offset + clip.end - clip.start);
+    offset += length;
   }
+  boundaries[boundaries.length - 1] = offset; // Keep the original final endpoint.
   const candidates = direction < 0 ? boundaries.reverse() : boundaries;
   return candidates.find(boundary => {
     const tolerance = Number.EPSILON * Math.max(Math.abs(current), Math.abs(boundary)) * 8;

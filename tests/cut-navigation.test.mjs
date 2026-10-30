@@ -5,6 +5,7 @@ import vm from 'node:vm';
 import { adjacentCut } from '../dist/timeline-view.mjs';
 import { bindEditorKeyboard } from '../dist/editor-interactions.mjs';
 import { createAppFixture } from './fixtures/app.mjs';
+import { validateProject } from '../dist/core/project.mjs';
 
 const clips = [{start:8,end:10},{start:1,end:4},{start:8,end:10}];
 test('cut targets use cumulative edited lengths, strict direction and endpoints, not source ordering',()=>{
@@ -14,6 +15,8 @@ test('cut targets use cumulative edited lengths, strict direction and endpoints,
  assert.equal(adjacentCut(clips,NaN,1),null);
  assert.equal(adjacentCut(clips,1,0),null);
  assert.equal(adjacentCut([],0,1),null);
+ assert.equal(adjacentCut([{start:2.2,end:3.3}],0,1),3.3-2.2);
+ assert.equal(adjacentCut([{start:2.2,end:3.3}],3.3-2.2,-1),0);
  assert.equal(adjacentCut([{start:0,end:Infinity}],0,1),null);
 });
 test('boundary comparison tolerates machine roundoff without skipping nearby genuine positions',()=>{
@@ -52,6 +55,29 @@ test('actual transport cut buttons pause and seek without project, selection, tr
  for(const [at,id] of [[0,'#previousCutButton'],[7,'#nextCutButton']]){
   vm.runInContext(`current=${at};playing=true;`,context);const request=evaluate('playRequest');element(id).onclick();
   assert.equal(evaluate('playing'),true);assert.equal(evaluate('playRequest'),request);
+ }
+});
+test('decimal cut navigation reaches the intended source clip in both directions without changing editing state',async()=>{
+ for(const [ranges,boundary] of [
+  [[{start:0,end:1.1},{start:2.2,end:3.3},{start:10,end:12}],2.2],
+  [[{start:0,end:1.1},{start:10,end:12.2},{start:3,end:5}],3.299999999999999],
+ ]){
+  const {context,evaluate,element}=await createAppFixture();context.cutClips=ranges;
+  vm.runInContext("state.kind='video';state.fileName='generated.mp4';state.duration=20;video.duration=20;state.clips=cutClips;state.speed=2;timelineCache=null;current=0;selected=1;history=[JSON.stringify(state)];future=[JSON.stringify(state)];renderTimeline();renderInspector();globalThis.navigationSaves=0;scheduleSave=()=>navigationSaves++;",context);
+  validateProject(evaluate('state'));
+  const before=evaluate('({state,selected,history,future,save:persistence.saveTimer})'),total=evaluate('duration()');
+  element('#trimStart').value='2.4';
+  for(const [id,time,index,source] of [
+   ['#nextCutButton',1.1,1,ranges[1].start],['#nextCutButton',boundary,2,ranges[2].start],
+   ['#nextCutButton',total,2,ranges[2].end],['#previousCutButton',boundary,2,ranges[2].start],
+   ['#previousCutButton',1.1,1,ranges[1].start],['#previousCutButton',0,0,0],
+  ]){
+   element(id).onclick();
+   assert.equal(element('#sourceVideo').currentTime,source);
+   assert.equal(evaluate('current'),time);assert.equal(evaluate('locate(current).index'),index);
+   assert.deepEqual(evaluate('({state,selected,history,future,save:persistence.saveTimer})'),before);
+   assert.equal(evaluate('navigationSaves'),0);assert.equal(element('#trimStart').value,'2.4');
+  }
  }
 });
 test('actual transport is inert while editor, recovery, media, export, modal or recording is busy',async()=>{

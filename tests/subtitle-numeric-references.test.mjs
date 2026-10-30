@@ -93,7 +93,7 @@ test('long numeric runs stay bounded and raw byte limits apply before decoding',
   const result = spawnSync(process.execPath, ['--input-type=module', '-e', script], {encoding: 'utf8', timeout: 10000});
   assert.equal(result.error, undefined); assert.equal(result.status, 0, result.stderr);
   assert.equal(result.stdout.trim(), 'bounded numeric decoding');
-  assert.throws(() => parseSubtitlesWithReport(cue('&#' + '0'.repeat(MAX_SUBTITLE_BYTES) + '65;'), 12), /2 MB/);
+  assert.throws(() => parseSubtitlesWithReport(cue('&#' + '0'.repeat(MAX_SUBTITLE_BYTES) + '65;'), 12), /2 MiB/);
 });
 
 test('reviewed numeric-reference import preserves localized draft flow and one-step Undo', async () => {

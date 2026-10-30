@@ -24,7 +24,7 @@ for (const failure of ['object URL', 'audio probe']) {
     assert.deepEqual(revoked, failure === 'object URL' ? [] : ['blob:synthetic-audio']);
     assert.match(element('#toast').textContent, /synthetic.*failure/);
     await vm.runInContext('loadAudio({name:"large.wav",size:101*1024*1024})', context);
-    assert.match(element('#toast').textContent, /100 MB/);
+    assert.match(element('#toast').textContent, /100 MiB/);
     context.URL.createObjectURL = () => 'blob:synthetic-retry';
     context.Audio = class {
       duration = 1;

@@ -41,7 +41,7 @@ test('invalid timestamp fields, reversed intervals, empty and out-of-range cues 
 });
 
 test('subtitle input and cue limits fail explicitly without truncating authored text', () => {
-  assert.throws(() => parseSubtitles('x'.repeat(MAX_SUBTITLE_BYTES + 1), 12), /2 MB/);
+  assert.throws(() => parseSubtitles('x'.repeat(MAX_SUBTITLE_BYTES + 1), 12), /2 MiB/);
   assert.throws(() => parseSubtitles('00:01.000 --> 00:02.000\n' + 'x'.repeat(2001), 12), /2,000/);
   assert.throws(() => parseSubtitles(('00:01.000 --> 00:02.000\nx\n\n').repeat(10001), 12), /10,000/);
 });
@@ -54,12 +54,12 @@ test('shared subtitle parser counts UTF-8 bytes before BOM and line-ending norma
     assert.equal(Buffer.byteLength(atLimit),MAX_SUBTITLE_BYTES);
     const captions=parseSubtitles(atLimit,12);
     assert.equal(captions.length,count);assert.ok(captions.every(c=>c.start===0&&c.end===1&&c.text===payload));
-    assert.throws(()=>parseSubtitles(atLimit+' ',12),/2 MB/,'one extra UTF-8 byte must fail');
+    assert.throws(()=>parseSubtitles(atLimit+' ',12),/2 MiB/,'one extra UTF-8 byte must fail');
   }
   const multibyte=('00:00:00,000 --> 00:00:01,000\n'+'가'.repeat(1000)+'\n\n').repeat(1000);
   assert.ok(multibyte.length<MAX_SUBTITLE_BYTES);assert.ok(Buffer.byteLength(multibyte)>MAX_SUBTITLE_BYTES);
-  assert.throws(()=>parseSubtitles(multibyte,12),/2 MB/);
-  for(const value of [null,undefined,{},42])assert.throws(()=>parseSubtitles(value,12),/2 MB/);
+  assert.throws(()=>parseSubtitles(multibyte,12),/2 MiB/);
+  for(const value of [null,undefined,{},42])assert.throws(()=>parseSubtitles(value,12),/2 MiB/);
 });
 
 test('subtitle references decode once after markup removal, preserving literal tags and unknown references', () => {

@@ -45,9 +45,9 @@ test('media persistence, recording and export ownership', async () => {
   await vm.runInContext('loadVideo({name:"notes.txt",type:"text/plain",size:42})',context);
   assert.ok(element('#toast').textContent.includes('동영상 파일'));assert.equal(evaluate('state.kind'),'demo');
   await vm.runInContext('loadVideo({name:"large.mp4",type:"video/mp4",size:600*1024*1024})',context);
-  assert.ok(element('#toast').textContent.includes('500 MB'));assert.equal(evaluate('state.kind'),'demo');
+  assert.ok(element('#toast').textContent.includes('500 MiB'));assert.equal(evaluate('state.kind'),'demo');
   await vm.runInContext('loadAudio({name:"large.wav",size:120*1024*1024})',context);
-  assert.ok(element('#toast').textContent.includes('100 MB'));
+  assert.ok(element('#toast').textContent.includes('100 MiB'));
   vm.runInContext('exportDialog()',context);assert.ok(element('#toast').textContent.includes('내보내기를 지원하지'));
   vm.runInContext('switchPanel("captions")',context);element('#captionSource').value='video';await vm.runInContext('generateCaptions()',context);
   assert.ok(element('#toast').textContent.includes('음성이 없습니다.'));assert.equal(evaluate('transcribing'),false);

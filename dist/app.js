@@ -464,8 +464,6 @@ function selectedSceneLayer() { return designWorkspace.selectedSceneLayer(); }
 function exportDialog() { exportFlow.exportDialog(); }
 function startExport(type, quality) { return exportFlow.startExport(type, quality); }
 function stopExport(cancelled) { exportFlow.stopExport(cancelled); }
-function cleanupExport(request) { exportFlow.cleanupExport(request); }
-function supportedTypes() { return exportFlow.supportedTypes(); }
 function bind() { bindUi(app); }
 
 function trim(start, end) { return editingActions.trim(start, end); }

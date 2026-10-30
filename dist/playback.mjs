@@ -47,6 +47,8 @@ export function createPlayback(app, {
     function draw() {
         if (app.exporting && app.videoExport.context) {
             paint(app.videoExport.context, app.videoExport.canvas.width, app.videoExport.canvas.height, app.videoExport.renderOptions);
+            // Copy the complete alpha-capable frame, not a layer over the last preview.
+            if (app.state.design.background.length === 9) app.ctx.clearRect(0, 0, app.canvas.width, app.canvas.height);
             app.ctx.drawImage(app.videoExport.canvas, 0, 0, app.canvas.width, app.canvas.height);
         }
         else

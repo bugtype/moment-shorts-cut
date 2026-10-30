@@ -37,7 +37,10 @@ export function createCompositionRenderer(makeCanvas, { getFonts = () => null, o
     const frame = videoFrame(project.design, width, height);
     const effects = project.effects;
     const fx = clipEffects(effects, media.elapsed, media.remaining, media.progress);
-    context.fillStyle = project.design.background;
+    const background = project.design.background;
+    context.fillStyle = background;
+    // Valid eight-digit hex colors may retain alpha; replace the previous frame.
+    if (background.length === 9) context.clearRect(0, 0, width, height);
     context.fillRect(0, 0, width, height);
 
     if (media.ready && media.sw && media.sh) {

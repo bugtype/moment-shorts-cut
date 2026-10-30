@@ -2,7 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createCompositionRenderer } from '../dist/composition-renderer.mjs';
 import { projectSubtitles } from '../dist/core/project.mjs';
-import { createDemoProject } from '../dist/core/project.mjs';
+import { createDemoProject, validateProject } from '../dist/core/project.mjs';
+import { createPlayback } from '../dist/playback.mjs';
 import { newCard } from '../dist/effects.mjs';
 import { createCanvasTrace } from './fixtures/canvas-trace.mjs';
 
@@ -66,4 +67,89 @@ test('export caption omission preserves source, title, credit and cards without 
   for (const value of ['TITLEONLY','CREDITONLY','CARDONLY','video']) assert.ok(has(clean,value), value);
   assert.deepEqual(project,before);
   assert.deepEqual([projectSubtitles(project,{format:"srt"}),projectSubtitles(project,{format:"vtt"})],sidecars);
+});
+
+// One corner's source-over alpha, not native pixels or a general Canvas model.
+// These fixtures use full-frame clips and contained media away from that corner.
+function alphaSurface(width, height) {
+  let alpha = 0;
+  const events = [], stack = [], canvas = { width, height };
+  const covers = (x, y, w, h) => x <= 0 && y <= 0 && x + w > 0 && y + h > 0;
+  const over = value => { alpha = value + alpha * (1 - value); };
+  const context = {
+    fillStyle: '#000000', globalAlpha: 1,
+    clearRect(...rect) { events.push(['clear', ...rect]); if (covers(...rect)) alpha = 0; },
+    fillRect(...rect) {
+      events.push(['fill', ...rect]);
+      if (covers(...rect)) over((this.fillStyle.length === 9 ? parseInt(this.fillStyle.slice(7), 16) / 255 : 1) * this.globalAlpha);
+    },
+    drawImage(source, ...rect) {
+      events.push(['image', ...rect]);
+      if (covers(...rect)) over((source.alpha ?? 1) * this.globalAlpha);
+    },
+    save() { stack.push([this.fillStyle, this.globalAlpha]); },
+    restore() { [this.fillStyle, this.globalAlpha] = stack.pop(); },
+    beginPath() {}, rect() {}, clip() {},
+  };
+  Object.defineProperty(canvas, 'alpha', { get: () => alpha });
+  return { canvas, context, events, get alpha() { return alpha; } };
+}
+
+function alphaProject(color) {
+  const project = createDemoProject();
+  project.design.background = color; project.design.layout = 'full';
+  project.design.title.enabled = false; project.design.credit.enabled = false;
+  project.captions = []; project.overlays = []; project.fit = 'contain'; project.ratio = '1:1';
+  validateProject(project);
+  return project;
+}
+
+test('alpha backgrounds replace prior frames without changing opaque composition or input data', () => {
+  const renderer = createCompositionRenderer(() => { throw Error('unexpected text raster'); });
+  for (const color of ['#11223380', '#11223300', '#112233', '#112233fF']) {
+    const project = alphaProject(color), surface = alphaSurface(200, 200);
+    const before = structuredClone({ project, media });
+    surface.context.fillRect(0, 0, 200, 200); // A previous opaque picture.
+    surface.events.length = 0;
+    const expected = color.length === 9 ? parseInt(color.slice(7), 16) / 255 : 1;
+    for (let frame = 0; frame < 3; frame++) {
+      renderer.draw(surface.context, 200, 200, project, media);
+      assert.equal(surface.alpha, expected, color);
+    }
+    assert.deepEqual(surface.events.filter(event => event[0] === 'clear'),
+      color.length === 9 ? Array.from({ length: 3 }, () => ['clear', 0, 0, 200, 200]) : []);
+    assert.deepEqual(surface.events.slice(0, color.length === 9 ? 2 : 1),
+      color.length === 9 ? [['clear', 0, 0, 200, 200], ['fill', 0, 0, 200, 200]] : [['fill', 0, 0, 200, 200]]);
+    assert.deepEqual({ project, media }, before);
+  }
+  const failure = new Error('clear failed'), project = alphaProject('#11223300');
+  let observations = 0;
+  const observed = createCompositionRenderer(() => {}, { getFonts: () => { observations++; return null; } });
+  assert.throws(() => observed.draw({ clearRect() { throw failure; } }, 200, 200, project, media), error => error === failure);
+  assert.equal(observations, 2, 'existing final font observation still runs on failure');
+});
+
+test('export mirroring replaces alpha frames at preview dimensions and returns to ordinary painting', () => {
+  const project = alphaProject('#11223380'), before = structuredClone(project);
+  const preview = alphaSurface(200, 200), output = alphaSurface(400, 400);
+  const app = {
+    state: project, current: 1, locate: time => ({ index: 0, source: time }), duration: () => 12,
+    composition: createCompositionRenderer(() => { throw Error('unexpected text raster'); }),
+    sample: { complete: true }, sampleRaster: {}, mediaReady: () => true,
+    videoExport: { context: output.context, canvas: output.canvas, renderOptions: { includeCaptions: false } },
+    exporting: true, ctx: preview.context, canvas: preview.canvas,
+  };
+  const owner = createPlayback(app);
+  for (const time of [1, 9, 1]) {
+    app.current = time; owner.draw();
+    assert.equal(output.alpha, 128 / 255);
+    assert.equal(preview.alpha, output.alpha, 'a fresh export surface must replace, not blend over, the last preview');
+  }
+  assert.deepEqual(preview.events, Array.from({ length: 3 }, () =>
+    [['clear', 0, 0, 200, 200], ['image', 0, 0, 200, 200]]).flat());
+  assert.deepEqual(output.events.filter(event => event[0] === 'clear'),
+    Array.from({ length: 3 }, () => ['clear', 0, 0, 400, 400]));
+  app.exporting = false; owner.draw();
+  assert.equal(preview.alpha, 128 / 255);
+  assert.deepEqual(project, before);
 });

@@ -319,13 +319,21 @@ export function createPlayback(app, {
                 app.video.removeEventListener('seeked', done);
                 resolve();
             }
-            if (Math.abs(app.video.currentTime - time) < .001 && app.video.readyState >= 2 && !app.video.seeking) {
-                clearTimer(timeout);
-                resolve();
-                return;
+            try {
+                if (Math.abs(app.video.currentTime - time) < .001 && app.video.readyState >= 2 && !app.video.seeking) {
+                    clearTimer(timeout);
+                    resolve();
+                    return;
+                }
+                app.video.addEventListener('seeked', done, { once: true });
+                app.video.currentTime = clamp(time, 0, Math.max(0, app.video.duration - .001));
             }
-            app.video.addEventListener('seeked', done, { once: true });
-            app.video.currentTime = clamp(time, 0, Math.max(0, app.video.duration - .001));
+            catch (error) {
+                // A rejected setup no longer owns a useful listener or timeout.
+                try { clearTimer(timeout); } catch { /* Keep the original setup error. */ }
+                try { app.video.removeEventListener('seeked', done); } catch { /* Independent best-effort cleanup. */ }
+                reject(error);
+            }
         });
     }
 

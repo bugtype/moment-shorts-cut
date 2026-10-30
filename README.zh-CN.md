@@ -82,6 +82,8 @@ npm start
 | 字幕和音频 | SRT/VTT 导入，编辑后 SRT/VTT/TXT 导出，字面查找/全部替换，高亮、动画、两个手动说话人；一个附加音频文件或麦克风旁白 | 设备端 ASR 使用 Transformers.js 3.8.1 和 `Xenova/whisper-tiny`；识别及分割后的估计时间需要检查 |
 | 保存和自动化 | 浏览器存储、项目 JSON、CLI、仓库技能及 stdio MCP；Canvas/Web Audio → MediaRecorder 导出 | 项目 JSON 不含媒体；CLI/MCP 不编码视频 |
 
+亮度、对比度和饱和度需要浏览器支持 Canvas 2D 滤镜；请参阅[浏览器兼容性说明](docs/BROWSER_QA.md#canvas-filter-compatibility)。
+
 内置模板覆盖评论故事、醒目开场、日常 vlog、讲解、访谈、食谱、排名、产品评测、测验及电影感片段。可以观看各模板的动画预览。测验选项和倒计时是视频图形，不是可交互的投票。
 
 **六种开场构图：** 先展示结果、诊断并解决错误、A/B 快速对比、10 秒小实验、3 秒观察测验和常见说法验证。

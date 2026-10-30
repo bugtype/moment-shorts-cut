@@ -105,6 +105,8 @@ resynchronize the field, even when a replacement has the same name.
 | Captions and audio | SRT/VTT import, edited SRT/VTT/TXT export, literal find/replace-all, highlighting, effects, two manual speakers; one added audio file or microphone narration | On-device ASR uses Transformers.js 3.8.1 + `Xenova/whisper-tiny`; recognition and estimated split timing need review |
 | Save and automate | Browser storage, project JSON, CLI, repository skill and stdio MCP; Canvas/Web Audio → MediaRecorder export | Project JSON contains no media; CLI/MCP do not encode video |
 
+Brightness, contrast and saturation require browser support for Canvas 2D filters; see [browser compatibility notes](docs/BROWSER_QA.md#canvas-filter-compatibility).
+
 The built-in templates cover review stories, bold opening lines, vlogs, explainers, interviews, recipes, rankings, product reviews, quizzes, and cinematic moments. Preview each with its animated sample. Quiz choices and countdowns are video graphics, not interactive polls.
 
 **Opening hooks:** six additional compositions cover result-first reveals, mistake fixes,

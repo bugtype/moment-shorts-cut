@@ -83,6 +83,14 @@ ffmpeg -v error -i output.mp4 -map 0:a:0 -f null -
 
 테스트 영상의 오디오는 사인파이므로 음성 인식 평가 자료가 아닙니다. 스크린샷과 영상에는 개인 미디어를 사용하지 않았습니다.
 
+<a id="canvas-filter-compatibility"></a>
+
+### 색상 효과의 브라우저 의존성
+
+밝기·대비·채도는 미디어를 그릴 때 `CanvasRenderingContext2D.filter`를 사용합니다. 이 API의 지원이 활성화되지 않은 환경에서는 해당 조정이 미리보기와 영상·PNG 출력에 적용되지 않으며, Moment에는 대체 구현이 없습니다.
+
+2026-10-30에 확인한 [MDN 호환성 데이터](https://github.com/mdn/browser-compat-data/blob/4aaa93315e34faff83c82da04d1add347df26c88/api/CanvasRenderingContext2D.json)는 Safari 지원을 설정 플래그 뒤로 표시하며, [WebKit의 기본 설정](https://github.com/WebKit/WebKit/blob/36ab18629d2e27a9f200cd269e729d758437a572/Source/WTF/Scripts/Preferences/UnifiedWebPreferences.yaml)도 Canvas Filters를 비활성화합니다. 이는 소스 기반의 호환성 안내이며, 새로운 실제 Safari 실행 검증 결과가 아닙니다.
+
 ## 수동 점검 공통 기준
 
 **아래 목록은 아직 완료하지 않은 실제 브라우저 점검 절차입니다.** 위 날짜의 측정 결과와 구분하며, 코드·모의 DOM 검사나 문서 편집으로 새 네이티브 검증이 이루어졌다고 표시하지 않습니다.

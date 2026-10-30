@@ -4,6 +4,22 @@ import {messages as shell} from '../dist/i18n/catalogs/shell.mjs';
 import {messages as panels} from '../dist/i18n/catalogs/panels.mjs';
 import {messages as errors} from '../dist/i18n/catalogs/errors.mjs';
 import {messages as templates} from '../dist/i18n/catalogs/templates.mjs';
+import {messages as session} from '../dist/i18n/catalogs/session.mjs';
+import {messages as graphics} from '../dist/i18n/catalogs/graphics.mjs';
+import {messages as collections} from '../dist/i18n/catalogs/collections.mjs';
+import {messages as speakers} from '../dist/i18n/catalogs/speakers.mjs';
+import {messages as review} from '../dist/i18n/catalogs/review.mjs';
+import {messages as keywords} from '../dist/i18n/catalogs/keywords.mjs';
+import {messages as stacking} from '../dist/i18n/catalogs/stacking.mjs';
+import {messages as scenePng} from '../dist/i18n/catalogs/scene-png.mjs';
+import {messages as importReview} from '../dist/i18n/catalogs/import-review.mjs';
+import {messages as replaceRange} from '../dist/i18n/catalogs/replace-range.mjs';
+import {messages as guides} from '../dist/i18n/catalogs/guides.mjs';
+import {messages as audioMix} from '../dist/i18n/catalogs/audio-mix.mjs';
+import {messages as sourceVideo} from '../dist/i18n/catalogs/source-video.mjs';
+import {messages as duplicateRange} from '../dist/i18n/catalogs/duplicate-range.mjs';
+import {messages as advisory} from '../dist/i18n/catalogs/advisory.mjs';
+import {messages as finder} from '../dist/i18n/catalogs/finder.mjs';
 import {SUPPORTED_LOCALES,LOCALE_STORAGE_KEY,initLocale,getLocale,setLocale,onLocaleChange,
     t,translateFor,normalizeLocale,message,formatError,text,attrs,mark,setText,setAttr,setValidity,localize} from '../dist/i18n.mjs';
 
@@ -22,15 +38,21 @@ function documentFor(...nodes) {
     return {documentElement:{lang:'ko'},querySelectorAll(){return nodes;}};
 }
 test('all domain catalogs have exactly matching keys and named placeholders without HTML',()=>{
-    const seen=new Set(),parameters=value=>[...value.matchAll(/\{([A-Za-z][A-Za-z0-9_]*)\}/g)].map(match=>match[1]).sort();
-    for(const domain of [shell,panels,errors,templates]){
+    const seen=new Set(),parameters=value=>[...value.matchAll(/\{(\w+)\}/g)].map(match=>match[1]).sort();
+    // Match the domains assembled by i18n.mjs; templates already includes template-presets.
+    const domains={shell,panels,errors,templates,session,graphics,collections,speakers,review,keywords,
+        stacking,scenePng,importReview,replaceRange,guides,audioMix,sourceVideo,duplicateRange,advisory,finder};
+    assert.ok(Object.keys(panels.ko).length>200);
+    for(const [name,domain] of Object.entries(domains)){
         const keys=Object.keys(domain.ko).sort();
         for(const locale of SUPPORTED_LOCALES){
-            assert.deepEqual(Object.keys(domain[locale]).sort(),keys);
+            assert.deepEqual(Object.keys(domain[locale]).sort(),keys,name+':'+locale);
             for(const key of keys){
-                assert.equal(typeof domain[locale][key],'string');
-                assert.deepEqual(parameters(domain[locale][key]),parameters(domain.ko[key]),locale+':'+key);
-                assert.doesNotMatch(domain[locale][key],/<\/?[a-z][^>]*>/i,'Catalogs contain plain text, not HTML');
+                const value=domain[locale][key],context=name+':'+locale+':'+key;
+                assert.equal(typeof value,'string',context);
+                assert.ok(value.trim(),context);
+                assert.deepEqual(parameters(value),parameters(domain.ko[key]),context);
+                assert.doesNotMatch(value,/<\/?[a-z][^>]*>/i,context+': Catalogs contain plain text, not HTML');
             }
         }
         for(const key of keys){assert.equal(seen.has(key),false,'Duplicate key '+key);seen.add(key);}

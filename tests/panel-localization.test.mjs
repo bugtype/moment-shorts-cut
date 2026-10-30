@@ -1,25 +1,11 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { messages } from '../dist/i18n/catalogs/panels.mjs';
 import { setLocale, initLocale, t, message } from '../dist/i18n.mjs';
 import { captionsPanelMarkup, mediaPanelMarkup, audioPanelMarkup, settingsPanelMarkup } from '../dist/panel-markup.mjs';
 import { mountEffectsPanel } from '../dist/effects-panel.mjs';
 
 const locales = ['ko', 'en', 'zh-CN'];
-const placeholders = value => [...value.matchAll(/\{(\w+)\}/g)].map(match => match[1]).sort();
 const options = { toolsOpen: true, transcribing: true, hasAudio: true };
-
-test('panel catalogs have matching semantic keys and interpolation parameters', () => {
-  const keys = Object.keys(messages.ko).sort();
-  assert.ok(keys.length > 200);
-  for (const locale of locales) {
-    assert.deepEqual(Object.keys(messages[locale]).sort(), keys);
-    for (const key of keys) {
-      assert.ok(messages[locale][key].trim(), key);
-      assert.deepEqual(placeholders(messages[locale][key]), placeholders(messages.ko[key]), key);
-    }
-  }
-});
 
 test('localized caption panels preserve content, values, paging and descriptor status', () => {
   initLocale();

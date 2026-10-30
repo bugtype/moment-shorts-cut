@@ -9,18 +9,6 @@ import { setLocale, translateFor } from '../dist/i18n.mjs';
 import { createTemplateDocument } from '../dist/template-library.mjs';
 import { createTemplateWorkspace } from '../dist/template-workspace.mjs';
 
-test('template catalogs have matching keys and interpolation parameters', () => {
-  const keys=Object.keys(messages.ko).sort();
-  for(const locale of ['en','zh-CN']) {
-    assert.deepEqual(Object.keys(messages[locale]).sort(),keys);
-    for(const key of keys) {
-      const placeholders=value=>[...value.matchAll(/\{(\w+)\}/g)].map(match=>match[1]).sort();
-      assert.deepEqual(placeholders(messages[locale][key]),placeholders(messages.ko[key]),key);
-      assert.ok(messages[locale][key].trim(),key);
-    }
-  }
-});
-
 test('template facade appends display metadata in preset order without mixing UI keys', () => {
   assert.deepEqual(Object.keys(presets), Object.keys(messages));
   for (const locale of Object.keys(messages)) {

@@ -4,7 +4,6 @@ import { projectGraphicsText } from '../dist/core/graphics-text.mjs';
 import { createDemoProject } from '../dist/core/project.mjs';
 import { newCard } from '../dist/effects.mjs';
 import { getLocale, setLocale, translateFor } from '../dist/i18n.mjs';
-import { messages } from '../dist/i18n/catalogs/graphics.mjs';
 
 function fixture() {
   const project = createDemoProject();
@@ -101,16 +100,5 @@ test('project validation, 12-card maximum, empty authored fields and exact fract
     assert.throws(() => projectGraphicsText({}));
   } finally {
     setLocale(originalLocale, { persist: false });
-  }
-});
-
-test('graphics report catalogs have matching, fully translated metadata keys', () => {
-  const keys = Object.keys(messages.ko).sort();
-  for (const locale of ['en', 'zh-CN']) {
-    assert.deepEqual(Object.keys(messages[locale]).sort(), keys);
-    for (const key of keys) {
-      assert.equal(typeof messages[locale][key], 'string');
-      assert.ok(messages[locale][key].length > 0);
-    }
   }
 });

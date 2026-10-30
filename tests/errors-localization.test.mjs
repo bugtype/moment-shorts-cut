@@ -10,14 +10,6 @@ import {createEditorService,errorResult} from '../dist/integration/editor-servic
 import {parseSubtitles} from '../dist/captions.mjs';
 import {createTranscriptionClient} from '../dist/transcription-client.mjs';
 const translated=(locale,error)=>error.messageKey?translateFor(locale,error.messageKey,error.messageParams):error.message;
-test('error catalogs have matching semantic keys and named placeholders in all locales',()=>{
- const keys=Object.keys(messages.ko).sort();
- const placeholders=value=>[...value.matchAll(/\{(\w+)\}/g)].map(match=>match[1]).sort();
- for(const locale of ['en','zh-CN']){
-  assert.deepEqual(Object.keys(messages[locale]).sort(),keys);
-  for(const key of keys){assert.equal(typeof messages[locale][key],'string');assert.ok(messages[locale][key].length);assert.deepEqual(placeholders(messages[locale][key]),placeholders(messages.ko[key]),key);}
- }
-});
 test('internal error metadata localizes while default serialized API shape and Korean diagnostics stay stable',async()=>{
  const descriptor=message('errors.numberRange'),error=new CommandError('INVALID_ARGUMENT',descriptor,'arguments.patch.speed');
  assert.equal(error.message,'숫자 범위를 확인하세요.');

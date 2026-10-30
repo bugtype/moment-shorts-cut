@@ -79,6 +79,7 @@ export function createMediaLoader(app, {
                     revokeObjectURL(app.sources.sourceURL);
                 app.sources.sourceURL = '';
                 app.video.removeAttribute('src');
+                try { app.video.load(); } catch { /* Preserve the original rejected-import diagnostic. */ }
             }
             app.sources.thumbnail = oldThumbnail;
             app.toast(e.code === 'INVALID_ARGUMENT' && e.path === 'project.duration'

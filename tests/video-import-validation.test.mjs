@@ -9,7 +9,7 @@ import { createProjectDocument, readProjectDocument, validateProject } from '../
 // Native metadata and IndexedDB are simulated; loader, validation and save owners are real.
 async function fixture(withVideo = false) {
   const f = await createAppFixture(), urls = new Map(), revoked = [], events = new Map(), timers = new Set();
-  const seeks = [], pendingMetadata = [], audioResets = [];
+  const seeks = [], pendingMetadata = [], audioResets = [], videoResets = [];
   let nextURL = 0, settingsWrites = 0, raw;
   const video = f.element('#sourceVideo'), audio = f.element('#sourceAudio');
   audio.pause = () => { audio.paused = true; };
@@ -19,7 +19,12 @@ async function fixture(withVideo = false) {
   };
   video.addEventListener = (name, callback) => events.set(name, callback);
   video.removeEventListener = name => events.delete(name);
-  let source = '', nativeTime = 0, failSeek = false;
+  let source = '', selectedSource = '', nativeTime = 0, failSeek = false;
+  Object.defineProperty(video, 'currentSrc', { get: () => selectedSource });
+  video.load = () => {
+    videoResets.push({ src: source, loading: f.evaluate('loadingMedia'), playing: f.evaluate('playing') });
+    selectedSource = ''; video.readyState = 0; video.duration = NaN; nativeTime = 0;
+  };
   Object.defineProperty(video, 'currentTime', { configurable: true,
     get: () => nativeTime,
     set(value) {
@@ -32,7 +37,8 @@ async function fixture(withVideo = false) {
   Object.defineProperty(video, 'src', { configurable: true,
     get: () => source,
     set(value) {
-      source = value;
+      source = selectedSource = value;
+      video.readyState = 4;
       const file = urls.get(value);
       video.duration = file.duration;
       nativeTime = 0; // The native media load algorithm resets its source clock.
@@ -75,7 +81,7 @@ async function fixture(withVideo = false) {
   Object.assign(vm.runInContext('projectStore', f.context), createProjectStore(storage.factory));
   f.context.localStorage.getItem = () => raw;
   f.context.localStorage.setItem = (_key, value) => { raw = value; settingsWrites++; };
-  return { ...f, video, audio, urls, revoked, events, timers, storage, seeks, pendingMetadata, audioResets,
+  return { ...f, video, audio, urls, revoked, events, timers, storage, seeks, pendingMetadata, audioResets, videoResets,
     failSeek: () => { failSeek = true; }, raw: () => raw, settingsWrites: () => settingsWrites };
 }
 
@@ -108,11 +114,15 @@ for (const withVideo of [false, true]) {
       assert.deepEqual(f.audioResets, [], 'precommit failure does not retire the original audio');
       assert.equal(f.revoked.includes('blob:original-audio'), false);
       if (withVideo) {
+        assert.deepEqual(f.videoResets, [], 'restoring an old source does not retire it');
         assert.equal(f.urls.get(f.video.src).name, 'original.mp4');
         assert.equal(f.video.duration, 12);
       } else {
         assert.equal(f.video.src, '');
         assert.equal(f.evaluate('sources.sourceURL'), '');
+        assert.deepEqual(f.videoResets, [{src:'', loading:true, playing:false}]);
+        assert.equal(f.video.currentSrc, '');
+        assert.equal(f.video.readyState, 0); assert.ok(Number.isNaN(f.video.duration));
       }
       const rejectedURL = [...f.urls].find(([, file]) => file === f.context.candidateFile)[0];
       assert.equal(f.revoked.filter(url => url === rejectedURL).length, 1);
@@ -169,6 +179,26 @@ test('retrying a valid file after rejected metadata commits only the valid repla
   assert.equal(f.audioResets.length, 2);
   assert.equal(f.evaluate('state.duration'), 8);
   assert.equal(f.evaluate('sources.audioFile'), null);
+});
+
+test('first rejected video keeps its diagnostic if native reset throws and permits explicit retry', async () => {
+  const f = await fixture(false), before = snapshot(f), stored = f.raw(), reset = f.video.load;
+  let resets = 0;
+  f.video.load = () => { resets++; throw new Error('Injected native reset failure'); };
+  await load(f, 86401);
+  assert.equal(resets, 1); assert.deepEqual(snapshot(f), before);
+  assert.equal(f.raw(), stored); assert.equal(f.storage.attempts.length, 0); assert.equal(f.settingsWrites(), 0);
+  assert.deepEqual(f.audioResets, []); assert.equal(f.audio.src, 'blob:original-audio');
+  assert.equal(f.video.src, ''); assert.equal(f.evaluate('sources.sourceURL'), '');
+  assert.equal(f.evaluate('loadingMedia'), false); assert.equal(f.element('#videoInput').value, '');
+  assert.equal(f.events.size, 0);
+  assert.match(f.element('#toast').textContent, /0.001.*86,?400/);
+  f.video.load = reset;
+  await load(f, 6); await vm.runInContext('saveProject()', f.context);
+  assert.equal(f.evaluate('state.duration'), 6); assert.equal(f.video.currentSrc, f.video.src);
+  assert.equal(f.video.readyState, 4); assert.deepEqual(f.videoResets, [], 'valid retry does not reset its adopted video');
+  assert.equal(f.audioResets.length, 1); assert.equal(f.storage.records.get('video').duration, 6);
+  assert.equal(f.storage.attempts.length, 1); assert.equal(f.settingsWrites(), 1);
 });
 
 test('valid out-of-timeline title timing is retimed on a copy, not newly restricted', async () => {

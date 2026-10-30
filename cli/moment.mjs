@@ -173,6 +173,17 @@ async function main() {
   process.stdout.write(JSON.stringify(result) + '\n');
 }
 
+// Each stdout response is terminal; delivery failure must not undo a saved file.
+process.stderr.on('error', () => { process.exitCode = 1; });
+process.stdout.on('error', () => {
+  process.exitCode = 1;
+  try {
+    const error = new CommandError('FILE_ERROR',
+      '표준 출력 응답을 전달하지 못했습니다. --out 파일은 이미 저장되었을 수 있습니다.');
+    process.stderr.write(JSON.stringify(errorResult('cli', error)) + '\n');
+  } catch { /* A failed diagnostic stream has no further reporting destination. */ }
+});
+
 try {
   await main();
 } catch (error) {

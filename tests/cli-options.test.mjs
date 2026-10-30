@@ -4,10 +4,58 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import {tmpdir} from 'node:os';
 import {fileURLToPath, pathToFileURL} from 'node:url';
-import {spawnSync} from 'node:child_process';
+import {spawn, spawnSync} from 'node:child_process';
 
 const cli=fileURLToPath(new URL('../cli/moment.mjs',import.meta.url));
 const run=(...args)=>spawnSync(process.execPath,[cli,...args],{encoding:'utf8'});
+
+test('CLI owns closed output pipes without claiming an already-saved file was rolled back',async()=>{
+  const directory=await fs.mkdtemp(path.join(tmpdir(),'moment-output-pipe-'));
+  async function closed(args,{stdout=true,stderr=false,preload}={}){
+    const child=spawn(process.execPath,[...(preload?['--import',pathToFileURL(preload).href]:[]),cli,...args],{stdio:['ignore','pipe','pipe']});
+    const result={stdout:'',stderr:'',guard:null};
+    const timer=setTimeout(()=>{result.guard='timeout';child.kill();},5000);
+    for(const [name,close] of [['stdout',stdout],['stderr',stderr]]){
+      if(close)child[name].destroy();
+      else child[name].on('data',data=>{
+        result[name]+=data;
+        if(result[name].length>1024*1024){result.guard='output limit';child.kill();}
+      });
+    }
+    try{
+      const [code,signal]=await new Promise((resolve,reject)=>{
+        child.once('error',reject);child.once('close',(code,signal)=>resolve([code,signal]));
+      });
+      assert.equal(result.guard,null);assert.equal(signal,null);assert.equal(code,1);
+      return result;
+    }finally{clearTimeout(timer);child.kill();}
+  }
+  try{
+    const expected=path.join(directory,'expected.json'),saved=path.join(directory,'saved.json');
+    const normal=run('init','--out',expected);
+    assert.equal(normal.status,0,normal.stderr);assert.equal(normal.stderr,'');
+    const bytes=await fs.readFile(expected);
+    for(const args of [['help'],['commands'],['exec','templates.list'],['init','--out',saved]]){
+      const result=await closed(args);
+      assert.equal(result.stdout,'');
+      const diagnostic=JSON.parse(result.stderr);
+      assert.equal(diagnostic.ok,false);assert.equal(diagnostic.command,'cli');
+      assert.equal(diagnostic.error.code,'FILE_ERROR');
+      assert.match(diagnostic.error.message,/표준 출력/);
+      assert.match(diagnostic.error.message,/이미 저장되었을 수/);
+    }
+    assert.deepEqual(await fs.readFile(saved),bytes);
+    assert.deepEqual((await fs.readdir(directory)).sort(),['expected.json','saved.json']);
+    const noDiagnostics=await closed(['commands','--unknown'],{stdout:false,stderr:true});
+    assert.equal(noDiagnostics.stdout,'');assert.equal(noDiagnostics.stderr,'');
+    const neither=await closed(['help'],{stdout:true,stderr:true});
+    assert.equal(neither.stdout,'');assert.equal(neither.stderr,'');
+    const throwing=path.join(directory,'throwing-diagnostic.mjs');
+    await fs.writeFile(throwing,"process.stderr.write=()=>{throw new Error('injected diagnostic failure');};");
+    const diagnosticFailure=await closed(['help'],{preload:throwing});
+    assert.equal(diagnosticFailure.stdout,'');assert.equal(diagnosticFailure.stderr,'');
+  }finally{await fs.rm(directory,{recursive:true,force:true});}
+});
 
 test('unsupported CLI options cannot create or overwrite files, including init dry-run',async()=>{
   const directory=await fs.mkdtemp(path.join(tmpdir(),'moment-options-'));

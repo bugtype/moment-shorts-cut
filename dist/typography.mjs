@@ -121,6 +121,13 @@ function keywordSegments(line, keywords) {
   return segments;
 }
 
+// Observe only this sprite; a retained old surface must not retain its renderer.
+function observeSpriteRestoration(item) {
+  try {
+    item.surface.addEventListener?.('contextrestored', () => { item.invalid = true; });
+  } catch { /* Event observation is optional for non-browser Canvas ports. */ }
+}
+
 export function createTypographyRenderer(makeCanvas = () => document.createElement('canvas')) {
   const cache = new Map();
   let pixels = 0;
@@ -130,8 +137,9 @@ export function createTypographyRenderer(makeCanvas = () => document.createEleme
     const key = JSON.stringify([text, options]);
     if (cache.has(key)) {
       const hit = cache.get(key);
-      cache.delete(key); cache.set(key, hit);
-      return hit;
+      cache.delete(key);
+      if (!hit.invalid) { cache.set(key, hit); return hit; }
+      pixels -= hit.pixels;
     }
     const surface = makeCanvas();
     const context = surface.getContext('2d');
@@ -185,7 +193,10 @@ export function createTypographyRenderer(makeCanvas = () => document.createEleme
     while (cache.size && (pixels + item.pixels > maxPixels || cache.size >= 48)) {
       const first = cache.keys().next().value; pixels -= cache.get(first).pixels; cache.delete(first);
     }
-    if (item.pixels <= maxPixels) { cache.set(key, item); pixels += item.pixels; }
+    if (item.pixels <= maxPixels) {
+      observeSpriteRestoration(item);
+      cache.set(key, item); pixels += item.pixels;
+    }
     return item;
   }
   function text(context, value, x, y, options, scale = 1) {

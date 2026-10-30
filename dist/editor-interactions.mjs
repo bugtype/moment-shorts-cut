@@ -66,19 +66,23 @@ export function bindPreviewDrag(canvas, { getProject, blocked, pause, selection,
         if (target[xKey] === nextX && target[yKey] === nextY)
             return;
         if (!drag.changed) {
-            snapshot();
+            drag.releaseUnchanged = snapshot();
             drag.changed = true;
         }
         target[xKey] = nextX;
         target[yKey] = nextY;
+        drag.atStart = nextX === drag.px && nextY === drag.py;
         preview();
     };
     const endDrag = e => {
         if (!drag || e.pointerId !== drag.pointerId)
             return;
         const edited = drag.changed && drag.project === getProject();
+        const releaseUnchanged = drag.atStart && drag.releaseUnchanged;
         drag = null;
         if (!edited)
+            return;
+        if (typeof releaseUnchanged === 'function' && releaseUnchanged())
             return;
         commit();
     };

@@ -220,7 +220,27 @@ export function bindUi(app) {
             const scene = app.selectedSceneLayer();
             return { scene, mode: scene ? 'scene' : app.panel === 'text' && app.textLayer !== 'frame' ? app.textLayer : 'video' };
         },
-        snapshot: () => app.snapshot(),
+        snapshot: () => {
+            const project = app.state, history = app.history;
+            const previousHistory = history.slice(), previousFuture = app.future;
+            app.snapshot();
+            const ownedFuture = app.future, length = history.length, entry = history.at(-1);
+            // Every later snapshot replaces future, even identical snapshots at the history cap.
+            return () => {
+                if (app.state !== project || app.history !== history || app.future !== ownedFuture ||
+                    ownedFuture.length || history.length !== length || history.at(-1) !== entry)
+                    return false;
+                try {
+                    if (JSON.stringify(project) !== entry)
+                        return false;
+                } catch { return false; }
+                history.splice(0, history.length, ...previousHistory);
+                app.future = previousFuture;
+                $('#undoButton').disabled = !history.length;
+                $('#redoButton').disabled = !previousFuture.length;
+                return true;
+            };
+        },
         preview: () => {
             app.updateLayerGuide();
             app.requestDraw();

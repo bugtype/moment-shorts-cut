@@ -303,7 +303,8 @@ screen movement chooses the dominant axis (ties choose horizontal), which stays 
 even after releasing Shift. The opposite stored coordinate stays exact; the moved axis
 keeps its existing drag bounds. Shift pressed mid-drag, or combined with Ctrl/Meta/Alt
 at the start, leaves free dragging; unmodified mouse/touch dragging is unchanged.
-A real move is one Undo; no motion adds no history. Pointer cancellation or lost capture
+A real move is one Undo; no motion adds no history. Returning exactly to the starting
+position without other project edits also preserves the prior Undo/Redo history. Pointer cancellation or lost capture
 keeps and commits the partial move, rather than rolling it back. Use **Framing…** or
 **Position…** for keyboard/numeric editing. This does not add snapping or centering.
 

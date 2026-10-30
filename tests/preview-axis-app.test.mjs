@@ -35,6 +35,59 @@ test('actual app axis drag uses the selected layer and one complete undo/redo tr
  }
 });
 
+test('returning a preview drag to its stored origin retains Redo without saving or remounting',async()=>{
+ for(const [mode,end] of [['video','onpointerup'],['title','onpointercancel'],['scene','onlostpointercapture']]){
+  const f=await fixture(mode);
+  assert.equal((await f.context.window.moment.execute('effects.update',{patch:{brightness:1.1}})).ok,true);
+  f.element('#undoButton').onclick();
+  vm.runInContext(`axisSaves=0;globalThis.dragRemounts=0;globalThis.dragHistory=history;globalThis.dragFuture=future;
+   const originalPanel=renderPanel;renderPanel=()=>{dragRemounts++;originalPanel();};`,f.context);
+  const before=f.evaluate('({state,history,future})');assert.equal(before.future.length,1);
+  f.canvas.onpointerdown(pointer(0,0,{shiftKey:true}));f.canvas.onpointermove(pointer(10,2));
+  assert.equal(f.evaluate('history.length'),1,'the first real movement still snapshots immediately');
+  assert.equal(f.evaluate('future.length'),0);
+  f.canvas.onpointermove(pointer(0,0));
+  f.canvas[end](pointer(999,999)); // Terminal coordinates are not a final model update.
+  f.canvas.onpointerup(pointer(999,999));f.canvas.onlostpointercapture(pointer(999,999));
+  assert.deepEqual(f.evaluate('({state,history,future})'),before,mode);
+  assert.equal(f.evaluate('history===dragHistory&&future===dragFuture'),true);
+  assert.equal(f.evaluate('axisSaves'),0);assert.equal(f.evaluate('dragRemounts'),0);
+  assert.equal(f.element('#undoButton').disabled,true);assert.equal(f.element('#redoButton').disabled,false);
+  f.element('#redoButton').onclick();assert.equal(f.evaluate('state.effects.brightness'),1.1);
+  const next=f.evaluate('state'),depth=f.evaluate('history.length');
+  vm.runInContext('axisSaves=0',f.context);
+  f.canvas.onpointerdown(pointer(0,0,{shiftKey:true}));f.canvas.onpointermove(pointer(10,2));
+  f.canvas.onpointercancel(pointer(0,0));
+  assert.notDeepEqual(f.evaluate('state'),next);assert.equal(f.evaluate('history.length'),depth+1);
+  assert.equal(f.evaluate('axisSaves'),1,'a nonzero cancelled move still commits');
+  f.element('#undoButton').onclick();assert.deepEqual(f.evaluate('state'),next);
+ }
+});
+
+test('net-zero drag recovery restores the history cap but never reclaims a later edit',async()=>{
+ for(const intervening of ['none','snapshot','metadata','serialization']){
+  const f=await fixture();
+  vm.runInContext(`history=Array.from({length:40},(_,index)=>JSON.stringify({...state,name:${intervening==='none'?"'history-'+index":"state.name"}}));
+   future=[JSON.stringify({...state,effects:{...state.effects,brightness:1.1}})];renderInspector();`,f.context);
+  const before=f.evaluate('({state,history,future})');
+  f.canvas.onpointerdown(pointer(0,0,{shiftKey:true}));f.canvas.onpointermove(pointer(10,2));f.canvas.onpointermove(pointer(0,0));
+  if(intervening==='snapshot')vm.runInContext('snapshot()',f.context);
+  if(intervening==='metadata')vm.runInContext("state.name='Other edit'",f.context);
+  if(intervening==='serialization')vm.runInContext('state.extra=state',f.context);
+  f.canvas.onpointerup(pointer(0,0));
+  if(intervening==='serialization')vm.runInContext('delete state.extra',f.context);
+  assert.equal(f.evaluate('history.length'),40);
+  if(intervening==='none'){
+   assert.deepEqual(f.evaluate('({state,history,future})'),before,'including the displaced oldest entry');
+   assert.equal(f.evaluate('axisSaves'),0);
+  }else{
+   assert.equal(f.evaluate('future.length'),0,'an unrelated operation must not recover old Redo');
+   assert.equal(f.evaluate('axisSaves'),1);
+   if(intervening==='metadata')assert.equal(f.evaluate('state.name'),'Other edit');
+  }
+ }
+});
+
 test('actual app retains blocked export/restore and stale-project protections for Shift dragging',async()=>{
  for(const condition of ['exporting=true',"persistence.restorePhase='restoring'"]){
   const f=await fixture();vm.runInContext(condition,f.context);const before=f.evaluate('({state,history,axisSaves})');

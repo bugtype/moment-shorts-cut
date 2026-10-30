@@ -14,6 +14,31 @@ async function fixture(setup=''){
     return f;
 }
 
+test('selecting a short card seeks inside its interval without changing authored settings or history',async()=>{
+    for(const [start,end,speed,expected] of [
+        [5,5.0005,1,5.00025], [.007,.0075,1.7,.00725], [0,.0005,.25,.00025],
+        [1,1.0005,4,1.00025], [1,2,1.7,1.2], [1,1.05,1,1.049], [20,40,1,12],
+    ]) {
+        const f=await fixture(`state.speed=${speed};Object.assign(state.overlays[0],{start:${start},end:${end},role:'free',animation:'none'});selectedCard='other';future=[JSON.stringify(state)];`);
+        vm.runInContext('createProjectDocument(state)',f.context);
+        const target=f.element('#panelContent #effectControls'),button=f.element('[data-scene-select="moving"]');
+        button.dataset.sceneSelect='moving';
+        const queryAll=target.querySelectorAll.bind(target);
+        target.querySelectorAll=selector=>selector==='[data-scene-select]'?[button]:queryAll(selector);
+        vm.runInContext('renderPanel();playing=true;',f.context);
+        const before=f.evaluate('JSON.stringify({state,history,future,saves})');
+        assert.equal(typeof button.onclick,'function');button.onclick();
+        assert.equal(f.evaluate('selectedCard'),'moving');
+        assert.equal(f.evaluate('playing'),false);
+        assert.ok(Math.abs(f.evaluate('current')-expected*speed)<1e-14);
+        assert.equal(f.evaluate('JSON.stringify({state,history,future,saves})'),before);
+        if(start<12/speed) {
+            assert.equal(f.evaluate('activeSceneLayers(state,current/state.speed).some(card=>card.id==="moving")'),true);
+            assert.equal(f.element('#layerSelection').hidden,false);
+        } else assert.equal(f.evaluate('current'),12,'out-of-output cards keep the existing seek clamp');
+    }
+});
+
 test('moving card forward/backward updates both endpoints in one undoable command and preserves other fields',async()=>{
     const f=await fixture(),before=f.evaluate('state');f.element('#trimStart').value='1.25';f.element('#trimEnd').value='4.5';
     f.open();f.confirm(7);

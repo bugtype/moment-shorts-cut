@@ -167,7 +167,8 @@ export function createPlayback(app, {
         const stale = () => { if (automatic && request === app.playRequest) pause(); };
         try {
             if (!owns()) { stale(); return; }
-            if (app.current >= app.duration() - .03) seekTo(0, !!automatic);
+            // A card range keeps its explicit start; only full playback uses the end tolerance.
+            if (app.current >= app.duration() - (app.cardPlaybackEnd == null ? .03 : 0)) seekTo(0, !!automatic);
             if (stopForVideoError() || stopForAudioError()) return;
             await app.ensureAudio();
             if (!owns()) { stale(); return; }

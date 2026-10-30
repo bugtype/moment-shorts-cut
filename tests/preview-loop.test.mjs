@@ -151,3 +151,41 @@ test('RAF ownership stays singular through pending automatic restart, manual tak
  waiting[1]();await manual;assert.equal(f.pendingFrames.size,1);assert.ok(f.pendingFrames.has(f.evaluate('frameHandle')));
  vm.runInContext('pause()',f.context);assert.equal(f.pendingFrames.size,0);
 });
+test('card range Play preserves an explicit near-end start, then stops without looping or editing',async()=>{
+ for(const [kind,speed] of [['demo',1],['video',4]]){
+  const f=await fixture();
+  vm.runInContext(`state.kind='${kind}';state.speed=${speed};state.fileName=${kind==='video'?"'source.mp4'":"''"};sources.videoFile=${kind==='video'?"{name:'source.mp4'}":'null'};
+   state.overlays=[{...newCard(duration()/state.speed),id:'tail',start:11.98/state.speed,end:duration()/state.speed}];
+   selectedCard='tail';effectTab='cards';history=[structuredClone(state)];future=[structuredClone(state)];
+   globalThis.rangeSaves=0;scheduleSave=()=>rangeSaves++;validateProject(state);switchPanel('effects');playback.setLoopPreview(true);`,f.context);
+  const before=f.evaluate('({state,history,future,selected,rangeSaves})');
+  const controls=f.element('#panelContent #effectControls');
+  assert.match(controls.innerHTML,/id="previewSceneCard"/);
+  controls.querySelector('#previewSceneCard').onclick();await settle();
+  assert.equal(f.evaluate('current'),11.98,'the explicit range start must not use whole-timeline rewind tolerance');
+  assert.equal(f.evaluate('cardPlaybackEnd'),12/speed);assert.equal(f.evaluate('playing'),true);
+  if(kind==='video')f.element('#sourceVideo').currentTime=11.984;
+  deliverFrame(f,f.evaluate('frameHandle'),f.evaluate('lastTick')+4/speed);
+  assert.equal(f.evaluate('playing'),true);
+  if(kind==='video')f.element('#sourceVideo').currentTime=12;
+  deliverFrame(f,f.evaluate('frameHandle'),f.evaluate('lastTick')+40/speed);await settle();
+  assert.equal(f.evaluate('current'),12);assert.equal(f.evaluate('playing'),false);
+  assert.equal(f.evaluate('cardPlaybackEnd'),null);assert.equal(f.evaluate('frameHandle'),0);
+  assert.deepEqual(f.evaluate('({state,history,future,selected,rangeSaves})'),before);
+ }
+});
+
+test('range-start fix retains ordinary/exact-end rewinds and cancelled preparation ownership',async()=>{
+ const f=await fixture();
+ for(const [time,end,expected] of [[11.98,null,0],[12,13,0],[11.8,12,11.8]]){
+  vm.runInContext(`pause();current=${time};cardPlaybackEnd=${end};`,f.context);
+  await vm.runInContext('play()',f.context);assert.equal(f.evaluate('current'),expected);assert.equal(f.evaluate('playing'),true);
+ }
+ vm.runInContext(`pause();state.overlays=[{...newCard(12),id:'tail',start:11.98,end:12}];selectedCard='tail';effectTab='cards';switchPanel('effects');`,f.context);
+ let release;f.context.waitRangeAudio=()=>new Promise(resolve=>release=resolve);
+ vm.runInContext('ensureAudio=waitRangeAudio;',f.context);
+ f.element('#panelContent #effectControls #previewSceneCard').onclick();
+ assert.equal(f.evaluate('current'),11.98);assert.equal(typeof release,'function');
+ vm.runInContext('pause()',f.context);release();await settle();
+ assert.equal(f.evaluate('current'),11.98);assert.equal(f.evaluate('playing'),false);assert.equal(f.evaluate('frameHandle'),0);
+});

@@ -184,10 +184,17 @@ export function createDesignWorkspace(app) {
                 (app.persistence.restorePhase === 'ready' || (app.persistence.restorePhase === 'failed' && app.persistence.recoveryValid)),
             move: (id, toIndex) => app.runEditorCommand('overlays.move', { id, toIndex }),
             remove(id) {
+                let removed = false, nextSelection;
                 app.edit(() => {
-                    app.state.overlays = app.state.overlays.filter(card => card.id !== id);
+                    const previous = app.state.overlays;
+                    app.state.overlays = previous.filter(card => card.id !== id);
                     app.selectedCard = app.state.overlays[0]?.id;
+                    removed = app.state.overlays.length < previous.length;
+                    nextSelection = app.selectedCard ?? null;
                 }, true);
+                return removed && app.state === project && app.panel === 'effects' && app.effectTab === 'cards' &&
+                    !app.modal.open && (app.selectedCard ?? null) === nextSelection &&
+                    (app.state.overlays[0]?.id ?? null) === nextSelection;
             },
             duplicate(id) {
                 if (!duplicateCurrent(id)) return false;

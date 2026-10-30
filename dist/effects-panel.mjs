@@ -252,7 +252,25 @@ export function mountEffectsPanel(root, api) {
           focusTarget?.focus({ preventScroll: true });
         };
       }
-      target.querySelector('#removeSceneCard').onclick = () => api.remove(card.id);
+      const remove = target.querySelector('#removeSceneCard');
+      remove.onclick = () => {
+        const document = root.ownerDocument;
+        const restoreFocus = document?.activeElement === remove && remove.isConnected !== false &&
+          renderOwners.get(root) === owner && root.querySelector('#effectControls') === target &&
+          target.querySelector('#removeSceneCard') === remove && api.current?.() !== false &&
+          api.inputCurrent?.() !== false && api.tabCurrent?.() !== false;
+        // Keep deletion admission unchanged; only the focus handoff needs ownership.
+        const removed = api.remove(card.id);
+        if (!removed || !restoreFocus || api.current?.() === false || api.tabCurrent?.() === false ||
+            document.activeElement !== document.body) return;
+        const controls = root.querySelector('#effectControls');
+        const focusTarget = state.overlays.length
+          ? [...(controls?.querySelectorAll('[data-scene-select]') || [])]
+              .find(button => button.dataset.sceneSelect === state.overlays[0].id)
+          : controls?.querySelector('#addSceneCard');
+        if (focusTarget && !focusTarget.disabled && focusTarget.isConnected !== false)
+          focusTarget.focus({ preventScroll: true });
+      };
       const duplicate = target.querySelector('#duplicateSceneCard');
       duplicate.onclick = event => {
         if (

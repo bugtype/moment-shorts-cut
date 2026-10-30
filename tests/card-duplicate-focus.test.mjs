@@ -8,23 +8,27 @@ import { setLocale, t } from '../dist/i18n.mjs';
 // render. This is synthetic DOM bookkeeping, not native keyboard/browser QA.
 function freshControls(f) {
     const root = f.element('#panelContent'), originalQuery = root.querySelector.bind(root);
+    root.ownerDocument = f.doc;
     let html = root.innerHTML, controls;
     const dom = { connected: true, focusCalls: [] };
     function makeControls() {
         const nodes = new Map();
         const target = {
             querySelector: selector => nodes.get(selector) || null,
-            querySelectorAll: () => [],
+            querySelectorAll: selector => selector === '[data-scene-select]'
+                ? [...nodes.values()].filter(node => node.dataset?.sceneSelect) : [],
+            owns: node => [...nodes.values()].includes(node),
+            removeSelected: () => { for (const [key, node] of nodes) if (node.dataset?.sceneSelect) nodes.delete(key); },
             replaceDuplicate() {
                 nodes.set('#duplicateSceneCard', makeButton('duplicateSceneCard', false));
             },
             removeDuplicate: () => nodes.delete('#duplicateSceneCard')
         };
-        function makeButton(id, disabled) {
+        function makeButton(id, disabled, key = '#' + id) {
             return {
                 id, disabled,
                 get isConnected() {
-                    return dom.connected && controls === target && nodes.get('#' + id) === this;
+                    return dom.connected && controls === target && nodes.get(key) === this;
                 },
                 focus(options) {
                     assert.equal(this.isConnected, true, 'never focus a detached control');
@@ -43,6 +47,11 @@ function freshControls(f) {
                 for (const match of value.matchAll(/<button[^>]*id="([^"]+)"[^>]*>/g)) {
                     nodes.set('#' + match[1], makeButton(match[1], /\bdisabled\b/.test(match[0])));
                 }
+                for (const match of value.matchAll(/<button[^>]*data-scene-select="([^"]+)"[^>]*>/g)) {
+                    const key = 'scene:' + match[1], button = makeButton('', false, key);
+                    button.dataset = { sceneSelect: match[1] };
+                    nodes.set(key, button);
+                }
             }
         });
         return target;
@@ -52,7 +61,7 @@ function freshControls(f) {
         get: () => html,
         set(value) {
             const active = f.doc.activeElement;
-            if (active && controls?.querySelector('#' + active.id) === active) f.doc.activeElement = f.doc.body;
+            if (active && controls?.owns(active)) f.doc.activeElement = f.doc.body;
             html = value;
             controls = value.includes('id="effectControls"') ? makeControls() : null;
         }
@@ -264,4 +273,71 @@ test('failed-valid recovery duplication/undo/redo stays memory-only through real
     assert.deepEqual(writes, []);
     assert.equal(timers.some(timer => timer.delay === 500), false);
     assert.equal(f.evaluate('persistence.saveTimer===undefined'), true);
+});
+
+
+test('focused card deletion hands focus to the existing successor or Add without changing deletion history', async () => {
+    for (const setup of ['', "selectedCard='other';", 'state.overlays.length=1;']) {
+        const f = await fixture(setup), before = f.snapshot(), id = before.selectedCard;
+        const remove = f.controls().querySelector('#removeSceneCard');
+        remove.focus();f.focusCalls.length = 0;
+        vm.runInContext('deleteSaves=0;scheduleSave=()=>deleteSaves++;', f.context);
+        remove.onclick();
+        const after = f.snapshot(), remaining = before.state.overlays.filter(card => card.id !== id);
+        assert.deepEqual(after.state, {...before.state, overlays:remaining});
+        assert.equal(after.selectedCard, remaining[0]?.id || null);
+        assert.equal(after.current, before.current);assert.equal(after.history.length, 1);
+        assert.equal(after.future.length, 0);assert.equal(f.evaluate('deleteSaves'), 1);
+        const destination = remaining.length
+            ? f.controls().querySelectorAll('[data-scene-select]').find(button => button.dataset.sceneSelect === remaining[0].id)
+            : f.controls().querySelector('#addSceneCard');
+        assert.equal(remove.isConnected, false);assert.ok(destination?.isConnected);
+        assert.equal(f.doc.activeElement, destination);
+        assert.deepEqual(f.focusCalls, [{target:destination,options:{preventScroll:true}}]);
+        vm.runInContext('undo()', f.context);assert.deepEqual(f.evaluate('state'), before.state);
+        vm.runInContext('undo(true)', f.context);assert.deepEqual(f.evaluate('state'), after.state);
+    }
+});
+
+test('deletion focus does not steal ownership on refusal, remount, reentry or unavailable targets', async () => {
+    const cases = [
+        ['export refusal', "exporting=true;", null, false],
+        ['restore refusal', "persistence.restorePhase='restoring';", null, false],
+        ['not focused', '', null, true, false],
+        ['newer focus', '', "document.querySelector('#newerFocus').focus();"],
+        ['project replaced', '', 'state=structuredClone(state);renderPanel();'],
+        ['panel changed', '', "switchPanel('text');"],
+        ['tab changed', '', "effectTab='motion';renderPanel();"],
+        ['selection changed', '', "selectedCard='different';renderPanel();"],
+        ['successor reordered', "state.overlays.push({...newCard(12),id:'third'});", 'state.overlays.reverse();renderPanel();'],
+        ['new modal', '', "modalOpen('New dialog','content');"],
+        ['detached target', '', 'afterEdit();', true, true, f => {f.dom.connected=false;}],
+        ['disabled target', '', 'afterEdit();', true, true, f => {f.controls().querySelectorAll('[data-scene-select]')[0].disabled=true;}],
+        ['missing target', '', 'afterEdit();', true, true, f => {f.controls().removeSelected();}],
+    ];
+    for (const [name, setup, afterEdit, committed=true, focused=true, hook] of cases) {
+        const f = await fixture(setup), remove = f.controls().querySelector('#removeSceneCard');
+        if (focused) remove.focus();
+        else f.element('#newerFocus').focus();
+        f.focusCalls.length=0;
+        if (hook) f.context.afterEdit=()=>hook(f);
+        if (afterEdit) vm.runInContext(`app.edit=(change,refresh)=>{edit(change,refresh);${afterEdit}};`, f.context);
+        remove.onclick();
+        assert.equal(f.evaluate('history.length'), committed ? 1 : 0, name);
+        assert.deepEqual(f.focusCalls, [], name);
+        if (!focused || name==='newer focus') assert.equal(f.doc.activeElement, f.element('#newerFocus'), name);
+        if (!committed) assert.equal(f.doc.activeElement, remove, name);
+    }
+    const f = await fixture(), old = f.controls().querySelector('#removeSceneCard').onclick;
+    vm.runInContext('renderPanel()', f.context);
+    f.controls().querySelector('#removeSceneCard').focus();f.focusCalls.length=0;
+    old();
+    assert.equal(f.evaluate('history.length'), 1, 'existing retained-delete admission remains unchanged');
+    assert.equal(f.doc.activeElement, f.doc.body);assert.deepEqual(f.focusCalls, []);
+    const thrown = await fixture(), error = new Error('refresh failure');
+    thrown.context.deleteError=error;
+    vm.runInContext('app.edit=(change,refresh)=>{edit(change,refresh);throw deleteError;};', thrown.context);
+    const remove=thrown.controls().querySelector('#removeSceneCard');remove.focus();thrown.focusCalls.length=0;
+    assert.throws(()=>remove.onclick(), value=>value===error);
+    assert.equal(thrown.evaluate('history.length'),1);assert.deepEqual(thrown.focusCalls,[]);
 });

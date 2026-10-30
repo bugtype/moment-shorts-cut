@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import vm from 'node:vm';
 import { createAppFixture } from './fixtures/app.mjs';
 import { createTextFileWorkflow } from '../dist/text-file-workflow.mjs';
-import { createDemoProject, createProjectDocument, projectSrt } from '../dist/core/project.mjs';
+import { createDemoProject, createProjectDocument, projectSrt, projectSubtitles } from '../dist/core/project.mjs';
 import { createEditorService } from '../dist/integration/editor-service.mjs';
 
 function fixture() {
@@ -73,6 +73,37 @@ test('subtitle downloads use the latest project, edited timing and format-specif
     assert.equal(srt.blob.type, 'text/plain;charset=utf-8');
     assert.deepEqual(Buffer.from(await srt.blob.arrayBuffer()), Buffer.from(projectSrt(f.project, { bom: true })), 'legacy SRT bytes including BOM stay unchanged');
   }
+  f.project.name = '  ';
+  f.workflow.downloadSrt();
+  assert.equal(f.downloads.at(-1).name, '  .srt', 'nonempty authored names are not trimmed or sanitized');
+});
+
+test('an imported empty project name uses the existing download fallback without changing metadata or subtitle bytes', async () => {
+  const f = await createAppFixture(), downloads = [];
+  f.context.collect = (blob, name) => downloads.push({ blob, name });
+  vm.runInContext('download=collect;history=[];future=[];globalThis.downloadSaves=0;scheduleSave=()=>downloadSaves++;', f.context);
+  const document = createProjectDocument(f.evaluate('state'));
+  document.project.name = '';
+  await f.element('#projectInput').onchange({ target: { files: [new Blob([JSON.stringify(document)])] } });
+  assert.equal(f.evaluate('state.name'), '');
+  const before = f.evaluate('({state,history,future,current,selected,downloadSaves})');
+  assert.equal(before.history.length, 1);
+  vm.runInContext('downloadProjectSettings();downloadSrt();', f.context);
+  assert.equal(downloads[0].name, 'moment.moment.json');
+  assert.equal(JSON.parse(await downloads[0].blob.text()).project.name, '');
+  assert.equal(downloads[1].name, 'moment.srt');
+  assert.deepEqual(Buffer.from(await downloads[1].blob.arrayBuffer()), Buffer.from(projectSrt(before.state, { bom: true })));
+  for (const format of ['srt', 'vtt', 'txt', 'review-txt']) {
+    f.context.outputFormat = format;
+    vm.runInContext('downloadSubtitles(outputFormat,{captionIndex:0,count:1})', f.context);
+    const result = downloads.at(-1), review = format === 'review-txt';
+    assert.equal(result.name, `moment.rows-1-1.${review ? 'review.txt' : format}`);
+    const expected = projectSubtitles(before.state, { captionIndex: 0, count: 1,
+      format: review ? 'txt' : format, bom: format === 'srt', ...(review ? { review: true } : {}) });
+    assert.deepEqual(Buffer.from(await result.blob.arrayBuffer()), Buffer.from(expected));
+  }
+  assert.equal(downloads.length, 6);
+  assert.deepEqual(f.evaluate('({state,history,future,current,selected,downloadSaves})'), before);
 });
 
 for (const format of ['srt', 'vtt', 'txt']) {

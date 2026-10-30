@@ -97,7 +97,7 @@ export function createTextFileWorkflow({
             const scoped = Object.hasOwn(range, 'captionIndex') || Object.hasOwn(range, 'count');
             const first = range.captionIndex ?? 0, count = range.count ?? project.captions.length - first;
             const suffix = scoped ? `.rows-${first + 1}-${first + count}` : '';
-            download(new Blob([text], { type }), `${project.name}${suffix}.${review ? 'review.txt' : format}`);
+            download(new Blob([text], { type }), `${project.name || 'moment'}${suffix}.${review ? 'review.txt' : format}`);
             return true; // Download initiated; browser completion is not observable here.
         }
         catch (error) {

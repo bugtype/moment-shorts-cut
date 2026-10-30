@@ -78,7 +78,7 @@ export async function createAppFixture({sessionMediaDependencies = {}, fontSet} 
   const htmlIds=[...html.matchAll(/id="([\w-]+)"/g)].map(m=>m[1]);
   assert.equal(htmlIds.length,new Set(htmlIds).size,'No duplicate IDs in the page');
 
-  const elements=new Map(),focusEvents=[];
+  const elements=new Map(),elementEvents=new Map(),focusEvents=[];
   let measurementCalls=0;
   const context2d = new Proxy({}, {
     get(target, key) {
@@ -92,7 +92,8 @@ export async function createAppFixture({sessionMediaDependencies = {}, fontSet} 
   });
   function element(key=''){
    if(elements.has(key))return elements.get(key);
-   const attributes = new Map();
+   const attributes = new Map(), events = new Map();
+   elementEvents.set(key, events);
    const e = {
      value: '', innerHTML: '', textContent: '', hidden: false,
      style: { setProperty(name, value) { this[name] = value; }, removeProperty(name) { delete this[name]; } },
@@ -105,7 +106,8 @@ export async function createAppFixture({sessionMediaDependencies = {}, fontSet} 
      removeAttribute(name) { attributes.delete(name); if(name.startsWith('data-')) delete this.dataset[name.slice(5).replace(/-([a-z])/g,(_,letter)=>letter.toUpperCase())]; },
      setCustomValidity(value) { this.validationMessage=value; },
      setPointerCapture() {},
-     addEventListener() {}, removeEventListener() {}, insertAdjacentHTML() {},
+     addEventListener(name, handler) { if (!events.has(name)) events.set(name, new Set()); events.get(name).add(handler); },
+     removeEventListener(name, handler) { events.get(name)?.delete(handler); }, insertAdjacentHTML() {},
      getContext() { return context2d; },
      querySelector(selector) { return selector === '.icon' ? null : element(key + ' ' + selector); },
      querySelectorAll() { return []; },
@@ -228,6 +230,6 @@ export async function createAppFixture({sessionMediaDependencies = {}, fontSet} 
   for(const [id,cb] of pendingFrames){pendingFrames.delete(id);cb(performance.now());}
   assert.equal(pendingFrames.size,0,'A paused editor must not schedule a perpetual animation loop');
   const evaluate=code=>JSON.parse(JSON.stringify(vm.runInContext(code,context)));
-  return { source, context, evaluate, element, doc, context2d, pendingFrames, focusEvents, documentEvents,
+  return { source, context, evaluate, element, doc, context2d, pendingFrames, focusEvents, documentEvents, elementEvents,
     get measurementCalls() { return measurementCalls; } };
 }

@@ -211,6 +211,7 @@ export function bindUi(app) {
         if (app.exporting)
             event.preventDefault();
     });
+    app.canvas.addEventListener('contextrestored', app.requestDraw);
     bindPreviewDrag(app.canvas, {
         getProject: () => app.state,
         videoRegion: app.videoRegion,

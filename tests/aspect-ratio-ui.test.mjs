@@ -101,3 +101,40 @@ test('4:5 preview PNG copies the actual 540 by 675 bitmap without project edits'
     assert.match(downloads[0].name,/\.preview-540x675\.png$/);
     assert.deepEqual(f.evaluate('({state,history,current,playing})'),before);
 });
+
+test('reselecting the current ratio preserves playback, Redo and drafts without scheduling an edit', async () => {
+    for (const panel of ['media', 'settings']) for (const ratio of ratios) {
+        const f = await createAppFixture();
+        f.context.initialRatio = ratio;
+        vm.runInContext(`setRatio(initialRatio);current=2;switchPanel('${panel}');history=[];future=[];renderInspector();`, f.context);
+        assert.equal((await f.context.window.moment.execute('effects.update', { patch: { brightness: 1.1 } })).ok, true);
+        f.element('#undoButton').onclick();
+        const start = f.element('#trimStart'), end = f.element('#trimEnd');
+        start.value = '1.2345';
+        end.value = '11.5';
+        vm.runInContext(`globalThis.ratioNoopSaves=0;scheduleSave=()=>ratioNoopSaves++;
+            globalThis.ratioNoopState=state;globalThis.ratioNoopHistory=history;globalThis.ratioNoopFuture=future;`, f.context);
+        await vm.runInContext('play()', f.context);
+        const snapshot = () => f.evaluate('({state,history,future,current,selected,playing,playRequest,frameHandle,paintHandle,ratioNoopSaves})');
+        const before = snapshot(), frames = [...f.pendingFrames.keys()];
+        assert.equal(before.playing, true);
+        assert.equal(before.future.length, 1);
+        const button = { dataset: { ratio } };
+        const click = () => f.documentEvents.get('click')({
+            target: { closest: selector => selector === '[data-ratio]' ? button : null },
+        });
+        click();
+        click();
+        assert.deepEqual(snapshot(), before, panel + ': ' + ratio);
+        assert.equal(f.evaluate('state===ratioNoopState&&history===ratioNoopHistory&&future===ratioNoopFuture'), true);
+        assert.deepEqual([...f.pendingFrames.keys()], frames);
+        assert.equal(f.element('#trimStart'), start);
+        assert.equal(f.element('#trimEnd'), end);
+        assert.equal(start.value, '1.2345');
+        assert.equal(end.value, '11.5');
+        assert.equal(f.element('#redoButton').disabled, false);
+        f.element('#redoButton').onclick();
+        assert.equal(f.evaluate('state.effects.brightness'), 1.1, 'the retained Redo still applies');
+        assert.equal(f.evaluate('state.ratio'), ratio);
+    }
+});

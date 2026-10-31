@@ -428,6 +428,9 @@ function showHelp() { shellPresentation.showHelp(); }
 function toast(value) { shellPresentation.toast(value); }
 function saveStatus(value, ok = true) { shellPresentation.saveStatus(value, ok); }
 function setRatio(value) {
+    // Re-selecting the current ratio is not an edit; preserve playback and Redo.
+    if (value === state.ratio)
+        return;
     runEditorCommand('project.update', { patch: { ratio: value } });
 }
 function openInspector(section) {

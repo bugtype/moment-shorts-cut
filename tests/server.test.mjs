@@ -4,6 +4,15 @@ import {once} from 'node:events';
 import {readFile} from 'node:fs/promises';
 import {createPreviewServer} from '../scripts/serve.mjs';
 
+test('project-name input keeps the shared form focus outline', async () => {
+  const shell = await readFile(new URL('../dist/styles/shell-library.css', import.meta.url), 'utf8');
+  const nameStyle = shell.match(/\.project-title input\s*\{([^}]*)\}/)?.[1];
+  assert.ok(nameStyle, 'the header name retains its existing style owner');
+  // Source contract only: this is not native CSS rendering or a cascade engine.
+  assert.match(shell, /input:focus,textarea:focus,select:focus\s*\{[^}]*outline:2px solid #[\da-f]{6};\s*outline-offset:1px\s*\}/i);
+  assert.doesNotMatch(nameStyle, /\boutline(?:-[\w-]+)?\s*:/, 'do not suppress the shared input indicator');
+});
+
 test('active form-label colors retain contrast on authored white panel surfaces', async () => {
   const [shell, dialogs, responsive] = await Promise.all(['shell-library', 'inspector-dialogs', 'responsive']
     .map(name => readFile(new URL(`../dist/styles/${name}.css`, import.meta.url), 'utf8')));

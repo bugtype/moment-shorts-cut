@@ -46,6 +46,16 @@ test('preview serves modules with correct MIME types and never serves repository
   assert.equal(page.status, 200);
   const pageHtml = await page.text();
   assert.match(pageHtml, /모먼트/);
+  // Static association/content contract, not native label activation or AT behavior.
+  for (const [control, key] of [['zoom', 'shell.zoom'], ['volume', 'shell.volume']]) {
+    const row = pageHtml.match(new RegExp(`<div class="slider-label">(<label[^>]*for="${control}"[^>]*>[\\s\\S]*?</label>) ([\\s\\S]*?)</div>`));
+    assert.ok(row, `${control} has a text label beside, not around, its readout`);
+    assert.match(row[1], new RegExp(`id="${control}Label"[^>]*data-i18n="${key.replace('.', '\\.')}"`));
+    assert.doesNotMatch(row[1], /<(?:input|output|button|select|textarea|meter|progress)\b/);
+    assert.match(row[2], new RegExp(`^<output id="${control}Value" aria-labelledby="${control}Label">100%</output>$`));
+    assert.equal([...pageHtml.matchAll(new RegExp(`\\bid="${control}(?:Label|Value)?"`, 'g'))].length, 3);
+    assert.match(pageHtml, new RegExp(`<input id="${control}" type="range"[^>]*aria-label="[^"]+"[^>]*data-i18n-aria-label="[^"]+"`));
+  }
   // The preview owns the full center column: ratio and safe-area controls share
   // its bottom row instead of consuming a separate toolbar above the canvas.
   assert.doesNotMatch(pageHtml, /class="stage-toolbar"/);

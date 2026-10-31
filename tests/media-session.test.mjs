@@ -15,21 +15,69 @@ function element() {
     removeAttribute() {},
   };
 }
-function mediaFixture() {
-  const video = element(), audio = element(), log = [];
+function mediaFixture({ drawError, encodeError } = {}) {
+  const video = element(), audio = element(), log = [], canvases = [], draws = [], encodes = [];
   let timeout;
   const sources = createMediaSources({ video, audio }, {
     createURL: file => 'blob:' + file.name,
     revokeURL: url => log.push(['revoke', url]),
-    createCanvas: () => ({
-      getContext: () => ({ drawImage: () => log.push('draw') }),
-      toDataURL: () => 'thumbnail',
-    }),
+    createCanvas: () => {
+      const canvas = {
+        getContext: () => ({ drawImage: (...args) => {
+          log.push('draw'); draws.push(args);
+          if (drawError) throw drawError;
+        } }),
+        toDataURL: (...args) => {
+          encodes.push(args);
+          if (encodeError) throw encodeError;
+          return 'thumbnail';
+        },
+      };
+      canvases.push(canvas);
+      return canvas;
+    },
     setTimer: callback => { timeout = callback; return 1; },
     clearTimer: timer => log.push(['clear', timer]),
   });
-  return { sources, video, audio, log, timeout: () => timeout() };
+  return { sources, video, audio, log, canvases, draws, encodes, timeout: () => timeout() };
 }
+
+test('video thumbnails fit the whole source within existing raster bounds without stretching', async () => {
+  for (const [width, height, expected] of [
+    [1920, 1080, [320, 180]], [16, 9, [320, 180]], [1080, 1920, [101, 180]],
+    [900, 900, [180, 180]], [2560, 1080, [320, 135]], [1001, 777, [232, 180]],
+    [1, 10000, [1, 180]], [undefined, undefined, [320, 180]], [0, 1080, [320, 180]],
+    [1920, NaN, [320, 180]], [Infinity, 1080, [320, 180]], [1e-320, 1e-320, [320, 180]],
+  ]) {
+    const f = mediaFixture();
+    Object.assign(f.video, {videoWidth: width, videoHeight: height});
+    const pending = f.sources.setVideoFile({name: 'geometry.mp4'});
+    assert.equal(f.canvases.length, 0); assert.equal(f.sources.thumbnail, '');
+    f.video.events.get('loadeddata')(); await pending;
+    assert.equal(f.canvases.length, 1);
+    assert.deepEqual([f.canvases[0].width, f.canvases[0].height], expected);
+    assert.deepEqual(f.draws, [[f.video, 0, 0, ...expected]]);
+    assert.deepEqual(f.encodes, [['image/jpeg', .7]]);
+    assert.equal(f.sources.thumbnail, 'thumbnail'); assert.equal(f.video.events.size, 0);
+    assert.deepEqual(f.log, [['clear', 1], 'draw']);
+  }
+  for (const stage of ['drawError', 'encodeError']) {
+    const error = new Error(stage), f = mediaFixture({[stage]: error});
+    Object.assign(f.video, {videoWidth: 1080, videoHeight: 1920});
+    f.sources.thumbnail = 'previous';
+    const pending = f.sources.setVideoFile({name: 'failure.mp4'});
+    f.video.events.get('loadeddata')();
+    await assert.rejects(pending, thrown => thrown === error);
+    assert.equal(f.sources.thumbnail, 'previous'); assert.equal(f.video.events.size, 0);
+    assert.equal(f.encodes.length, stage === 'drawError' ? 0 : 1);
+  }
+  const f = mediaFixture(); f.video.duration = NaN;
+  Object.defineProperty(f.video, 'videoWidth', {get() { assert.fail('Duration validation must precede sizing'); }});
+  const pending = f.sources.setVideoFile({name: 'invalid.mp4'});
+  f.video.events.get('loadeddata')();
+  await assert.rejects(pending, error => error.messageKey === 'errors.videoDurationRead');
+  assert.equal(f.canvases.length, 0);
+});
 
 test('media readiness clears listeners on success, error and timeout', async () => {
   for (const outcome of ['loadeddata', 'error', 'timeout']) {

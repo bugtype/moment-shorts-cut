@@ -43,9 +43,13 @@ export function createMediaSources({ video, audio }, {
         if (!Number.isFinite(video.duration) || video.duration <= 0)
             throw new LocalizedError(msg('errors.videoDurationRead'));
         const thumb = createCanvas();
-        thumb.width = 320;
-        thumb.height = 180;
-        thumb.getContext('2d').drawImage(video, 0, 0, 320, 180);
+        const width = video.videoWidth, height = video.videoHeight;
+        const scale = Math.min(320 / width, 180 / height);
+        const sized = Number.isFinite(width) && width > 0 && Number.isFinite(height) && height > 0 &&
+            Number.isFinite(scale) && scale > 0;
+        thumb.width = sized ? Math.max(1, Math.round(width * scale)) : 320;
+        thumb.height = sized ? Math.max(1, Math.round(height * scale)) : 180;
+        thumb.getContext('2d').drawImage(video, 0, 0, thumb.width, thumb.height);
         sources.thumbnail = thumb.toDataURL('image/jpeg', .7);
     }
 

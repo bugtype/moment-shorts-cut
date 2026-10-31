@@ -16,6 +16,28 @@ async function fixture() {
     return f;
 }
 
+function trackFrames(f, copy = () => {}) {
+    const frames = [], create = f.doc.createElement;
+    f.doc.createElement = tag => {
+        const frame = create(tag);
+        if (tag === 'canvas') {
+            const events = new Map();
+            frame.addEventListener = (type, callback) => events.set(type, callback);
+            frame.removeEventListener = (type, callback) => { if (events.get(type) === callback) events.delete(type); };
+            frame.getContext = () => ({drawImage() { frame.bitmap = 'captured'; copy(frame); }});
+            frame.events = events;
+            // Model the standard's cleared backing store before loss, not native GPU behavior.
+            frame.fire = type => {
+                if (type === 'contextlost') frame.bitmap = 'empty';
+                events.get(type)?.({preventDefault() { assert.fail('native restoration must remain allowed'); }});
+            };
+            frames.push(frame);
+        }
+        return frame;
+    };
+    return frames;
+}
+
 test('current scene compares detached styles on the same bounded raw source frame and exact output clock', async () => {
     const f = await fixture();
     vm.runInContext("state.kind='video';state.ratio='16:9';state.speed=4;state.clips=[{start:5,end:9},{start:5,end:9}];current=5;selected=1;video.videoWidth=7680;video.videoHeight=4320;",f.context);
@@ -65,17 +87,64 @@ test('all three locales expose current comparison labels without translating aut
 });
 
 test('raw-frame copy failure preserves demo and closing/reopening disposes the captured frame', async()=>{
-    const f=await fixture(), create=f.doc.createElement, failedFrames=[];
-    f.doc.createElement=tag=>{const node=create(tag);if(tag==='canvas'){failedFrames.push(node);node.getContext=()=>({drawImage(){throw new Error('copy failed');}});}return node;};
+    const f=await fixture(), create=f.doc.createElement, error=new Error('copy failed');
+    const failedFrames=trackFrames(f,()=>{throw error;});
     f.open();f.current();assert.match(f.element('#templateSceneStatus').textContent,/불러올/);
     assert.equal(failedFrames.length,1);assert.equal(failedFrames[0].width,0);assert.equal(failedFrames[0].height,0);
+    assert.equal(failedFrames[0].events.size,0);
+    assert.throws(()=>vm.runInContext('createTemplateScene(app).capture()',f.context),value=>value===error);
+    assert.equal(failedFrames[1].events.size,0);assert.equal(failedFrames[1].width,0);
     f.element('#templatePreviewMode').value='sample';f.element('#templatePreviewMode').onchange({});
-    f.doc.createElement=create;f.open();f.current();const snapshot=f.context.draws.at(-1)[4].source;
+    f.doc.createElement=create;trackFrames(f);f.open();f.current();const snapshot=f.context.draws.at(-1)[4].source;
     const oldCompare=f.element('#templateCurrentStyle').onclick;
-    vm.runInContext("modalOpen('Other','Other','');",f.context);assert.equal(snapshot.width,0);
+    vm.runInContext("modalOpen('Other','Other','');",f.context);assert.equal(snapshot.width,0);assert.equal(snapshot.events.size,0);
     const count=f.context.draws.length;oldCompare({});assert.equal(f.context.draws.length,count);
     f.open();f.current();const replacement=f.context.draws.at(-1)[4].source;
     f.element('#modal').onclose();assert.ok(replacement.width>0,'queued old close does not dispose open replacement');
+    f.element('#modal').close();f.element('#modal').onclose();assert.equal(replacement.events.size,0);
+});
+
+test('lost comparison frames refuse once, release, and recapture only on an explicit retry', async () => {
+    for (const restored of [false, true]) {
+        const f = await fixture(), frames = trackFrames(f);
+        vm.runInContext("state.kind='video';video.videoWidth=1920;video.videoHeight=1080;", f.context);
+        f.open(); f.current();
+        const before = f.evaluate('({state,history,future,current,selected,timer:persistence.saveTimer})');
+        const frame = frames[0], lost = frame.events.get('contextlost');
+        const button = f.element('#templateCurrentStyle'), status = f.element('#templateSceneStatus');
+        button.focus(); const count = f.context.draws.length;
+        frame.fire('contextlost'); if (restored) frame.fire('contextrestored');
+        assert.equal(f.context.draws.length, count); assert.equal(frames.length, 1);
+        assert.equal(status.textContent, ''); assert.equal(f.doc.activeElement, button);
+        button.onclick({});
+        assert.equal(f.context.draws.length, count, 'never compose from the cleared historical bitmap');
+        assert.equal(frames.length, 1, 'failure does not silently capture a different frame');
+        assert.equal(status.getAttribute('data-i18n'), 'templates.sceneUnavailable');
+        assert.deepEqual([frame.width, frame.height, frame.events.size], [0, 0, 0]);
+        assert.equal(f.doc.activeElement, button);
+        assert.deepEqual(f.evaluate('({state,history,future,current,selected,timer:persistence.saveTimer})'), before);
+        f.element('#templateSelectedStyle').onclick({});
+        const fresh = frames[1]; assert.equal(frames.length, 2);
+        assert.equal(f.context.draws.at(-1)[4].source, fresh); assert.equal(fresh.bitmap, 'captured');
+        assert.equal(status.textContent, ''); assert.equal(status.getAttribute('data-i18n'), null);
+        lost(); button.onclick({});
+        assert.equal(frames.length, 2); assert.equal(f.context.draws.at(-1)[4].source, fresh);
+        assert.equal(status.textContent, '', 'retired listener cannot invalidate the replacement');
+        fresh.fire('contextlost');
+        f.element('#templatePreviewMode').value = 'sample'; f.element('#templatePreviewMode').onchange({});
+        assert.equal(frames.length, 2, 'sample mode never recaptures the comparison frame');
+        assert.equal(f.pendingFrames.size, 0);
+        const expected = structuredClone(before.state); applyTemplate(expected, TEMPLATES[1], false);
+        f.element('#applyTemplateStyle').onclick({});
+        assert.deepEqual(f.evaluate('state'), expected); assert.equal(f.evaluate('history.length'), 1);
+        assert.equal(f.element('#modal').open, false); f.element('#modal').onclose();
+        assert.deepEqual([fresh.width, fresh.height, fresh.events.size], [0, 0, 0]);
+    }
+    const f = await fixture(), frames = trackFrames(f, frame => frame.fire('contextlost'));
+    f.open(); const count = f.context.draws.length; f.current();
+    assert.equal(f.context.draws.length, count, 'a loss during capture is also rejected before drawing');
+    assert.equal(f.element('#templateSceneStatus').getAttribute('data-i18n'), 'templates.sceneUnavailable');
+    assert.deepEqual([frames.length, frames[0].width, frames[0].events.size], [1, 0, 0]);
 });
 
 test('failed-invalid and restoring metadata never apply a template',async()=>{

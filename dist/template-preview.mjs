@@ -119,6 +119,7 @@ export function createTemplatePreview({ composition, getMedia, modal, openModal:
                     styled = structuredClone(snapshot.project);
                     applyTemplate(styled, template, false);
                 }
+                if (snapshot.valid?.() === false) throw new Error('Unavailable frame');
                 $('#templateSceneStatus').textContent = '';
                 $('#templateSceneStatus').removeAttribute('data-i18n');
                 const project = selected ? styled : snapshot.project, [w, h] = project.ratio.split(':').map(Number);

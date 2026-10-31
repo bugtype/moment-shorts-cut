@@ -20,7 +20,16 @@ export function createTemplateScene(app) {
         const sh = project.kind === 'demo' ? 960 : app.video.videoHeight;
         if (!(sw > 0 && sh > 0)) return null;
         const frame = app.document.createElement('canvas'), scale = Math.min(1, 1920 / Math.max(sw, sh));
+        let intact = true;
+        const lost = () => { intact = false; };
+        const release = () => {
+            intact = false;
+            frame.removeEventListener?.('contextlost', lost);
+            frame.width = frame.height = 0;
+        };
         try {
+            // Restoring this canvas cannot restore its one-time captured pixels.
+            frame.addEventListener?.('contextlost', lost);
             frame.width = Math.max(1, Math.round(sw * scale)); frame.height = Math.max(1, Math.round(sh * scale));
             frame.getContext('2d').drawImage(source, 0, 0, frame.width, frame.height);
             const position = app.locate(time), clip = project.clips[position.index];
@@ -31,10 +40,11 @@ export function createTemplateScene(app) {
                     elapsed: (position.source - clip.start) / project.speed,
                     remaining: (clip.end - position.source) / project.speed,
                     progress: (position.source - clip.start) / (clip.end - clip.start) },
-                release() { frame.width = frame.height = 0; },
+                valid: () => intact,
+                release,
             };
         } catch (error) {
-            frame.width = frame.height = 0;
+            release();
             throw error;
         }
     }

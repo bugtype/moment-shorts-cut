@@ -142,7 +142,7 @@ const templatePreview = createTemplatePreview({
             return;
         modal.close();
         selectedCard = state.overlays[0]?.id;
-        renderPanel();
+        if (template.custom || panel !== 'templates') renderPanel();
         seekTo(0);
         toast(message(withContent ? 'shell.templateContent' : 'shell.templateStyle'));
     },

@@ -2,7 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
 import { createAppFixture } from './fixtures/app.mjs';
-import { applyTemplate, TEMPLATES } from '../dist/template-catalog.mjs';
+import { applyTemplate, saveCustomTemplate, TEMPLATES } from '../dist/template-catalog.mjs';
+import { prepareCommand } from '../dist/core/commands.mjs';
 import { setLocale, initLocale, translateFor } from '../dist/i18n.mjs';
 
 async function fixture() {
@@ -129,4 +130,89 @@ test('stale sample playback shows stopped status after delayed raster load and c
     const closedLabel = button.textContent; freshCallback(performance.now());
     assert.equal(button.textContent, closedLabel);
     assert.deepEqual(f.evaluate('({state,history,future,current,selected,timer:persistence.saveTimer})'), before);
+});
+
+
+async function galleryFixture() {
+    const mounts = [];
+    let buttons = [], favorites = [], nodes, markup = '', generation = 0;
+    const f = await createAppFixture({beforeInit({context, element}) {
+        const root = element('#panelContent');
+        Object.defineProperty(root, 'innerHTML', {get: () => markup, set(value) {
+            markup = value; nodes = new Map(); generation++;
+        }});
+        root.querySelector = selector => {
+            if (!nodes.has(selector)) {
+                const node = element(`gallery-${generation}-${selector}`);
+                if (selector === '#templateGrid') Object.defineProperty(node, 'innerHTML', {
+                    get: () => node.markup || '', set(value) {
+                        node.markup = value;
+                        buttons = [...value.matchAll(/data-preview-template="([^"]+)"/g)].map(m => ({dataset:{previewTemplate:m[1]}}));
+                        favorites = [...value.matchAll(/data-favorite="([^"]+)"/g)].map(m => ({dataset:{favorite:m[1]}}));
+                    },
+                });
+                nodes.set(selector, node);
+            }
+            return nodes.get(selector);
+        };
+        root.querySelectorAll = selector => selector === '[data-preview-template]' ? buttons : selector === '[data-favorite]' ? favorites : [];
+        const mount = context.mountTemplateGallery;
+        context.mountTemplateGallery = (target, options) => {
+            const view = mount(target, options);
+            mounts.push({active:options.active, query:options.ui.query, html:target.innerHTML + target.querySelector('#templateGrid').innerHTML, modalOpen:element('#modal').open});
+            return view;
+        };
+    }});
+    vm.runInContext('current=3;', f.context);
+    return Object.assign(f, {mounts, preview: id => buttons.find(b => b.dataset.previewTemplate === id), favorite: id => favorites.find(b => b.dataset.favorite === id)});
+}
+
+test('built-in gallery Apply keeps one refreshed gallery and its live controls', async () => {
+    for (const withContent of [false, true]) {
+        const f = await galleryFixture(), root = f.element('#panelContent');
+        const search = root.querySelector('#templateSearch'); search.value = '브이로그'; search.oninput({target:search});
+        const oldFavorite = f.favorite('clean').onclick;
+        f.preview('clean').onclick();
+        const apply = f.element(withContent ? '#applyTemplateStructure' : '#applyTemplateStyle').onclick;
+        const before = f.evaluate('state'), expected = prepareCommand(before, 'template.apply', {templateId:'clean', withContent}).project;
+        const outside = f.element('#projectName'); outside.focus(); const focusCount = f.focusEvents.length;
+        f.mounts.length = 0; apply({});
+        assert.equal(f.mounts.length, 1, 'shared command already refreshed the gallery');
+        assert.equal(f.mounts[0].modalOpen, true, 'refresh still precedes modal close');
+        assert.equal(f.mounts[0].active, 'clean'); assert.equal(f.mounts[0].query, '브이로그');
+        assert.match(f.mounts[0].html, /template-card is-applied/);
+        assert.deepEqual(f.evaluate('state'), expected);
+        assert.equal(f.evaluate('history.length'), 1); assert.equal(f.evaluate('future.length'), 0);
+        assert.equal(f.evaluate('current'), 0); assert.equal(f.evaluate('selectedCard ?? null'), expected.overlays[0]?.id ?? null);
+        assert.equal(f.evaluate('modal.open'), false);
+        assert.equal(f.doc.activeElement, outside); assert.equal(f.focusEvents.length, focusCount);
+        const writes = []; f.context.localStorage.setItem = (...args) => writes.push(args);
+        oldFavorite(); assert.deepEqual(writes, [], 'old guarded gallery control stays inert');
+        f.preview('clean').onclick(); assert.equal(f.evaluate('modal.open'), true, 'retained refreshed gallery opens a new preview');
+        apply({}); assert.equal(f.evaluate('history.length'), 1, 'old dialog Apply cannot mutate the replacement');
+        f.mounts.length = 0; f.element('#applyTemplateStyle').onclick({});
+        assert.equal(f.mounts.length, 1); assert.equal(f.evaluate('history.length'), 2);
+    }
+});
+
+test('Apply retains custom, other-panel and public command refreshes and command failure order', async () => {
+    const f = await fixture();
+    f.context.refreshes = [];
+    vm.runInContext("const originalPanelRender=renderPanel;renderPanel=()=>{refreshes.push({panel,open:modal.open});originalPanelRender();};", f.context);
+    f.context.custom = saveCustomTemplate('Saved style', f.evaluate('state'));
+    vm.runInContext('templatePreview.open(custom);', f.context);
+    f.element('#applyTemplateStyle').onclick({});
+    assert.deepEqual(f.evaluate('refreshes'), [{panel:'templates',open:false}]);
+    vm.runInContext("panel='effects';refreshes=[];templatePreview.open(TEMPLATES[1]);", f.context);
+    f.element('#applyTemplateStyle').onclick({});
+    assert.deepEqual(f.evaluate('refreshes'), [{panel:'effects',open:true},{panel:'effects',open:false}]);
+    vm.runInContext("panel='templates';refreshes=[];", f.context);
+    assert.equal((await f.context.window.moment.execute('template.apply', {templateId:'clean'})).ok, true);
+    assert.deepEqual(f.evaluate('refreshes'), [{panel:'templates',open:false}]);
+    vm.runInContext("current=3;templatePreview.open(TEMPLATES[1]);renderPanel=()=>{throw new Error('gallery failed');};", f.context);
+    const history = f.evaluate('history.length');
+    f.element('#applyTemplateStyle').onclick({});
+    assert.equal(f.evaluate('history.length'), history + 1, 'existing command has committed before its render fails');
+    assert.equal(f.evaluate('modal.open'), true); assert.equal(f.evaluate('current'), 3);
+    assert.equal(f.element('#toast').textContent, 'gallery failed');
 });

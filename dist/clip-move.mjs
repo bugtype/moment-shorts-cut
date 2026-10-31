@@ -10,13 +10,15 @@ export function createClipMove(app) {
         const clipIndex = app.selected;
         if (blocked() || !Number.isInteger(toIndex) || toIndex < 0 || toIndex >= app.state.clips.length) return false;
         if (toIndex === clipIndex) return true;
+        const panel = app.panel;
         // This operation preserves the selected source range, so its four trim
         // fields can retain drafts even though controls rebind to cloned clips.
         const trimIds = ['trimStart', 'trimEnd', ...(app.panel === 'settings' ? ['panelTrimStart', 'panelTrimEnd'] : [])];
         const drafts = trimIds.map(id => [id, $('#' + id)?.value]);
         if (!app.runEditorCommand('timeline.move', {clipIndex, toIndex})) return false;
         app.selected = toIndex;
-        app.renderTimeline(); app.renderInspector(); app.renderPanel();
+        app.renderTimeline(); app.renderInspector();
+        if (panel !== 'templates' || app.panel !== 'templates') app.renderPanel();
         app.seekTo(app.state.clips.slice(0, toIndex).reduce((sum, clip) => sum + (clip.end - clip.start), 0));
         for (const [id, value] of drafts) if (value !== undefined && $('#' + id)) $('#' + id).value = value;
         return true;

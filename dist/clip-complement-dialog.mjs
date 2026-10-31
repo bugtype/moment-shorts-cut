@@ -47,7 +47,9 @@ export function createClipComplementDialog(app) {
             if(!app.runEditorCommand('timeline.replace',{clips}))return;
             app.selected=0;
             const restore=owns();if(restore){invalidate();app.modal.close();}
-            app.renderTimeline();app.renderInspector();app.renderPanel();app.seekTo(0);
+            app.renderTimeline();app.renderInspector();
+            if(panel!=='templates'||app.panel!=='templates')app.renderPanel();
+            app.seekTo(0);
             if(restore)focus();
         };
         $('#cancelKeepGaps').focus();

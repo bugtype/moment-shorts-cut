@@ -41,7 +41,8 @@ export function createClipRange(app) {
             app.selected = Math.min(start - 1, clips.length - 1);
             const restore = owns();
             if (restore) { generation++; app.modal.close(); }
-            app.renderTimeline(); app.renderInspector(); app.renderPanel();
+            app.renderTimeline(); app.renderInspector();
+            if (panel !== 'templates' || app.panel !== 'templates') app.renderPanel();
             app.seekTo(clips.slice(0, app.selected).reduce((sum, clip) => sum + (clip.end - clip.start), 0));
             if (restore && !app.modal.open) restoreFocus();
         };

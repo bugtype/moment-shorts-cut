@@ -12,6 +12,67 @@ import { createAppFixture } from './fixtures/app.mjs';
 
 import * as templateModule from '../dist/template-catalog.mjs';
 import { mountTemplateGallery } from '../dist/template-gallery.mjs';
+import fs from 'node:fs';
+
+test('startup mounts the restored panel once and retains independent font/sample refreshes', async () => {
+  const staticIds = new Set([...fs.readFileSync(new URL('../dist/index.html', import.meta.url), 'utf8')
+    .matchAll(/id="([\w-]+)"/g)].map(match => match[1]));
+  for (const mode of ['empty', 'restored', 'corrupt', 'deferred-settings']) {
+    let mounts = 0, writes = 0, reads = 0, resolveFonts;
+    const fontSet = {ready: new Promise(resolve => { resolveFonts = resolve; })};
+    const project = projectModule.createDemoProject();
+    Object.assign(project, {name: '복구 프로젝트', ratio: '4:5', volume: .42});
+    const f = await createAppFixture({fontSet, beforeInit({context, doc, element}) {
+      let markup = '';
+      Object.defineProperty(element('#panelContent'), 'innerHTML', {
+        configurable: true, get: () => markup,
+        set(value) { markup = String(value); mounts++; },
+      });
+      // Unlike the general fixture, absent optional panel controls are null.
+      const query = doc.querySelector;
+      doc.querySelector = selector => /^#[\w-]+$/.test(selector) && !staticIds.has(selector.slice(1)) &&
+        !markup.includes(`id="${selector.slice(1)}"`) ? null : query(selector);
+      context.localStorage.getItem = key => key === 'moment-state-v1'
+        ? mode === 'empty' ? null : mode === 'corrupt' ? 'null' : JSON.stringify(project) : null;
+      context.localStorage.setItem = () => { writes++; };
+      context.createProjectStore = () => ({
+        async get() {
+          reads++;
+          if (mode === 'deferred-settings') {
+            if (reads === 1) queueMicrotask(() => vm.runInContext("switchPanel('settings', {openSheet:false})", context));
+            await Promise.resolve();
+          }
+          return undefined;
+        },
+        setMedia() { assert.fail('Startup must not write media'); },
+      });
+    }});
+    const settings = mode === 'deferred-settings';
+    assert.equal(mounts, settings ? 2 : 1, mode); // Explicit pending navigation + one final mount.
+    assert.equal(f.evaluate('editorReady'), true);
+    assert.equal(f.evaluate('persistence.restorePhase'), mode === 'corrupt' ? 'failed' : 'ready');
+    assert.equal(f.evaluate('panel'), settings ? 'settings' : 'templates');
+    assert.equal(reads, ['restored', 'deferred-settings'].includes(mode) ? 2 : 0);
+    if (mode === 'restored' || settings) assert.deepEqual(f.evaluate('state'), project);
+    if (settings) {
+      assert.equal(f.element('#mobileZoom').value, '1');
+      assert.equal(f.element('#panelVolume').value, '0.42');
+      assert.match(f.element('#savePreviewPng').getAttribute('aria-label'), /540.*675/);
+      assert.equal(typeof f.element('#openScenePng').onclick, 'function');
+    } else assert.match(f.element('#panelContent').innerHTML, /template-grid/);
+    const before = f.evaluate('({state, current, selected, history, future})');
+    assert.equal(before.history.length, 0); assert.equal(before.future.length, 0);
+    const initial = mounts;
+    resolveFonts(); await Promise.resolve(); await Promise.resolve();
+    assert.equal(mounts, initial + (settings ? 0 : 1));
+    vm.runInContext('sample.complete=true;sample.onload()', f.context);
+    assert.equal(mounts, initial + (settings ? 0 : 2));
+    assert.deepEqual(f.evaluate('({state, current, selected, history, future})'), before);
+    assert.equal(writes, 0);
+    for (const [id, callback] of f.pendingFrames) { f.pendingFrames.delete(id); callback(performance.now()); }
+    assert.equal(f.pendingFrames.size, 0);
+  }
+});
 
 test('restore protection and isolated template library failures', async () => {
   const { context, evaluate, element } = await createAppFixture();

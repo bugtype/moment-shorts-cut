@@ -497,7 +497,6 @@ async function init() {
     editorReady = false;
     await persistence.restore();
     document.body.classList.toggle('restore-failed', persistence.restorePhase === 'failed');
-    renderPanel();
     renderInspector();
     renderTimeline();
     resizePreview();

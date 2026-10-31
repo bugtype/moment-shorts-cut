@@ -68,7 +68,7 @@ import assert from 'node:assert/strict';
 import { readCaptionRangeInputs } from '../../dist/caption-range-inputs.mjs';
 
 // Synthetic DOM/media only. Each call owns a separate VM, controls and event queues.
-export async function createAppFixture({sessionMediaDependencies = {}, fontSet} = {}) {
+export async function createAppFixture({sessionMediaDependencies = {}, fontSet, beforeInit} = {}) {
   const source=fs.readFileSync(new URL('../../dist/app.js',import.meta.url),'utf8');
   const panelSource=['shell-presentation.mjs','design-panel.mjs','effects-panel.mjs','template-gallery.mjs','template-workspace.mjs','panel-markup.mjs','template-preview.mjs','inspector-view.mjs','timeline-view.mjs','caption-panel.mjs','playback.mjs','export-flow.mjs','media-loader.mjs','design-workspace.mjs','workspace-panels.mjs','app-bindings.mjs','editing-actions.mjs','caption-flow.mjs'].map(f=>fs.readFileSync(new URL('../../dist/'+f,import.meta.url),'utf8')).join('\n');
   const html=fs.readFileSync(new URL('../../dist/index.html',import.meta.url),'utf8');
@@ -225,6 +225,7 @@ export async function createAppFixture({sessionMediaDependencies = {}, fontSet} 
   loadFactory('app-bindings.mjs','bindUi');
   loadFactory('editing-actions.mjs','createEditingActions');
   loadFactory('caption-flow.mjs','createCaptionFlow');
+  beforeInit?.({context, doc, element});
   vm.runInContext(source.replace(/^import .*;$/gm,'').replace(/init\(\);\s*$/,'globalThis.ready=init();'),context);
   await context.ready;
   for(const [id,cb] of pendingFrames){pendingFrames.delete(id);cb(performance.now());}

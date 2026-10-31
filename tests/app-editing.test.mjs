@@ -454,3 +454,46 @@ test("app keyboard shortcuts preserve native control activation", async () => {
   vm.runInContext('current=0;changed()',context);
   console.log('PASS: native Space activation boundary, form controls, global playback, arrow keys and undo.');
 });
+
+test('active fit clicks preserve Redo while real fit changes remain guarded and undoable', async () => {
+  for (const fit of ['cover', 'contain']) {
+    const f = await createAppFixture(), other = fit === 'cover' ? 'contain' : 'cover';
+    vm.runInContext(`state.fit="${fit}";state.zoom=1.4;state.panX=.2;state.panY=-.1;history=[];future=[];current=3;switchPanel("settings");globalThis.fitSaves=0;scheduleSave=()=>fitSaves++;`, f.context);
+    assert.equal((await f.context.window.moment.execute('effects.update', {patch:{brightness:1.2}})).ok, true);
+    f.element('#undoButton').onclick();
+    const read = () => f.evaluate('({state,history,future,current,selected,playing,playRequest,fitSaves})');
+    const before = read(), refs = vm.runInContext('({state,history,future})', f.context);
+    assert.equal(before.history.length, 0);
+    assert.equal(before.future.length, 1);
+    const clickFit = value => f.documentEvents.get('click')({
+      target: {closest: selector => selector === '[data-fit]' ? {dataset:{fit:value}} : null},
+    });
+    clickFit(fit); clickFit(fit);
+    assert.deepEqual(read(), before);
+    for (const key of ['state', 'history', 'future'])
+      assert.equal(vm.runInContext(key, f.context), refs[key]);
+    assert.equal(f.element('#redoButton').disabled, false);
+    f.element('#redoButton').onclick();
+    assert.equal(f.evaluate('state.effects.brightness'), 1.2, 'the retained Redo still applies');
+    assert.equal(f.evaluate('state.fit'), fit);
+    f.element('#undoButton').onclick();
+
+    for (const blocked of ['exporting', 'restoring']) {
+      vm.runInContext(blocked === 'exporting' ? 'exporting=true' : 'persistence.restorePhase="restoring"', f.context);
+      const unchanged = read();
+      clickFit(other);
+      assert.deepEqual(read(), unchanged, blocked);
+      vm.runInContext('exporting=false;persistence.restorePhase="ready"', f.context);
+    }
+    vm.runInContext('fitSaves=0', f.context);
+    const original = f.evaluate('state');
+    clickFit(other);
+    const expected = {...original, fit:other};
+    assert.deepEqual(f.evaluate('state'), expected);
+    assert.deepEqual(f.evaluate('[history.length,future.length,fitSaves,current]'), [1,0,1,3]);
+    f.element('#undoButton').onclick();
+    assert.deepEqual(f.evaluate('state'), original);
+    f.element('#redoButton').onclick();
+    assert.deepEqual(f.evaluate('state'), expected);
+  }
+});

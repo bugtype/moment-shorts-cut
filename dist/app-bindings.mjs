@@ -28,7 +28,7 @@ export function bindUi(app) {
         const ratio = event.target.closest('[data-ratio]'), fit = event.target.closest('[data-fit]'), style = event.target.closest('[data-style]');
         if (ratio)
             app.setRatio(ratio.dataset.ratio);
-        if (fit)
+        if (fit && fit.dataset.fit !== app.state.fit)
             app.edit(() => app.state.fit = fit.dataset.fit);
         if (style)
             app.edit(() => {

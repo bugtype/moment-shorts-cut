@@ -136,6 +136,9 @@ const templatePreview = createTemplatePreview({
     openModal: (title, body, foot) => modalOpen(title, body, foot),
     query: $,
     onApply: (template, withContent) => {
+        const active = document.activeElement, preview = $('#templateDemo');
+        const returnFocus = panel === 'templates' && document.hasFocus?.() && modal.contains?.(active)
+            ? templateWorkspace.captureFocusReturn(template.id) : null;
         if (template.custom)
             edit(() => applyTemplate(state, template, withContent));
         else if (!runEditorCommand('template.apply', { templateId: template.id, withContent }))
@@ -145,6 +148,9 @@ const templatePreview = createTemplatePreview({
         if (template.custom || panel !== 'templates') renderPanel();
         seekTo(0);
         toast(message(withContent ? 'shell.templateContent' : 'shell.templateStyle'));
+        if (panel === 'templates' && document.hasFocus?.() && $('#templateDemo') === preview &&
+            (document.activeElement === active || document.activeElement === document.body))
+            returnFocus?.();
     },
 });
 const templateWorkspace = createTemplateWorkspace({

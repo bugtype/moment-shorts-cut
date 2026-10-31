@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import vm from 'node:vm';
 import { createAppFixture } from './fixtures/app.mjs';
 import { applyTemplate, saveCustomTemplate, TEMPLATES } from '../dist/template-catalog.mjs';
+import { createDemoProject } from '../dist/core/project.mjs';
 import { prepareCommand } from '../dist/core/commands.mjs';
 import { setLocale, initLocale, translateFor } from '../dist/i18n.mjs';
 
@@ -133,38 +134,83 @@ test('stale sample playback shows stopped status after delayed raster load and c
 });
 
 
-async function galleryFixture() {
+async function galleryFixture({custom = false} = {}) {
     const mounts = [];
-    let buttons = [], favorites = [], nodes, markup = '', generation = 0;
-    const f = await createAppFixture({beforeInit({context, element}) {
-        const root = element('#panelContent');
+    let buttons = [], favorites = [], nodes, markup = '', generation = 0, cardGeneration = 0;
+    let modalNodes = new Map(), modalMarkup = '', modalGeneration = 0, invoker;
+    const f = await createAppFixture({beforeInit({context, doc, element}) {
+        const root = element('#panelContent'), modal = element('#modal');
+        if (custom) {
+            const saved = saveCustomTemplate('Saved focus', createDemoProject()); saved.id = 'custom-focus';
+            context.localStorage.getItem = key => key === 'moment-templates-v1' ? JSON.stringify([saved]) : null;
+        }
+        function detach(items) {
+            for (const node of items) {
+                node.isConnected = false;
+                if (doc.activeElement === node) doc.activeElement = doc.body;
+            }
+        }
+        function connected(key) {
+            const node = element(key); node.isConnected = true;
+            const focus = node.focus;
+            node.focus = options => { if (node.isConnected) focus.call(node, options); };
+            return node;
+        }
+        // Model replacement/return ownership, not native browser focus timing.
+        const query = doc.querySelector;
+        doc.querySelector = selector => modalNodes.get(selector) || query(selector);
+        doc.hasFocus = () => true;
+        Object.defineProperty(modal, 'innerHTML', {get: () => modalMarkup, set(value) {
+            detach(modalNodes.values()); modalMarkup = value; modalNodes = new Map(); modalGeneration++;
+            for (const [, id] of value.matchAll(/id="([^"]+)"/g))
+                modalNodes.set('#' + id, connected(`modal-${modalGeneration}-${id}`));
+        }});
+        modal.contains = node => node === modal || [...modalNodes.values()].includes(node);
+        modal.showModal = () => {
+            invoker = doc.activeElement; modal.open = true;
+            modalNodes.get('#applyTemplateStyle')?.focus();
+        };
+        modal.close = () => {
+            modal.open = false;
+            if (invoker?.isConnected) invoker.focus();
+            else if (modal.contains(doc.activeElement)) doc.activeElement = doc.body;
+            invoker = null;
+        };
         Object.defineProperty(root, 'innerHTML', {get: () => markup, set(value) {
+            detach([...buttons, ...favorites, ...(nodes?.values() || [])]);
             markup = value; nodes = new Map(); generation++;
         }});
         root.querySelector = selector => {
             if (!nodes.has(selector)) {
-                const node = element(`gallery-${generation}-${selector}`);
+                const node = connected(`gallery-${generation}-${selector}`);
                 if (selector === '#templateGrid') Object.defineProperty(node, 'innerHTML', {
                     get: () => node.markup || '', set(value) {
-                        node.markup = value;
-                        buttons = [...value.matchAll(/data-preview-template="([^"]+)"/g)].map(m => ({dataset:{previewTemplate:m[1]}}));
-                        favorites = [...value.matchAll(/data-favorite="([^"]+)"/g)].map(m => ({dataset:{favorite:m[1]}}));
+                        detach([...buttons, ...favorites]); node.markup = value; cardGeneration++;
+                        buttons = [...value.matchAll(/<button class="([^"]+)" data-preview-template="([^"]+)"/g)].map(([, cls, id], i) =>
+                            Object.assign(connected(`gallery-${generation}-${cardGeneration}-preview-${i}`), {className:cls, dataset:{previewTemplate:id}}));
+                        favorites = [...value.matchAll(/data-favorite="([^"]+)"/g)].map(([, id], i) =>
+                            Object.assign(connected(`gallery-${generation}-${cardGeneration}-favorite-${i}`), {dataset:{favorite:id}}));
                     },
                 });
                 nodes.set(selector, node);
             }
             return nodes.get(selector);
         };
-        root.querySelectorAll = selector => selector === '[data-preview-template]' ? buttons : selector === '[data-favorite]' ? favorites : [];
+        root.querySelectorAll = selector => selector === '[data-preview-template]' ? buttons :
+            selector === '.template-name' ? buttons.filter(b => b.className === 'template-name') :
+            selector === '[data-favorite]' ? favorites : [];
         const mount = context.mountTemplateGallery;
         context.mountTemplateGallery = (target, options) => {
             const view = mount(target, options);
-            mounts.push({active:options.active, query:options.ui.query, html:target.innerHTML + target.querySelector('#templateGrid').innerHTML, modalOpen:element('#modal').open});
+            mounts.push({active:options.active, query:options.ui.query, html:target.innerHTML + target.querySelector('#templateGrid').innerHTML, modalOpen:modal.open});
             return view;
         };
     }});
     vm.runInContext('current=3;', f.context);
-    return Object.assign(f, {mounts, preview: id => buttons.find(b => b.dataset.previewTemplate === id), favorite: id => favorites.find(b => b.dataset.favorite === id)});
+    const element = f.element;
+    return Object.assign(f, {mounts, element: selector => modalNodes.get(selector) || element(selector),
+        preview: id => buttons.find(b => b.dataset.previewTemplate === id && b.className === 'template-name'),
+        favorite: id => favorites.find(b => b.dataset.favorite === id)});
 }
 
 test('built-in gallery Apply keeps one refreshed gallery and its live controls', async () => {
@@ -215,4 +261,54 @@ test('Apply retains custom, other-panel and public command refreshes and command
     assert.equal(f.evaluate('history.length'), history + 1, 'existing command has committed before its render fails');
     assert.equal(f.evaluate('modal.open'), true); assert.equal(f.evaluate('current'), 3);
     assert.equal(f.element('#toast').textContent, 'gallery failed');
+});
+
+
+test('gallery Apply returns owned focus to the replacement name without another render', async () => {
+    for (const custom of [false, true]) {
+        const f = await galleryFixture({custom}), id = custom ? 'custom-focus' : 'clean';
+        const opener = f.preview(id); opener.focus(); opener.onclick();
+        f.element('#closeModal').onclick();
+        assert.equal(f.doc.activeElement, opener, 'Cancel keeps its existing connected opener');
+        assert.equal(f.evaluate('history.length'), 0);
+        opener.onclick();
+        const before = f.evaluate('state');
+        f.mounts.length = 0;
+        f.element(custom ? '#applyTemplateStructure' : '#applyTemplateStyle').onclick({});
+        assert.equal(f.mounts.length, 1);
+        assert.notEqual(f.preview(id), opener); assert.equal(opener.isConnected, false);
+        assert.equal(f.doc.activeElement, f.preview(id));
+        assert.equal(f.evaluate('history.length'), 1); assert.equal(f.evaluate('future.length'), 0);
+        assert.equal(f.evaluate('current'), 0); assert.equal(f.evaluate('modal.open'), false);
+        const expected = custom ? structuredClone(before) : prepareCommand(before, 'template.apply', {templateId:id}).project;
+        if (custom) {
+            const saved = saveCustomTemplate('Saved focus', createDemoProject()); saved.id = id;
+            applyTemplate(expected, saved, true);
+        }
+        assert.deepEqual(f.evaluate('state'), expected);
+    }
+});
+
+test('Apply focus return yields to newer focus, gallery and dialog owners', async () => {
+    for (const change of ['background', 'filter', 'gallery', 'dialog', 'outside']) {
+        const f = await galleryFixture(), opener = f.preview('clean');
+        opener.focus(); opener.onclick();
+        let focusAfterInterruption;
+        f.context.interruptFocus = () => {
+            if (change === 'background') f.doc.hasFocus = () => false;
+            if (change === 'filter') {
+                const search = f.element('#panelContent').querySelector('#templateSearch');
+                search.value = '인터뷰'; search.oninput({target:search});
+            }
+            if (change === 'gallery') vm.runInContext('renderPanel();', f.context);
+            if (change === 'dialog') vm.runInContext('templatePreview.open(TEMPLATES[2]);modal.close();', f.context);
+            if (change === 'outside') f.element('#projectName').focus();
+            focusAfterInterruption = f.focusEvents.length;
+        };
+        vm.runInContext('const oldSeek=seekTo;seekTo=(...args)=>{oldSeek(...args);interruptFocus();};', f.context);
+        f.element('#applyTemplateStyle').onclick({});
+        assert.equal(f.focusEvents.length, focusAfterInterruption, change);
+        if (change === 'outside') assert.equal(f.doc.activeElement, f.element('#projectName'));
+        assert.equal(f.evaluate('history.length'), 1);
+    }
 });

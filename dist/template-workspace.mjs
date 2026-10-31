@@ -352,5 +352,15 @@ export function createTemplateWorkspace({
             toast(message('templates.saved'));
         };
     }
-    return { render: renderGallery };
+    function captureFocusReturn(id) {
+        const previous = galleryGeneration, dialog = dialogGeneration;
+        const query = galleryUI.query, category = galleryUI.category;
+        return () => {
+            // Apply replaces the opener once; newer navigation owns its focus.
+            if (galleryGeneration !== previous + 1 || dialogGeneration !== dialog || modal.open ||
+                galleryUI.query !== query || galleryUI.category !== category) return;
+            galleryView?.focusTemplate(id);
+        };
+    }
+    return { render: renderGallery, captureFocusReturn };
 }

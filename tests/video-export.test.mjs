@@ -138,3 +138,46 @@ test('video-only recorder failure still releases video tracks and resets both re
   f.session.release(token);assert.equal(f.tracks.length,1);assert.equal(f.tracks[0].stops,1);
   assert.deepEqual(f.session.renderOptions,{includeAudio:true,includeCaptions:true});
 });
+
+test('unavailable export surfaces fail before capture and permit an explicit healthy retry', () => {
+  for (const failure of ['null', 'lost', 'before-capture']) {
+    let invalid = failure === 'null', lost = failure === 'lost';
+    const counts = {captures:0, recorders:0, audioReads:0, clones:0, stops:0, releases:0};
+    const context = {isContextLost: () => lost};
+    const track = () => ({stop() { counts.stops++; }});
+    const session = createVideoExport({
+      createCanvas: () => ({
+        getContext: () => invalid ? null : context,
+        captureStream() {
+          counts.captures++;
+          const tracks = [track()];
+          return {getTracks: () => tracks, addTrack: item => tracks.push(item)};
+        },
+      }),
+      createRecorder: () => { counts.recorders++; return {}; },
+      onRelease: () => counts.releases++,
+    });
+    const audio = {getAudioTracks() {
+      counts.audioReads++;
+      return [{clone() { counts.clones++; return track(); }}];
+    }};
+    const token = session.begin(), capture = () => session.capture(token, {mime:'video/webm'}, 720, audio, {});
+    if (failure === 'before-capture') {
+      session.createSurface('9:16', 720); lost = true;
+      assert.throws(capture, /context unavailable/);
+    } else assert.throws(() => session.createSurface('9:16', 720), /context unavailable/);
+    assert.deepEqual(counts, {captures:0,recorders:0,audioReads:0,clones:0,stops:0,releases:0});
+    session.release(token); session.release(token);
+    assert.equal(counts.releases, 1);
+    assert.equal(session.canvas, null); assert.equal(session.context, null); assert.equal(session.recorder, null);
+
+    invalid = lost = false;
+    const retry = session.begin();
+    session.createSurface('9:16', 720);
+    const recorder = session.capture(retry, {mime:'video/webm'}, 720, audio, {});
+    session.release(token);
+    assert.equal(session.recorder, recorder, 'the old release cannot clear the retry');
+    session.release(retry);
+    assert.deepEqual(counts, {captures:1,recorders:1,audioReads:1,clones:1,stops:2,releases:2});
+  }
+});

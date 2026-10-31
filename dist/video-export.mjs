@@ -17,9 +17,12 @@ export function createVideoExport({ createCanvas, createRecorder, onRelease }) {
         canvas.width = width;
         canvas.height = height;
         context = canvas.getContext('2d');
+        if (!context || context.isContextLost?.()) throw new Error('Video rendering context unavailable');
     }
 
     function capture(token, type, quality, audioStream, { onError, onStop }) {
+        // Seeking may yield after allocation; verify the surface before acquiring tracks.
+        if (!context || context.isContextLost?.()) throw new Error('Video rendering context unavailable');
         stream = canvas.captureStream(30);
         if (renderOptions.includeAudio)
             audioStream.getAudioTracks().forEach(track => stream.addTrack(track.clone()));

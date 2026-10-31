@@ -389,3 +389,62 @@ test('synchronous focus cancellation cannot start stale export resources and per
     active.cancel(); assert.equal(f.evaluate('exporting'), false);
   }
 });
+
+test('failed export surface preparation releases the app and keeps localized retry usable', async () => {
+  for (const [failure, locale] of [['null','ko'], ['lost','en'], ['before-capture','zh-CN']]) {
+    for (const includeAudio of [true, false]) {
+      const f = await fixture(), createElement = f.doc.createElement;
+      let failing = true, lost = failure === 'lost', finishSeek;
+      f.doc.createElement = tag => {
+        const element = createElement(tag);
+        if (tag === 'canvas') {
+          const context = element.getContext('2d');
+          const observed = new Proxy(context, {get: (target, key) =>
+            key === 'isContextLost' ? () => lost : Reflect.get(target, key)});
+          element.getContext = () => failing && failure === 'null' ? null : observed;
+        }
+        return element;
+      };
+      const seek = vm.runInContext('seekVideo', f.context);
+      if (failure === 'before-capture') {
+        f.context.pendingSurfaceSeek = () => new Promise(resolve => { finishSeek = resolve; });
+        vm.runInContext('state.kind="video";state.fileName="fixture.mp4";sources.videoFile={name:"fixture.mp4"};seekVideo=pendingSurfaceSeek;', f.context);
+      }
+      const before = snapshot(f);
+      try {
+        vm.runInContext("setLocale('" + locale + "', {persist:false});exportDialog()", f.context);
+        f.element('#exportFormat').value = '0'; f.element('#exportQuality').value = '720';
+        f.element('#exportIncludeAudio').checked = includeAudio;
+        const pending = f.element('#startExport').onclick();
+        if (failure === 'before-capture') {
+          for (let i = 0; i < 20 && !finishSeek; i++) await Promise.resolve();
+          assert.equal(typeof finishSeek, 'function');
+          assert.equal(f.recorders.length, 0);
+          lost = true; finishSeek();
+        }
+        await pending;
+        assert.equal(f.evaluate('exporting'), false); assert.equal(f.evaluate('playing'), false);
+        assert.equal(f.evaluate('modal.open'), false); assert.equal(f.evaluate('frameHandle'), 0);
+        assert.equal(f.evaluate('videoExport.canvas'), null); assert.equal(f.evaluate('videoExport.context'), null);
+        assert.equal(f.evaluate('videoExport.recorder'), null);
+        assert.equal(f.recorders.length, 0, 'no recorder is created for a known unusable surface');
+        assert.equal(f.tracks.length, 1, 'neither canvas tracks nor audio clones were acquired');
+        assert.equal(f.sourceTrack.stops, 0); assert.deepEqual(f.downloads, []);
+        assert.equal(f.element('#toast').textContent, vm.runInContext("t('shell.exportStartFailed')", f.context));
+        assert.equal(f.element('#toast').getAttribute('data-i18n'), 'shell.exportStartFailed');
+        assert.deepEqual(snapshot(f), before);
+
+        failing = lost = false;
+        f.context.restoreSurfaceSeek = seek;
+        vm.runInContext('seekVideo=restoreSurfaceSeek', f.context);
+        const retry = await start(f, includeAudio);
+        vm.runInContext('stopExport(false)', f.context); retry.data(finalData()); retry.stop();
+        assert.equal(f.downloads.length, 1);
+        assert.equal(f.evaluate('exporting'), false);
+        assert.equal(f.sourceTrack.stops, 0);
+        assert.ok(retry.recorder.stream.getTracks().every(track => track.stops === 1));
+        assert.deepEqual(snapshot(f), before);
+      } finally { vm.runInContext("setLocale('ko', {persist:false})", f.context); }
+    }
+  }
+});

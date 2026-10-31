@@ -122,9 +122,15 @@ export function bindUi(app) {
         app.resizePreview();
         app.timelineView.resize(app.current, app.duration(), app.state.speed);
     };
+    const refreshTimelineZoom = () => {
+        // Bindings precede restore; until the first full render, keep that route.
+        if (!app.editorReady) return app.renderTimeline();
+        app.timelineView.resize(app.current, app.duration(), app.state.speed);
+        app.updateTime(); // Retain playhead following and export/time feedback.
+    };
     $('#timelineZoom').onclick = () => {
         app.timelineView.cycleZoom();
-        app.renderTimeline();
+        refreshTimelineZoom();
     };
     const timelineBody = $('#timelineBody'), zoomLevels = app.timelineView.zoomLevels();
     bindTimelinePinch(timelineBody, {
@@ -132,7 +138,7 @@ export function bindUi(app) {
         getTracksRect: () => $('#tracksArea').getBoundingClientRect(),
         getZoom: () => app.timelineView.getZoom(),
         setZoom: value => app.timelineView.setZoom(value),
-        render: () => app.renderTimeline(),
+        render: refreshTimelineZoom,
     });
     // Landscape phones cannot fit the preview, player and tracks together; start
     // with the canvas in view and leave the expanded timeline one tap away.

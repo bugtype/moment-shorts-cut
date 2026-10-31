@@ -107,3 +107,70 @@ test('view geometry refresh works before full render and leaves time throttling 
     assert.equal(query('#playhead').style.transform,`translateX(${width/2}px)`);
   }
 });
+
+test('ready button and pinch zoom retain tracks and drafts while refreshing geometry and export progress', async () => {
+  for (const mode of ['button', 'pinch']) for (const exporting of [false, true]) {
+    const f = await createAppFixture(), area = f.element('#tracksArea'), body = f.element('#timelineBody');
+    vm.runInContext(`state.clips=[{start:0,end:12},{start:0,end:12}];state.speed=2;
+      state.captions=Array.from({length:10},(_,i)=>({start:i,end:i+.5,text:'자막 '+i}));
+      timelineCache=null;current=12;history=[];future=[];renderTimeline();renderInspector();
+      playing=${exporting};exporting=${exporting};`, f.context);
+    Object.defineProperty(area, 'clientWidth', {get: () => 600 * f.evaluate('timelineView.getZoom()')});
+    area.getBoundingClientRect = () => ({left:73-body.scrollLeft, width:area.clientWidth});
+    body.clientWidth=673;body.scrollLeft=0;
+    const track=f.element('#captionTrack'), nodes=[...track.children], children=nodes.map(node=>node.firstChild);
+    let writes=0;
+    for (const node of nodes) { const set=node.setAttribute;node.setAttribute=(...args)=>{writes++;return set(...args);}; }
+    const name=f.element('#projectName'), trim=f.element('#trimStart');
+    name.value='작성 중';trim.value='';name.focus();name.setSelectionRange(1,3);
+    const before=f.evaluate('({state,current,selected,history,future,playing,exporting})'), frames=[...f.pendingFrames];
+    vm.runInContext(`scheduleSave=persistMedia=()=>{throw Error('zoom must not save')}`, f.context);
+    const touch=(name,touches)=>{
+      for(const handler of f.elementEvents.get('#timelineBody').get(name))handler({touches,preventDefault(){}});
+    };
+    if(mode==='button')f.element('#timelineZoom').onclick();
+    else {
+      touch('touchstart',[{clientX:273,clientY:10},{clientX:473,clientY:10}]);
+      touch('touchmove',[{clientX:173,clientY:10},{clientX:573,clientY:10}]);
+    }
+    assert.equal(writes,0,'zoom must not recompute unchanged caption presentation');
+    assert.equal(f.evaluate('timelineView.getZoom()'),2);
+    assert.deepEqual(labels(f.element('#ruler')),Array.from({length:13},(_,i)=>`00:${String(i).padStart(2,'0')}`));
+    assert.equal(f.element('#playhead').style.transform,'translateX(600px)');
+    assert.equal(body.scrollLeft,mode==='button'?24:300);
+    assert.equal(f.element('#seek').value,12);
+    if(exporting)assert.equal(f.element('#exportProgressStatus').getAttribute('aria-valuenow'),'50');
+    if(mode==='button')for(let i=0;i<3;i++)f.element('#timelineZoom').onclick();
+    else {
+      touch('touchmove',[{clientX:273,clientY:10},{clientX:473,clientY:10}]);
+      touch('touchend',[]);assert.equal(body.scrollLeft,0);
+    }
+    assert.equal(f.evaluate('timelineView.getZoom()'),1);assert.equal(writes,0);
+    assert.equal(f.element('#playhead').style.transform,'translateX(300px)');
+    assert.deepEqual(f.evaluate('({state,current,selected,history,future,playing,exporting})'),before);
+    nodes.forEach((node,i)=>{assert.equal(track.children[i],node);assert.equal(node.firstChild,children[i]);});
+    assert.equal(f.doc.activeElement,name);assert.equal(name.value,'작성 중');assert.equal(trim.value,'');
+    assert.equal(name.selectionStart,1);assert.equal(name.selectionEnd,3);assert.deepEqual([...f.pendingFrames],frames);
+  }
+});
+
+test('zoom keeps an existing caption error lane and retains full rendering before editor readiness', async () => {
+  for(const mode of ['button','pinch']) {
+    const f=await createAppFixture(), track=f.element('#captionTrack');
+    vm.runInContext(`state.clips=Array.from({length:11},()=>({start:0,end:12}));
+      state.captions=Array.from({length:1000},()=>({start:0,end:1,text:'limit'}));
+      timelineCache=null;renderTimeline();`,f.context);
+    const error=track.children[0];assert.equal(error.attributes.role,'status');
+    const zoom=()=>{
+      if(mode==='button')f.element('#timelineZoom').onclick();
+      else {
+        for(const [name,touches] of [['touchstart',[{clientX:100,clientY:0},{clientX:200,clientY:0}]],
+          ['touchmove',[{clientX:50,clientY:0},{clientX:250,clientY:0}]],['touchend',[]]])
+          for(const handler of f.elementEvents.get('#timelineBody').get(name))handler({touches,preventDefault(){}});
+      }
+    };
+    zoom();assert.equal(track.children.length,1);assert.equal(track.children[0],error);
+    vm.runInContext('editorReady=false;globalThis.fullZoomRenders=0;renderTimeline=()=>fullZoomRenders++',f.context);
+    zoom();assert.equal(f.evaluate('fullZoomRenders'),1,'pre-ready zoom keeps its original full-render route');
+  }
+});

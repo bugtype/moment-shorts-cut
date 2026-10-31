@@ -181,3 +181,87 @@ test('actual ratio changes refresh PNG dimensions after bitmap resize; stale pan
     vm.runInContext("persistence.restorePhase='ready';panel='media'",f.context);
     f.element('#savePreviewPng').onclick();assert.equal(allocations,0);
 });
+
+test('known source or scratch context loss refuses PNG encoding, releases scratch pixels and permits retry', () => {
+    for (const failure of ['source-before', 'scratch-before', 'source-during', 'scratch-during']) {
+        let sourceLost = failure === 'source-before', scratchLost = failure === 'scratch-before';
+        let during = failure, draws = 0, encodes = 0;
+        const project = { name: 'context loss' }, canvases = [], downloads = [], errors = [];
+        const sourceContext = { isContextLost: () => sourceLost };
+        const source = { width: 2, height: 3, getContext: () => sourceContext };
+        const save = createPreviewExport({
+            getProject: () => project, getMedia: () => [], getCanvas: () => source, blocked: () => false,
+            download: (...args) => downloads.push(args), toast: error => errors.push(error),
+            createCanvas: () => {
+                const context = {
+                    isContextLost: () => scratchLost,
+                    drawImage() {
+                        draws++;
+                        if (during === 'source-during') sourceLost = true;
+                        if (during === 'scratch-during') scratchLost = true;
+                    },
+                };
+                const canvas = { getContext: () => context, toBlob(callback) { encodes++; this.callback = callback; } };
+                canvases.push(canvas);
+                return canvas;
+            },
+        });
+        save();
+        assert.equal(errors.length, 1, failure);
+        assert.equal(errors[0].messageKey, 'shell.previewPngError');
+        assert.equal(downloads.length, 0);
+        assert.equal(encodes, 0, 'known lost pixels must not reach the encoder');
+        assert.equal(draws, failure.endsWith('during') ? 1 : 0);
+        assert.equal(canvases.length, failure === 'source-before' ? 0 : 1);
+        assert.ok(canvases.every(canvas => canvas.width === 0 && canvas.height === 0));
+        assert.deepEqual([source.width, source.height], [2, 3]);
+
+        sourceLost = scratchLost = false;
+        during = null;
+        save();
+        assert.equal(encodes, 1);
+        canvases.at(-1).callback(png());
+        assert.equal(downloads.length, 1, 'a healthy retry is not latched out');
+        assert.equal(errors.length, 1);
+        assert.ok(canvases.every(canvas => canvas.width === 0 && canvas.height === 0));
+        assert.deepEqual([source.width, source.height], [2, 3]);
+    }
+});
+
+test('Frame action refuses a lost preview but retains a healthy snapshot through later loss', async () => {
+    const f = await createAppFixture(), copies = [], downloads = [];
+    f.context.capturedPngs = downloads;
+    vm.runInContext('download=(blob,name)=>capturedPngs.push({blob,name});panel="settings";renderPanel()', f.context);
+    let lost = true;
+    const source = f.element('#preview');
+    source.getContext = () => ({ isContextLost: () => lost });
+    f.doc.createElement = tag => {
+        assert.equal(tag, 'canvas');
+        const copy = {
+            getContext: () => ({ drawImage() {} }),
+            toBlob(callback) { this.callback = callback; },
+        };
+        copies.push(copy);
+        return copy;
+    };
+    const dimensions = [source.width, source.height];
+    const before = f.evaluate('({state,history,future,current,playing})');
+    f.element('#savePreviewPng').onclick();
+    assert.equal(copies.length, 0);
+    assert.equal(downloads.length, 0);
+    assert.match(f.element('#toast').textContent, /PNG/);
+    assert.equal(f.element('#toast').getAttribute('data-i18n'), 'shell.previewPngError');
+    assert.deepEqual(f.evaluate('({state,history,future,current,playing})'), before);
+
+    lost = false;
+    f.element('#savePreviewPng').onclick();
+    assert.equal(copies.length, 1);
+    assert.deepEqual([copies[0].width,copies[0].height], [0,0]);
+    lost = true;
+    const captured = png();
+    copies[0].callback(captured);
+    assert.equal(downloads.length, 1, 'loss after toBlob does not invalidate the owned bitmap');
+    assert.equal(downloads[0].blob, captured);
+    assert.deepEqual([source.width,source.height], dimensions);
+    assert.deepEqual(f.evaluate('({state,history,future,current,playing})'), before);
+});

@@ -16,12 +16,16 @@ export function createPreviewExport({ getProject, getMedia, getCanvas, createCan
                 getMedia().every((item, index) => item === media[index]);
             if (!Number.isInteger(width) || !Number.isInteger(height) || width <= 0 || height <= 0)
                 throw new Error('Invalid preview dimensions');
+            const sourceContext = source.getContext?.('2d');
+            if (sourceContext?.isContextLost?.()) throw new Error('Preview context lost');
             snapshot = createCanvas();
             snapshot.width = width;
             snapshot.height = height;
             const context = snapshot.getContext('2d');
-            if (!context || typeof snapshot.toBlob !== 'function') throw new Error('PNG encoding unavailable');
+            if (!context || context.isContextLost?.() || typeof snapshot.toBlob !== 'function') throw new Error('PNG encoding unavailable');
             context.drawImage(source, 0, 0);
+            // Check the copy before encoding; later source loss cannot invalidate its bitmap.
+            if (sourceContext?.isContextLost?.() || context.isContextLost?.()) throw new Error('Preview context lost');
             snapshot.toBlob(blob => {
                 try {
                     if (!current()) return;

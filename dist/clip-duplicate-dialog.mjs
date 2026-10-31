@@ -59,7 +59,7 @@ export function createClipDuplicateDialog(app) {
             if (restore) { invalidate(); app.modal.close(); }
             app.renderTimeline();
             app.renderInspector();
-            app.renderPanel();
+            if (panel !== 'templates' || app.panel !== 'templates') app.renderPanel();
             app.seekTo(app.state.clips.slice(0, app.selected).reduce((sum, clip) => sum + clip.end - clip.start, 0));
             if (restore) focus();
         };

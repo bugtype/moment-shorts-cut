@@ -310,6 +310,52 @@ test('built-in gallery Apply keeps one refreshed gallery and its live controls',
     }
 });
 
+test('range duplication keeps the shared command gallery refresh and its current controls', async () => {
+    const f = await galleryFixture();
+    vm.runInContext('state.clips=[{start:0,end:2},{start:3,end:6},{start:8,end:12},{start:0,end:2}];timelineCache=null;selected=1;current=3;', f.context);
+    const trigger = f.element('#duplicateClipRangeButton'); trigger.id = 'duplicateClipRangeButton';
+    const before = f.evaluate('state'), expected = prepareCommand(before, 'timeline.duplicate', {clipIndex:1,count:2}).project;
+    const oldFavorite = f.favorite('clean').onclick;
+    trigger.focus(); trigger.onclick();
+    f.element('#duplicateRangeFirst').value = '2'; f.element('#duplicateRangeLast').value = '3';
+    f.mounts.length = 0; f.element('#confirmDuplicateRange').onclick({});
+    assert.equal(f.mounts.length, 1, 'shared command already refreshed the gallery');
+    assert.equal(f.mounts[0].modalOpen, true, 'refresh still precedes modal close');
+    assert.deepEqual(f.evaluate('state'), expected);
+    assert.deepEqual(f.evaluate('({history:history.length,future:future.length,selected,current,open:modal.open})'),
+        {history:1,future:0,selected:3,current:9,open:false});
+    assert.equal(f.doc.activeElement, trigger);
+    const saved = [];
+    f.context.saved = saved; vm.runInContext('download=blob=>saved.push(blob);', f.context);
+    f.context.window.moment.downloadProject();
+    assert.deepEqual(JSON.parse(await saved[0].text()).project, expected);
+    const writes = []; f.context.localStorage.setItem = (...args) => writes.push(args);
+    oldFavorite(); assert.deepEqual(writes, [], 'pre-command gallery callbacks remain stale');
+    f.preview('clean').onclick(); assert.equal(f.evaluate('modal.open'), true, 'retained refreshed controls remain live');
+});
+
+test('range duplication retains other-panel refreshes, close-time panel changes and command refusal', async () => {
+    for (const [initial, next] of [['effects','effects'], ['templates','effects'], ['effects','templates']]) {
+        const f = await fixture();
+        f.context.refreshes = [];
+        vm.runInContext(`panel=${JSON.stringify(initial)};const originalPanelRender=renderPanel;renderPanel=()=>{refreshes.push({panel,open:modal.open});originalPanelRender();};`, f.context);
+        const trigger = f.element('#duplicateClipRangeButton'); trigger.id = 'duplicateClipRangeButton';
+        trigger.onclick();
+        const close = f.element('#modal').close.bind(f.element('#modal'));
+        f.element('#modal').close = () => { close(); vm.runInContext(`panel=${JSON.stringify(next)};`, f.context); };
+        f.element('#confirmDuplicateRange').onclick({});
+        assert.deepEqual(f.evaluate('refreshes'), [{panel:initial,open:true},{panel:next,open:false}]);
+        assert.equal(f.evaluate('history.length'), 1);
+        if (initial === next) assert.equal(f.doc.activeElement, trigger);
+    }
+    const f = await fixture(), trigger = f.element('#duplicateClipRangeButton'); trigger.id = 'duplicateClipRangeButton';
+    trigger.onclick(); const before = f.evaluate('({state,history,future,selected,current})');
+    vm.runInContext("runEditorCommand=()=>false;renderPanel=renderTimeline=renderInspector=seekTo=()=>{throw new Error('unexpected caller refresh');};", f.context);
+    f.element('#confirmDuplicateRange').onclick({});
+    assert.deepEqual(f.evaluate('({state,history,future,selected,current})'), before);
+    assert.equal(f.evaluate('modal.open'), true);
+});
+
 test('Apply retains custom, other-panel and public command refreshes and command failure order', async () => {
     const f = await fixture();
     f.context.refreshes = [];

@@ -196,3 +196,45 @@ test('auxiliary preview input preserves playback and Redo; subsequent primary dr
   vm.runInContext('undo(true)',f.context);assert.deepEqual(f.evaluate('state'),edited);
  }
 });
+
+test('hidden preview drags preserve Redo and valid saved coordinates, then recover with one undoable edit', async () => {
+  for (const mode of ['video', 'title', 'credit', 'caption', 'scene']) {
+    const f = await fixture(mode), writes = [];
+    assert.equal((await f.context.window.moment.execute('effects.update', { patch: { brightness: 1.1 } })).ok, true);
+    f.element('#undoButton').onclick();
+    vm.runInContext('axisSaves=0', f.context);
+    const before = f.evaluate('({state,history,future})');
+    assert.equal(before.future.length, 1);
+    f.context.localStorage.setItem = (key, value) => writes.push({ key, value });
+    let rect = { width: 100, height: 200 };
+    f.canvas.getBoundingClientRect = () => rect;
+    f.canvas.onpointerdown(pointer(0, 0, { shiftKey: true }));
+    rect = { width: 0, height: 0 };
+    f.canvas.onpointermove(pointer(0, 20));
+    f.canvas.onpointerup(pointer(0, 20));
+    assert.deepEqual(f.evaluate('({state,history,future})'), before, mode);
+    assert.equal(f.evaluate('axisSaves'), 0);
+    await vm.runInContext('saveProject(false)', f.context);
+    assert.equal(writes.length, 1);
+    assert.equal(writes[0].key, 'moment-state-v1');
+    assert.deepEqual(JSON.parse(writes[0].value), before.state);
+    assert.equal(f.element('#redoButton').disabled, false);
+
+    rect = { width: 100, height: 200 };
+    f.canvas.onpointerdown(pointer(0, 0, { shiftKey: true }));
+    rect = { width: 0, height: 0 };
+    f.canvas.onpointermove(pointer(0, 20));
+    rect = { width: 100, height: 200 };
+    f.canvas.onpointermove(pointer(20, 2));
+    f.canvas.onpointerup(pointer(20, 2));
+    f.canvas.onlostpointercapture(pointer(20, 2));
+    assert.equal(f.evaluate(f.path), .7, mode);
+    assert.equal(f.evaluate('axisSaves'), 1);
+    assert.equal(f.evaluate('history.length'), before.history.length + 1);
+    const after = f.evaluate('state');
+    vm.runInContext('undo()', f.context);
+    assert.deepEqual(f.evaluate('state'), before.state);
+    vm.runInContext('undo(true)', f.context);
+    assert.deepEqual(f.evaluate('state'), after);
+  }
+});

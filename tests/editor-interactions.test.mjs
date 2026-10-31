@@ -344,3 +344,46 @@ test('only primary-button contact starts preview dragging; active pointer transi
     assert.equal(f.events.filter(event => event === 'commit').length, 1);
   }
 });
+
+test('invalid preview dimensions preserve every drag mode and defer the Shift axis until usable geometry', () => {
+  const invalid = [
+    { width: 0, height: 200 }, { width: 100, height: 0 }, { width: 0, height: 0 },
+    { width: NaN, height: 200 }, { width: 100, height: Infinity }, { width: -100, height: 200 },
+  ];
+  for (const mode of ['video', 'title', 'credit', 'caption', 'scene']) {
+    for (const dimensions of invalid) for (const shiftKey of [false, true]) {
+      const f = fixture(mode), { target, xKey, yKey } = coordinates(f, mode);
+      target[xKey] = target[yKey] = .5;
+      const before = structuredClone(f.project);
+      let rect = dimensions;
+      f.canvas.getBoundingClientRect = () => rect;
+      f.canvas.onpointerdown({ ...pointer(0, 0), shiftKey });
+      f.canvas.onpointermove(pointer(0, 20));
+      f.canvas.onpointermove(pointer(20, 0));
+      assert.deepEqual(f.project, before, mode);
+      assert.equal(f.history.length, 0);
+      assert.ok(!f.events.includes('preview'));
+      rect = { width: 100, height: 200 };
+      f.canvas.onpointermove(pointer(20, 2));
+      assert.equal(target[xKey], .7);
+      assert.equal(target[yKey], shiftKey ? .5 : .51);
+      assert.equal(f.history.length, 1);
+      const moved = structuredClone(f.project);
+      rect = dimensions;
+      f.canvas.onpointermove(pointer(0, 50));
+      assert.deepEqual(f.project, moved, 'invalid geometry cannot corrupt an existing edit');
+      rect = { width: 100, height: 200 };
+      f.canvas.onpointermove(pointer(30, 4));
+      assert.equal(target[xKey], .8);
+      assert.equal(target[yKey], shiftKey ? .5 : .52);
+      const final = structuredClone(f.project);
+      rect = dimensions;
+      f.canvas.onpointermove(pointer(0, 60));
+      assert.deepEqual(f.project, final);
+      f.canvas.onpointercancel(pointer(30, 4));
+      f.canvas.onlostpointercapture(pointer(30, 4));
+      assert.equal(f.history.length, 1);
+      assert.equal(f.events.filter(event => event === 'commit').length, 1);
+    }
+  }
+});

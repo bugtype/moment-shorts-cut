@@ -37,12 +37,15 @@ export function bindPreviewDrag(canvas, { getProject, blocked, pause, selection,
         let width = r.width, height = r.height;
         if (drag.mode === 'video' && videoRegion) {
             const region = videoRegion(state, r);
-            if (!region || !Number.isFinite(region.w) || !Number.isFinite(region.h) || region.w <= 0 || region.h <= 0)
+            if (!region)
                 return;
             // Source pan is relative to its video region, not the whole composition.
             width = region.w;
             height = region.h;
         }
+        // Hidden or collapsed previews must not corrupt coordinates or consume history.
+        if (!Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0)
+            return;
         const dx = e.clientX - drag.x, dy = e.clientY - drag.y;
         if (!drag.changed && dx === 0 && dy === 0)
             return;

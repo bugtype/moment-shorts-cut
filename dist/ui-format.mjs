@@ -47,6 +47,9 @@ export function fmt(t) {
     return `${Math.floor(t / 60).toString().padStart(2, '0')}:${Math.floor(t % 60).toString().padStart(2, '0')}`;
 }
 
+// Prime feedback inside every native dialog before a later status message.
+export const modalFeedbackMarkup = '<div id="modalFeedback" class="modal-feedback" role="status" aria-live="polite" aria-atomic="true"></div>';
+
 // Preserve finite time/framing values without exponent notation or numeric rounding.
 export function decimalTime(value) {
     const [coefficient, exponent] = String(value).split('e');

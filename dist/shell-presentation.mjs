@@ -1,11 +1,11 @@
 import {text, attrs, message, formatError, setText} from './i18n.mjs';
-import {icon, esc} from './ui-format.mjs';
+import {icon, esc, modalFeedbackMarkup} from './ui-format.mjs';
 
 // Own shell feedback and modal markup, not editor state, history or media jobs.
 // Callbacks keep the app's public wrappers interceptable and timers injectable.
 export function createShellPresentation({query: $, queryAll, document, modal,
     openDialog, downloadSettings, downloadGraphicsText, findTools, filesBlocked = () => false, canRelink = () => false, relink, setTimer, clearTimer}) {
-    let lastSaveStatus = '', toastTimer, fileDialogGeneration = 0, pendingImportClose;
+    let lastSaveStatus = '', toastTimer, toastGeneration = 0, fileDialogGeneration = 0, pendingImportClose;
     function bindFileActions(trigger) {
         const generation = ++fileDialogGeneration;
         const importButton = $('#importProjectSettingsButton');
@@ -67,17 +67,33 @@ export function createShellPresentation({query: $, queryAll, document, modal,
                 !event?.isComposing && event?.keyCode !== 229) findTools?.();
         };
     }
+    function clearFeedback(node) {
+        node.removeAttribute('data-i18n');
+        node.removeAttribute('data-i18n-params');
+        node.textContent = '';
+    }
     function toast(message) {
-        const node = $('#toast');
+        const global = $('#toast'), local = modal.open ? $('#modalFeedback') : null;
+        const node = local || global, generation = ++toastGeneration;
+        // showModal makes the global live region inert. Use its already-mounted
+        // dialog counterpart, without moving focus or exposing duplicate text.
+        if (local) {
+            global.classList.remove('visible');
+            clearFeedback(global);
+        }
         if (message?.messageKey) setText(node, message.messageKey, message.messageParams);
         else {
             node.removeAttribute('data-i18n');
             node.removeAttribute('data-i18n-params');
             node.textContent = formatError(message);
         }
-        $('#toast').classList.add('visible');
+        if (!local) global.classList.add('visible');
         clearTimer(toastTimer);
-        toastTimer = setTimer(() => $('#toast').classList.remove('visible'), 5000);
+        toastTimer = setTimer(() => {
+            if (generation !== toastGeneration) return;
+            if (local) clearFeedback(local);
+            else global.classList.remove('visible');
+        }, 5000);
     }
     function saveStatus(text, ok = true) {
         const key = JSON.stringify(text) + ok;
@@ -95,7 +111,7 @@ export function createShellPresentation({query: $, queryAll, document, modal,
         modal.onclose?.();
         modal.onclose = null;
         modal.className = '';
-        modal.innerHTML = `<div class="modal-head"><h2 id="modalTitle">${title?.messageKey ? text(title.messageKey, title.messageParams) : esc(title)}</h2><button class="icon-button" id="closeModal" ${attrs("aria-label", "shell.close")}>${icon('close')}</button></div>${body}${footer}`;
+        modal.innerHTML = `<div class="modal-head"><h2 id="modalTitle">${title?.messageKey ? text(title.messageKey, title.messageParams) : esc(title)}</h2><button class="icon-button" id="closeModal" ${attrs("aria-label", "shell.close")}>${icon('close')}</button></div>${body}${modalFeedbackMarkup}${footer}`;
         $('#closeModal').onclick = () => modal.close();
         modal.showModal();
     }

@@ -83,7 +83,7 @@ test('invalid, trimmed-empty and failed downloads stay open; cancel is read-only
     const f=await fixture();f.open();const before=f.snapshot();
     for(const [first,last] of [['',1],[0,1],[1.5,2],[3,2],[1,5],['Infinity',2],[1,'NaN']]){f.save(first,last);assert.equal(f.downloads.length,0);assert.equal(f.element('#modal').open,true);}
     f.save(3,3);assert.equal(f.downloads.length,0);assert.equal(f.element('#modal').open,true);
-    vm.runInContext("download=()=>{throw new Error('download blocked')}",f.context);f.save(1,1);assert.equal(f.element('#modal').open,true);assert.match(f.element('#toast').textContent,/download blocked/);
+    vm.runInContext("download=()=>{throw new Error('download blocked')}",f.context);f.save(1,1);assert.equal(f.element('#modal').open,true);assert.match(f.element('#modalFeedback').textContent,/download blocked/);
     vm.runInContext('download=(blob,name)=>collectCaptionExport(blob,name)',f.context);f.save(1,1);assert.equal(f.downloads.length,1);
     f.open();f.element('#cancelCaptionExport').onclick();assert.equal(f.downloads.length,1);assert.deepEqual(f.snapshot(),before);
     const empty=await fixture('state.captions=[]');empty.open();assert.notEqual(empty.element('#modal').open,true);assert.equal(empty.downloads.length,0);

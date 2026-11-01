@@ -81,8 +81,9 @@ test('unrepresentable repeated occurrences preserve playback and chooser, includ
                 f.element('#captionTrack').onclick({target:{closest:()=>block}});
             }
             assert.deepEqual(f.evaluate('({state,current,playing,history,future,selected,saves})'),before);
-            assert.equal(f.element('#toast').getAttribute('data-i18n'),'panels.captionNavigationUnavailable');
-            assert.equal(f.element('#toast').textContent,translateFor(locale,'panels.captionNavigationUnavailable'));
+            const feedback = f.element(action === 'row' ? '#modalFeedback' : '#toast');
+            assert.equal(feedback.getAttribute('data-i18n'),'panels.captionNavigationUnavailable');
+            assert.equal(feedback.textContent,translateFor(locale,'panels.captionNavigationUnavailable'));
         }
         if (action === 'row') {
             assert.equal(f.element('#modal').open,true);
@@ -115,7 +116,7 @@ test('unrepresentable report navigation keeps the dialog and playback but still 
         f.element(move).onclick();f.element(move).onclick();
         assert.deepEqual(f.evaluate('({state,current,playing,history,future,saves})'),before);
         assert.equal(f.element('#modal').open,true);
-        assert.equal(f.element('#toast').getAttribute('data-i18n'),'panels.captionNavigationUnavailable');
+        assert.equal(f.element('#modalFeedback').getAttribute('data-i18n'),'panels.captionNavigationUnavailable');
         const focus=action==='overlap'?'#overlapOtherCaption0':action==='inspection'?'#inspectCaption1':'#inspectOther0';
         f.element(focus).onclick();
         assert.equal(f.element('#modal').open,false);

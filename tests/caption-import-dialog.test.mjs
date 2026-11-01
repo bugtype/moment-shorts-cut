@@ -467,7 +467,7 @@ test('a newer failed legacy read expires cached review visibly and permits revie
     await f.confirm();
     assert.equal(f.element('#subtitleImportReport').innerHTML, '');
     assert.equal(f.element('#confirmSubtitleImport').getAttribute('data-i18n'), 'importReview.review');
-    assert.match(f.element('#toast').textContent, /검토/);
+    assert.match(f.element('#modalFeedback').textContent, /검토/);
     assert.equal(f.evaluate('history.length'), 0);
     assert.equal((await f.confirm()).prepared, true);
     await f.confirm();

@@ -45,7 +45,7 @@ import { createVideoExport } from '../../dist/video-export.mjs';
 import { createAudioRecording } from '../../dist/audio-recording.mjs';
 import { createTranscriptionClient } from '../../dist/transcription-client.mjs';
 import * as panelMarkup from '../../dist/panel-markup.mjs';
-import { icon, esc, fmt, decimalTime } from '../../dist/ui-format.mjs';
+import { icon, esc, fmt, decimalTime, modalFeedbackMarkup } from '../../dist/ui-format.mjs';
 import * as projectModule from '../../dist/core/project.mjs';
 import { prepareCommand } from '../../dist/core/commands.mjs';
 import { CommandError, LocalizedError, hasMinimumDuration } from '../../dist/core/validation.mjs';
@@ -196,7 +196,7 @@ export async function createAppFixture({sessionMediaDependencies = {}, fontSet, 
       setTimer: (callback, delay) => context.setInterval(callback, delay),
       clearTimer: timer => context.clearInterval(timer),
       clock: () => context.performance.now(),
-    }), shiftCaptionTiming, mountDesignPanel, ...panelMarkup, icon, esc, fmt, decimalTime,
+    }), shiftCaptionTiming, mountDesignPanel, ...panelMarkup, icon, esc, fmt, decimalTime, modalFeedbackMarkup,
   });
   // Load extracted app modules in this VM so timers, promises and DOM access keep the
   // same realm semantics the browser app has (the host realm would add microtask hops).

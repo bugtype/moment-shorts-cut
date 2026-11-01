@@ -7,6 +7,8 @@ import {initLocale, setLocale, message, translateFor} from '../dist/i18n.mjs';
 
 // Code/markup contracts only, not native accessibility-tree or screen-reader QA.
 const heading = (modal, key, locale) => {
+  assert.equal((modal.innerHTML.match(/id="modalFeedback"/g) || []).length, 1);
+  assert.match(modal.innerHTML, /<div id="modalFeedback" class="modal-feedback" role="status" aria-live="polite" aria-atomic="true"><\/div>/);
   assert.equal((modal.innerHTML.match(/id="modalTitle"/g) || []).length, 1);
   assert.match(modal.innerHTML, /<h2 id="modalTitle">/);
   assert.ok(modal.innerHTML.includes(`data-i18n="${key}"`));

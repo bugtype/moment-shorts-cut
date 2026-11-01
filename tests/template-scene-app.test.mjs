@@ -476,7 +476,7 @@ test('Apply retains custom, other-panel and public command refreshes and command
     f.element('#applyTemplateStyle').onclick({});
     assert.equal(f.evaluate('history.length'), history + 1, 'existing command has committed before its render fails');
     assert.equal(f.evaluate('modal.open'), true); assert.equal(f.evaluate('current'), 3);
-    assert.equal(f.element('#toast').textContent, 'gallery failed');
+    assert.equal(f.element('#modalFeedback').textContent, 'gallery failed');
 });
 
 

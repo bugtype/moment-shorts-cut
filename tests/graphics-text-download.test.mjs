@@ -105,11 +105,11 @@ test('invalid report text and download failures produce no partial output and ca
     f.exportText();
     assert.equal(f.downloads.length,0);
     assert.deepEqual(f.evaluate('state'),before);
-    assert.ok(f.element('#toast').textContent.length>0);
+    assert.ok(f.element('#modalFeedback').textContent.length>0);
     vm.runInContext("state.design.title.lines[0]='fixed';download=()=>{throw Error('private internal failure')}",f.context);
     f.exportText();
     assert.equal(f.downloads.length,0);
-    assert.equal(f.element('#toast').textContent,'그래픽 문구를 저장하지 못했습니다. 다시 시도해 주세요.');
+    assert.equal(f.element('#modalFeedback').textContent,'그래픽 문구를 저장하지 못했습니다. 다시 시도해 주세요.');
     vm.runInContext('download=(blob,name)=>collectGraphics(blob,name)',f.context);
     f.exportText();
     assert.equal(f.downloads.length,1);

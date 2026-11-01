@@ -58,7 +58,7 @@ test('overlong programmatic Save submissions are rejected without truncation and
                 assert.deepEqual(f.writes,[]);
                 assert.equal(f.input.value,invalid);
                 assert.equal(f.f.element('#modal').open,true);
-                assert.equal(f.f.element('#toast').textContent,translateFor(locale,'templates.nameLength'));
+                assert.equal(f.f.element('#modalFeedback').textContent,translateFor(locale,'templates.nameLength'));
                 assert.deepEqual(f.f.evaluate('({state,history,future,current})'),f.before);
             }
             f.input.value='  Corrected 🎬  ';f.save();

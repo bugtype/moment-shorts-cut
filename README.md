@@ -67,6 +67,8 @@ to navigate; existing busy/recovery guards apply. There is no new header button 
 keyboard shortcut, and queries/history are not saved. Existing destination behavior
 is unchanged; leaving an input to open Guide can still commit its normal draft.
 
+**Dialog feedback:** transient status and error messages appear inside an open dialog for five seconds without moving focus. Outside dialogs, the existing toast is used. Failed subtitle-file reviews leave the project unchanged and allow another file or retry.
+
 | Action | Where your work goes |
 |---|---|
 | **Save** | Browser storage |

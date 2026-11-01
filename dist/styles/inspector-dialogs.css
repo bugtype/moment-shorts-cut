@@ -484,3 +484,16 @@ body.exporting .workspace,body.exporting .topbar {
 
 .tool-finder-results { display:grid; gap:8px; max-height:50vh; overflow-y:auto; }
 .tool-finder-results .button { min-width:0; white-space:normal; text-align:left; }
+
+/* Keep transient feedback inside the active native dialog, not its inert backdrop. */
+.modal-feedback:not(:empty) {
+  margin:14px 0;
+  padding:12px 14px;
+  border-radius:6px;
+  background:#2e382f;
+  color:#fff;
+  font-size:12px;
+  line-height:1.7;
+  white-space:pre-wrap;
+  overflow-wrap:anywhere
+}

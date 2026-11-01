@@ -1,4 +1,5 @@
 import { bindPanelTabs } from './panel-tabs.mjs';
+import { bindPanelChoices } from './panel-choices.mjs';
 import { decimalTime, esc as escape } from './ui-format.mjs';
 import { t, text, mark, attrs, setValidity } from './i18n.mjs';
 import { activeSceneLayers } from './effects.mjs';
@@ -69,7 +70,7 @@ export function mountDesignPanel(root, api) {
       ['highlight', 'panels.styleHighlight'],
       ['minimal', 'panels.styleMinimal']
     ].map(([value, label]) => (
-      `<button data-caption-preset="${value}" class="design-style ${state.style === value ? 'active' : ''}">` +
+      `<button data-caption-preset="${value}" class="design-style ${state.style === value ? 'active' : ''}" aria-pressed="${state.style === value}">` +
       `<span class="style-${value}">${text('shell.styleExample')}</span><small>${text(label)}</small></button>`
     )).join('')}</div>` +
     `\n    <div class="design-colors">${color('panels.baseColor', 'captionColor', state.captionColor)}` +
@@ -194,9 +195,12 @@ export function mountDesignPanel(root, api) {
     current: () => renderOwners.get(root) === owner && api.current?.() !== false && api.tabCurrent?.() !== false,
     contextCurrent: () => api.current?.() !== false && api.tabCurrent?.() !== false
   });
-  root.querySelectorAll('[data-caption-preset]').forEach(button => (
-    button.onclick = () => api.captionStyle(button.dataset.captionPreset)
-  ));
+  bindPanelChoices(root, {
+    selector: '[data-caption-preset]', key: 'captionPreset', activate: api.captionStyle,
+    current: () => renderOwners.get(root) === owner && api.current?.() !== false &&
+      api.inputCurrent?.() !== false && api.tabCurrent?.() !== false,
+    contextCurrent: () => api.current?.() !== false && api.inputCurrent?.() !== false && api.tabCurrent?.() !== false
+  });
   root.querySelectorAll('[data-design]').forEach(input => {
     const path = input.dataset.design;
     const read = () => path.split('.').reduce((item, key) => item[key], state);

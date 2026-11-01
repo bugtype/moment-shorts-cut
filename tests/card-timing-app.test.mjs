@@ -25,6 +25,9 @@ test('selecting a short card seeks inside its interval without changing authored
         button.dataset.sceneSelect='moving';
         const queryAll=target.querySelectorAll.bind(target);
         target.querySelectorAll=selector=>selector==='[data-scene-select]'?[button]:queryAll(selector);
+        const root=f.element('#panelContent'),rootQueryAll=root.querySelectorAll.bind(root);
+        // Native descendant queries also find choices inside #effectControls.
+        root.querySelectorAll=selector=>selector==='[data-scene-select]'?[button]:rootQueryAll(selector);
         vm.runInContext('renderPanel();playing=true;',f.context);
         const before=f.evaluate('JSON.stringify({state,history,future,saves})');
         assert.equal(typeof button.onclick,'function');button.onclick();

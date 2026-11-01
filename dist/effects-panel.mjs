@@ -1,4 +1,5 @@
 import { bindPanelTabs } from './panel-tabs.mjs';
+import { bindPanelChoices } from './panel-choices.mjs';
 import { decimalTime, esc } from './ui-format.mjs';
 import { t, text, mark, attrs, setText, setValidity } from './i18n.mjs';
 import { createPendingInputCheck } from './pending-input.mjs';
@@ -91,7 +92,7 @@ export function mountEffectsPanel(root, api) {
       }</button>` +
       `<p class="tiny-note">${text('panels.cardNotice')}</p>` +
       `<div class="scene-list">${state.overlays.map((item, index) => (
-        `<button class="scene-list-item ${item.id === card?.id ? 'active' : ''}" data-scene-select="${esc(item.id)}">` +
+        `<button class="scene-list-item ${item.id === card?.id ? 'active' : ''}" data-scene-select="${esc(item.id)}" aria-pressed="${item.id === card?.id}">` +
         `<span>${String(index + 1).padStart(2, '0')}</span><div><strong>${
           text(item.label ? 'panels.cardSummary' : 'panels.unnamedCardSummary', {
             label: item.label,
@@ -181,8 +182,11 @@ export function mountEffectsPanel(root, api) {
 
     target.querySelector('#addSceneCard').onclick = api.add;
     target.querySelector('#toggleSceneLayers').onclick = api.toggleAll;
-    target.querySelectorAll('[data-scene-select]').forEach(button => {
-      button.onclick = () => api.select(button.dataset.sceneSelect);
+    bindPanelChoices(root, {
+      selector: '[data-scene-select]', key: 'sceneSelect', activate: api.select,
+      current: () => renderOwners.get(root) === owner && root.querySelector('#effectControls') === target &&
+        api.current?.() !== false && api.inputCurrent?.() !== false && api.tabCurrent?.() !== false,
+      contextCurrent: () => api.current?.() !== false && api.tabCurrent?.() !== false
     });
     if (card) {
       let composing = false;

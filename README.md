@@ -253,6 +253,14 @@ Focus follows the selected tab after the panel redraws. `Tab` leaves the tab lis
 Tab navigation itself does not seek, change playback or edit/save the project;
 preview arrow-key seeking outside tabs is unchanged.
 
+**Dialogue style and timed-card choices:** these buttons expose their current
+selection through `aria-pressed`. Activating a focused choice keeps focus on its
+newly rendered selected button; another control or dialog keeps any focus it
+already took. Native `Enter` / `Space` activation remains, with no new arrow-key
+model. Reapplying a caption preset still restores its italic/stroke defaults as
+one edit; selecting a card still pauses/seeks without editing or saving. This is
+covered by synthetic DOM tests, not a native screen-reader verification.
+
 **Review cut boundaries:** use **Previous cut / Next cut** beside the scrubber to
 pause and move to the strictly previous/next edited clip boundary, including the
 start and end. At a boundary, the next action goes to the adjacent boundary, not

@@ -50,7 +50,10 @@ test('export preparation, recording and completion retain the same heading refer
       const modal = {innerHTML: ''};
       const videoExport = {
         begin() {this.request = 1; return 1;}, createSurface() {}, release() {},
-        capture(request, type, quality, stream, handlers) {callbacks = handlers; return this.recorder = {start() {}};},
+        capture(request, type, quality, stream, handlers) {
+          callbacks = handlers;
+          return this.recorder = {state:'inactive', start() {this.state = 'recording';}, stop() {this.state = 'inactive';}};
+        },
       };
       const app = {query: controls(), modal, videoExport, toast() {},
         mediaBlocked: () => false, audioRecording: {}, pause() {}, ensureAudio: () => prepared,
@@ -63,6 +66,7 @@ test('export preparation, recording and completion retain the same heading refer
       heading(modal, 'shell.exportPreparing', locale);
       ready(); await running;
       heading(modal, 'shell.exportRunning', locale);
+      flow.stopExport(false);
       callbacks.onStop(new Blob(['synthetic bytes, not encoded media']));
       heading(modal, 'shell.exportDone', locale);
       assert.equal(downloads, 1);

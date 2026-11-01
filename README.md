@@ -662,6 +662,8 @@ Canvas failures and mocked recording, not native failure-rate or codec tests.
 
 Recording starts after initial playback readiness. Between edited video clips, recording pauses while the source seeks and playback restarts, then resumes after a fresh frame is drawn. This does not guarantee gapless or frame-accurate output, or suspend all browser buffering; review the downloaded result.
 
+A recorder that stops without the app's normal finish request is reported as a failed export, not automatically downloaded as complete. This checks termination ownership, not the encoded file's actual duration or contents.
+
 **Download again:** the finished-export dialog keeps one completed video in memory for an explicit **Download again**, including after a download-handling error. Retrying reuses those same bytes and filename without recording again; later project edits are not included. Check your browser’s Downloads first, since a retry may create another copy. Closing/replacing the dialog or starting another export drops the app’s result reference; already-dispatched download URLs keep their existing 60-second cleanup delay. Browser download permission and successful disk saving are not guaranteed.
 
 Both export options start checked whenever you open the dialog. Their values are

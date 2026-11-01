@@ -11,7 +11,7 @@ export function createExportFlow(app, {
 } = {}) {
     const { query: $, videoExport, toast, modal } = app;
 
-    let dialogGeneration = 0, completed = null;
+    let dialogGeneration = 0, completed = null, finishingRequest = null;
 
     function dialogOwnsFocus() {
         try {
@@ -152,11 +152,19 @@ export function createExportFlow(app, {
                     toast(message("shell.exportError"));
                 },
                 onStop: blob => {
+                    const expected = finishingRequest === request;
                     app.pause();
                     cleanupExport(request);
                     if (!blob.size) {
                         modal.close();
                         toast(message("shell.exportEmpty"));
+                        return;
+                    }
+                    // A stream can end without an error event. Collected bytes
+                    // alone do not prove that playback reached its normal end.
+                    if (!expected) {
+                        modal.close();
+                        toast(message("shell.exportFinishFailed"));
                         return;
                     }
                     showCompleted({ ...details, blob });
@@ -205,10 +213,13 @@ export function createExportFlow(app, {
             toast(message("shell.exportCancelled"));
         }
         else if (recorder) {
-            // An inactive recorder may still owe its final dataavailable and stop events.
+            // An inactive recorder may still owe final events after our own stop.
+            // Do not turn a spontaneous stop into success via a late endpoint tick.
             try {
-                if (recorder.state !== 'inactive')
+                if (recorder.state !== 'inactive') {
+                    finishingRequest = request;
                     recorder.stop();
+                }
             }
             catch {
                 cleanupExport(request);
@@ -221,6 +232,7 @@ export function createExportFlow(app, {
     }
 
     function cleanupExport(request) {
+        if (finishingRequest === request) finishingRequest = null;
         videoExport.release(request);
     }
 

@@ -52,12 +52,13 @@ export function createCompositionRenderer(makeCanvas, { getFonts = () => null, o
       const x = frame.x + (frame.w - dw) / 2 + project.panX * frame.w;
       const y = frame.y + (frame.h - dh) / 2 + project.panY * frame.h;
       context.save();
-      context.beginPath();
-      context.rect(frame.x, frame.y, frame.w, frame.h);
-      context.clip();
-      context.filter = `brightness(${effects.brightness}) contrast(${effects.contrast}) saturate(${effects.saturation})`;
-      context.drawImage(media.source, x, y, dw, dh);
-      context.restore();
+      try {
+        context.beginPath();
+        context.rect(frame.x, frame.y, frame.w, frame.h);
+        context.clip();
+        context.filter = `brightness(${effects.brightness}) contrast(${effects.contrast}) saturate(${effects.saturation})`;
+        context.drawImage(media.source, x, y, dw, dh);
+      } finally { context.restore(); }
       if (effects.vignette > 0) {
         const gradient = context.createRadialGradient(width * .5, height * .5, width * .15, width * .5, height * .5, height * .7);
         gradient.addColorStop(0, '#00000000');
@@ -75,10 +76,11 @@ export function createCompositionRenderer(makeCanvas, { getFonts = () => null, o
     drawSceneCards(context, width, height, project, media.time, media.total, typography);
     if (fx.opacity > 0) {
       context.save();
-      context.globalAlpha = fx.opacity * (effects.transition === 'flash' ? .75 : 1);
-      context.fillStyle = effects.transition === 'flash' ? '#ffffff' : '#000000';
-      context.fillRect(0, 0, width, height);
-      context.restore();
+      try {
+        context.globalAlpha = fx.opacity * (effects.transition === 'flash' ? .75 : 1);
+        context.fillStyle = effects.transition === 'flash' ? '#ffffff' : '#000000';
+        context.fillRect(0, 0, width, height);
+      } finally { context.restore(); }
     }
     } finally { observeFonts(); }
   }

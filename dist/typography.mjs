@@ -222,20 +222,21 @@ export function createTypographyRenderer(makeCanvas = () => document.createEleme
       const keywords = [...String(project.globalKeywords || '').split(/[,\n]/), ...String(cap.keywords || '').split(/[,\n]/)].map(word=>word.trim()).filter(Boolean).slice(0,30);
       const speaker = ['0','1'].includes(String(cap.speaker)) ? Number(cap.speaker) : null;
       context.save();
-      if (project.captionAnimation === 'fade' || project.captionAnimation === 'slide') context.globalAlpha = enter;
-      const dy = project.captionAnimation === 'slide' ? (1-enter)*14*unit : 0;
-      const bounds = text(context, cap.text, width * project.captionX, height * project.captionY + dy, {
-        size: project.captionSize * unit,
-        color: project.style === 'highlight' ? '#10160b' : speaker != null ? project.speakerColors[speaker] : project.style === 'accent' ? project.captionAccent : project.captionColor,
-        box: project.style === 'highlight' ? project.captionAccent : null,
-        italic: project.captionItalic, stroke: (project.style === 'highlight' ? 0 : project.captionStroke) * unit,
-        weight: project.style === 'minimal' ? 600 : 900, maxWidth: width * .78, maxHeight: height * .22,
-        keywords:project.style === 'highlight'?[]:keywords,accent:project.captionAccent,
-      }, pop);
-      if (speaker != null && bounds) text(context, project.speakerLabels[speaker], width * project.captionX, height * project.captionY + dy - bounds.height / 2 - 10 * unit, {
-        size:13*unit,color:project.speakerColors[speaker],box:'#111827',stroke:0,weight:700,maxWidth:width*.5,maxHeight:30*unit,singleLine:true,
-      });
-      context.restore();
+      try {
+        if (project.captionAnimation === 'fade' || project.captionAnimation === 'slide') context.globalAlpha = enter;
+        const dy = project.captionAnimation === 'slide' ? (1-enter)*14*unit : 0;
+        const bounds = text(context, cap.text, width * project.captionX, height * project.captionY + dy, {
+          size: project.captionSize * unit,
+          color: project.style === 'highlight' ? '#10160b' : speaker != null ? project.speakerColors[speaker] : project.style === 'accent' ? project.captionAccent : project.captionColor,
+          box: project.style === 'highlight' ? project.captionAccent : null,
+          italic: project.captionItalic, stroke: (project.style === 'highlight' ? 0 : project.captionStroke) * unit,
+          weight: project.style === 'minimal' ? 600 : 900, maxWidth: width * .78, maxHeight: height * .22,
+          keywords:project.style === 'highlight'?[]:keywords,accent:project.captionAccent,
+        }, pop);
+        if (speaker != null && bounds) text(context, project.speakerLabels[speaker], width * project.captionX, height * project.captionY + dy - bounds.height / 2 - 10 * unit, {
+          size:13*unit,color:project.speakerColors[speaker],box:'#111827',stroke:0,weight:700,maxWidth:width*.5,maxHeight:30*unit,singleLine:true,
+        });
+      } finally { context.restore(); }
     }
     if (layerVisible(credit, timelineTime)) text(context, credit.text, width * credit.x, height * credit.y, {
       size: credit.size * unit, color: credit.color, italic: credit.italic, stroke: 0,

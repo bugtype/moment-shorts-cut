@@ -327,7 +327,17 @@ export function createPlayback(app, {
         app.updateTime(false);
         const frameInterval = 1000 / 30, elapsed = now - app.lastDrawTime;
         if ((state.kind === 'demo' || !app.video.seeking) && (elapsed >= frameInterval - .1 || app.current >= app.duration())) {
-            app.draw();
+            const request = app.playRequest, exporting = app.exporting,
+                exportRequest = app.videoExport?.request, recorder = app.videoExport?.recorder;
+            try { app.draw(); }
+            catch {
+                // A failed frame cannot leave a live recorder without a frame loop.
+                // Rendering can reenter; never cancel a newer preview or export.
+                if (request === app.playRequest && state === app.state && exporting === app.exporting &&
+                    (!exporting || (exportRequest === app.videoExport?.request && recorder === app.videoExport?.recorder)))
+                    stopAndReportPlaybackError();
+                return;
+            }
             // Keep the cadence's remainder instead of losing it on every display refresh.
             app.lastDrawTime = Number.isFinite(app.lastDrawTime) ? app.lastDrawTime + Math.floor((elapsed + .1) / frameInterval) * frameInterval : now;
         }

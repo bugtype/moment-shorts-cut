@@ -647,6 +647,15 @@ source-volume and added-audio-volume settings. Set **both volumes to 0** for a
 silent mix. Preview mute stays as selected through export, cancel and retry, but
 is session-only (reload defaults to unmuted), not a saved project field.
 
+**Drawing failure during playback:** a frame-loop rendering exception stops the
+current preview, or cancels its export and releases the owned recording tracks
+without offering a partial video. Retry explicitly with Play or Export after the
+cause is resolved; failed frames are not retried automatically. Layer drawing
+unwinds its saved clip/filter/opacity/transform scopes before propagating an
+error, so a later draw on the same context does not inherit them. This does not
+roll back painted pixels or recover a lost GPU context. Coverage uses injected
+Canvas failures and mocked recording, not native failure-rate or codec tests.
+
 ### Recording options
 
 **Video export:** keep the tab visible; hiding it cancels recording. MP4/WebM support depends on the browser. Recording is real-time, with a 30 fps target rather than a fixed-rate guarantee. The historical 4-second Chromium test averaged about 21.7 fps; see [the measured report](docs/BROWSER_QA.md).

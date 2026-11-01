@@ -345,6 +345,7 @@ export function createWorkspacePanels(app) {
             app.toast(message('panels.finishRecording'));
             return;
         }
+        const retainCaptionChoices = app.panel === 'captions' && next === 'captions';
         app.panel = next;
         if (next === 'settings')
             app.openInspector('frame');
@@ -354,7 +355,8 @@ export function createWorkspacePanels(app) {
             button.classList.toggle('active', button.dataset.panel === app.panel);
             button.setAttribute('aria-pressed', button.dataset.panel === app.panel);
         });
-        renderPanel();
+        if (retainCaptionChoices) app.captionPanel.refreshForNavigation();
+        else renderPanel();
         if (openSheet)
             setSheetOpen(true);
         else

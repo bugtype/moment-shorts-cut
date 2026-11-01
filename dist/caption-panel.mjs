@@ -41,6 +41,18 @@ export function createCaptionPanel({
         toast(message('errors.captionDraftConflict'));
         return false;
     }
+    function refreshForNavigation() {
+        // Row navigation does not choose a new recognition source/language or
+        // split length. Keep these tool choices, not uncommitted row drafts.
+        const choices = ['captionSource', 'language', 'captionChunkSize']
+            .map(id => [id, $('#' + id)?.value]);
+        refresh();
+        for (const [id, value] of choices) {
+            const input = $('#' + id);
+            if (Array.from(input?.options || []).some(option => option.value === value && !option.disabled))
+                input.value = value;
+        }
+    }
     function refreshAfterRecognition(activeElement) {
         // A successful result replaces rows, but does not own tool drafts or
         // recognition choices. Composition is rejected before reaching here.
@@ -129,7 +141,7 @@ export function createCaptionPanel({
                 const next = Math.max(0, Math.min(lastPage(), page + delta));
                 if (next === page) return;
                 page = next;
-                refresh();
+                refreshForNavigation();
                 const preferred = $('#' + id);
                 const alternate = $('#' + (delta > 0 ? 'previousCaptionPage' : 'nextCaptionPage'));
                 const focusTarget = getProject().captions.length <= CAPTION_PAGE_SIZE
@@ -310,11 +322,11 @@ export function createCaptionPanel({
         const next = index < 0 ? 0 : Math.floor(index / CAPTION_PAGE_SIZE);
         if (next !== page) {
             page = next;
-            refresh();
+            refreshForNavigation();
         }
         const field = (index < 0 ? null : $('[data-caption-text="' + index + '"]')) || $('#addCaption');
         field.focus({ preventScroll: true });
         field.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: 'instant' });
     }
-    return { render, focus: focusCaption, hasPendingEdits, refreshAfterRecognition };
+    return { render, focus: focusCaption, hasPendingEdits, refreshAfterRecognition, refreshForNavigation };
 }

@@ -4,12 +4,42 @@ import {once} from 'node:events';
 import {readFile} from 'node:fs/promises';
 import {createPreviewServer} from '../scripts/serve.mjs';
 
+// Source-level checks for audited opaque CSS pairs, not a cascade engine or
+// native browser/assistive-technology verification.
+function declaration(css, selector, property) {
+  const escaped = selector.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const source = css.replace(/\/\*[\s\S]*?\*\//g, '');
+  const block = source.match(new RegExp(`${escaped}\\s*\\{([^}]*)\\}`))?.[1];
+  assert.ok(block, `Missing style owner: ${selector}`);
+  const value = block.match(new RegExp(`(?:^|;)\\s*${property}:([^;}]*)`))?.[1]?.trim();
+  assert.ok(value, `Missing ${property} in ${selector}`);
+  return value;
+}
+function color(value, shell) {
+  const variable = value.match(/var\((--[\w-]+)\)/)?.[1];
+  if (variable) return color(declaration(shell, ':root', variable), shell);
+  const hex = value.match(/#[\da-f]{6}\b|#[\da-f]{3}\b/i)?.[0];
+  assert.ok(hex, `Expected an audited opaque color: ${value}`);
+  return hex.length === 4 ? '#' + [...hex.slice(1)].map(digit => digit + digit).join('') : hex;
+}
+function contrast(first, second) {
+  const luminance = hex => {
+    const [r,g,b] = hex.slice(1).match(/../g).map(part => {
+      const channel = Number.parseInt(part, 16) / 255;
+      return channel <= .04045 ? channel / 12.92 : ((channel + .055) / 1.055) ** 2.4;
+    });
+    return .2126*r + .7152*g + .0722*b;
+  };
+  const [low,high] = [luminance(first),luminance(second)].sort((a,b)=>a-b);
+  return (high+.05)/(low+.05);
+}
+
 test('project-name input keeps the shared form focus outline', async () => {
   const shell = await readFile(new URL('../dist/styles/shell-library.css', import.meta.url), 'utf8');
   const nameStyle = shell.match(/\.project-title input\s*\{([^}]*)\}/)?.[1];
   assert.ok(nameStyle, 'the header name retains its existing style owner');
   // Source contract only: this is not native CSS rendering or a cascade engine.
-  assert.match(shell, /input:focus,textarea:focus,select:focus\s*\{[^}]*outline:2px solid #[\da-f]{6};\s*outline-offset:1px\s*\}/i);
+  assert.match(shell, /input:focus,textarea:focus,select:focus\s*\{[^}]*outline:2px solid var\(--focus\);\s*outline-offset:1px\s*\}/);
   assert.doesNotMatch(nameStyle, /\boutline(?:-[\w-]+)?\s*:/, 'do not suppress the shared input indicator');
 });
 
@@ -26,14 +56,55 @@ test('active form-label colors retain contrast on authored white panel surfaces'
   ];
   const ratios = colors.map(color => {
     assert.match(color ?? '', /^#[\da-f]{6}$/i);
-    const [r, g, b] = color.slice(1).match(/../g).map(hex => {
-      const channel = Number.parseInt(hex, 16) / 255;
-      return channel <= .04045 ? channel / 12.92 : ((channel + .055) / 1.055) ** 2.4;
-    });
-    return 1.05 / (.2126 * r + .7152 * g + .0722 * b + .05);
+    return contrast(color, '#ffffff');
   });
   // WCAG 2.2 SC 1.4.3 normal-text threshold; do not round before comparing.
   assert.deepEqual(ratios.map(ratio => ratio >= 4.5), [true, true], `Label contrast on white: ${ratios}`);
+});
+
+test('shared primary and recording action text retains contrast in normal and hover states', async () => {
+  const [shell, dialogs] = await Promise.all(['shell-library','inspector-dialogs']
+    .map(name => readFile(new URL(`../dist/styles/${name}.css`, import.meta.url), 'utf8')));
+  const foreground = color(declaration(shell, '.button.primary', 'color'), shell);
+  const pairs = ['.button.primary','.button.primary:hover'].map(selector =>
+    [selector, foreground, color(declaration(shell, selector, 'background'), shell)]);
+  pairs.push(['.recording', color(declaration(dialogs, '.recording', 'color'), shell),
+    color(declaration(dialogs, '.recording', 'background'), shell)]);
+  for (const [name,text,background] of pairs)
+    assert.ok(contrast(text,background) >= 4.5, `${name}: ${contrast(text,background)}`);
+  // Keep the decorative brand color independent of readable action surfaces.
+  assert.equal(declaration(shell, ':root', '--accent'), '#f86747');
+});
+
+test('shared keyboard and form focus indicators contrast with the audited light surfaces', async () => {
+  const [shell, dialogs, workspace] = await Promise.all(['shell-library','inspector-dialogs','workspace-state']
+    .map(name => readFile(new URL(`../dist/styles/${name}.css`, import.meta.url), 'utf8')));
+  const surfaces = [declaration(shell, ':root', 'background'), declaration(dialogs, '.notice', 'background'),
+    declaration(workspace, '.inspector-section>summary:hover', 'background')].map(value=>color(value,shell));
+  const owners = [[shell,'button:focus-visible,a:focus-visible'],[shell,'input:focus,textarea:focus,select:focus'],
+    ...['.inspector-section>summary:focus-visible','.caption-workspace #captionRows:focus-visible',
+      '.caption-disclosure>summary:focus-visible'].map(selector=>[workspace,selector])];
+  for (const [css,selector] of owners) {
+    const outline = declaration(css, selector, 'outline');
+    assert.match(outline,/^2px solid /,'retain a visible indicator rather than just changing its color');
+    for (const background of surfaces) {
+      const ratio = contrast(color(outline,shell), background);
+      assert.ok(ratio >= 3, `${selector} on ${background}: ${ratio}`);
+    }
+  }
+});
+
+test('dialog instructions and notices, including template overrides, retain readable contrast', async () => {
+  const [shell,dialogs,templates] = await Promise.all(['shell-library','inspector-dialogs','templates']
+    .map(name => readFile(new URL(`../dist/styles/${name}.css`, import.meta.url), 'utf8')));
+  const noticeBackground = color(declaration(dialogs,'.notice','background'),shell);
+  const pairs = [
+    ['.modal-copy',color(declaration(dialogs,'.modal-copy','color'),shell),color(declaration(dialogs,'dialog','background'),shell)],
+    ['.notice',color(declaration(dialogs,'.notice','color'),shell),noticeBackground],
+    ['.template-details .notice',color(declaration(templates,'.template-details .notice','color'),shell),noticeBackground],
+  ];
+  for (const [name,text,background] of pairs)
+    assert.ok(contrast(text,background) >= 4.5, `${name}: ${contrast(text,background)}`);
 });
 
 test('preview serves modules with correct MIME types and never serves repository files', async t => {

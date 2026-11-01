@@ -29,7 +29,7 @@
   background:#f7f8f3
 }
 .inspector-section>summary:focus-visible {
-  outline:2px solid var(--accent);
+  outline:2px solid var(--focus);
   outline-offset:-3px
 }
 .inspector-controls {
@@ -57,7 +57,7 @@
   padding:2px 3px
 }
 .caption-workspace #captionRows:focus-visible {
-  outline:2px solid var(--accent);
+  outline:2px solid var(--focus);
   outline-offset:1px
 }
 .caption-workspace textarea,.caption-workspace #addCaption {
@@ -87,7 +87,7 @@
   display:none
 }
 .caption-disclosure>summary:focus-visible {
-  outline:2px solid var(--accent);
+  outline:2px solid var(--focus);
   outline-offset:2px
 }
 .caption-disclosure>summary [data-icon] {

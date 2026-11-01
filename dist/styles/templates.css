@@ -168,7 +168,7 @@
 }
 .template-details .notice {
   font-size:11px;
-  color:#78876b;
+  color:var(--supporting-text);
   line-height:1.8
 }
 .template-flow {

@@ -223,6 +223,8 @@ CLI/MCP can also [export the current composition as a portable template](docs/MC
 
 ### Navigate the preview
 
+The playback slider exposes a localized **output-time** value description using the same whole-second clock as the visible readout, including playback speed. Its native numeric range and seeking precision are unchanged; sub-second moves can share the same description. No live announcement region is added. Browser/screen-reader combinations still need separate verification.
+
 **Resizing while editing a panel:** when a docked desktop panel becomes a compact sheet, it stays open if focus is inside it. The existing input is not rebuilt or refocused; this does not commit or save its draft. Initial compact layouts and desktop-to-compact transitions with focus elsewhere leave it closed, and explicit closing still works.
 
 **Select a timeline clip with the keyboard:** focus its video-track button with

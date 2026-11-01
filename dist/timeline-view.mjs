@@ -286,6 +286,8 @@ export function createTimelineView($, clock = () => performance.now()) {
         if (label !== lastTimeLabel) {
             $('#timeDisplay').innerHTML = label;
             setAttr($('#timeDisplay'), 'aria-label', 'shell.seekA11y', {current: fmt(current / state.speed), total: fmt(len / state.speed)});
+            // Keep the native range in timeline seconds, but describe the visible output clock.
+            setAttr($('#seek'), 'aria-valuetext', 'shell.playheadValue', {current: fmt(current / state.speed), total: fmt(len / state.speed)});
             lastTimeLabel = label;
         }
         $('#seek').value = current;

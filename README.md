@@ -678,6 +678,8 @@ Canvas failures and mocked recording, not native failure-rate or codec tests.
 
 **Video export:** keep the tab visible; hiding it cancels recording. MP4/WebM support depends on the browser. Recording is real-time, with a 30 fps target rather than a fixed-rate guarantee. The historical 4-second Chromium test averaged about 21.7 fps; see [the measured report](docs/BROWSER_QA.md).
 
+Preview and recording wait until the observed source time reaches a clip’s authored end (or native playback ends) before advancing; they do not subtract a fixed early-cut tolerance. This preserves the transport’s tail interval, not source-frame or encoded-frame accuracy.
+
 Recording starts after initial playback readiness. Between edited video clips, recording pauses while the source seeks and playback restarts, then resumes after a fresh frame is drawn. This does not guarantee gapless or frame-accurate output, or suspend all browser buffering; review the downloaded result.
 
 A recorder that stops without the app's normal finish request is reported as a failed export, not automatically downloaded as complete. This checks termination ownership, not the encoded file's actual duration or contents.

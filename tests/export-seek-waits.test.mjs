@@ -95,7 +95,7 @@ test('startup audio, initial seek and native play waits do not record; fresh fra
 
 for (const includeAudio of [true, false]) test(`cut waits pause recording and both media, hold timeline, then draw before resuming (audio ${includeAudio})`, async () => {
   const f = await fixture(); await start(f, includeAudio); const recorder = f.recorders.at(-1), before = snapshot(f);
-  f.events.length = 0; f.setSeekPending(true); f.setTime(.99); frame(f); await flush();
+  f.events.length = 0; f.setSeekPending(true); f.setTime(1); frame(f); await flush();
   assert.equal(recorder.state, 'paused'); assert.equal(f.evaluate('current'), 1);
   const pauseIndex = f.events.indexOf('record-pause'), seekIndex = f.events.indexOf('seek');
   assert.ok(pauseIndex >= 0 && seekIndex > pauseIndex, 'capture pauses before changing native source time');
@@ -111,7 +111,7 @@ for (const includeAudio of [true, false]) test(`cut waits pause recording and bo
 
 for (const late of ['seek', 'play-resolve', 'play-reject']) test(`cancelled cut ${late} cannot resume or stop a newer export`, async () => {
   const f = await fixture(); await start(f); const old = f.recorders.at(-1);
-  f.setSeekPending(true); f.setTime(.99); frame(f); await flush();
+  f.setSeekPending(true); f.setTime(1); frame(f); await flush();
   const gate = deferred();
   if (late !== 'seek') { f.setPlayGate(gate); f.finishSeek(); await flush(); }
   cancel(f); released(f, old);
@@ -126,7 +126,7 @@ for (const late of ['seek', 'play-resolve', 'play-reject']) test(`cancelled cut 
 
 for (const failure of ['pause', 'resume']) test(`native recorder ${failure} failure cancels and releases cut resources`, async () => {
   const f = await fixture(); await start(f); const recorder = f.recorders.at(-1), before = snapshot(f);
-  f.fail(failure); f.setSeekPending(true); f.setTime(.99); frame(f); await flush();
+  f.fail(failure); f.setSeekPending(true); f.setTime(1); frame(f); await flush();
   if (failure === 'resume') { f.finishSeek(); await flush(); }
   released(f, recorder); assert.equal(recorder.stops, 1); assert.deepEqual(snapshot(f), before);
   f.fail(null); f.setSeekPending(false); f.media.video.seeking = false; await start(f);
@@ -136,7 +136,7 @@ for (const failure of ['pause', 'resume']) test(`native recorder ${failure} fail
 
 test('cut seek timeout releases paused recorder and late seek cannot restart it', async () => {
   const f = await fixture(); await start(f); const recorder = f.recorders.at(-1), before = snapshot(f);
-  f.setSeekPending(true); f.setTime(.99); frame(f); await flush();
+  f.setSeekPending(true); f.setTime(1); frame(f); await flush();
   assert.equal(recorder.state, 'paused');
   const timeout = [...f.timers.values()].find(timer => timer.delay === 10000);
   assert.ok(timeout, 'real seekVideo owns a bounded seek wait'); timeout.callback(); await flush();
@@ -162,7 +162,7 @@ for (const outcome of ['resolve', 'reject']) test(`startup cancel during native 
 
 test('a failed first frame after a cut cancels capture without resuming and permits retry', async () => {
   const f = await fixture(); await start(f); const recorder = f.recorders.at(-1), before = snapshot(f);
-  f.setSeekPending(true); f.setTime(.99); frame(f); await flush();
+  f.setSeekPending(true); f.setTime(1); frame(f); await flush();
   assert.equal(recorder.state, 'paused');
   vm.runInContext('globalThis.savedCutDraw=draw;draw=()=>{throw new Error("cut paint failed")}', f.context);
   f.finishSeek(); await flush();
@@ -177,7 +177,7 @@ test('successive cuts in a three-clip export each own one pause, fresh frame and
   const f = await fixture();
   vm.runInContext('state.clips=[{start:0,end:1},{start:5,end:6},{start:2,end:3}]', f.context);
   const before = snapshot(f); await start(f); const recorder = f.recorders.at(-1);
-  for (const [sourceEnd, timelineBoundary] of [[.99, 1], [5.99, 2]]) {
+  for (const [sourceEnd, timelineBoundary] of [[1, 1], [6, 2]]) {
     f.events.length = 0; f.setSeekPending(true); f.setTime(sourceEnd); frame(f, timelineBoundary * 100); await flush();
     assert.equal(recorder.state, 'paused'); assert.equal(f.evaluate('current'), timelineBoundary);
     assert.equal(f.pendingFrames.size, 0);

@@ -295,7 +295,8 @@ export function createPlayback(app, {
             if (!app.video.seeking) {
                 const clip = state.clips[old.index];
                 app.current = clamp(old.offset + app.video.currentTime - clip.start, old.offset, old.offset + clip.end - clip.start);
-                if (app.video.currentTime >= clip.end - .015 || app.video.ended) {
+                // Do not discard an authored tail before the observed source reaches its end.
+                if (app.video.currentTime >= clip.end || app.video.ended) {
                     if (old.index + 1 < state.clips.length) {
                         app.current = old.offset + clip.end - clip.start;
                         if (app.exporting) {
@@ -347,7 +348,7 @@ export function createPlayback(app, {
             app.updateTime();
             return;
         }
-        if (app.current >= app.duration() - .001) {
+        if (app.current >= app.duration()) {
             const repeat = canLoop();
             pause();
             app.updateTime();

@@ -46,8 +46,8 @@ test('incoming bounds and full combined cap reject atomically; empty is not an e
   const full=prepareCommand(p,'captions.append',{captions:[added[0]]}).project;assert.equal(full.captions.length,10000);
   assert.throws(()=>prepareCommand(full,'captions.append',{captions:[added[0]]}),e=>e.path==='project.captions');
   const empty=fixture();empty.captions=[];
-  assert.equal(prepareCommand(empty,'captions.append',{captions:Array.from({length:10000},()=>added[0])}).project.captions.length,10000);
-  assert.throws(()=>prepareCommand(empty,'captions.append',{captions:Array.from({length:10001},()=>added[0])}),e=>e.path==='arguments.captions');
+  assert.equal(prepareCommand(empty,'captions.append',{captions:Array.from({length:10000},()=>({...added[0]}))}).project.captions.length,10000);
+  assert.throws(()=>prepareCommand(empty,'captions.append',{captions:Array.from({length:10001},()=>({...added[0]}))}),e=>e.path==='arguments.captions');
 });
 
 test('single insert and replacement retain prior validation paths and acknowledgments',()=>{

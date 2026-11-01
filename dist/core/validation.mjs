@@ -77,6 +77,7 @@ export function validate(schema, value, path = 'arguments') {
 
 export function assertJson(value) {
   let count = 0;
+  const seen = new WeakSet();
   const visit = (v, path, depth) => {
     if (++count > 100000 || depth > 30)
       fail(msg('errors.dataBudget'), path);
@@ -94,6 +95,10 @@ export function assertJson(value) {
     }
     if (!v || typeof v !== 'object' || (!Array.isArray(v) && Object.prototype.toString.call(v) !== '[object Object]'))
       fail(msg('errors.jsonOnly'), path);
+    // structuredClone preserves aliases; JSON documents and independent edits do not.
+    if (seen.has(v))
+      fail(msg('errors.sharedReference'), path);
+    seen.add(v);
     if (Array.isArray(v)) {
       if (v.length > 100000 - count)
         fail(msg('errors.dataBudget'), path);

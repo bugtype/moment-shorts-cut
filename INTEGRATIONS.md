@@ -298,6 +298,17 @@ JS
 
 JavaScript에서 직접 호출할 때도 JSON으로 왕복 가능한 값을 전달하세요. 배열의 빈 슬롯(예: `[, '둘째 줄']`)과 열거되지 않는 인덱스는 `INVALID_ARGUMENT`로 거부합니다. 빈 제목 줄에는 `''`를 사용하고, `null`은 해당 입력 스키마가 허용하는 곳에서만 사용합니다.
 
+직접 전달하는 객체는 **JSON 트리**여야 합니다. 같은 객체나 배열을 두 위치에서
+참조하거나 순환 참조하면 `INVALID_ARGUMENT`와 두 번째 참조의 `path`로 거부합니다.
+예를 들어 `captions: [cue, cue]` 대신 각 행을 독립적으로 만드세요. 값이 같은 별개
+객체와 반복된 문자열·숫자는 허용됩니다. 중첩 객체가 있다면 얕은 복사만으로는 충분하지
+않으며, 전체 인수에 대한 `structuredClone`도 내부 참조 공유를 유지합니다.
+명령 인수, 직접 객체로 가져오거나 저장하는 프로젝트, batch/preview 작업 간에 재사용한
+patch에도 이 규칙이 적용됩니다. 선택적 작업 제공자의 결과는 같은 규칙 위반 시
+`INVALID_PROVIDER_RESULT`로 반환합니다. 이는 한 행의 수정이 다른 행이나 설정까지
+바꾸는 일을 막기 위한 직접 JavaScript 입력 계약의 강화입니다. 일반 JSON 파일과
+JSON 전송 메시지는 원래 공유 참조를 표현하지 않으므로 형식·버전·한도는 바뀌지 않습니다.
+
 주요 오류: `INVALID_ARGUMENT`, `UNKNOWN_COMMAND`, `NOT_FOUND`, `UNSUPPORTED_VERSION`, `BUSY`, `MEDIA_RELINK_REQUIRED`, `NOT_CONFIGURED`, `INVALID_PROVIDER_RESULT`, `CAPTION_OUTPUT_LIMIT`. 예상하지 못한 내부 오류는 `INTERNAL_ERROR`로 반환하며 스택이나 내부 인증 정보를 반환하지 않습니다.
 
 ### 선택 사항: 공식 Python SDK 연결 점검

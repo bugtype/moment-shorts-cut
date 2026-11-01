@@ -469,6 +469,8 @@ Generated arguments can be piped as one JSON object with [`--args-file -`](INTEG
 | Connect an AI client | Local stdio MCP server: `node cli/mcp.mjs` | [Client setup, tools, errors and recovery](docs/MCP.md) |
 | Integrate with your own code | Same-page `window.moment` or the reusable service/adapter | `node examples/use-editor-service.mjs` |
 
+**Direct JavaScript inputs must be JSON trees:** repeated references to the same object/array (including reused batch patches) are rejected before changes, rather than letting an edit affect multiple rows or settings. Use independent copies; cloning the whole input with `structuredClone` preserves internal aliases. Equal independent values remain valid, and ordinary JSON files/messages are unchanged. [Exact input and provider-result contract](INTEGRATIONS.md#결과와-검증)
+
 **Same-page draft protection:** `window.moment.execute` refuses a project commit with `CONFLICT` while protected caption rows, the project name, Frame trim, or Title/Dialogue/Credit/card text or Title/Credit/card timing have pending edits or active composition. Commit the edit (use **Apply range** for trim), or restore its original value and end composition; then re-read and retry. It does not auto-commit or discard drafts. Reads, previews and genuine no-op results remain available. This is not protection for every input, and does not change CLI/MCP, explicit file imports, local UI edits or Undo. [Exact fields and retry rules](INTEGRATIONS.md#브라우저와-파일-왕복)
 
 Run `node examples/use-mcp-client.mjs` for an executable handshake → import → edit → SRT → restart/reimport example. It launches local Node processes and keeps its exported document in memory; it does not write your files or connect to a browser.

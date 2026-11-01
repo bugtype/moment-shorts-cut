@@ -33,6 +33,7 @@ const entries = [
   ["errors.finiteNumber","유한한 숫자가 필요합니다.","A finite number is required.","需要有限数值。"],
   ["errors.longString","문자열이 너무 깁니다.","The text is too long.","文本过长。"],
   ["errors.jsonOnly","JSON 데이터만 사용할 수 있습니다.","Only JSON data is supported.","仅支持 JSON 数据。"],
+  ["errors.sharedReference","같은 객체나 배열을 여러 곳에서 참조할 수 없습니다. 각 위치에 독립된 복사본을 사용하세요.","Repeated object or array references are not supported. Use independent copies at each position.","不支持重复引用同一个对象或数组。请在各个位置使用独立副本。"],
   ["errors.arrayHoles","배열의 빈 항목이나 숨겨진 항목은 사용할 수 없습니다.","Array holes and hidden entries are not supported.","数组不支持空缺或隐藏项。"],
   ["errors.fieldName","허용되지 않은 필드 이름입니다.","This field name is not allowed.","此字段名称不受支持。"],
   ["errors.unknownCommand","지원하지 않는 명령입니다.","This command is not supported.","此命令不受支持。"],

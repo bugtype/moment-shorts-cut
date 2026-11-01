@@ -22,13 +22,13 @@ test('wouldCommit follows prepared project, not net equality',()=>{
 });
 test('invalid operations share indexed batch failures, and preview cannot nest or enter a batch',()=>{
  const p=createDemoProject(),before=structuredClone(p),valid=op('project.update',{patch:{name:'draft'}}),invalid=op('captions.remove',{captionIndex:100});
- for(const operations of [[invalid],[valid,invalid],[valid,valid,invalid]]){
+ for(const operations of [[invalid],[valid,invalid],[valid,structuredClone(valid),invalid]]){
   let expected;try{prepareCommand(p,'project.batch',{operations});}catch(e){expected=e;}
   assert.throws(()=>preview(p,operations),e=>e.code===expected.code&&e.path===expected.path);
  }
  for(const command of ['project.preview','project.batch','project.import','project.get','jobs.submit'])assert.throws(()=>preview(p,[op(command,{})]));
- for(const operations of [[],Array.from({length:21},()=>valid)])assert.throws(()=>preview(p,operations));
- assert.equal(preview(p,Array.from({length:20},()=>valid)).data.operationCount,20);
+ for(const operations of [[],Array.from({length:21},()=>structuredClone(valid))])assert.throws(()=>preview(p,operations));
+ assert.equal(preview(p,Array.from({length:20},()=>structuredClone(valid))).data.operationCount,20);
  assert.throws(()=>prepareCommand(p,'project.batch',{operations:[op('project.preview',{operations:[valid]})]}));assert.deepEqual(p,before);
 });
 test('service captures arguments, queues current state, and never commits or runs guards/providers for preview',async()=>{

@@ -298,6 +298,8 @@ node cli/moment.mjs commands
 | 连接 AI 客户端 | 本地 stdio MCP：`node cli/mcp.mjs` | [客户端设置、工具、错误和恢复](docs/MCP.md) |
 | 接入自己的代码 | 同页面 `window.moment` 或可复用服务/适配器 | `node examples/use-editor-service.mjs` |
 
+**直接 JavaScript 输入必须是 JSON 树：**重复引用同一个对象或数组（包括批量操作中复用的 patch）会在修改前被拒绝，避免一次编辑连带改变多行或多项设置。请使用独立副本；对整个输入调用 `structuredClone` 仍会保留内部共享引用。值相同的独立对象仍可使用，普通 JSON 文件和消息不受影响。[输入和提供方结果的准确契约](INTEGRATIONS.md#결과와-검증)
+
 **同页面草稿保护：** `window.moment.execute` 在受保护的字幕行、项目名称、画面裁剪、标题/对白/署名/卡片文字或标题/署名/卡片时间中存在未提交编辑或输入法组字时，以 `CONFLICT` 拒绝项目提交。请确认编辑（裁剪使用**应用范围**），或恢复原值并结束组字，然后重新读取状态并重试。不会自动提交或丢弃草稿；读取、预检和真正不提交项目的结果仍可使用。这不是所有输入的保护，也不改变 CLI/MCP、明确的文件导入、本地界面编辑或撤销。[准确字段与重试规则](INTEGRATIONS.md#브라우저와-파일-왕복)
 
 `node examples/use-mcp-client.mjs` 可执行握手 → 导入 → 编辑 → SRT → 重启/重新导入示例。它启动本地 Node 进程，并把导出的文档保存在内存；不会写入用户文件或连接浏览器。

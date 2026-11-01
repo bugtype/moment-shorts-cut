@@ -152,11 +152,11 @@ test('real clip timing, source-name and thumbnail changes still replace stale st
   f.activate(1, { detail: 0 });
   const old = f.track.children[1], writes = f.track.writes;
   old.focus();
-  vm.runInContext('state.clips[1].end=5.5; renderTimeline();', f.context);
+  vm.runInContext('state.clips[1].end=5.5; timelineCache=null; renderTimeline();', f.context);
   assert.equal(f.track.writes, writes + 1);
   assert.equal(old.isConnected, false);
   assert.equal(f.doc.activeElement, f.doc.body, 'structural removal retains its existing native behavior');
-  assert.match(f.track.innerHTML, /flex:3.5;/);
+  assert.ok(f.track.innerHTML.includes(`flex:0 0 ${3.5 / 9.5 * 100}%;`));
   assert.equal(f.track.children[1].classList.contains('active'), true);
   const timed = [...f.track.children];
   vm.runInContext('state.fileName="<new & source>"; renderTimeline();', f.context);
@@ -217,7 +217,7 @@ test('thumbnail markup memo includes localized labels and escaped names without 
       ['Chinese', `setLocale('zh-CN',{persist:false})`, /片段 2/],
       ['Korean', `setLocale('ko',{persist:false})`, /클립 2/],
       ['escaped name', `state.fileName='<button style="flex:3;"> & 한국어 👨‍👩‍👧‍👦'`, /&lt;button style=&quot;flex:3;&quot;&gt; &amp; 한국어/],
-      ['in-place trim', 'state.clips[1].end=5.25;timelineCache=null', /flex:3.25;/],
+      ['in-place trim', 'state.clips[1].end=5.25;timelineCache=null', new RegExp(`flex:0 0 ${3.25 / 9.25 * 100}%;`)],
       ['thumbnail replacement', `sources.thumbnail='data:image/jpeg;base64,QkJC'`, /QkJC/],
     ]) {
       const previous = [...f.track.children], writes = f.track.writes;

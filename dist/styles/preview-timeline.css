@@ -331,21 +331,21 @@ input[type=range] {
 .video-track {
   height:45px;
   display:flex;
-  gap:3px
+  gap:0
 }
 .clip {
   position:relative;
-  border:2px solid #c8d6ba;
+  border:0;
+  box-shadow:inset 0 0 0 2px #c8d6ba;
   border-radius:5px;
   background:#e6ecdc;
-  min-width:9px;
+  min-width:0;
   overflow:hidden;
   padding:0;
   text-align:left
 }
 .clip.active {
-  border-color:#90a877;
-  box-shadow:0 0 0 1px #90a877
+  box-shadow:inset 0 0 0 2px #90a877,0 0 0 1px #90a877
 }
 .clip:before {
   content:'';

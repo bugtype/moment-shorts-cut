@@ -235,7 +235,8 @@ export function createTimelineView($, clock = () => performance.now()) {
         $('#seek').max = len;
         const background = thumbnail ? `background-image:url('${thumbnail}');background-size:auto 100%;` : '';
         const parts = state.clips.map((clip, index) => {
-            const before = `<button class="clip" data-clip="${index}" style="flex:${clip.end - clip.start};`;
+            // Fixed percentages share the same scale as captions, layers and the playhead.
+            const before = `<button class="clip" data-clip="${index}" style="flex:0 0 ${(clip.end - clip.start) / len * 100}%;`;
             const after = `" ${attrs("title", "shell.clipRange", {index: index + 1, start: fmt(clip.start), end: fmt(clip.end)})}>` +
                 `<span>${index === 0 ? esc(state.fileName) : text('shell.clip', {index: index + 1})}</span></button>`;
             return background ? [before, after] : before + after;

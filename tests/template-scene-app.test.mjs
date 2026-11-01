@@ -24,7 +24,8 @@ function trackFrames(f, copy = () => {}) {
             const events = new Map();
             frame.addEventListener = (type, callback) => events.set(type, callback);
             frame.removeEventListener = (type, callback) => { if (events.get(type) === callback) events.delete(type); };
-            frame.getContext = () => ({drawImage() { frame.bitmap = 'captured'; copy(frame); }});
+            const context = {drawImage() { frame.bitmap = 'captured'; copy(frame); }};
+            frame.getContext = () => context;
             frame.events = events;
             // Model the standard's cleared backing store before loss, not native GPU behavior.
             frame.fire = type => {
@@ -145,6 +146,54 @@ test('lost comparison frames refuse once, release, and recapture only on an expl
     assert.equal(f.context.draws.length, count, 'a loss during capture is also rejected before drawing');
     assert.equal(f.element('#templateSceneStatus').getAttribute('data-i18n'), 'templates.sceneUnavailable');
     assert.deepEqual([frames.length, frames[0].width, frames[0].events.size], [1, 0, 0]);
+});
+
+test('known-lost comparison surfaces are rejected before the delayed loss event', async () => {
+    for (const kind of ['demo', 'video']) {
+        const f = await fixture(), frames = trackFrames(f);
+        if (kind === 'video') vm.runInContext("state.kind='video';video.videoWidth=1920;video.videoHeight=1080;", f.context);
+        f.open(); f.current();
+        const frame = frames[0], lostListener = frame.events.get('contextlost');
+        const before = f.evaluate('({state,history,future,current,selected,timer:persistence.saveTimer})');
+        const count = f.context.draws.length;
+        const button = f.element('#templateCurrentStyle'); button.focus();
+        let lost = true;
+        // Chromium marks loss before dispatching its deferred event. No event has run yet.
+        const context = frame.getContext('2d');
+        context.isContextLost = () => lost;
+        button.onclick({});
+        assert.equal(f.context.draws.length, count, 'do not compose from a known-lost historical bitmap');
+        assert.equal(frames.length, 1, 'failure does not capture a different frame automatically');
+        assert.equal(f.element('#templateSceneStatus').getAttribute('data-i18n'), 'templates.sceneUnavailable');
+        assert.deepEqual([frame.width, frame.height, frame.events.size], [0,0,0]);
+        assert.equal(f.doc.activeElement, button);
+        assert.deepEqual(f.evaluate('({state,history,future,current,selected,timer:persistence.saveTimer})'), before);
+        lost = false;
+        f.element('#templateSelectedStyle').onclick({});
+        const fresh = frames[1];
+        assert.equal(f.context.draws.at(-1)[4].source, fresh);
+        lostListener();
+        button.onclick({});
+        assert.equal(f.context.draws.at(-1)[4].source, fresh);
+        assert.equal(f.element('#templateSceneStatus').textContent, '');
+        assert.equal(frames.length, 2);
+    }
+});
+
+test('observing a lost snapshot stays invalid after the native loss flag clears', async () => {
+    const f = await fixture(), frames = trackFrames(f);
+    const snapshot = vm.runInContext('createTemplateScene(app).capture()', f.context);
+    const context = frames[0].getContext('2d');
+    let lost = true;
+    context.isContextLost = () => lost;
+    assert.equal(snapshot.valid(), false);
+    lost = false;
+    assert.equal(snapshot.valid(), false, 'restoration cannot recover the captured historical pixels');
+    snapshot.release();
+    assert.deepEqual([frames[0].width,frames[0].height,frames[0].events.size], [0,0,0]);
+    const fresh = vm.runInContext('createTemplateScene(app).capture()', f.context);
+    assert.equal(fresh.valid(), true, 'a deliberate new capture owns a new healthy surface');
+    fresh.release();
 });
 
 test('failed-invalid and restoring metadata never apply a template',async()=>{

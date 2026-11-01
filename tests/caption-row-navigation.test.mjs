@@ -84,14 +84,15 @@ test('chooser reaches last and first pages without edits and keeps row count bou
 });
 
 
-test('fractional timing at both speed extremes uses exact unrounded seek and localized controls',async()=>{
+test('fractional timing at both speed extremes seeks inside the exact cue with localized controls',async()=>{
     for (const [locale,label] of [['ko','영상에서 보기'],['en','View in video'],['zh-CN','在视频中查看']]) {
         for (const speed of [.25,4]) {
             const f=await fixture(`state.speed=${speed};state.captions[0].start=6.123456789;state.clips.push({start:5,end:10})`);
             setLocale(locale,{persist:false});
             f.open();assert.ok(f.element('#captionOccurrences').innerHTML.includes(label));
             f.element('#captionOccurrence1').onclick();
-            assert.equal(f.evaluate('current'), (5 + 6.123456789 - 5) / speed * speed);
+            assert.equal(f.evaluate('current'), 6.123456789);
+            assert.equal(f.evaluate('locate(current).source'), 6.123456789);
         }
     }
     initLocale();

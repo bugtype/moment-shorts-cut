@@ -1,4 +1,5 @@
 import {captionOccurrences} from './captions.mjs';
+import {captionSeekTime} from './caption-seek.mjs';
 import {text, attrs, message} from './i18n.mjs';
 
 const PAGE_SIZE = 20;
@@ -17,7 +18,12 @@ export function createCaptionNavigation({getProject, getMedia, query: $, modal, 
         if (!occurrences.length) { toast(message('panels.noCaptionOccurrence')); return; }
         const unchanged = () => getProject() === project && JSON.stringify(project) === contents &&
             getMedia().every((file, index) => file === media[index]);
-        const move = occurrence => { pause(); seek(occurrence.start * project.speed); };
+        const move = (occurrence, close = false) => {
+            const time = captionSeekTime(project, {...occurrence, captionIndex}, occurrence.start * project.speed);
+            if (time === null) { toast(message('panels.captionNavigationUnavailable')); return; }
+            if (close) { generation++; modal.close(); }
+            pause(); seek(time);
+        };
         if (occurrences.length === 1) { move(occurrences[0]); return; }
         openModal(message('panels.captionOccurrences', {index: captionIndex + 1}), '<div id="captionOccurrences"></div>');
         const root = $('#captionOccurrences');
@@ -48,9 +54,7 @@ export function createCaptionNavigation({getProject, getMedia, query: $, modal, 
                 };
             };
             rows.forEach((occurrence, index) => bind(`#captionOccurrence${index}`, () => {
-                generation++;
-                modal.close();
-                move(occurrence);
+                move(occurrence, true);
             }));
             for (const [id, delta] of [['previousCaptionOccurrencePage', -1], ['nextCaptionOccurrencePage', 1]]) bind('#' + id, () => {
                 const next = Math.max(0, Math.min(lastPage, page + delta));

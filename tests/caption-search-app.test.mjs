@@ -31,7 +31,7 @@ test('app pagination reveals timeline/global search targets without page navigat
  element('#captionFind').value='자막 100';element('#captionFind').oninput();element('#nextCaptionMatch').onclick();
  assert.match(markup(),/data-caption-text="100"/);assert.equal(doc.activeElement,element('[data-caption-text="100"]'));
  assert.deepEqual(evaluate('({state,current,history,future})'),before);assert.equal(evaluate('pageSaves'),0);
- context.captionNavigation={target:{closest:()=>({dataset:{captionIndex:'49',captionTime:'49'}})}};
+ context.captionNavigation={target:{closest:()=>({dataset:{captionIndex:'49',captionTime:'49',captionKey:'49:0'}})}};
  vm.runInContext('navigateCaption(captionNavigation)',context);
  assert.match(markup(),/data-caption-text="49"/);assert.doesNotMatch(markup(),/data-caption-text="50"/);
  assert.equal(doc.activeElement,element('[data-caption-text="49"]'));assert.equal(evaluate('current'),49);

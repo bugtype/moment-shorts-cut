@@ -26,6 +26,7 @@ import { createClipRange } from '../../dist/clip-range.mjs';
 import { createClipMove } from '../../dist/clip-move.mjs';
 import { createPreviewExport } from '../../dist/preview-export.mjs';
 import { createCaptionNavigation } from '../../dist/caption-navigation.mjs';
+import { captionSeekTime } from '../../dist/caption-seek.mjs';
 import { createSpeedDialog } from '../../dist/speed-dialog.mjs';
 import {createShellPresentation} from '../../dist/shell-presentation.mjs';
 import * as i18n from '../../dist/i18n.mjs';
@@ -150,7 +151,7 @@ export async function createAppFixture({sessionMediaDependencies = {}, fontSet, 
     setTimeout() {}, clearTimeout() {}, setInterval() {}, clearInterval() {},
     console, URL, Blob, TextDecoder, performance, Number, Math, Promise, structuredClone,
     ...i18n, createToolFinder, createCaptionSplitRangeDialog, createClipDuplicateDialog, createCaptionReplaceRangeDialog, createScenePngExport, createScenePngDialog, createCaptionKeywordsDialog, projectGraphicsText, createCaptionSpeakerDialog, createCaptionShiftDialog, createClipComplementDialog, createCaptionImportDialog, createFramingDialog, createPositionDialog, createCaptionRangeDialog, downloadBlob, createClipRange, createCaptionOverlapDialog, createCardTimingDialog, createSessionMediaDialog, createClipMove, createPreviewExport, createCaptionNavigation, createSpeedDialog, createShellPresentation, msg: i18n.message, ...projectModule, createSeekDialog, createCaptionInspectionDialog, replaceCaptionText, prepareCommand, CommandError, LocalizedError, hasMinimumDuration, createEditorService, ...captionModule,
-    buildTimelineEntries, locateTimelineEntry, adjacentCut, renderCaptionTrack, renderCaptionTrackError, updateTimelineMarkup, createTimelineView, createInspectorView, createInputHistory,
+    buildTimelineEntries, locateTimelineEntry, captionSeekTime, adjacentCut, renderCaptionTrack, renderCaptionTrackError, updateTimelineMarkup, createTimelineView, createInspectorView, createInputHistory,
     ...effectsModule, ...templateModule, readTemplateLibrary, validateTemplateLibrary,
     mountTemplateGallery, mountEffectsPanel, ...typographyModule, createCompositionRenderer,
     createTemplateWorkspace: options => createTemplateWorkspace(options, {

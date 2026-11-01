@@ -1,5 +1,6 @@
 // Flat semantic keys; keep each Korean, English and Simplified Chinese entry aligned.
 const entries = {
+  "panels.captionNavigationUnavailable": ["이 자막 구간 안으로 정확히 이동할 수 없습니다. 자막 시간을 확인하세요.","Cannot seek inside this caption interval. Check its timing.","无法定位到此字幕区间内。请检查其时间。"],
   "panels.subtitleImportMode": ["가져오기 동작","Import action","导入操作"],
   "panels.subtitleImportReplace": ["전체 교체","Replace all","全部替换"],
   "panels.subtitleImportAppend": ["기존 자막 유지 후 추가","Keep existing and add","保留现有字幕并添加"],

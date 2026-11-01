@@ -1,6 +1,7 @@
 import {text, attrs, message} from './i18n.mjs';
 import {prepareCommand} from './core/commands.mjs';
 import {decimalTime} from './ui-format.mjs';
+import {captionSeekTime} from './caption-seek.mjs';
 
 // Bounded timing evidence only: no text, visibility prediction, edits or all-pairs table.
 export function createCaptionOverlapDialog({getProject, getMedia, query: $, modal, openModal, blocked, seekBlocked, pause, seek, focusCaption, toast}) {
@@ -30,8 +31,10 @@ export function createCaptionOverlapDialog({getProject, getMedia, query: $, moda
                         generation++; results.innerHTML = `<p role="status">${text('panels.overlapStale')}</p>`; return;
                     }
                     if (blocked() || (move && seekBlocked())) { toast(message('shell.inspectBusy')); return; }
+                    const time = move ? captionSeekTime(project, issue, issue.overlapStart * project.speed) : null;
+                    if (move && time === null) { toast(message('panels.captionNavigationUnavailable')); return; }
                     generation++; modal.close();
-                    if (move) { pause(); seek(issue.overlapStart * project.speed); }
+                    if (move) { pause(); seek(time); }
                     focusCaption(captionIndex);
                 };
             }

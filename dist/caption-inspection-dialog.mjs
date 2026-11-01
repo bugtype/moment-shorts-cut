@@ -1,6 +1,7 @@
 import {t, text, attrs, mark, message} from './i18n.mjs';
 import {prepareCommand} from './core/commands.mjs';
 import {decimalTime} from './ui-format.mjs';
+import {captionSeekTime} from './caption-seek.mjs';
 
 const kinds = ['all', 'reading-speed', 'too-short', 'too-long', 'overlap'];
 
@@ -96,8 +97,11 @@ export function createCaptionInspectionDialog({getProject, getMedia = () => [], 
                             if (criteria() !== captured.criteria) { invalidate(); return; }
                             if (!unchanged(captured)) { stale(); return; }
                             if (blocked()) { toast(message('shell.inspectBusy')); return; }
+                            const time = move ? captionSeekTime(project, issue,
+                                (issue.kind === 'overlap' ? issue.overlapStart : issue.start) * project.speed) : null;
+                            if (move && time === null) { toast(message('panels.captionNavigationUnavailable')); return; }
                             generation++; modal.close();
-                            if (move) { pause(); seek((issue.kind === 'overlap' ? issue.overlapStart : issue.start) * project.speed); }
+                            if (move) { pause(); seek(time); }
                             focusCaption(captionIndex);
                         };
                     }

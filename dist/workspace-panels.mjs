@@ -1,4 +1,5 @@
 import { createPanelSheet } from './panel-sheet.mjs';
+import { captionSeekTime } from './caption-seek.mjs';
 import { createScenePngExport } from './scene-png-export.mjs';
 import { createScenePngDialog } from './scene-png-dialog.mjs';
 import { message, setAttr, text } from './i18n.mjs';
@@ -61,8 +62,12 @@ export function createWorkspacePanels(app) {
         const block = event?.target.closest('[data-caption-index]');
         if (!block)
             return;
+        const key = block.dataset.captionKey?.split(':')[1];
+        const time = captionSeekTime(app.state, {captionIndex:+block.dataset.captionIndex,
+            clipIndex:key === 'audio' ? undefined : Number(key)}, +block.dataset.captionTime);
+        if (time === null) { app.toast(message('panels.captionNavigationUnavailable')); return; }
         app.pause();
-        app.seekTo(+block.dataset.captionTime);
+        app.seekTo(time);
         focusCaption(+block.dataset.captionIndex);
     }
 

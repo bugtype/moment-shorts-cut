@@ -246,6 +246,13 @@ source-frame accuracy or frame-grid snapping—and retains any starting subframe
 offset. It is ignored in editing fields, during IME composition, with modifier
 keys or while busy.
 
+**Undo / Redo shortcuts:** `Ctrl`/`Cmd` + `Z`, with `Shift` for Redo, also use the
+physical `KeyZ` position for non-ASCII letter events. Latin layouts keep their
+logical `Z` key, including QWERTZ/AZERTY. Editing fields, IME composition,
+Alt/AltGraph and the existing modal/export guards keep ownership of their keys.
+The fallback requires a browser-provided key code; native keyboard layouts have
+not been tested by the simulated-event regression suite.
+
 **Text / Effects tabs:** `Tab` enters the active tab; unmodified `←` / `→` wrap
 through tabs and activate them, while `Home` / `End` select the first/last tab.
 Focus follows the selected tab after the panel redraws. `Tab` leaves the tab list;

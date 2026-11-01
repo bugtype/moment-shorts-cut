@@ -125,9 +125,17 @@ export function bindEditorKeyboard(document, { blocked, togglePlayback, undo, se
             e.preventDefault();
             if (!e.repeat) togglePlayback();
         }
-        if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') {
-            e.preventDefault();
-            undo(e.shiftKey);
+        if ((e.ctrlKey || e.metaKey) && !e.altKey && !e.getModifierState?.('AltGraph')) {
+            const key = e.key.toLowerCase();
+            // Keep logical Latin keys (QWERTZ/AZERTY), falling back to the
+            // physical Z position only for a non-ASCII writing character.
+            // Named IME/dead keys and punctuation never authorize history edits.
+            const undoKey = key === 'z' || (e.code === 'KeyZ' &&
+                !/^[a-z]$/.test(key) && /^\p{L}\p{M}*$/u.test(e.key));
+            if (undoKey) {
+                e.preventDefault();
+                undo(e.shiftKey);
+            }
         }
         // Tabs own horizontal navigation, including events their IME/modifier guards ignore.
         if ((e.key === 'ArrowLeft' || e.key === 'ArrowRight') &&

@@ -101,28 +101,43 @@ export function createMediaLoader(app, {
             return;
         }
         app.loadingMedia = true;
-        let nextURL, probe;
+        let nextURL, probe, previousURL, attached = false, adopted = false;
+        const attach = async url => {
+            app.audio.src = url;
+            // Native media events are queued after src assignment. A ready
+            // element needs no second event; otherwise wait for decoded data.
+            if (app.audio.readyState < 2)
+                await app.sources.waitForMedia(app.audio, 'loadeddata', msg('errors.audioFormat'));
+            if (!(app.audio.duration > 0) || app.audio.error)
+                throw new LocalizedError(msg('errors.audioFormat'));
+        };
         try {
             nextURL = createObjectURL(file);
             probe = createAudio();
             const loaded = app.sources.waitForMedia(probe, 'loadedmetadata', msg('errors.audioFormat'));
             probe.src = nextURL;
             await loaded;
-            if (app.recoveryBlocked() || (recording && app.audioRecording.current !== recording)) {
-                revokeObjectURL(nextURL);
+            if (app.recoveryBlocked() || (recording && app.audioRecording.current !== recording))
                 return;
-            }
             // Match normal restore without rejecting indefinite-duration recordings.
             if (!(probe.duration > 0))
                 throw new LocalizedError(msg('errors.audioFormat'));
             app.pause();
-            if (app.sources.audioURL)
-                revokeObjectURL(app.sources.audioURL);
+            // Removed audio may leave a retired URL string, not a source we still own.
+            previousURL = app.sources.audioFile ? app.sources.audioURL : '';
+            attached = true;
+            await attach(nextURL);
+            if (app.recoveryBlocked() || (recording && app.audioRecording.current !== recording))
+                return;
+            // Probe readiness belongs to another element. Adopt only after the
+            // actual playback source is ready, retaining the old URL for rollback.
             app.sources.audioURL = nextURL;
-            app.audio.src = app.sources.audioURL;
             app.sources.audioFile = file;
             app.state.audioName = file.name;
             app.state.audioOffset = 0;
+            adopted = true;
+            if (previousURL)
+                revokeObjectURL(previousURL);
             app.persistMedia();
             app.changed();
             // Added audio does not change these controls or own their input drafts.
@@ -131,16 +146,34 @@ export function createMediaLoader(app, {
             app.toast(msg('errors.audioLoaded'));
         }
         catch (e) {
-            if (nextURL)
-                revokeObjectURL(nextURL);
             app.toast(e.messageKey ? e : e.message);
         }
         finally {
+            if (!adopted) {
+                if (attached) {
+                    try {
+                        if (previousURL) {
+                            await attach(previousURL);
+                            // A seek or Undo during attachment owns the latest offset.
+                            app.audio.playbackRate = app.state.speed;
+                            app.playback.syncAudio(true);
+                        }
+                        else {
+                            app.audio.removeAttribute('src');
+                            app.audio.load();
+                            app.audio.playbackRate = app.state.speed;
+                        }
+                    } catch { /* Preserve the original import failure and old registry. */ }
+                }
+                if (nextURL) {
+                    try { revokeObjectURL(nextURL); } catch { /* Keep unlock and probe cleanup independent. */ }
+                }
+            }
             app.loadingMedia = false;
-            probe?.removeAttribute('src');
-            probe?.load();
+            try { probe?.removeAttribute('src'); } catch { /* Detached probe cleanup. */ }
+            try { probe?.load(); } catch { /* Keep the import result and retry available. */ }
+            app.query('#audioInput').value = '';
         }
-        app.query('#audioInput').value = '';
     }
 
     async function toggleRecording() {

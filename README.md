@@ -719,6 +719,8 @@ Choose **Generate captions** again only when you want fresh recognition to repla
 
 **Caption files:** select **SRT**, **VTT**, **TXT** or **Review TXT** and use the caption panel’s single save button. SRT is the default; the selection survives paging.
 
+**Caption drawing boundaries:** preview, scene PNG, video rendering and captured-scene template comparisons use the original pre-speed timeline clock for timeline captions: the start is included and the end excluded. Fractional speed does not reconstruct that clock from rounded output seconds. Source-caption priority, stored times, subtitle-file timestamps and output-time titles/cards are unchanged. This is a renderer-state correction, not a claim of native frame or codec accuracy.
+
 **Caption tool choices:** paging, search-result navigation and timeline row navigation within the open Captions panel retain the recognition source, speech language and split length. An unavailable added-audio source is not retained. These are not saved project settings; leaving the panel or replacing its content can still reset them, and this does not preserve uncommitted row drafts.
 
 **Plain WebVTT:** select **VTT**, or pass `format: "vtt"` to the CLI/MCP export command. Omitting `format` still exports SRT; a `.vtt` filename alone does not select it. VTT uses a `WEBVTT` header and dot-separated milliseconds, with the same edited timing and text escaping. Rich styles, regions and speaker metadata are not exported. VTT rejects NUL characters. With no cues, CLI/MCP return `WEBVTT\n\n`; the browser does not download an empty caption file.

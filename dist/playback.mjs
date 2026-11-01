@@ -36,6 +36,7 @@ export function createPlayback(app, {
             sh: state.kind === 'demo' ? 960 : app.video.videoHeight,
             ready: state.kind === 'demo' ? app.sample.complete && !!app.sampleRaster : app.mediaReady() && app.video.readyState >= 2,
             sourceTime: pos.source,
+            timelineTime: current,
             time: current / state.speed,
             total: app.duration() / state.speed,
             elapsed: (pos.source - clip.start) / state.speed,

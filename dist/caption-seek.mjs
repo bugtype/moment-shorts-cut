@@ -2,6 +2,7 @@ import {buildTimelineEntries, locateTimelineEntry} from './timeline-index.mjs';
 
 // UI navigation only: preserve authored/exported times and renderer priority.
 // A rounded output-to-timeline or timeline-to-source boundary can precede a cue.
+// Timeline captions use the same original pre-speed clock as the renderer.
 export function captionSeekTime(project, occurrence, preferred) {
     const targets = [{captionIndex:occurrence.captionIndex, clipIndex:occurrence.clipIndex}];
     if (occurrence.otherCaptionIndex !== undefined)
@@ -20,7 +21,7 @@ export function captionSeekTime(project, occurrence, preferred) {
     function clocks(t) {
         const position = locateTimelineEntry(entries, t);
         return {position, times:captions.map(caption => caption.basis === 'timeline'
-            ? t / project.speed * project.speed : position.source)};
+            ? t : position.source)};
     }
     function valid(t) {
         if (!Number.isFinite(t) || t < 0 || t >= total) return false;

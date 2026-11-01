@@ -31,6 +31,7 @@ export function createTemplatePreview({ composition, getMedia, modal, openModal:
             sh: 960,
             ready,
             sourceTime: t,
+            timelineTime: t,
             time: t,
             total: 12,
             elapsed: t,

@@ -37,7 +37,8 @@ export function createTemplateScene(app) {
             return {
                 project: structuredClone(project),
                 media: { source: frame, sw: frame.width, sh: frame.height, ready: true,
-                    sourceTime: position.source, time: time / project.speed, total: app.duration() / project.speed,
+                    sourceTime: position.source, timelineTime: time,
+                    time: time / project.speed, total: app.duration() / project.speed,
                     elapsed: (position.source - clip.start) / project.speed,
                     remaining: (clip.end - position.source) / project.speed,
                     progress: (position.source - clip.start) / (clip.end - clip.start) },

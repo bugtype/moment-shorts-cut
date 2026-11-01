@@ -68,9 +68,13 @@ export function createCompositionRenderer(makeCanvas, { getFonts = () => null, o
       }
     }
 
-    const caption = includeCaptions === false ? null : findCaption(project.captions, media.sourceTime, media.time * project.speed);
+    // Preserve the authored pre-speed clock at exact cue boundaries. Rebuilding
+    // it from output seconds can round into the preceding cue. Legacy callers
+    // without an explicit timeline clock retain their existing calculation.
+    const timelineTime = media.timelineTime ?? media.time * project.speed;
+    const caption = includeCaptions === false ? null : findCaption(project.captions, media.sourceTime, timelineTime);
     const captionTime = caption
-      ? captionClock(caption, media.sourceTime, media.time * project.speed)
+      ? captionClock(caption, media.sourceTime, timelineTime)
       : media.sourceTime;
     typography.draw(context, width, height, project, captionTime, media.time, caption);
     drawSceneCards(context, width, height, project, media.time, media.total, typography);

@@ -15,7 +15,7 @@ function contains(project, target, time) {
     if (!(time >= 0 && time < total)) return false;
     const position = locateTimelineEntry(entries,time), caption = project.captions[target.captionIndex];
     if (caption.basis !== 'timeline' && (position.index !== target.clipIndex || position.source >= entries[target.clipIndex].clip.end)) return false;
-    const clock = caption.basis === 'timeline' ? time/project.speed*project.speed : position.source;
+    const clock = caption.basis === 'timeline' ? time : position.source;
     return clock >= caption.start && clock < caption.end && (caption.basis !== 'timeline' || clock < total);
 }
 
@@ -44,7 +44,7 @@ test('fractional speed, source offsets and repeated clips seek the earliest vali
     assert.ok(repairs > 0);
 });
 
-test('timeline clock and mixed overlap witnesses are checked using the renderer round trip', () => {
+test('timeline clock and mixed overlap witnesses use the renderer original pre-speed clock', () => {
     for (const basis of ['source','timeline']) {
         const project = {speed:.75,clips:[{start:0,end:12}],captions:[
             {start:0,end:.5,text:'First'}, {start:.21,end:.6,text:'Second',basis},
@@ -73,5 +73,5 @@ test('subnormal ranges converge exactly without a fixed epsilon or search cutoff
     const project = {speed:1,clips:[{start:0,end:86400}],captions:[{start:Number.MIN_VALUE,end:Number.MIN_VALUE*2,text:'Tiny',basis:'timeline'}]};
     assert.equal(captionSeekTime(project,{captionIndex:0},0),Number.MIN_VALUE);
     project.speed=2;
-    assert.equal(captionSeekTime(project,{captionIndex:0},0),null);
+    assert.equal(captionSeekTime(project,{captionIndex:0},0),Number.MIN_VALUE);
 });

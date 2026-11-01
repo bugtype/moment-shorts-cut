@@ -221,6 +221,8 @@ CLI/MCP can also [export the current composition as a portable template](docs/MC
 
 ### Navigate the preview
 
+**Resizing while editing a panel:** when a docked desktop panel becomes a compact sheet, it stays open if focus is inside it. The existing input is not rebuilt or refocused; this does not commit or save its draft. Initial compact layouts and desktop-to-compact transitions with focus elsewhere leave it closed, and explicit closing still works.
+
 **Select a timeline clip with the keyboard:** focus its video-track button with
 `Tab`, then press `Enter` or `Space` to select it, pause and seek to that occurrence's
 start, regardless of horizontal scrolling. Selection-only updates keep the focused

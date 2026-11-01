@@ -1,14 +1,22 @@
 // Own only responsive sheet presentation; selection, controls and media stay in the workspace.
 export function createPanelSheet(app, { query: $, queryAll: $$ }) {
     let sheetOpen = false;
+    let wasCompact;
 
     // Compact layouts keep the preview visible and turn the side panel into a
     // sheet above the bottom tool rail. Desktop keeps the panel permanently docked.
     const isCompact = () => app.window.matchMedia?.('(max-width:700px), (max-height:560px) and (orientation:landscape)').matches === true;
 
-    function syncSheet() {
+    function syncSheet({ preserveFocus = true } = {}) {
         const library = $('#libraryPanel');
-        if (!isCompact()) {
+        const compact = isCompact();
+        // Resizing/zooming must not hide the control the user is editing. Keep
+        // the existing node and focus; initial compact layouts still start closed.
+        if (preserveFocus && compact && wasCompact === false && library &&
+            !library.hidden && library.contains?.(app.document.activeElement))
+            sheetOpen = true;
+        wasCompact = compact;
+        if (!compact) {
             sheetOpen = false;
             if (library)
                 library.hidden = false;
@@ -51,7 +59,8 @@ export function createPanelSheet(app, { query: $, queryAll: $$ }) {
 
     function setSheetOpen(open) {
         sheetOpen = !!open && isCompact();
-        syncSheet();
+        // Explicit open/close wins even if the breakpoint changed before sync.
+        syncSheet({ preserveFocus: false });
     }
 
     function closePanelSheet() {

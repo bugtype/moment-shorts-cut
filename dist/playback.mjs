@@ -246,6 +246,41 @@ export function createPlayback(app, {
         return true;
     }
 
+    async function advanceExportCut(sourceTime) {
+        const exportRequest = app.videoExport.request, playRequest = app.playRequest;
+        const project = app.state, recorder = app.videoExport.recorder;
+        const owns = () => app.exporting && app.playing && app.state === project &&
+            app.playRequest === playRequest && app.videoExport.request === exportRequest &&
+            app.videoExport.recorder === recorder;
+        try {
+            if (!app.videoExport.pauseCapture(exportRequest)) throw new Error('Export capture unavailable');
+            app.video.pause();
+            pauseAudio();
+            app.updateTime(false);
+            await app.seekVideo(sourceTime);
+            if (!owns()) return;
+            if (!app.mediaReady()) throw new Error('Export media unavailable');
+            if (stopForVideoError() || stopForAudioError()) return;
+            await app.video.play();
+            if (!owns()) return;
+            if (!app.mediaReady()) throw new Error('Export media unavailable');
+            if (stopForVideoError() || stopForAudioError()) return;
+            // Resume collection only after the new clip's first frame replaces
+            // the previous frame. Preview cuts retain their existing fast path.
+            app.draw();
+            if (!owns()) return;
+            syncAudio(true);
+            if (!app.videoExport.resumeCapture(exportRequest)) throw new Error('Export capture unavailable');
+            if (!owns()) return;
+            app.lastTick = clock();
+            app.lastDrawTime = app.lastTick;
+            app.frameHandle = requestFrame(tick);
+        }
+        catch {
+            if (owns()) stopAndReportPlaybackError();
+        }
+    }
+
     function tick(now) {
         app.frameHandle = 0;
         if (!app.playing)
@@ -262,6 +297,12 @@ export function createPlayback(app, {
                 if (app.video.currentTime >= clip.end - .015 || app.video.ended) {
                     if (old.index + 1 < state.clips.length) {
                         app.current = old.offset + clip.end - clip.start;
+                        if (app.exporting) {
+                            // No further playback frame runs until this owned seek
+                            // and native play settle; cancellation invalidates both.
+                            void advanceExportCut(state.clips[old.index + 1].start);
+                            return;
+                        }
                         app.video.currentTime = state.clips[old.index + 1].start;
                         const request = app.playRequest;
                         app.video.play().catch(() => {

@@ -101,6 +101,53 @@ test('partial native capture failures retain acquired tracks for cleanup', () =>
   }
 });
 
+test('capture holds are idempotent, token-owned and resume only their paused recorder', () => {
+  const f = fixture(), token = f.session.begin();
+  f.session.createSurface('9:16', 720);
+  const recorder = f.session.capture(token, {mime:'video/webm'}, 720, f.audio, {});
+  let pauses = 0, resumes = 0;
+  Object.assign(recorder, {state:'inactive',
+    pause() {pauses++; this.state = 'paused';}, resume() {resumes++; this.state = 'recording';}});
+  assert.equal(f.session.pauseCapture(token), false);
+  assert.equal(f.session.resumeCapture(token), false);
+  recorder.state = 'recording';
+  assert.equal(f.session.pauseCapture(token), true);
+  assert.equal(f.session.pauseCapture(token), true);
+  assert.equal(pauses, 1);
+  assert.equal(f.session.resumeCapture(token - 1), false);
+  assert.equal(f.session.resumeCapture(token), true);
+  assert.equal(f.session.resumeCapture(token), false);
+  assert.equal(resumes, 1);
+  recorder.state = 'paused';
+  assert.equal(f.session.resumeCapture(token), false, 'an unowned pause cannot be resumed');
+  f.session.release(token);
+  assert.equal(f.session.pauseCapture(token), false);
+  assert.equal(f.session.resumeCapture(token), false);
+});
+
+test('reentrant pause or resume cannot assign a hold to a replacement recorder', () => {
+  for (const operation of ['pause', 'resume']) {
+    const f = fixture(), oldToken = f.session.begin();
+    f.session.createSurface('9:16', 720);
+    const old = f.session.capture(oldToken, {mime:'video/webm'}, 720, f.audio, {});
+    let fresh, token;
+    const replace = () => {
+      f.session.release(oldToken); token = f.session.begin(); f.session.createSurface('9:16', 720);
+      fresh = f.session.capture(token, {mime:'video/webm'}, 720, f.audio, {});
+      Object.assign(fresh, {state:'recording', pause() {this.state='paused';}, resume() {this.state='recording';}});
+    };
+    Object.assign(old, {state:'recording', pause() {this.state='paused';}, resume() {this.state='recording';}});
+    if (operation === 'resume') assert.equal(f.session.pauseCapture(oldToken), true);
+    old[operation] = replace;
+    assert.equal(f.session[operation + 'Capture'](oldToken), false);
+    assert.equal(f.session.recorder, fresh);
+    assert.equal(f.session.resumeCapture(token), false);
+    assert.equal(f.session.pauseCapture(token), true);
+    assert.equal(f.session.resumeCapture(token), true);
+    f.session.release(token);
+  }
+});
+
 test('caption rendering choice is copied per request and reset without stale-release leakage', () => {
   const f = fixture(), options = { includeCaptions: false }, first = f.session.begin(options);
   options.includeCaptions = true;

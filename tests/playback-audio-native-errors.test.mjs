@@ -73,7 +73,7 @@ async function fixture({ kind = 'demo', offset = 0, length = 12, speed = 1, curr
     emitVideo: name => { for (const fn of [...events.get(name) || []]) fn(); } };
 }
 const snapshot = f => f.evaluate('({state,history,future})');
-function assertStopped(f, recorder = f.recorders.at(-1)) {
+function assertStopped(f, recorder = f.recorders.at(-1), expectedStops = 1) {
   assert.equal(f.evaluate('playing'), false);
   assert.equal(f.evaluate('exporting'), false);
   assert.equal(f.evaluate('frameHandle'), 0);
@@ -88,7 +88,7 @@ function assertStopped(f, recorder = f.recorders.at(-1)) {
   assert.equal(f.downloads.length, 0);
   assert.equal(f.sourceTrack.stops, 0);
   if (recorder) {
-    assert.equal(recorder.stops, 1);
+    assert.equal(recorder.stops, expectedStops);
     assert.ok(recorder.stream.getTracks().every(track => track.stops === 1));
     assert.equal(f.evaluate('videoExport.recorder'), null);
     assert.equal(f.evaluate('videoExport.canvas'), null);
@@ -221,7 +221,7 @@ test('loop rewind rechecks a failed source that was already past its natural tai
 
 test('known failure before startup cancels without requesting added-audio playback', async () => {
   const f = await fixture(); f.audio.error = {code:3}; await f.start();
-  assertStopped(f); assert.equal(f.audioPlays(), 0);
+  assertStopped(f, undefined, 0); assert.equal(f.audioPlays(), 0);
 });
 
 for (const stage of ['resume', 'seek', 'native-play']) {
@@ -239,13 +239,13 @@ for (const stage of ['resume', 'seek', 'native-play']) {
     }
     if (stage === 'native-play') f.video.play = () => { f.video.paused = false; return gate; };
     const pending = f.start(); await settle();
-    assert.equal(f.recorders[0].state, 'recording');
+    assert.equal(f.recorders[0].state, 'inactive');
     if (stage === 'resume') assert.equal(resumes, 2);
     if (stage === 'seek') assert.equal(f.videoWaiters('seeked'), 2, 'startup seek plus the existing one-off paint listener');
     if (stage === 'native-play') assert.equal(f.video.paused, false);
     f.audio.error = {code:3};
     assert.equal(f.evaluate('exporting'), true, 'no immediate cancellation claim during a pending native await');
-    release(); await pending; assertStopped(f);
+    release(); await pending; assertStopped(f, undefined, 0);
   });
 }
 
@@ -256,5 +256,5 @@ test('cancelled startup settling late cannot apply its error check to a newer pe
   const replacement = f.start(); await settle(); f.audio.error = {code:3};
   releases[0](); await old;
   assert.equal(f.evaluate('exporting'), true); assert.equal(f.recorders[1].stops, 0);
-  releases[1](); await replacement; assertStopped(f, f.recorders[1]);
+  releases[1](); await replacement; assertStopped(f, f.recorders[1], 0);
 });

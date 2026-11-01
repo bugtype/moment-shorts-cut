@@ -197,7 +197,7 @@ function assertStartupStopped(f, before) {
   assert.equal(f.element('#toast').textContent, vm.runInContext("t('shell.playError')", f.context));
   const recorder = f.recorders.at(-1);
   if (recorder) {
-    assert.equal(recorder.stops, 1);
+    assert.equal(recorder.stops, 0, 'startup failure releases tracks without stopping an unstarted recorder');
     assert.ok(recorder.stream.getTracks().every(track => track.stops === 1));
     assert.equal(f.evaluate('videoExport.recorder'), null);
     assert.equal(f.evaluate('videoExport.canvas'), null);
@@ -237,7 +237,7 @@ async function holdStartup(f, stage, exporting = true, includeAudio = true) {
   if (stage === 'native-play') f.video.play = () => { plays++; f.video.paused = false; return gate; };
   const pending = start(f, exporting, includeAudio); await settle();
   assert.equal(f.evaluate('playing'), false);
-  if (exporting) assert.equal(f.recorders[0].state, 'recording');
+  if (exporting) assert.equal(f.recorders[0].state, 'inactive');
   if (stage === 'resume') assert.equal(resumes, targetResume);
   if (stage === 'seek') assert.equal(f.events.get('seeked').size, 2);
   if (stage === 'native-play') assert.equal(plays, 1);
@@ -298,7 +298,8 @@ for (const stage of ['resume', 'seek', 'native-play']) {
     assert.equal(f.element('#toast').textContent, 'Replacement owns this startup');
     release(); await pending;
     assert.equal(f.evaluate('exporting'), false);
-    assert.equal(replacement.stops, 1);
+    assert.equal(replacement.stops, 0);
+    assert.ok(replacement.stream.getTracks().every(track => track.stops === 1));
     assert.equal(f.downloads.length, 0);
   });
 }

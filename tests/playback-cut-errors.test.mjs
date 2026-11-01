@@ -39,6 +39,8 @@ async function fixture() {
       recorders.push(this);
     }
     start() { this.state = 'recording'; }
+    pause() { this.state = 'paused'; }
+    resume() { this.state = 'recording'; }
     stop() { this.state = 'inactive'; this.stops++; }
   };
   f.context.recordDownload = blob => downloads.push(blob);
@@ -71,12 +73,14 @@ function cut(f) {
   assert.equal(f.evaluate('video.currentTime'), 0, 'the next clip rewinds from the source end');
 }
 
-function failNextCut(f) {
-  let reject;
+async function failNextCut(f) {
+  let reject, requested = 0;
   const pending = new Promise((resolve, fail) => { reject = fail; });
-  f.context.waitForCut = () => pending;
+  f.context.waitForCut = () => { requested++; return pending; };
   vm.runInContext('video.play = waitForCut;', f.context);
   cut(f);
+  await settle();
+  assert.equal(requested, 1, 'reject only after the cut seek reaches native play');
   return () => reject(new Error('Native cut playback failed'));
 }
 
@@ -87,7 +91,7 @@ for (const exporting of [false, true]) {
     else await vm.runInContext('play()', f.context);
     const recorder = f.recorders.at(-1);
     const retained = recorder && { data: recorder.ondataavailable, stop: recorder.onstop };
-    failNextCut(f)();
+    const reject = await failNextCut(f); reject();
     await settle();
     assert.equal(f.evaluate('playing'), false);
     assert.equal(f.evaluate('exporting'), false);
@@ -120,7 +124,7 @@ for (const oldExport of [false, true]) {
       const f = await fixture();
       if (oldExport) await startExport(f);
       else await vm.runInContext('play()', f.context);
-      const reject = failNextCut(f);
+      const reject = await failNextCut(f);
       vm.runInContext(oldExport ? 'stopExport(true)' : 'pause()', f.context);
       vm.runInContext('video.play = async () => {};', f.context);
       let release, pending;

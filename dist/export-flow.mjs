@@ -169,8 +169,14 @@ export function createExportFlow(app, {
             if (request !== videoExport.request) return;
             focusReplacement(runningCancel, runningOwnedFocus);
             if (request !== videoExport.request) return;
-            recorder.start(250);
             await app.play();
+            if (request !== videoExport.request || videoExport.recorder !== recorder) return;
+            if (!app.playing) { stopExport(true); return; }
+            // Audio setup, seek and native play may all wait. Record only after
+            // playback owns a decoded starting frame, not their wall-clock delay.
+            app.draw();
+            if (request !== videoExport.request || videoExport.recorder !== recorder) return;
+            recorder.start(250);
         }
         catch {
             if (request !== videoExport.request)

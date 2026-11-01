@@ -50,12 +50,12 @@ test('export preparation, recording and completion retain the same heading refer
       const modal = {innerHTML: ''};
       const videoExport = {
         begin() {this.request = 1; return 1;}, createSurface() {}, release() {},
-        capture(request, type, quality, stream, handlers) {callbacks = handlers; return {start() {}};},
+        capture(request, type, quality, stream, handlers) {callbacks = handlers; return this.recorder = {start() {}};},
       };
       const app = {query: controls(), modal, videoExport, toast() {},
         mediaBlocked: () => false, audioRecording: {}, pause() {}, ensureAudio: () => prepared,
         state: {kind: 'demo', ratio: '9:16', speed: 1, name: 'Authored project'},
-        seekTo() {}, draw() {}, play() {}, duration: () => 12,
+        seekTo() {}, draw() {}, play() {this.playing = true;}, duration: () => 12,
         playback: {destination: {stream: {}}}, download() {downloads++;},
       };
       const flow = createExportFlow(app, {body: () => ({classList: {add() {}}}), fontsReady: async () => {}});

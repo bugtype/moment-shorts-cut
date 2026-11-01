@@ -2,7 +2,7 @@ import { outputDimensions } from './core/aspect-ratio.mjs';
 
 // Owns export generations and native resources; preparation, playback and UI stay in the app.
 export function createVideoExport({ createCanvas, createRecorder, onRelease }) {
-    let request = 0, canvas = null, context = null, stream = null, recorder = null;
+    let request = 0, canvas = null, context = null, stream = null, recorder = null, pausedCapture = null;
     let renderOptions = Object.freeze({ includeCaptions: true, includeAudio: true });
     const owns = token => token === request;
 
@@ -46,6 +46,27 @@ export function createVideoExport({ createCanvas, createRecorder, onRelease }) {
         return active;
     }
 
+    // Only a pause owned by this export may be resumed after an asynchronous cut.
+    function pauseCapture(token) {
+        if (!owns(token) || !recorder || recorder.state === 'inactive') return false;
+        if (pausedCapture === recorder && recorder.state === 'paused') return true;
+        if (recorder.state !== 'recording') return false;
+        const active = recorder;
+        active.pause();
+        if (!owns(token) || recorder !== active) return false;
+        pausedCapture = active;
+        return true;
+    }
+
+    function resumeCapture(token) {
+        if (!owns(token) || !recorder || pausedCapture !== recorder || recorder.state !== 'paused') return false;
+        const active = recorder;
+        active.resume();
+        if (!owns(token) || recorder !== active) return false;
+        pausedCapture = null;
+        return true;
+    }
+
     function release(token) {
         if (!owns(token))
             return;
@@ -56,6 +77,7 @@ export function createVideoExport({ createCanvas, createRecorder, onRelease }) {
             recorder.ondataavailable = recorder.onerror = recorder.onstop = null;
         stream?.getTracks().forEach(track => track.stop());
         recorder = null;
+        pausedCapture = null;
         stream = null;
         context = null;
         canvas = null;
@@ -66,6 +88,8 @@ export function createVideoExport({ createCanvas, createRecorder, onRelease }) {
         owns,
         createSurface,
         capture,
+        pauseCapture,
+        resumeCapture,
         release,
         get renderOptions() { return renderOptions; },
         get request() { return request; },

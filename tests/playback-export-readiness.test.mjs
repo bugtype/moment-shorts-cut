@@ -107,7 +107,8 @@ async function holdStartup(f, stage, includeAudio = true) {
   const pending = start(f, includeAudio);
   await settle();
   assert.equal(f.recorders.length, 1);
-  assert.equal(f.recorders[0].state, 'recording');
+  // Transport startup must finish before recording can capture frames.
+  assert.equal(f.recorders[0].state, 'inactive');
   assert.equal(f.evaluate('playing'), false);
   assert.equal(f.evaluate('videoExport.renderOptions.includeAudio'), includeAudio);
   return { pending, release };
@@ -127,7 +128,7 @@ for (const stage of ['resume', 'seek', 'native-play']) {
         assert.equal(f.evaluate('playing'), false);
         assert.equal(f.evaluate('frameHandle'), 0);
         assert.equal(f.video.paused, true);
-        assert.equal(recorder.stops, 1);
+        assert.equal(recorder.stops, 0, 'failed startup never started this recorder');
         assert.equal(f.evaluate('videoExport.recorder'), null);
         assert.equal(f.evaluate('videoExport.canvas'), null);
         assert.ok(recorder.stream.getTracks().every(track => track.stops === 1));
@@ -156,6 +157,8 @@ for (const stage of ['resume', 'seek', 'native-play']) {
   test(`${stage}: a cancelled startup continuation cannot stop a newer recovered export`, async () => {
     const f = await fixture(), { pending, release } = await holdStartup(f, stage);
     vm.runInContext('stopExport(true)', f.context);
+    assert.equal(f.recorders[0].stops, 0);
+    assert.ok(f.recorders[0].stream.getTracks().every(track => track.stops === 1));
     f.resetNative(); await start(f);
     const replacement = f.recorders[1];
     f.element('#toast').textContent = 'Replacement owns this export';

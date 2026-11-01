@@ -103,7 +103,9 @@ async function writeOutput(file, text, overwrite) {
       await fs.rename(temporary, absolute);
     else {
       await fs.link(temporary, absolute);
-      await fs.unlink(temporary);
+      // Publication already succeeded. A cleanup refusal must not turn it into
+      // a failed save; finally still retries only this owned temporary path.
+      await fs.unlink(temporary).catch(() => {});
     }
   } finally {
     await fs.unlink(temporary).catch(() => {});

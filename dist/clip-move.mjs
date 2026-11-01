@@ -1,4 +1,5 @@
 import { dialogEnterBlocked } from './dialog-enter.mjs';
+import { clipSeekTime } from './clip-seek.mjs';
 import {text, message, setValidity} from './i18n.mjs';
 
 export function createClipMove(app) {
@@ -19,7 +20,8 @@ export function createClipMove(app) {
         app.selected = toIndex;
         app.renderTimeline(); app.renderInspector();
         if (panel !== 'templates' || app.panel !== 'templates') app.renderPanel();
-        app.seekTo(app.state.clips.slice(0, toIndex).reduce((sum, clip) => sum + (clip.end - clip.start), 0));
+        const time = clipSeekTime(app.state.clips, toIndex);
+        if (time !== null) app.seekTo(time);
         for (const [id, value] of drafts) if (value !== undefined && $('#' + id)) $('#' + id).value = value;
         return true;
     }

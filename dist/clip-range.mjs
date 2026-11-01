@@ -1,4 +1,5 @@
 import { dialogEnterBlocked } from './dialog-enter.mjs';
+import { clipSeekTime } from './clip-seek.mjs';
 import {text, message, setValidity} from './i18n.mjs';
 
 // A range is session UI state, not a persisted multi-selection or new edit command.
@@ -43,7 +44,8 @@ export function createClipRange(app) {
             if (restore) { generation++; app.modal.close(); }
             app.renderTimeline(); app.renderInspector();
             if (panel !== 'templates' || app.panel !== 'templates') app.renderPanel();
-            app.seekTo(clips.slice(0, app.selected).reduce((sum, clip) => sum + (clip.end - clip.start), 0));
+            const time = clipSeekTime(app.state.clips, app.selected);
+            if (time !== null) app.seekTo(time);
             if (restore && !app.modal.open) restoreFocus();
         };
         for (const input of [first,last]) {

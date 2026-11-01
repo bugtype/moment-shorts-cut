@@ -1,4 +1,5 @@
 import { decimalTime } from './ui-format.mjs';
+import { clipSeekTime } from './clip-seek.mjs';
 import {text, message, setValidity} from './i18n.mjs';
 import { hasMinimumDuration } from './core/validation.mjs';
 const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
@@ -68,7 +69,8 @@ export function createEditingActions(app) {
         clips[app.selected] = { start, end };
         if (!app.runEditorCommand('timeline.replace', { clips }))
             return;
-        app.seekTo(state.clips.slice(0, app.selected).reduce((sum, clip) => sum + clip.end - clip.start, 0));
+        const time = clipSeekTime(app.state.clips, app.selected);
+        if (time !== null) app.seekTo(time);
         if (app.panel === 'settings')
             app.renderPanel();
     }
@@ -89,11 +91,11 @@ export function createEditingActions(app) {
         const index = app.selected;
         if (!app.runEditorCommand('timeline.duplicate', { clipIndex: index })) return;
         app.selected = index + 1;
-        const start = app.state.clips.slice(0, app.selected).reduce((sum, clip) => sum + clip.end - clip.start, 0);
+        const start = clipSeekTime(app.state.clips, app.selected);
         app.renderTimeline();
         app.renderInspector();
         app.openInspector('clip');
-        app.seekTo(start);
+        if (start !== null) app.seekTo(start);
         if (app.panel === 'settings') app.renderPanel();
         app.toast(message("shell.duplicateDone"));
     }

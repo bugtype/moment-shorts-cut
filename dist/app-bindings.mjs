@@ -1,4 +1,5 @@
 import { adjacentCut } from './timeline-view.mjs';
+import { clipSeekTime } from './clip-seek.mjs';
 import {t, message, setAttr} from './i18n.mjs';
 import { bindPreviewDrag, bindEditorKeyboard, bindTimelinePinch } from './editor-interactions.mjs';
 import { icon } from './ui-format.mjs';
@@ -172,7 +173,8 @@ export function bindUi(app) {
         const current = app.state.clips[app.selected], rect = clip.getBoundingClientRect();
         const offset = app.state.clips.slice(0, app.selected).reduce((sum, item) => sum + item.end - item.start, 0);
         const fraction = event.detail === 0 ? 0 : clamp((event.clientX - rect.left) / rect.width, 0, .999);
-        app.seekTo(offset + fraction * (current.end - current.start));
+        const time = clipSeekTime(app.state.clips, app.selected, offset + fraction * (current.end - current.start));
+        if (time !== null) app.seekTo(time);
         app.renderInspector();
         app.renderTimeline();
         app.openInspector('clip');

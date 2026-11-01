@@ -232,6 +232,11 @@ button; mouse/touch selection still seeks to the pressed position within the cli
 Selection itself does not edit, save or add undo history. Content, timing or thumbnail
 changes can still rebuild the track; this is not general focus or draft preservation.
 
+Fractional cuts also keep clip-start navigation on the selected occurrence after
+trimming, duplication, moving or range removal. Only the preview seek target is
+adjusted for floating-point roundoff; authored/exported times are unchanged.
+This is not a native decoder frame-accuracy guarantee.
+
 **Timeline clip widths:** video clips use the same duration scale as captions and the playhead, including projects shorter than one second and dense sequences of short cuts. Decorative borders do not add spacing or a minimum width. Very short clips may be narrow; zoom in or use `Tab` and `Enter`/`Space` to select them. Regression checks cover generated geometry and simulated activation, not native browser pixel layout.
 
 **Text-layer timeline buttons:** ordinary title/credit/card text and timing updates

@@ -1,4 +1,5 @@
 import { dialogEnterBlocked } from './dialog-enter.mjs';
+import { clipSeekTime } from './clip-seek.mjs';
 import { text, message, setValidity } from './i18n.mjs';
 import { metadataEditBlocked } from './metadata-edit-availability.mjs';
 
@@ -60,7 +61,8 @@ export function createClipDuplicateDialog(app) {
             app.renderTimeline();
             app.renderInspector();
             if (panel !== 'templates' || app.panel !== 'templates') app.renderPanel();
-            app.seekTo(app.state.clips.slice(0, app.selected).reduce((sum, clip) => sum + clip.end - clip.start, 0));
+            const time = clipSeekTime(app.state.clips, app.selected);
+            if (time !== null) app.seekTo(time);
             if (restore) focus();
         };
         for (const input of [first, last]) {

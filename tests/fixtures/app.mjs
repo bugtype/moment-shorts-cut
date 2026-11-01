@@ -1,4 +1,5 @@
 import { dialogEnterBlocked } from '../../dist/dialog-enter.mjs';
+import { clipSeekTime } from '../../dist/clip-seek.mjs';
 import { buildTimelineEntries, locateTimelineEntry } from '../../dist/timeline-index.mjs';
 import {createToolFinder} from '../../dist/tool-finder.mjs';
 import { createCaptionSplitRangeDialog } from '../../dist/caption-split-range-dialog.mjs';
@@ -151,7 +152,7 @@ export async function createAppFixture({sessionMediaDependencies = {}, fontSet, 
     setTimeout() {}, clearTimeout() {}, setInterval() {}, clearInterval() {},
     console, URL, Blob, TextDecoder, performance, Number, Math, Promise, structuredClone,
     ...i18n, createToolFinder, createCaptionSplitRangeDialog, createClipDuplicateDialog, createCaptionReplaceRangeDialog, createScenePngExport, createScenePngDialog, createCaptionKeywordsDialog, projectGraphicsText, createCaptionSpeakerDialog, createCaptionShiftDialog, createClipComplementDialog, createCaptionImportDialog, createFramingDialog, createPositionDialog, createCaptionRangeDialog, downloadBlob, createClipRange, createCaptionOverlapDialog, createCardTimingDialog, createSessionMediaDialog, createClipMove, createPreviewExport, createCaptionNavigation, createSpeedDialog, createShellPresentation, msg: i18n.message, ...projectModule, createSeekDialog, createCaptionInspectionDialog, replaceCaptionText, prepareCommand, CommandError, LocalizedError, hasMinimumDuration, createEditorService, ...captionModule,
-    buildTimelineEntries, locateTimelineEntry, captionSeekTime, adjacentCut, renderCaptionTrack, renderCaptionTrackError, updateTimelineMarkup, createTimelineView, createInspectorView, createInputHistory,
+    buildTimelineEntries, locateTimelineEntry, clipSeekTime, captionSeekTime, adjacentCut, renderCaptionTrack, renderCaptionTrackError, updateTimelineMarkup, createTimelineView, createInspectorView, createInputHistory,
     ...effectsModule, ...templateModule, readTemplateLibrary, validateTemplateLibrary,
     mountTemplateGallery, mountEffectsPanel, ...typographyModule, createCompositionRenderer,
     createTemplateWorkspace: options => createTemplateWorkspace(options, {

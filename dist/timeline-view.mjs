@@ -65,6 +65,8 @@ function updateLayerTrack(track, html, blocks) {
 }
 
 export function renderCaptionTrack(track, occurrences, duration, speed) {
+  const document = track.ownerDocument, focused = document.activeElement;
+  let movedFocus = false;
   const previous = new Map([...track.children].map(node => [node.dataset.captionKey, node]));
   occurrences.forEach((caption, index) => {
     const key = `${caption.captionIndex}:${caption.clipIndex ?? 'audio'}`;
@@ -83,9 +85,19 @@ export function renderCaptionTrack(track, occurrences, duration, speed) {
     button.style.left = `${caption.start / duration * 100}%`;
     button.style.width = `${(caption.end - caption.start) / duration * 100}%`;
     // Keep the pointer/keyboard target alive while a field commits on blur.
-    if (track.children[index] !== button) track.insertBefore(button, track.children[index] || null);
+    if (track.children[index] !== button) {
+      if (button === focused) movedFocus = true;
+      track.insertBefore(button, track.children[index] || null);
+    }
   });
   for (const button of previous.values()) button.remove();
+  // insertBefore removes/reinserts an existing button. Keep a surviving
+  // keyboard target after reordering, but never override newly assigned focus.
+  if (movedFocus && track.isConnected !== false && document.hasFocus?.() !== false &&
+      [...track.children].includes(focused) && !focused.disabled && !focused.hidden &&
+      !focused.closest?.('[hidden], [inert]') &&
+      (document.activeElement === document.body || document.activeElement === document.documentElement))
+    focused.focus({preventScroll: true});
 }
 
 // Replace all occurrence targets on failure; never leave a partial or stale lane.

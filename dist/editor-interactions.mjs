@@ -96,7 +96,7 @@ export function bindPreviewDrag(canvas, { getProject, blocked, pause, selection,
     canvas.onlostpointercapture = endDrag;
 }
 
-export function bindEditorKeyboard(document, { blocked, togglePlayback, undo, save, seekBy, stepOutput, navigateCut, stepBlocked = () => false }) {
+export function bindEditorKeyboard(document, { blocked, togglePlayback, undo, save, seekBy, stepOutput, navigateCut, stepBlocked = () => false, characterShortcutsEnabled = () => true }) {
     document.addEventListener('keydown', e => {
         const target = e.target;
         // Native editing and composition own their keys before any editor shortcut.
@@ -105,12 +105,12 @@ export function bindEditorKeyboard(document, { blocked, togglePlayback, undo, sa
             target?.closest?.('input, textarea, select, summary, [contenteditable]:not([contenteditable="false"])')) return;
         const modified = e.ctrlKey || e.metaKey || e.altKey || e.shiftKey;
         if (e.key === '[' || e.key === ']') {
-            if (modified || blocked() || stepBlocked()) return;
+            if (modified || !characterShortcutsEnabled() || blocked() || stepBlocked()) return;
             if (navigateCut?.(e.key === '[' ? -1 : 1)) e.preventDefault();
             return;
         }
         if (e.key === ',' || e.key === '.') {
-            if (modified || blocked() || stepBlocked()) return;
+            if (modified || !characterShortcutsEnabled() || blocked() || stepBlocked()) return;
             if (stepOutput) {
                 e.preventDefault();
                 stepOutput(e.key === ',' ? -1 : 1);

@@ -62,6 +62,8 @@ let timelineCache = null, frameHandle = 0, paintHandle = 0, lastDrawTime = -Infi
 let playRequest = 0, loadingMedia = false, lastTick = 0, sampleRaster = null;
 let effectTab = 'cards', selectedCard = null, cardPlaybackEnd = null;
 let editorReady = false, resolveEditorReady;
+// Accessibility preference for this page session, not authored project data.
+let characterShortcutsEnabled = true;
 const editorReadyPromise = new Promise(resolve => {
     resolveEditorReady = resolve;
 });
@@ -70,6 +72,8 @@ const video = $('#sourceVideo'), audio = $('#sourceAudio'), canvas = $('#preview
 const ctx = canvas.getContext('2d'), sample = new Image(), modal = $('#modal');
 const shellPresentation = createShellPresentation({
     findTools: () => toolFinder.open(),
+    getCharacterShortcuts: () => characterShortcutsEnabled,
+    setCharacterShortcuts: enabled => { characterShortcutsEnabled = enabled; },
     query: $, queryAll: $$, document, modal, openDialog: (...args) => modalOpen(...args),
     downloadSettings: () => downloadProjectSettings(),
     downloadGraphicsText: () => downloadGraphicsText(),
@@ -233,6 +237,7 @@ const app = {
     get exporting() { return exporting; }, set exporting(value) { exporting = value; },
     get exportCancelled() { return exportCancelled; }, set exportCancelled(value) { exportCancelled = value; },
     get muted() { return muted; }, set muted(value) { muted = value; },
+    get characterShortcutsEnabled() { return characterShortcutsEnabled; },
     get transcribing() { return transcribing; }, set transcribing(value) { transcribing = value; },
     get transcriptionStatus() { return transcriptionStatus; }, set transcriptionStatus(value) { transcriptionStatus = value; },
     get timelineCache() { return timelineCache; }, set timelineCache(value) { timelineCache = value; },

@@ -262,6 +262,7 @@ export function bindUi(app) {
     });
     bindEditorKeyboard(app.document, {
         blocked: () => app.modal.open || app.exporting,
+        characterShortcutsEnabled: () => app.characterShortcutsEnabled !== false,
         stepBlocked: () => !app.mediaReady() || app.loadingMedia ||
             app.transcribing || app.audioRecording.requesting || app.audioRecording.current,
         stepOutput: direction => {

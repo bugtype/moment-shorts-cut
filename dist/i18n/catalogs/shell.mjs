@@ -1,6 +1,8 @@
 // Product interface copy only; authored project text is never translated.
 export const messages = {
   "ko": {
+    "shell.characterShortcuts": "문자 탐색 단축키 사용",
+    "shell.characterShortcutsDescription": "쉼표(,), 마침표(.), 대괄호([ ]) 단축키를 끌 수 있습니다. 이 탭에서 새로고침할 때까지만 적용되며 다른 단축키와 버튼은 그대로 사용할 수 있습니다.",
     "shell.graphicsText": "그래픽 문구 (.txt)",
     "shell.graphicsTextSave": "그래픽 문구를 저장하지 못했습니다. 다시 시도해 주세요.",
     "shell.savePreviewPng": "미리보기 PNG 저장",
@@ -178,6 +180,8 @@ export const messages = {
     "shell.exportFinishFailed": "영상 저장을 마무리하지 못했습니다. 다시 시도해 주세요."
   },
   "en": {
+    "shell.characterShortcuts": "Character navigation shortcuts",
+    "shell.characterShortcutsDescription": "Turn off comma (,), period (.) and bracket ([ ]) shortcuts here. This applies in this tab until reload; other shortcuts and buttons stay available.",
     "shell.graphicsText": "Graphics text (.txt)",
     "shell.graphicsTextSave": "Could not save graphics text. Try again.",
     "shell.savePreviewPng": "Save preview PNG",
@@ -355,6 +359,8 @@ export const messages = {
     "shell.exportFinishFailed": "Could not finish saving the video. Please try again."
   },
   "zh-CN": {
+    "shell.characterShortcuts": "启用字符导航快捷键",
+    "shell.characterShortcutsDescription": "可在此关闭逗号（,）、句号（.）和方括号（[ ]）快捷键。仅在此标签页重新加载前有效；其他快捷键和按钮仍可使用。",
     "shell.graphicsText": "图形文字 (.txt)",
     "shell.graphicsTextSave": "无法保存图形文字。请重试。",
     "shell.savePreviewPng": "保存预览 PNG",

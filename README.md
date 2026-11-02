@@ -255,6 +255,8 @@ source-frame accuracy or frame-grid snapping—and retains any starting subframe
 offset. It is ignored in editing fields, during IME composition, with modifier
 keys or while busy.
 
+**Disable character navigation shortcuts:** in **Guide**, clear **Character navigation shortcuts** to turn off `,`, `.`, `[` and `]`. The change applies immediately in this tab until reload and remains in effect after closing/reopening Guide or changing projects. The default is on. Arrow keys, Space, Ctrl/Cmd Save/Undo/Redo and the visible navigation buttons are unchanged. This setting does not edit the project, save data or add undo history. Native speech-input/browser behavior has not been verified by the simulated-event tests.
+
 **Save shortcut:** outside editing controls, `Ctrl`/`Cmd` + `S` invokes the same **Save** action as the header button. It saves the current committed project in this browser, not a downloaded project file; use **Project files** for a portable backup. It does not commit drafts, move focus or add history. IME composition, Shift/Alt/AltGraph and modal/export guards retain their keys; held-key repeats do not start another save. Non-ASCII letter events use the physical `KeyS` position, while Latin layouts use logical `S`. Native browser/keyboard behavior has not been verified by the simulated-event tests.
 
 **Undo / Redo shortcuts:** `Ctrl`/`Cmd` + `Z`, with `Shift` for Redo, also use the

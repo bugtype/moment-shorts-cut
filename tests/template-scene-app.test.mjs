@@ -457,7 +457,7 @@ test('remaining clip operations retain non-template refresh, panel changes and c
     assert.equal(!!f.mounts[0].modalOpen, false); assert.equal(f.evaluate('selected'), 1); assert.equal(f.evaluate('history.length'), 1);
 });
 
-test('Apply retains custom, other-panel and public command refreshes and command failure order', async () => {
+test('Apply retains refreshes and completes when the command committed before a view failure', async () => {
     const f = await fixture();
     f.context.refreshes = [];
     vm.runInContext("const originalPanelRender=renderPanel;renderPanel=()=>{refreshes.push({panel,open:modal.open});originalPanelRender();};", f.context);
@@ -475,8 +475,11 @@ test('Apply retains custom, other-panel and public command refreshes and command
     const history = f.evaluate('history.length');
     f.element('#applyTemplateStyle').onclick({});
     assert.equal(f.evaluate('history.length'), history + 1, 'existing command has committed before its render fails');
-    assert.equal(f.evaluate('modal.open'), true); assert.equal(f.evaluate('current'), 3);
-    assert.equal(f.element('#modalFeedback').textContent, 'gallery failed');
+    assert.equal(f.evaluate('modal.open'), false, 'an applied template must not leave a retryable confirmation');
+    assert.equal(f.evaluate('current'), 0);
+    assert.equal(f.evaluate('state.templateId'), TEMPLATES[1].id);
+    assert.equal(f.element('#modalFeedback').getAttribute('data-i18n'), 'shell.changeAppliedViewFailed');
+    assert.equal(f.element('#toast').getAttribute('data-i18n'), 'shell.templateStyle');
 });
 
 

@@ -401,15 +401,25 @@ function commitCommandProject(next, { command } = {}) {
     pause();
     snapshot();
     state = next;
-    if (preserveTrim)
-        inspectorView.retargetTrim(state.clips[selected]);
     timelineCache = null;
     selected = clamp(selected, 0, state.clips.length - 1);
     current = clamp(current, 0, duration());
-    changed();
-    renderPanel();
-    resizePreview();
-    seekTo(current);
+    if (!state.overlays.some(card => card.id === selectedCard))
+        selectedCard = state.overlays[0]?.id || null;
+    // The command is already applied. A fallible view refresh must not report a
+    // rejected edit and invite a duplicate retry of a non-idempotent command.
+    try {
+        if (preserveTrim)
+            inspectorView.retargetTrim(state.clips[selected]);
+        changed();
+        renderPanel();
+        resizePreview();
+        seekTo(current);
+    } catch {
+        // changed() may have failed before reaching the existing guarded save path.
+        try { scheduleSave(); } catch { /* Saving status can also be unavailable. */ }
+        try { toast(message('shell.changeAppliedViewFailed')); } catch { /* Keep the committed outcome. */ }
+    }
 }
 function runEditorCommand(name, args) {
     try {

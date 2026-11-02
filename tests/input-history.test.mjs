@@ -130,3 +130,36 @@ test('composition query is read-only and independent of history reset',()=>{
  input.value='Final';input.oncompositionend();assert.equal(composing(),false);assert.equal(value,'Final');assert.equal(snapshots,1);
  current=false;input.oncompositionstart();assert.equal(composing(),false);assert.equal(snapshots,1);
 });
+
+for (const type of ['text', 'textarea']) test(`cancelled composition preserves initially normalized ${type} and redo`, () => {
+  const original = 'A\r\nB\0C', displayed = type === 'text' ? 'AB\ufffdC' : 'A\nB\ufffdC';
+  const f = textFixture(type, original, displayed);
+  for (const inputBeforeEnd of [false, true]) {
+    f.input.oncompositionstart();
+    f.input.value = displayed + '한'; f.input.oninput({ isComposing: true });
+    f.input.value = displayed;
+    if (inputBeforeEnd) f.input.oninput({ isComposing: false });
+    f.input.oncompositionend({ data: '' });
+    f.input.oninput({ isComposing: false }); f.input.onchange(); f.input.onblur();
+    assert.equal(f.value, original);
+    assert.deepEqual(f.history, []); assert.deepEqual(f.future, ['redo']);
+  }
+  f.input.value = displayed + '글'; f.input.oncompositionstart(); f.input.oncompositionend({ data: '글' });
+  assert.equal(f.value, displayed + '글'); assert.deepEqual(f.history, [original]); assert.deepEqual(f.future, []);
+  f.input.onblur(); f.input.value = displayed; f.input.oninput();
+  assert.equal(f.value, displayed, 'returning to the initial display after an edit is a real edit');
+  assert.deepEqual(f.history, [original, displayed + '글']);
+});
+
+test('initial text display does not hide a changed live model or bypass current/blocked guards', () => {
+  let value = 'A\r\nB', current = true, blocked = false, writes = 0, snapshots = 0;
+  const input = { type: 'text', value: 'AB' };
+  const edits = createInputHistory(() => snapshots++, () => blocked);
+  edits.bind(input, () => value, next => { value = next; writes++; }, () => current);
+  value = 'External'; input.oninput();
+  assert.equal(value, 'AB'); assert.equal(writes, 1); assert.equal(snapshots, 1);
+  input.onblur(); input.value = 'New'; current = false; input.oninput();
+  current = true; blocked = true; input.oninput();
+  assert.equal(value, 'AB'); assert.equal(writes, 1); assert.equal(snapshots, 1);
+  blocked = false; input.oninput(); assert.equal(value, 'New'); assert.equal(snapshots, 2);
+});

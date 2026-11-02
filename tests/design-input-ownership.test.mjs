@@ -25,7 +25,9 @@ async function fixture(locale='ko') {
    input.type=tag==='textarea'?'textarea':/type="([^"]+)"/.exec(attrs)?.[1]||'text';
    input.dataset=design?{design}:card?{card}:{};input.isConnected=true;
    input.reportValidity=()=>false;
-   input.value=decode(tag==='textarea'?body||'':/value="([^"]*)"/.exec(attrs)?.[1]||'');
+   input.value=decode(tag==='textarea'?body||'':/value="([^"]*)"/.exec(attrs)?.[1]||'').replace(/\0/g,'\ufffd');
+   // Model HTML text controls: parse CR/LF, then strip input newlines.
+   if(input.type==='text')input.value=input.value.replace(/[\r\n]/g,'');
    if(input.type==='textarea')input.value=input.value.replace(/\r\n?/g,'\n').replace(/^\n/,'');
    controls.push(input);
   }
@@ -132,4 +134,50 @@ test('read-only card appearance copy keeps rejected timing and composition draft
   const oldCopy=copy.onclick;vm.runInContext('renderPanel()',f.context);const fresh=f.query('[data-card="end"]');
   fresh.value='5';oldCopy();assert.equal(f.query('[data-card="end"]'),fresh);assert.equal(fresh.value,'5','truly stale Copy cannot remount a newer draft');
  } finally {initLocale();}
+});
+
+for (const locale of ['ko', 'en', 'zh-CN']) test(`cancelled IME preserves imported normalized text, redo and autosave (${locale})`, async () => {
+ try {
+  const cases = [
+   ['text','title','[data-design="design.title.lines.0"]','state.design.title.lines[0]'],
+   ['text','credit','[data-design="design.credit.text"]','state.design.credit.text'],
+   ['text','caption','[data-design="globalKeywords"]','state.globalKeywords'],
+   ['text','caption','[data-design="speakerLabels.0"]','state.speakerLabels[0]'],
+   ['effects','title','[data-card="label"]','state.overlays[0].label'],
+   ['effects','title','[data-card="text"]','state.overlays[0].text'],
+   ['effects','title','[data-card="detail"]','state.overlays[0].detail'],
+  ];
+  for (const [panel, layer, selector, expression] of cases) {
+   const f = await fixture(locale), original = 'A\r\nB\0C';
+   const document = f.evaluate('createProjectDocument(state)');
+   document.project.design.title.lines[0] = original;
+   document.project.design.credit.text = original;
+   document.project.globalKeywords = original;
+   document.project.speakerLabels[0] = original;
+   Object.assign(document.project.overlays[0], { label: original, text: original, detail: original });
+   assert.equal((await f.context.window.moment.importProject(new Blob([JSON.stringify(document)]))).ok, true);
+   assert.equal(vm.runInContext("runEditorCommand('project.update',{patch:{name:'After import'}})", f.context), true);
+   vm.runInContext('undo()', f.context);
+   f.open(panel, layer);
+   vm.runInContext('globalThis.cancelSaves=0;scheduleSave=()=>cancelSaves++;', f.context);
+   const input = f.query(selector), displayed = input.value;
+   assert.notEqual(displayed, original, selector);
+   const before = f.evaluate('({state,history,future,current,selectedCard,cancelSaves})');
+   assert.equal(before.future.length, 1);
+   input.focus(); input.oncompositionstart();
+   assert.equal(f.evaluate('designWorkspace.hasPendingInput()'), true);
+   input.value = displayed + '한'; input.oninput({ isComposing: true });
+   input.value = displayed; input.oncompositionend({ data: '' });
+   input.oninput({ isComposing: false }); input.onchange(); input.onblur();
+   assert.deepEqual(f.evaluate('({state,history,future,current,selectedCard,cancelSaves})'), before, selector);
+   assert.equal(f.evaluate('designWorkspace.hasPendingInput()'), false);
+   assert.equal(f.doc.activeElement, input);
+   input.value = displayed + '글'; input.oncompositionstart(); input.oncompositionend({ data: '글' });
+   assert.equal(f.evaluate(expression), displayed + '글');
+   assert.equal(f.evaluate('history.length'), before.history.length + 1);
+   assert.equal(f.evaluate('future.length'), 0); assert.equal(f.evaluate('cancelSaves'), 1);
+   vm.runInContext('undo()', f.context); assert.equal(f.evaluate(expression), original);
+   vm.runInContext('undo(true)', f.context); assert.equal(f.evaluate(expression), displayed + '글');
+  }
+ } finally { initLocale(); }
 });

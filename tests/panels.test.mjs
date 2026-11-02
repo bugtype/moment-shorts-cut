@@ -16,18 +16,19 @@ test('design and effects panel controls and hierarchy', () => {
   const defaults = createDemoProject();
   // Panel controls are exercised with supplied DOM controls (not a browser layout test).
   function control(type,dataset,value){return {attributes: {}, setAttribute(name, value) { this.attributes[name] = String(value); }, getAttribute(name) { return this.attributes[name] ?? null; }, removeAttribute(name) { delete this.attributes[name]; },type,dataset,value,checked:false,setCustomValidity(message){this.error=message;},reportValidity(){this.reported=true;}};}
-  const inputs=[control('number',{design:'design.title.start'},'5'),control('number',{design:'design.title.end'},'3'),control('text',{design:'speakerLabels.1'},'인터뷰이'),control('text',{design:'globalKeywords'},'순간, C++'),control('range',{design:'captionY',unit:'%'},'75')];
+  // Text begins with the rendered model; user edits happen after handlers bind.
+  const inputs=[control('number',{design:'design.title.start'},'5'),control('number',{design:'design.title.end'},'3'),control('text',{design:'speakerLabels.1'},defaults.speakerLabels[1]),control('text',{design:'globalKeywords'},defaults.globalKeywords),control('range',{design:'captionY',unit:'%'},'75')];
   let panelProject=structuredClone(defaults),snapshots=0;
   const panelRanges=createInputHistory(()=>snapshots++);
   mountDesignPanel(panelRoot({'[data-design]':inputs}),{state:panelProject,layer:'caption',total:12,snapshot(){snapshots++;},input:panelRanges.bind,update(fn){fn(panelProject);}});
   inputs[0].onchange();assert.equal(panelProject.design.title.start,5);
   inputs[1].onchange();assert.equal(panelProject.design.title.end,null);assert.ok(inputs[1].error);
   inputs[1].value='9';inputs[1].onchange();assert.equal(panelProject.design.title.end,9);assert.equal(inputs[1].error,'');
-  inputs[2].oninput();assert.equal(panelProject.speakerLabels[1],'인터뷰이');
-  inputs[3].oninput();assert.equal(panelProject.globalKeywords,'순간, C++');
+  inputs[2].value='인터뷰이';inputs[2].oninput();assert.equal(panelProject.speakerLabels[1],'인터뷰이');
+  inputs[3].value='순간, C++';inputs[3].oninput();assert.equal(panelProject.globalKeywords,'순간, C++');
   inputs[4].oninput();assert.equal(panelProject.captionY,.75);const rangeSnapshots=snapshots;inputs[4].oninput();assert.equal(snapshots,rangeSnapshots);
   const testCard=effectsModule.newCard(12,2);panelProject.overlays=[testCard];
-  const cardInputs=[control('number',{card:'start'},'8'),control('number',{card:'end'},'9'),control('text',{card:'text'},'수정한 카드'),control('range',{card:'size'},'42')];
+  const cardInputs=[control('number',{card:'start'},'8'),control('number',{card:'end'},'9'),control('text',{card:'text'},testCard.text),control('range',{card:'size'},'42')];
   const buttons=Object.fromEntries(['#addSceneCard','#toggleSceneLayers','#removeSceneCard','#duplicateSceneCard','#previewSceneCard','#sceneForward','#sceneBackward','#sceneToFront','#sceneToBack','#copySceneAppearance','#pasteSceneAppearance','#moveSceneTime','#openCardPosition'].map(id=>[id,{}]));
   let moveTimeTarget=null;
   const cardRoot=panelRoot({'[data-card]':cardInputs},buttons);
@@ -36,7 +37,7 @@ test('design and effects panel controls and hierarchy', () => {
   assert.match(cardRoot.innerHTML,/id="sceneToFront" disabled/);assert.match(cardRoot.innerHTML,/id="sceneToBack" disabled/);
   cardInputs[0].onchange();assert.equal(testCard.start,2);assert.ok(cardInputs[0].error);
   cardInputs[1].onchange();cardInputs[0].onchange();assert.equal(testCard.start,8);assert.equal(testCard.end,9);
-  cardInputs[2].oninput();assert.equal(testCard.text,'수정한 카드');cardInputs[3].oninput();assert.equal(testCard.size,42);
+  cardInputs[2].value='수정한 카드';cardInputs[2].oninput();assert.equal(testCard.text,'수정한 카드');cardInputs[3].oninput();assert.equal(testCard.size,42);
   const fxInputs=[control('range',{effect:'brightness'},'1.25'),control('select-one',{effect:'motion'},'out'),control('checkbox',{effect:'progress'},'')];fxInputs[2].checked=true;
   mountEffectsPanel(panelRoot({}, {'#effectControls':panelRoot({'[data-effect]':fxInputs},{'#resetEffects':{}})}),{state:panelProject,total:12,tab:'motion',snapshot(){snapshots++;},input:panelRanges.bind,update(fn){fn(panelProject);},reset(){}});
   fxInputs[0].oninput();fxInputs[1].onchange();fxInputs[2].onchange();

@@ -130,7 +130,11 @@ export function createEditorService({ getProject, commitProject, jobs, formatErr
         }
         data = prepared.data;
       }
-      return { ok: true, apiVersion: API_VERSION, command: name, data: structuredClone(data) };
+      // These full-document reads already detach through createProjectDocument.
+      // Keep their snapshot without copying every cue again; other result paths
+      // retain the service's defensive response copy.
+      const documentRead = name === 'project.get' || name === 'render.plan';
+      return { ok: true, apiVersion: API_VERSION, command: name, data: documentRead ? data : structuredClone(data) };
     } catch (error) {
       return errorResult(typeof name === 'string' ? name : '', error, formatErrorMessage);
     }

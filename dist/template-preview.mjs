@@ -42,7 +42,8 @@ export function createTemplatePreview({ composition, getMedia, modal, openModal:
 
     function open(template) {
         disposePrevious();
-        const owner = ++generation, templateSignature = JSON.stringify(template), context = scene();
+        const owner = ++generation, templateSignature = JSON.stringify(template);
+        let context = scene();
         let snapshot = null, styled = null, mode = 'sample', frame = 0, disposed = false;
         const reference = REFERENCE_SOURCES[template.source];
         modalOpen(template.custom ? template.name : message('templates.builtin.'+template.id+'.name'), previewBody(template, reference), '<div class="modal-foot">' +
@@ -105,7 +106,11 @@ export function createTemplatePreview({ composition, getMedia, modal, openModal:
                 frame = requestFrame(animate);
             }
         };
-        const dispose = () => { disposed = true; stop(); snapshot?.release(); snapshot = styled = null; };
+        const dispose = () => {
+            disposed = true; stop(); snapshot?.release(); snapshot = styled = null;
+            // Closed-dialog handlers may outlive the old project and media.
+            context = null;
+        };
         disposePrevious = dispose;
         modal.onreplace = dispose;
         modal.onclose = () => { if (!modal.open) dispose(); };

@@ -693,7 +693,7 @@ captured on Start for that request only; they do not edit/save the project or ad
 
 | Export option | When unchecked |
 |---|---|
-| **Include captions in video** | Omits only Moment’s authored caption layer; checked still respects the project's caption visibility setting |
+| **Include captions in video** | Omits only Moment’s authored caption layer |
 | **Include audio** | Omits audio tracks from the recording stream, rather than recording a silent mix |
 
 Audio inclusion does not change project volumes or preview mute/monitoring. To keep
@@ -708,7 +708,7 @@ Caption inclusion affects these outputs:
 | Output | Effect of unchecking |
 |---|---|
 | Recorded video | Omits authored captions; titles, credits, timed cards and source footage remain |
-| Normal editor/PNG/template preview before and after export | Unchanged; PNG capture remains blocked while recording |
+| Normal editor/PNG/template preview before and after export | Normal caption visibility returns when export ends or is canceled; PNG capture remains blocked while recording |
 | Preview during recording | Mirrors the chosen recorded output, including omitted captions |
 | SRT/VTT sidecar files | Unchanged; save separately from the caption panel |
 

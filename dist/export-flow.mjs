@@ -233,7 +233,13 @@ export function createExportFlow(app, {
 
     function cleanupExport(request) {
         if (finishingRequest === request) finishingRequest = null;
+        const restorePreview = request === videoExport.request && videoExport.renderOptions?.includeCaptions === false;
         videoExport.release(request);
+        // The visible canvas mirrored the captionless recording. Restore normal
+        // editor pixels now, before a subsequent Frame PNG can copy that bitmap.
+        if (restorePreview && videoExport.request === request + 1 && !app.exporting) {
+            try { app.draw(); } catch { /* Preview recovery must not mask the export outcome. */ }
+        }
     }
 
     return { supportedTypes, exportDialog, startExport, stopExport, cleanupExport };

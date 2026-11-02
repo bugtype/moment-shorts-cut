@@ -5,7 +5,9 @@ import {replaceCaptionText, inspectCaptionTextReplacement} from './core/caption-
 export function createCaptionSearch({query:$, getProject, focusCaption, edit, execute, toast, blocked, replaceRange}) {
     const fields = {find:'', replacement:''};
     let project = null, query = '', selected = null, anchor = null;
-    const displayedText = text => text.replace(/\r\n?/g, '\n');
+    // Parsed textarea text normalizes line endings and replaces NUL, without
+    // changing the authored string used for matching and replacement.
+    const displayedText = text => text.replace(/\r\n?/g, '\n').replace(/\0/g, '\ufffd');
     function matchesDisplayedText(value, text) {
         return value===text || value===displayedText(text);
     }

@@ -246,7 +246,8 @@ export function createCaptionPanel({
                 return;
             }
             const value = input.value, text = getProject().captions[index]?.text;
-            if (value !== text && value !== text?.replace(/\r\n?/g, '\n')) {
+            // HTML parsing replaces NUL one-for-one; only CRLF changes offsets.
+            if (value !== text && value !== text?.replace(/\r\n?/g, '\n').replace(/\0/g, '\ufffd')) {
                 toast(message('panels.finishTyping'));
                 return;
             }

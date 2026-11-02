@@ -2,6 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
 import { createAppFixture } from './fixtures/app.mjs';
+import { parseSubtitles } from '../dist/captions.mjs';
+import { splitCaptionAtOffset } from '../dist/caption-splitting.mjs';
 import { decimalTime } from '../dist/ui-format.mjs';
 import { initLocale, getLocale, t } from '../dist/i18n.mjs';
 
@@ -43,10 +45,11 @@ async function fixture(locale = 'ko', caption = {start:0,end:1,text:'Original'})
         el.dataset['caption' + field[0].toUpperCase() + field.slice(1)] = index;
         el.value = ['start', 'end'].includes(field) ? decimalTime(caption[field]) : String(caption[field] ?? '');
         // HTML textarea parsing drops one initial LF; API values normalize CR,
-        // while single-line text inputs strip line breaks. No native DOM claim.
+        // and RCDATA parsing replaces NUL; single-line inputs strip line breaks.
+        // This models the parsing contract, not a native DOM run.
         if (field === 'text') el.value = contents.replace(/&(amp|lt|gt|quot|#39);/g,
           (_, key) => ({amp:'&',lt:'<',gt:'>',quot:'"','#39':"'"}[key]))
-          .replace(/\r\n?/g, '\n').replace(/^\n/, '');
+          .replace(/\r\n?/g, '\n').replace(/\0/g, '\ufffd').replace(/^\n/, '');
         if (field === 'keywords') el.value = el.value.replace(/[\r\n]/g, '');
         controls.set(`[data-caption-${field}="${index}"]`, el); row[field] = el;
       }
@@ -770,5 +773,79 @@ test('local commands, Undo, explicit file import and inactive caption panels kee
       assert.equal((await f.context.window.moment.execute('effects.update',effect)).ok,true);
     }
     assert.notEqual(f.query('[data-caption-text="0"]'),input);
+  }
+});
+
+
+// Imported NUL is valid project data but HTML RCDATA displays U+FFFD. These
+// owner tests use that parsed display without pretending the user typed it.
+const parsedCaption = value => value.replace(/\r\n?/g, '\n').replace(/\0/g, '\ufffd');
+function searchFor(f, find, replacement) {
+  for (const [id, value] of [['captionFind', find], ['captionReplacement', replacement]]) {
+    const input = f.query('#' + id); input.value = value; input.oninput();
+  }
+  f.query('#nextCaptionMatch').onclick({});
+}
+
+test('parsed NUL captions accept match correction without rewriting raw text or metadata', async () => {
+  try {
+    for (const locale of ['ko', 'en', 'zh-CN']) for (const raw of [false, true]) {
+      const imported = parseSubtitles('1\n00:00:00,000 --> 00:00:03,000\nA\0word later', 12)[0];
+      const caption = {...imported, text:'😀\0\r\n'+imported.text, basis:'timeline', speaker:'1', keywords:'keep', timing:'estimated'};
+      const f = await fixture(locale, caption), before = snapshot(f);
+      assert.equal((await f.context.window.moment.execute('project.get')).ok, true);
+      assert.equal(f.evaluate('captionWorkspace.hasPendingEdits()'), false);
+      searchFor(f, 'word', 'fixed');
+      const row = f.query('[data-caption-text="0"]'), start = parsedCaption(caption.text).indexOf('word');
+      assert.deepEqual([row.selectionStart, row.selectionEnd], [start, start+4]);
+      if (raw) row.value = caption.text; // Non-DOM ports retain their raw-value contract.
+      f.query('#replaceCaptionMatch').onclick({});
+      const expected = structuredClone(before.state); expected.captions[0].text = caption.text.replace('word','fixed');
+      assert.deepEqual(f.evaluate('state'), expected); assert.equal(f.evaluate('history.length'), 1);
+      vm.runInContext('undo()', f.context); assert.deepEqual(f.evaluate('state'), before.state);
+      vm.runInContext('undo(true)', f.context); assert.deepEqual(f.evaluate('state'), expected);
+    }
+  } finally { initLocale(); }
+});
+
+test('parsed NUL caret split maps only CRLF and retains authored graphemes, timing and metadata', async () => {
+  for (const raw of [false, true]) for (const text of ['A\0word later', '😀\0\r\n앞 word later', '\n\0앞\rword later']) {
+    const caption = {start:0,end:6,text,basis:'timeline',speaker:'1',keywords:'keep'};
+    const f = await fixture('ko',caption), before = f.evaluate('state'), row = f.query('[data-caption-text="0"]');
+    if (raw) row.value = text;
+    const offset = row.value.indexOf('word'); row.setSelectionRange(offset,offset);
+    assert.equal(f.evaluate('captionWorkspace.hasPendingEdits()'), false);
+    f.query('[data-split-caption="0"]').onclick({});
+    const expected = {...before,captions:splitCaptionAtOffset(caption,text.indexOf('word'))};
+    assert.deepEqual(f.evaluate('state'),expected); assert.equal(f.evaluate('history.length'),1);
+    vm.runInContext('undo()',f.context); assert.deepEqual(f.evaluate('state'),before);
+  }
+});
+
+test('parsed NUL does not admit dirty rows, changed models, IME or detached match and split controls', async () => {
+  for (const action of ['match','split']) for (const change of ['dirty','model','composing','detached']) {
+    const caption={start:0,end:6,text:'A\0word later'},f=await fixture('ko',caption);
+    if(action==='match')searchFor(f,'word','fixed');
+    const row=f.query('[data-caption-text="0"]');row.setSelectionRange(2,2);
+    const button=f.query(action==='match'?'#replaceCaptionMatch':'[data-split-caption="0"]'),handler=button.onclick;
+    if(change==='dirty')row.value+=' draft';
+    if(change==='model')vm.runInContext("state.captions[0].text+=' model'",f.context);
+    if(change==='composing')f.panel.oncompositionstart();
+    if(change==='detached')vm.runInContext('renderPanel()',f.context);
+    const before=snapshot(f);handler({});assert.deepEqual(snapshot(f),before,action+'/'+change);
+  }
+});
+
+test('parsed NUL correction and split keep failed-valid sessions memory-only', async () => {
+  for(const action of ['match','split']){
+    const f=await fixture('ko',{start:0,end:6,text:'A\0word later'}),writes=[];
+    f.context.localStorage.setItem=(...args)=>writes.push(args);
+    vm.runInContext("persistence.restorePhase='failed';persistence.recoveryValid=true;",f.context);
+    const before=f.evaluate('state');
+    if(action==='match'){searchFor(f,'word','fixed');f.query('#replaceCaptionMatch').onclick({});}
+    else {const row=f.query('[data-caption-text="0"]');row.setSelectionRange(2,2);f.query('[data-split-caption="0"]').onclick({});}
+    assert.equal(f.evaluate('history.length'),1);
+    await vm.runInContext('saveProject(true);scheduleSave();undo();',f.context);
+    assert.deepEqual(f.evaluate('state'),before);assert.deepEqual(writes,[]);
   }
 });

@@ -271,6 +271,7 @@ export function bindUi(app) {
         navigateCut,
         togglePlayback: () => app.playing ? app.pause() : app.play(),
         undo: redo => app.undo(redo),
+        save: () => app.saveProject(true),
         seekBy: delta => {
             app.pause();
             app.seekTo(app.current + delta);

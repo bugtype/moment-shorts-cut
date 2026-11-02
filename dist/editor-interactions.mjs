@@ -96,7 +96,7 @@ export function bindPreviewDrag(canvas, { getProject, blocked, pause, selection,
     canvas.onlostpointercapture = endDrag;
 }
 
-export function bindEditorKeyboard(document, { blocked, togglePlayback, undo, seekBy, stepOutput, navigateCut, stepBlocked = () => false }) {
+export function bindEditorKeyboard(document, { blocked, togglePlayback, undo, save, seekBy, stepOutput, navigateCut, stepBlocked = () => false }) {
     document.addEventListener('keydown', e => {
         const target = e.target;
         // Native editing and composition own their keys before any editor shortcut.
@@ -127,11 +127,18 @@ export function bindEditorKeyboard(document, { blocked, togglePlayback, undo, se
         }
         if ((e.ctrlKey || e.metaKey) && !e.altKey && !e.getModifierState?.('AltGraph')) {
             const key = e.key.toLowerCase();
+            // Use the existing explicit save, never commit a draft or download a file.
+            // A held chord suppresses repeated browser actions without repeated writes.
+            const writingKey = !/^[a-z]$/.test(key) && /^\p{L}\p{M}*$/u.test(e.key);
+            if (save && !e.shiftKey && (key === 's' || (e.code === 'KeyS' && writingKey))) {
+                e.preventDefault();
+                if (!e.repeat) save();
+                return;
+            }
             // Keep logical Latin keys (QWERTZ/AZERTY), falling back to the
             // physical Z position only for a non-ASCII writing character.
             // Named IME/dead keys and punctuation never authorize history edits.
-            const undoKey = key === 'z' || (e.code === 'KeyZ' &&
-                !/^[a-z]$/.test(key) && /^\p{L}\p{M}*$/u.test(e.key));
+            const undoKey = key === 'z' || (e.code === 'KeyZ' && writingKey);
             if (undoKey) {
                 e.preventDefault();
                 undo(e.shiftKey);

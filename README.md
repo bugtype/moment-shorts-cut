@@ -255,6 +255,8 @@ source-frame accuracy or frame-grid snapping—and retains any starting subframe
 offset. It is ignored in editing fields, during IME composition, with modifier
 keys or while busy.
 
+**Save shortcut:** outside editing controls, `Ctrl`/`Cmd` + `S` invokes the same **Save** action as the header button. It saves the current committed project in this browser, not a downloaded project file; use **Project files** for a portable backup. It does not commit drafts, move focus or add history. IME composition, Shift/Alt/AltGraph and modal/export guards retain their keys; held-key repeats do not start another save. Non-ASCII letter events use the physical `KeyS` position, while Latin layouts use logical `S`. Native browser/keyboard behavior has not been verified by the simulated-event tests.
+
 **Undo / Redo shortcuts:** `Ctrl`/`Cmd` + `Z`, with `Shift` for Redo, also use the
 physical `KeyZ` position for non-ASCII letter events. Latin layouts keep their
 logical `Z` key, including QWERTZ/AZERTY. Editing fields, IME composition,

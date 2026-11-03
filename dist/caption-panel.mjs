@@ -183,6 +183,9 @@ export function createCaptionPanel({
             const field = $('#' + id);
             field.value = timingFields[key];
             field.onchange = () => { timingFields[key] = field.value; };
+            // Tool text is session UI state, not a project edit. Keep live typing
+            // across command-driven remounts without applying a timing shift.
+            if (key === 'delta') field.oninput = field.onchange;
         }
         $('#shiftCaptionTiming').onclick = shiftTiming;
         $('#shiftCaptionRange').onclick = event => {

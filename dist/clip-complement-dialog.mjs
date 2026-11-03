@@ -10,8 +10,8 @@ export function createClipComplementDialog(app) {
     const blocked=()=>metadataEditBlocked(app);
     function open(trigger) {
         if(blocked()||app.modal.open||!['keepGapsButton','keepPanelGaps'].includes(trigger))return;
-        const project=app.state,signature=JSON.stringify(project),panel=app.panel,selected=app.selected,
-            media=[app.sources.videoFile,app.sources.audioFile];
+        let project=app.state,signature=JSON.stringify(project),media=[app.sources.videoFile,app.sources.audioFile];
+        const panel=app.panel,selected=app.selected;
         let clips;
         try{clips=complementSourceClips(project);}catch(error){app.toast(error.messageKey?error:formatError(error));return;}
         const owner=++generation;
@@ -21,7 +21,10 @@ export function createClipComplementDialog(app) {
         const owns=()=>generation===owner&&app.modal.open&&$('#confirmKeepGaps')===confirm;
         const valid=()=>app.state===project&&JSON.stringify(app.state)===signature&&app.panel===panel&&app.selected===selected&&
             app.sources.videoFile===media[0]&&app.sources.audioFile===media[1];
-        const invalidate=()=>{if(generation===owner)generation++;};
+        const invalidate=()=>{
+            if(generation===owner)generation++;
+            project=signature=media=clips=null;
+        };
         const focus=()=>{if(!app.modal.open&&app.panel===panel)$('#'+trigger)?.focus();};
         const close=()=>{invalidate();app.modal.close();focus();};
         app.modal.onreplace=invalidate;app.modal.onclose=()=>{if(!app.modal.open)invalidate();};

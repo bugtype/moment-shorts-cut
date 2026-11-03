@@ -12,11 +12,11 @@ export function createClipDuplicateDialog(app) {
     function open(trigger, event) {
         if (blocked() || app.modal.open || event?.isComposing || event?.keyCode === 229 ||
             !trigger || $('#' + trigger.id) !== trigger || !app.state.clips.length) return;
-        const project = app.state;
-        const signature = JSON.stringify(project);
+        let project = app.state;
+        let signature = JSON.stringify(project);
         const selected = app.selected;
         const panel = app.panel;
-        const media = [app.sources.videoFile, app.sources.audioFile];
+        let media = [app.sources.videoFile, app.sources.audioFile];
         const owner = ++generation;
         const field = (id, key) => `<label class="panel-label" for="${id}">${text(key)}</label>` +
             `<input class="panel-input" id="${id}" type="number" min="1" max="${project.clips.length}" step="1" required>`;
@@ -34,7 +34,10 @@ export function createClipDuplicateDialog(app) {
         const valid = () => app.state === project && JSON.stringify(app.state) === signature &&
             app.selected === selected && app.panel === panel &&
             app.sources.videoFile === media[0] && app.sources.audioFile === media[1];
-        const invalidate = () => { if (generation === owner) generation++; };
+        const invalidate = () => {
+            if (generation === owner) generation++;
+            project = signature = media = null;
+        };
         const focus = () => {
             if (!app.modal.open && app.panel === panel) $('#' + trigger.id)?.focus();
         };

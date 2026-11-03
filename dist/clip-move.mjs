@@ -27,15 +27,21 @@ export function createClipMove(app) {
     }
     function open(trigger) {
         if (blocked() || app.modal.open) return;
-        const project = app.state, selected = app.selected, contents = JSON.stringify(project);
-        const media = [app.sources.videoFile, app.sources.audioFile], panel = app.panel, owner = ++generation;
+        let project = app.state, contents = JSON.stringify(project), media = [app.sources.videoFile, app.sources.audioFile];
+        const selected = app.selected;
+        const panel = app.panel, owner = ++generation;
         app.modalOpen(message('panels.moveClip'), `<label class="panel-label" for="clipMovePosition">${text('panels.clipDestination', {total:project.clips.length})}</label><input class="panel-input" id="clipMovePosition" type="number" min="1" max="${project.clips.length}" step="1" required>`, `<div class="modal-foot"><button class="button" id="cancelClipMove">${text('shell.cancel')}</button><button class="button primary" id="confirmClipMove">${text('panels.move')}</button></div>`);
         const input = $('#clipMovePosition'), confirm = $('#confirmClipMove');
         let composing = false;
         const owns = () => owner === generation && app.modal.open && $('#confirmClipMove') === confirm;
         input.value = String(selected + 1);
-        app.modal.onclose = () => { if (owner === generation && !app.modal.open) generation++; };
-        const close = () => { generation++; app.modal.close(); if (trigger?.id) $('#' + trigger.id)?.focus(); };
+        const invalidate = () => {
+            if (generation === owner) generation++;
+            project = contents = media = null;
+        };
+        app.modal.onreplace = invalidate;
+        app.modal.onclose = () => { if (!app.modal.open) invalidate(); };
+        const close = () => { invalidate(); app.modal.close(); if (trigger?.id) $('#' + trigger.id)?.focus(); };
         $('#cancelClipMove').onclick = () => { if (owns()) close(); };
         input.oncompositionstart = () => { composing = true; };
         input.oncompositionend = () => { composing = false; };

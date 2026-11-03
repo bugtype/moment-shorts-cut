@@ -11,20 +11,26 @@ export function createClipRange(app) {
         app.audioRecording.requesting || app.audioRecording.current;
     function open(trigger) {
         if (blocked() || app.modal.open || app.state.clips.length < 2) return;
-        const project = app.state, contents = JSON.stringify(project), selected = app.selected, panel = app.panel;
-        const media = [app.sources.videoFile, app.sources.audioFile], owner = ++generation;
+        let project = app.state, contents = JSON.stringify(project), media = [app.sources.videoFile, app.sources.audioFile];
+        const selected = app.selected, panel = app.panel;
+        const owner = ++generation;
         const field = (id, key) => `<label class="panel-label" for="${id}">${text(key)}</label><input class="panel-input" id="${id}" type="number" min="1" max="${project.clips.length}" step="1" required>`;
         app.modalOpen(message('panels.removeClipRange'), `<div class="time-fields"><div>${field('clipRangeFirst','panels.firstClip')}</div><div>${field('clipRangeLast','panels.lastClip')}</div></div>`, `<div class="modal-foot"><button class="button" id="cancelClipRange">${text('shell.cancel')}</button><button class="button primary" id="confirmClipRange">${text('panels.removeClipRangeConfirm')}</button></div>`);
         const first = $('#clipRangeFirst'), last = $('#clipRangeLast'), confirm = $('#confirmClipRange');
         const owns = () => generation === owner && app.modal.open && $('#confirmClipRange') === confirm;
         let composing = null;
         first.value = last.value = String(selected + 1);
-        app.modal.onclose = () => { if (generation === owner && !app.modal.open) generation++; };
+        const invalidate = () => {
+            if (generation === owner) generation++;
+            project = contents = media = null;
+        };
+        app.modal.onreplace = invalidate;
+        app.modal.onclose = () => { if (!app.modal.open) invalidate(); };
         const restoreFocus = () => {
             const target = trigger?.id && $('#' + trigger.id);
             (target && !target.disabled ? target : $(panel === 'settings' ? '#panelTrimApply' : '#trimButton'))?.focus();
         };
-        const close = () => { generation++; app.modal.close(); restoreFocus(); };
+        const close = () => { invalidate(); app.modal.close(); restoreFocus(); };
         $('#cancelClipRange').onclick = () => { if (owns()) close(); };
         confirm.onclick = event => {
             if (!owns() || blocked() || composing || event?.isComposing || event?.keyCode === 229) return;
@@ -41,7 +47,7 @@ export function createClipRange(app) {
             // The surviving successor occupies the removed range's start; otherwise use the last clip.
             app.selected = Math.min(start - 1, clips.length - 1);
             const restore = owns();
-            if (restore) { generation++; app.modal.close(); }
+            if (restore) { invalidate(); app.modal.close(); }
             app.renderTimeline(); app.renderInspector();
             if (panel !== 'templates' || app.panel !== 'templates') app.renderPanel();
             const time = clipSeekTime(app.state.clips, app.selected);

@@ -19,14 +19,21 @@ export function createSeekDialog({getProject, getCurrent, getDuration, getMedia,
     let generation = 0;
     function open() {
         if (blocked()) { toast(message("shell.seekBusy")); return; }
-        const owner = ++generation, project = getProject(), contents = JSON.stringify(project);
-        const media = getMedia(), duration = getDuration() / project.speed;
+        const owner = ++generation;
+        let project = getProject(), contents = JSON.stringify(project), media = getMedia();
+        const duration = getDuration() / project.speed;
         openModal(message("shell.seekTitle"), `<label class="panel-label" for="outputSeekTime">${text("shell.seekLabel")}</label><input class="panel-input" id="outputSeekTime" type="text" inputmode="decimal" placeholder="12.5 · 01:23.5 · 01:02:03.5" autocomplete="off">`, `<div class="modal-foot"><button class="button" id="cancelOutputSeek">${text("shell.cancel")}</button><button class="button primary" id="confirmOutputSeek">${text("shell.move")}</button></div>`);
         const input = $('#outputSeekTime'), confirm = $('#confirmOutputSeek'), cancel = $('#cancelOutputSeek');
         const owns = () => generation === owner && modal.open && $('#confirmOutputSeek') === confirm;
         input.value = decimalTime(Math.max(0, Math.min(duration, getCurrent() / project.speed)));
-        modal.onclose = () => { if (generation === owner && !modal.open) generation++; };
-        const close = () => { generation++; modal.close(); $('#timeDisplay').focus(); };
+        const invalidate = () => {
+            if (generation === owner) generation++;
+            // Mounted controls must not retain a retired project or media files.
+            project = null; contents = null; media = null;
+        };
+        modal.onreplace = invalidate;
+        modal.onclose = () => { if (!modal.open) invalidate(); };
+        const close = () => { invalidate(); modal.close(); $('#timeDisplay').focus(); };
         cancel.onclick = () => { if (owns()) close(); };
         confirm.onclick = () => {
             if (!owns()) return;
@@ -39,9 +46,10 @@ export function createSeekDialog({getProject, getCurrent, getDuration, getMedia,
             try {
                 const time = parseOutputTime(input.value);
                 if (time > duration) throw Object.assign(new Error(), message("shell.seekRange"));
+                const timelineTime = time * project.speed;
                 close();
                 pause();
-                seek(time * project.speed);
+                seek(timelineTime);
             } catch (error) { toast(error); input.focus(); }
         };
         input.onkeydown = event => {

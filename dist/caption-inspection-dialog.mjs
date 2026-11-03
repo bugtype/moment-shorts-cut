@@ -11,7 +11,9 @@ export function createCaptionInspectionDialog({getProject, getMedia = () => [], 
     let generation = 0;
     function open() {
         const owner = ++generation;
-        let reportGeneration = 0, snapshot;
+        let reportGeneration = 0, snapshot, releaseReport = () => {};
+        const retireReport = () => { releaseReport(); releaseReport = () => {}; snapshot = null; };
+        const dispose = () => { if (generation === owner) generation++; retireReport(); };
         const field = (id, key) => `<label class="panel-label" for="${id}">${text(key)}</label><input class="panel-input" id="${id}" type="number" min="0" step="any">`;
         openModal(message('advisory.title'),
             `<div class="caption-review-fields">` +
@@ -35,11 +37,12 @@ export function createCaptionInspectionDialog({getProject, getMedia = () => [], 
             Boolean(input.validity?.badInput),Boolean(minimum.validity?.badInput),Boolean(maximum.validity?.badInput)]);
         const unchanged = captured => getProject() === captured.project && JSON.stringify(getProject()) === captured.contents &&
             getMedia().length === captured.media.length && getMedia().every((file,index) => file === captured.media[index]);
-        const stale = () => { reportGeneration++; snapshot = null; results.innerHTML = `<p role="status">${text('advisory.stale')}</p>`; };
-        modal.onclose = () => { if (generation === owner && !modal.open) generation++; };
+        const stale = () => { reportGeneration++; retireReport(); results.innerHTML = `<p role="status">${text('advisory.stale')}</p>`; };
+        modal.onreplace = dispose;
+        modal.onclose = () => { if (!modal.open) dispose(); };
         function invalidate() {
             if (!owns()) return;
-            reportGeneration++; snapshot = null; results.innerHTML = '';
+            reportGeneration++; retireReport(); results.innerHTML = '';
         }
         for (const control of [input, minimum, maximum, overlaps]) {
             control.oninput = invalidate; control.onchange = invalidate;
@@ -51,7 +54,7 @@ export function createCaptionInspectionDialog({getProject, getMedia = () => [], 
         function inspect(event) {
             if (!owns() || composing(event) || !isCurrentPanel()) return;
             const reportOwner = ++reportGeneration;
-            snapshot = null; results.innerHTML = '';
+            retireReport(); results.innerHTML = '';
             try {
                 const review = {includeOverlaps: overlaps.checked, filter: filter.value};
                 for (const [control,key] of criteriaInputs) {
@@ -59,8 +62,11 @@ export function createCaptionInspectionDialog({getProject, getMedia = () => [], 
                     if (control.validity?.badInput) review[key] = NaN;
                     else if (control.value.trim() !== '') review[key] = Number(control.value);
                 }
-                const project = getProject(), captured = {project, contents: JSON.stringify(project), media: [...getMedia()], criteria: criteria()};
-                const report = prepareCommand(project, 'captions.inspect', {review, limit:20}).data;
+                let project = getProject();
+                const captured = {project, contents: JSON.stringify(project), media: [...getMedia()], criteria: criteria()};
+                let report = prepareCommand(project, 'captions.inspect', {review, limit:20}).data;
+                // Mounted and stale result handlers must not own retired projects or media.
+                releaseReport = () => { project = null; report = null; captured.project = null; captured.contents = ''; captured.media = []; };
                 snapshot = captured;
                 results.innerHTML = `<p role="status">${text('advisory.counts', {total:report.totalOccurrences,flagged:report.flaggedOccurrences,findings:report.totalFindings})}</p>` +
                     `<p>${text('advisory.summary',{speed:report.counts.readingSpeed,short:report.counts.tooShort,long:report.counts.tooLong,overlap:report.counts.overlap})}</p>` +
@@ -100,7 +106,7 @@ export function createCaptionInspectionDialog({getProject, getMedia = () => [], 
                             const time = move ? captionSeekTime(project, issue,
                                 (issue.kind === 'overlap' ? issue.overlapStart : issue.start) * project.speed) : null;
                             if (move && time === null) { toast(message('panels.captionNavigationUnavailable')); return; }
-                            generation++; modal.close();
+                            dispose(); modal.close();
                             if (move) { pause(); seek(time); }
                             focusCaption(captionIndex);
                         };
@@ -117,10 +123,10 @@ export function createCaptionInspectionDialog({getProject, getMedia = () => [], 
         run.onclick = inspect;
         filter.onchange = event => {
             if (!owns()) return;
-            const previous = snapshot;
+            const previous = snapshot, current = previous && unchanged(previous);
             invalidate();
             if (!previous || composing(event) || !isCurrentPanel()) return;
-            if (!unchanged(previous)) { stale(); return; }
+            if (!current) { stale(); return; }
             inspect(event);
         };
         input.focus();

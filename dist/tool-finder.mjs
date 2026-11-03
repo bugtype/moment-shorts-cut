@@ -12,8 +12,8 @@ export function createToolFinder(app) {
     const media = () => [app.sources.videoFile, app.sources.audioFile, app.sources.sourceURL, app.sources.audioURL];
     function open() {
         if (blocked()) { app.toast(message('finder.busy')); return; }
-        const owner = ++generation, project = app.state, signature = JSON.stringify(project);
-        const sources = media(), panel = app.panel, selected = app.selected, revision = app.panelRevision;
+        const owner = ++generation, panel = app.panel, selected = app.selected, revision = app.panelRevision;
+        let project = app.state, signature = JSON.stringify(project), sources = media();
         let active = true, resultGeneration = 0, composing = false;
         app.modalOpen(message('finder.title'),
             `<label class="panel-label" for="toolFinderQuery">${text('finder.search')}</label>` +
@@ -27,7 +27,11 @@ export function createToolFinder(app) {
             app.panel === panel && app.selected === selected && app.panelRevision === revision &&
             media().every((value,index) => value === sources[index]);
         const isComposing = event => composing || event?.isComposing || event?.keyCode === 229;
-        const invalidate = () => { active = false; generation++; resultGeneration++; };
+        const invalidate = () => {
+            active = false; generation++; resultGeneration++;
+            // Closed modal controls remain mounted; release their retired project/media snapshot.
+            project = null; signature = null; sources = null;
+        };
         app.modal.onreplace = () => { if (owns()) invalidate(); };
         app.modal.onclose = () => {
             if (active && owner === generation && !app.modal.open) {

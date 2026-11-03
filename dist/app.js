@@ -301,6 +301,7 @@ const app = {
     togglePanelSheet: () => workspacePanels.togglePanelSheet(),
     syncPanelSheet: () => workspacePanels.syncPanelSheet(),
     navigateCaption: event => navigateCaption(event), focusCaption: index => focusCaption(index),
+    releaseDesignView: () => designWorkspace.releaseView(),
     renderDesignPanel: target => renderDesignPanel(target),
     renderEffects: target => renderEffects(target),
     selectedSceneLayer: () => selectedSceneLayer(),

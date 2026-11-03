@@ -226,6 +226,8 @@ export function createDesignWorkspace(app) {
         });
     }
 
-    return { hasPendingInput: () => pendingInput?.() === true,
+    return {
+        releaseView() { pendingInput = null; },
+        hasPendingInput: () => pendingInput?.() === true,
         selectedSceneLayer, updateLayerGuide, previewDesign, renderDesignPanel, renderEffects };
 }

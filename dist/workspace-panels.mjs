@@ -295,8 +295,12 @@ export function createWorkspacePanels(app) {
 
     function renderPanel() {
         const generation = ++renderGeneration;
+        app.releaseDesignView();
         pendingTrim = null;
         const target = $('#panelContent');
+        // This shared root outlives every panel; retire the previous mount's closures.
+        target.oncompositionstart = null;
+        target.oncompositionend = null;
         if (app.panel === 'templates') {
             app.templateWorkspace.render(target);
         }

@@ -9,13 +9,18 @@ export function createCaptionExportDialog(app, blocked) {
     function open(format, index = 0) {
         if (app.modal.open || blocked() || app.panel !== 'captions' || !app.state.captions.length ||
             !['srt','vtt','txt','review-txt'].includes(format)) return;
-        const project = app.state, contents = JSON.stringify(project), owner = ++generation;
-        const media = [app.sources.videoFile, app.sources.audioFile];
+        const owner = ++generation;
+        let project = app.state, contents = JSON.stringify(project);
+        let media = [app.sources.videoFile, app.sources.audioFile];
         const field = (id, key) => `<label class="panel-label" for="${id}">${text(key)}</label><input class="panel-input" id="${id}" type="number" min="1" max="${project.captions.length}" step="1" required>`;
         app.modalOpen(message('panels.captionExportRangeTitle'), `<div class="time-fields"><div>${field('captionExportFirst','panels.captionExportFirst')}</div><div>${field('captionExportLast','panels.captionExportLast')}</div></div><p class="tiny-note">${text('panels.captionExportRangeNote')}</p>`, `<div class="modal-foot"><button class="button" id="cancelCaptionExport">${text('shell.cancel')}</button><button class="button primary" id="confirmCaptionExport">${text('panels.save')}</button></div>`);
         const first = $('#captionExportFirst'), last = $('#captionExportLast'), confirm = $('#confirmCaptionExport');
         const owns = () => owner === generation && app.modal.open && $('#confirmCaptionExport') === confirm;
-        const invalidate = () => { if (owner === generation) generation++; };
+        const invalidate = () => {
+            if (owner === generation) generation++;
+            // Mounted dialog handlers must release retired project and media captures.
+            project = null; contents = null; media = null;
+        };
         const close = () => {
             invalidate(); app.modal.close();
             if (app.panel === 'captions') $('#downloadCaptions')?.focus();

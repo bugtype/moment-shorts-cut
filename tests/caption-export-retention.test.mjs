@@ -1,0 +1,16 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {execFileSync} from 'node:child_process';
+import {fileURLToPath} from 'node:url';
+for (const mode of ['control','active','native-close','cancel','save','replace']) {
+    test(`caption export releases retired project and media: ${mode}`, () => {
+        const result = JSON.parse(execFileSync(process.execPath, ['--expose-gc',
+            fileURLToPath(new URL('./fixtures/caption-export-retention.mjs', import.meta.url)), mode],
+            {encoding:'utf8',timeout:30000}));
+        assert.deepEqual(result.retained, [mode==='active',mode==='active',mode==='active']);
+        assert.equal(result.fileName, mode==='active' ? 'previous.mp4' : 'next.mp4');
+        assert.equal(result.history, 0); assert.equal(result.future, 0);
+        assert.equal(result.speed, 1);
+        assert.equal(result.downloads, mode === 'save' ? 1 : 0);
+    });
+}

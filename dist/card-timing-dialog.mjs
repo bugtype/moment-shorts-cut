@@ -11,10 +11,12 @@ export function createCardTimingDialog(app) {
         app.audioRecording.requesting || app.audioRecording.current;
     function open(id) {
         if (blocked() || app.modal.open) return;
-        const project = app.state, card = project.overlays.find(item => item.id === id);
+        let project = app.state, card = project.overlays.find(item => item.id === id);
         if (!card) return;
-        const contents = JSON.stringify(project), selected = app.selectedCard, panel = app.panel, tab = app.effectTab;
-        const media = [app.sources.videoFile, app.sources.audioFile], owner = ++generation;
+        let contents = JSON.stringify(project);
+        const selected = app.selectedCard, panel = app.panel, tab = app.effectTab;
+        let media = [app.sources.videoFile, app.sources.audioFile];
+        const owner = ++generation;
         const length = card.end - card.start, total = app.duration() / project.speed;
         const endpointTolerance = (a, b) => Number.EPSILON * Math.max(Math.abs(a), Math.abs(b)) * 4;
         const fits = Number.isFinite(length) && length > 0 && length - total <= endpointTolerance(length, total);
@@ -35,8 +37,13 @@ export function createCardTimingDialog(app) {
             if (!contextCurrent()) { app.toast(message('panels.cardMoveStale')); return false; }
             return true;
         };
-        const close = () => { generation++; app.modal.close(); $('#moveSceneTime')?.focus(); };
-        app.modal.onclose = () => { if (owner === generation && !app.modal.open) generation++; };
+        const invalidate = () => {
+            if (owner === generation) generation++;
+            project = null; card = null; contents = null; media = null;
+        };
+        const close = () => { invalidate(); app.modal.close(); $('#moveSceneTime')?.focus(); };
+        app.modal.onreplace = invalidate;
+        app.modal.onclose = () => { if (!app.modal.open) invalidate(); };
         input.value = decimalTime(card.start);
         const preview = () => {
             const start = input.value.trim() === '' ? NaN : Number(input.value), end = movedEnd(start);

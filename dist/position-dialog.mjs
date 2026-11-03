@@ -10,18 +10,22 @@ export function createPositionDialog(app) {
     const blocked = () => metadataEditBlocked(app);
     function open(kind, id) {
         if (app.modal.open || blocked()) return;
-        const project = app.state, layer = kind === 'card' ? project.overlays.find(item => item.id === id)
+        let project = app.state, layer = kind === 'card' ? project.overlays.find(item => item.id === id)
             : kind === 'caption' ? {x:project.captionX,y:project.captionY} : project.design[kind];
         if (!layer || !['title','credit','caption','card'].includes(kind)) return;
         const panel = app.panel, textLayer = app.textLayer, selected = app.selectedCard, tab = app.effectTab;
-        const signature = JSON.stringify(project), media = [app.sources.videoFile,app.sources.audioFile], owner = ++generation;
+        let signature = JSON.stringify(project), media = [app.sources.videoFile,app.sources.audioFile];
+        const owner = ++generation;
         const bounds = kind === 'title' ? {x:[5,95],y:[6,93]} : {x:[0,100],y:[0,100]};
         const displayed = {x:layer.x*100,y:layer.y*100};
         const field = axis => `<label class="panel-label" for="position-${axis}">${text(axis==='x'?'panels.positionX':'panels.positionY')}</label><input class="panel-input" id="position-${axis}" type="number" step="any" min="${bounds[axis][0]}" max="${bounds[axis][1]}" required>`;
         app.modalOpen(message('panels.position'), `<div class="time-fields"><div>${field('x')}</div><div>${field('y')}</div></div>`, `<div class="modal-foot"><button class="button" id="cancelPosition">${text('shell.cancel')}</button><button class="button primary" id="applyPosition">${text('panels.positionApply')}</button></div>`);
         const inputs = {x:$('#position-x'),y:$('#position-y')}, confirm = $('#applyPosition');
         const owns = () => generation === owner && app.modal.open && $('#applyPosition') === confirm;
-        const invalidate = () => { if (generation === owner) generation++; };
+        const invalidate = () => {
+            if (generation === owner) generation++;
+            project = null; layer = null; signature = null; media = null;
+        };
         let composing = null;
         const close = () => {
             invalidate(); app.modal.close();

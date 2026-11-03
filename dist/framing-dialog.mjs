@@ -10,15 +10,18 @@ export function createFramingDialog(app) {
     const blocked=()=>metadataEditBlocked(app);
     function open(trigger) {
         if(app.modal.open || blocked() || !['openFraming','openPanelFraming'].includes(trigger))return;
-        const project=app.state,signature=JSON.stringify(project),panel=app.panel,selected=app.selected,
-            media=[app.sources.videoFile,app.sources.audioFile],owner=++generation;
+        let project=app.state,signature=JSON.stringify(project),media=[app.sources.videoFile,app.sources.audioFile];
+        const panel=app.panel,selected=app.selected,owner=++generation;
         const fields=[['panX','panels.framingX',-100,100],['panY','panels.framingY',-100,100],['zoom','panels.framingZoom',100,300]];
         const displayed=Object.fromEntries(fields.map(([key])=>[key,project[key]*100]));
         const body=fields.map(([key,label,min,max])=>`<label class="panel-label" for="framing-${key}">${text(label)}</label><input class="panel-input" id="framing-${key}" type="number" step="any" min="${min}" max="${max}" required>`).join('');
         app.modalOpen(message('panels.framing'),body,`<div class="modal-foot"><button class="button" id="cancelFraming">${text('shell.cancel')}</button><button class="button primary" id="applyFraming">${text('panels.positionApply')}</button></div>`);
         const confirm=$('#applyFraming'),inputs=Object.fromEntries(fields.map(([key])=>[key,$('#framing-'+key)]));
         const owns=()=>generation===owner && app.modal.open && $('#applyFraming')===confirm;
-        const invalidate=()=>{if(generation===owner)generation++;};
+        const invalidate=()=>{
+            if(generation===owner)generation++;
+            project=null;signature=null;media=null;
+        };
         const close=()=>{
             invalidate();app.modal.close();
             if(!app.modal.open && app.panel===panel && app.selected===selected)$('#'+trigger)?.focus();

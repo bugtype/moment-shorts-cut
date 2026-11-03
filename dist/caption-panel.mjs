@@ -329,5 +329,12 @@ export function createCaptionPanel({
         field.focus({ preventScroll: true });
         field.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: 'instant' });
     }
-    return { render, focus: focusCaption, hasPendingEdits, refreshAfterRecognition, refreshForNavigation };
+    function releaseView() {
+        ++renderGeneration;
+        composing = false;
+        renderedRows = [];
+        // Preserve a live project's search cursor, but never root a replaced project.
+        search.sync();
+    }
+    return { render, releaseView, focus: focusCaption, hasPendingEdits, refreshAfterRecognition, refreshForNavigation };
 }

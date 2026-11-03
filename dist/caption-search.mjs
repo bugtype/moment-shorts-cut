@@ -154,5 +154,5 @@ export function createCaptionSearch({query:$, getProject, focusCaption, edit, ex
         };
         update();
     }
-    return {bind,update};
+    return {bind,update,sync};
 }

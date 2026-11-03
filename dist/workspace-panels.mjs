@@ -296,6 +296,7 @@ export function createWorkspacePanels(app) {
     function renderPanel() {
         const generation = ++renderGeneration;
         app.releaseDesignView();
+        if (app.panel !== 'captions') app.captionPanel.releaseView();
         pendingTrim = null;
         const target = $('#panelContent');
         // This shared root outlives every panel; retire the previous mount's closures.

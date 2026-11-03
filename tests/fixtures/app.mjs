@@ -1,3 +1,4 @@
+import { createPendingInputCheck } from '../../dist/pending-input.mjs';
 import { dialogEnterBlocked } from '../../dist/dialog-enter.mjs';
 import { clipSeekTime } from '../../dist/clip-seek.mjs';
 import { buildTimelineEntries, locateTimelineEntry } from '../../dist/timeline-index.mjs';
@@ -197,7 +198,7 @@ export async function createAppFixture({sessionMediaDependencies = {}, fontSet, 
       setTimer: (callback, delay) => context.setInterval(callback, delay),
       clearTimer: timer => context.clearInterval(timer),
       clock: () => context.performance.now(),
-    }), shiftCaptionTiming, mountDesignPanel, ...panelMarkup, icon, esc, fmt, decimalTime, modalFeedbackMarkup,
+    }), createPendingInputCheck, shiftCaptionTiming, mountDesignPanel, ...panelMarkup, icon, esc, fmt, decimalTime, modalFeedbackMarkup,
   });
   // Load extracted app modules in this VM so timers, promises and DOM access keep the
   // same realm semantics the browser app has (the host realm would add microtask hops).

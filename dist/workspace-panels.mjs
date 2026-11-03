@@ -1,3 +1,4 @@
+import { createPendingInputCheck } from './pending-input.mjs';
 import { createPanelSheet } from './panel-sheet.mjs';
 import { captionSeekTime } from './caption-seek.mjs';
 import { createScenePngExport } from './scene-png-export.mjs';
@@ -16,6 +17,7 @@ export function createWorkspacePanels(app) {
         createPanelSheet(app, { query: $, queryAll: $$ });
     let renderGeneration = 0;
     let pendingTrim = null;
+    let pendingAudio = null;
     let thirdsGrid = false;
     const desktopGrid = $('#thirdsGridDesktop');
     function syncThirdsGrid() {
@@ -260,7 +262,17 @@ export function createWorkspacePanels(app) {
                 app.changed();
                 renderPanel();
             };
-            $('#audioOffset').onchange = event => {
+            const offsetInput = $('#audioOffset'), project = app.state;
+            const audioFile = app.sources.audioFile, videoFile = app.sources.videoFile;
+            const current = () => app.panel === 'audio' && generation === renderGeneration &&
+                app.state === project && app.sources.audioFile === audioFile && app.sources.videoFile === videoFile &&
+                $('#audioOffset') === offsetInput && offsetInput.isConnected !== false;
+            let composing = false;
+            offsetInput.oncompositionstart = () => { if (current()) composing = true; };
+            offsetInput.oncompositionend = () => { if (current()) composing = false; };
+            pendingAudio = createPendingInputCheck(offsetInput, { current,
+                read: () => project.audioOffset / project.speed, composing: () => composing });
+            offsetInput.onchange = event => {
                 const value = Number(event.target.value);
                 if (!event.target.value.trim() || !Number.isFinite(value)) {
                     app.toast(message('panels.audioStartInvalid'));
@@ -298,6 +310,7 @@ export function createWorkspacePanels(app) {
         app.releaseDesignView();
         if (app.panel !== 'captions') app.captionPanel.releaseView();
         pendingTrim = null;
+        pendingAudio = null;
         const target = $('#panelContent');
         // This shared root outlives every panel; retire the previous mount's closures.
         target.oncompositionstart = null;
@@ -369,5 +382,6 @@ export function createWorkspacePanels(app) {
     }
 
     return { syncRecordingControl, revision: () => renderGeneration, hasPendingTrim: () => pendingTrim?.() === true,
+        hasPendingAudio: () => pendingAudio?.() === true,
         syncPreviewExportLabel, renderPanel, switchPanel, renderCaptionsPanel, navigateCaption, focusCaption, closePanelSheet, togglePanelSheet, syncPanelSheet: syncSheet };
 }

@@ -15,10 +15,11 @@ export function createSessionMediaDialog({getProject, persistence, controller, q
         let request = 0, pending = false;
         const owns = () => owner === generation && modal.open && $('#connectSessionMedia') === button;
         function cancel() { request++; pending = false; controller.cancel(); button.disabled = false; }
-        const replaced = () => { if (owner === generation) { generation++; cancel(); } };
+        const releaseFiles = () => { delete files.video; delete files.audio; };
+        const replaced = () => { if (owner === generation) { generation++; cancel(); releaseFiles(); } };
         modal.onreplace = replaced;
         modal.onclose = () => { if (!modal.open) replaced(); };
-        $('#cancelSessionMedia').onclick = () => { if (owns()) { cancel(); generation++; modal.close(); } };
+        $('#cancelSessionMedia').onclick = () => { if (owns()) { replaced(); modal.close(); } };
         for (const [kind, needed] of [['Video', needsVideo], ['Audio', needsAudio]]) if (needed) {
             const input = $('#sessionMedia' + kind);
             input.onchange = event => {
@@ -46,7 +47,7 @@ export function createSessionMediaDialog({getProject, persistence, controller, q
             if (!owns() || attempt !== request) return;
             pending = false; button.disabled = false;
             if (!result.ok) { setText(status, result.error?.messageKey || 'shell.sessionMediaFailed', result.error?.messageParams); return; }
-            generation++; modal.close(); refresh(); toast(message('shell.sessionMediaConnected'));
+            generation++; releaseFiles(); modal.close(); refresh(); toast(message('shell.sessionMediaConnected'));
         };
         (needsVideo ? $('#sessionMediaVideo') : needsAudio ? $('#sessionMediaAudio') : check).focus();
     }

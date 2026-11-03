@@ -17,16 +17,23 @@ export function syncSpeedControl(select, currentOption, speed) {
 export function createSpeedDialog({getProject, getMedia, query: $, modal, openModal, blocked, execute, toast}) {
     let generation = 0;
     function open() {
-        const project = getProject();
+        let project = getProject();
         syncSpeedControl($('#speed'), $('#currentSpeedOption'), project.speed);
         if (blocked()) { toast(message('shell.speedBusy')); return; }
-        const owner = ++generation, contents = JSON.stringify(project), media = getMedia();
+        const owner = ++generation;
+        let contents = JSON.stringify(project), media = getMedia();
         openModal(message('shell.customSpeed'), `<label class="panel-label" for="customSpeedValue">${text('shell.speedMultiplier')}</label><input class="panel-input" id="customSpeedValue" type="number" min="0.25" max="4" step="any" inputmode="decimal">`, `<div class="modal-foot"><button class="button" id="cancelCustomSpeed">${text('shell.cancel')}</button><button class="button primary" id="confirmCustomSpeed">${text('shell.applySpeed')}</button></div>`);
         const input = $('#customSpeedValue'), confirm = $('#confirmCustomSpeed');
         const owns = () => generation === owner && modal.open && $('#confirmCustomSpeed') === confirm;
         input.value = decimalTime(project.speed);
-        modal.onclose = () => { if (generation === owner && !modal.open) generation++; };
-        const close = () => { generation++; modal.close(); $('#speed').focus(); };
+        const invalidate = () => {
+            if (generation === owner) generation++;
+            // Closed dialog controls remain mounted; retire their project/media captures.
+            project = null; contents = null; media = null;
+        };
+        modal.onreplace = invalidate;
+        modal.onclose = () => { if (!modal.open) invalidate(); };
+        const close = () => { invalidate(); modal.close(); $('#speed').focus(); };
         $('#cancelCustomSpeed').onclick = () => { if (owns()) close(); };
         confirm.onclick = () => {
             if (!owns()) return;

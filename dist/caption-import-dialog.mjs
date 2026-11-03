@@ -11,10 +11,10 @@ export function createCaptionImportDialog(app, blocked) {
     function open() {
         if (app.modal.open || blocked() || app.panel !== 'captions') return;
 
-        const project = app.state;
-        const contents = JSON.stringify(project);
+        let project = app.state;
+        let contents = JSON.stringify(project);
         const selected = app.selected;
-        const media = [app.sources.videoFile, app.sources.audioFile];
+        let media = [app.sources.videoFile, app.sources.audioFile];
         const owner = ++generation;
 
         app.modalOpen(
@@ -54,6 +54,9 @@ export function createCaptionImportDialog(app, blocked) {
                 generation++;
                 attemptVersion++;
                 prepared = null;
+                project = null;
+                contents = null;
+                media = null;
             }
         };
         const close = () => {
@@ -138,8 +141,9 @@ export function createCaptionImportDialog(app, blocked) {
                     return result;
                 }
                 if (result.ok) {
+                    const focusIndex = importMode === 'append' ? project.captions.length : 0;
                     close();
-                    app.focusCaption(importMode === 'append' ? project.captions.length : 0);
+                    app.focusCaption(focusIndex);
                     app.toast(result.message);
                 } else {
                     app.toast(result.error);

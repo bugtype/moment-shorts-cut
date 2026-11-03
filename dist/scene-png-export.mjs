@@ -7,7 +7,7 @@ export function createScenePngExport(app, {
     createCanvas = () => app.document.createElement('canvas'),
     fontsLoaded = () => app.document.fonts?.status === 'loaded',
 } = {}) {
-    let generation = 0, releasePending = () => {};
+    let generation = 0, releasePending = null;
     const available = () => app.editorReady && !app.exporting && !app.loadingMedia &&
         !app.transcribing && !app.audioRecording.requesting && !app.audioRecording.current &&
         app.mediaReady() && fontsLoaded();
@@ -26,11 +26,13 @@ export function createScenePngExport(app, {
 
     function save(quality) {
         const request = ++generation;
-        releasePending();
+        releasePending?.();
         let canvas, released = false, current = () => request === generation;
         const release = () => {
             if (released) return;
             released = true;
+            // The idle owner must not retain this export's project/media snapshot.
+            if (releasePending === release) releasePending = null;
             if (canvas) {
                 // Release only this request's surface, including encoder failures.
                 try { canvas.width = 0; } catch { /* Best-effort native cleanup. */ }

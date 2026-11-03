@@ -132,6 +132,11 @@ export function createEditingActions(app) {
     function confirmReset() {
         if (resetBlocked())
             return;
+        // Native dialog return cannot focus the old media action after reset remounts it.
+        const root = app.query('#panelContent'), trigger = app.query('#loadDemo');
+        const document = app.modal.ownerDocument, revision = app.panelRevision;
+        const returnToDemo = app.panel === 'media' && trigger?.isConnected &&
+            root?.contains?.(trigger) && document?.activeElement === trigger;
         app.modalOpen(message("shell.resetTitle"), `<p class="modal-copy">${text("shell.resetNotice")}</p>`, `<div class="modal-foot"><button class="button" id="cancelReset">${text("shell.cancel")}</button><button class="button primary" id="confirmReset">${text("shell.resetConfirm")}</button></div>`);
         const owner = ++resetGeneration;
         const cancel = app.query('#cancelReset');
@@ -169,7 +174,18 @@ export function createEditingActions(app) {
             app.changed();
             app.renderPanel();
             app.resizePreview();
+            const ownedFocus = document?.hasFocus?.() && app.modal.contains?.(document.activeElement);
             app.modal.close();
+            if (returnToDemo && ownedFocus && resetGeneration === owner + 1 &&
+                !app.modal.open && document.hasFocus() && app.panel === 'media' && app.panelRevision === revision + 1 &&
+                app.query('#panelContent') === root && root.isConnected && !trigger.isConnected) {
+                const replacement = app.query('#loadDemo'), active = document.activeElement;
+                if (replacement?.isConnected && !replacement.disabled && !replacement.hidden &&
+                    !replacement.closest?.('[hidden]') && root.contains(replacement) &&
+                    (active === document.body || active === document.documentElement || app.modal.contains(active))) {
+                    try { replacement.focus({preventScroll: true}); } catch { /* Focus must not interrupt an accepted reset. */ }
+                }
+            }
         };
     }
 

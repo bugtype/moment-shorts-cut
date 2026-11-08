@@ -106,6 +106,29 @@ test('actual app retains blocked export/restore and stale-project protections fo
  f.canvas.onpointermove(pointer(20,2));f.canvas.onpointerup(pointer(20,2));assert.deepEqual(f.evaluate('({state,history,axisSaves})'),before);
 });
 
+test('export preparation retires a held preview drag without changing recorded framing',async()=>{
+ for(const moved of [false,true]){
+  const f=await fixture();
+  f.canvas.onpointerdown(pointer(0,0,{shiftKey:true}));
+  if(moved)f.canvas.onpointermove(pointer(10,2));
+  const before=f.evaluate('({state,history,future})');
+  vm.runInContext(`ensureAudio=()=>new Promise(resolve=>globalThis.resumeExportAudio=resolve);
+   globalThis.pendingDragExport=exportFlow.startExport({mime:'video/webm',ext:'webm'},720);`,f.context);
+  assert.equal(f.evaluate('exporting'),true);
+  f.canvas.onpointermove(pointer(30,150));
+  assert.deepEqual(f.evaluate('({state,history,future})'),before);
+  assert.equal(f.evaluate('axisSaves'),Number(moved),'Only the already accepted edit is finalized');
+  await vm.runInContext('stopExport(true);resumeExportAudio();pendingDragExport',f.context);
+  f.canvas.onpointermove(pointer(50,200));f.canvas.onpointerup(pointer(50,200));
+  assert.deepEqual(f.evaluate('({state,history,future})'),before,'Cancel must not revive the old gesture');
+  assert.equal(f.evaluate('axisSaves'),Number(moved));
+  if(moved){
+   f.element('#undoButton').onclick();assert.equal(f.evaluate('state.panX'),.5);
+   f.element('#redoButton').onclick();assert.deepEqual(f.evaluate('state'),before.state);
+  }
+ }
+});
+
 test('failed-recovery storage lock is not relaxed by the new gesture',async()=>{
  for(const valid of [true,false]){
   const f=await fixture(),writes=[];f.context.localStorage.setItem=(...args)=>writes.push(args);

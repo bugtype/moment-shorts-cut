@@ -225,3 +225,77 @@ test('jump keyboard modifiers, composition, hidden pager and detached controls a
   assert.deepEqual(hidden.log,[]);assert.deepEqual(hidden.history,[]);
  }
 });
+
+
+test('page changes preserve rejected caption drafts until the text is corrected',()=>{
+ for(const navigate of [f=>f.query('#nextCaptionPage').onclick(), f=>f.panel.focus(50),
+  f=>{f.query('#captionPageNumber').value='2';f.query('#goCaptionPage').onclick();},
+  f=>{input(f,'#captionFind','찾기 50');f.query('#nextCaptionMatch').onclick();}]){
+  const f=fixture(51),field=f.query('[data-caption-text="0"]'),draft='x'.repeat(2001);
+  field.value=draft;
+  field.onchange(); // Native blur rejects this oversized edit before navigation clicks.
+  navigate(f);
+  assert.equal(rows(f)[0],0,'Rejected edits must not be paged away');
+  assert.equal(f.query('[data-caption-text="0"]'),field,'Keep the draft control mounted');
+  assert.equal(field.value,draft);
+  assert.equal(f.project().captions[0].text,'찾기 0');
+  assert.equal(f.history.length,0);
+  field.value='Corrected caption';field.onchange();
+  navigate(f);
+  assert.equal(rows(f)[0],50,'A successful blur commit permits navigation');
+  assert.equal(f.project().captions[0].text,'Corrected caption');
+  assert.equal(f.history.length,1);
+ }
+ const f=fixture(52);
+ f.project().captions[51].text='찾기 50 again';f.render();
+ const field=f.query('[data-caption-text="0"]');
+ field.value='x'.repeat(2001);field.onchange();
+ input(f,'#captionFind','찾기 50');
+ f.query('#nextCaptionMatch').onclick();
+ assert.equal(f.query('#captionSearchStatus').textContent,'일치 0 / 2','A refused focus must not select a hidden match');
+ field.value='Corrected caption';field.onchange();
+ f.query('#nextCaptionMatch').onclick();
+ assert.equal(f.query('#captionSearchStatus').textContent,'일치 1 / 2');
+ assert.deepEqual(f.log.at(-1),['selection','[data-caption-text="50"]',0,5],'Retry must reveal the first, never-shown match');
+});
+
+test('adding a caption preserves a rejected row draft and permits a corrected retry',()=>{
+ const f=fixture(1),field=f.query('[data-caption-text="0"]'),draft='x'.repeat(2001);
+ field.value=draft;field.onchange();
+ const before=structuredClone(f.project());
+ f.query('#addCaption').onclick();
+ assert.deepEqual(f.project(),before);
+ assert.equal(f.history.length,0);
+ assert.equal(f.query('[data-caption-text="0"]'),field,'Add must not discard the rejected input');
+ assert.equal(field.value,draft);
+ field.value='Corrected caption';field.onchange();
+ f.query('#addCaption').onclick();
+ assert.equal(f.project().captions.length,2);
+ assert.equal(f.project().captions[0].text,'Corrected caption');
+ assert.equal(f.history.length,2);
+ assert.deepEqual(f.log.at(-1),['focus','[data-caption-text="1"]']);
+});
+
+test('deleting a different caption preserves a rejected draft while explicit deletion of that row remains allowed',()=>{
+ const f=fixture(2),field=f.query('[data-caption-text="0"]'),draft='x'.repeat(2001);
+ field.value=draft;field.onchange();
+ const before=structuredClone(f.project());
+ f.query('[data-delete-caption="1"]').onclick();
+ assert.deepEqual(f.project(),before);
+ assert.equal(f.history.length,0);
+ assert.equal(f.query('[data-caption-text="0"]'),field);
+ assert.equal(field.value,draft);
+ field.value='Corrected caption';field.onchange();
+ f.query('[data-delete-caption="1"]').onclick();
+ assert.equal(f.project().captions.length,1);
+ assert.equal(f.project().captions[0].text,'Corrected caption');
+ assert.equal(f.history.length,2);
+ f.undo();assert.equal(f.project().captions.length,2);
+
+ const own=fixture(2),discarded=own.query('[data-caption-text="0"]');
+ discarded.value=draft;discarded.onchange();
+ own.query('[data-delete-caption="0"]').onclick();
+ assert.equal(own.project().captions.length,1);
+ assert.equal(own.project().captions[0].text,'찾기 1');
+ assert.equal(own.history.length,1,'Deleting the rejected row explicitly discards its own draft');
+});

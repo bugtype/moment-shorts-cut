@@ -56,10 +56,18 @@ export function bindUi(app) {
     const nameInput = $('#projectName');
     nameInput.oncompositionstart = () => app.inspectorView.setNameComposing(nameInput, true);
     nameInput.oncompositionend = () => app.inspectorView.setNameComposing(nameInput, false);
-    $('#projectName').onchange = event => app.edit(() => {
-        app.state.name = event.target.value.trim() || t('shell.untitled');
-        event.target.value = app.state.name;
-    });
+    $('#projectName').onchange = event => {
+        const name = event.target.value.trim() || t('shell.untitled');
+        if (name === app.state.name) {
+            // Display normalization alone must not consume Undo or discard Redo.
+            event.target.value = name;
+            return;
+        }
+        app.edit(() => {
+            app.state.name = name;
+            event.target.value = name;
+        });
+    };
     $('#saveButton').onclick = () => app.saveProject(true);
     $('#projectFilesButton').onclick = () => app.showProjectFiles();
     $('#playButton').onclick = () => app.playing ? app.pause() : app.play();

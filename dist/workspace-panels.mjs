@@ -373,7 +373,10 @@ export function createWorkspacePanels(app) {
             button.classList.toggle('active', button.dataset.panel === app.panel);
             button.setAttribute('aria-pressed', button.dataset.panel === app.panel);
         });
-        if (retainCaptionChoices) app.captionPanel.refreshForNavigation();
+        if (retainCaptionChoices) {
+            // Reopening the current panel must not discard a rejected row draft.
+            if (!app.captionPanel.hasPendingEdits()) app.captionPanel.refreshForNavigation();
+        }
         else renderPanel();
         if (openSheet)
             setSheetOpen(true);

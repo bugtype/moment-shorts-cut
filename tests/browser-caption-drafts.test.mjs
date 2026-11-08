@@ -71,6 +71,36 @@ async function fixture(locale = 'ko', caption = {start:0,end:1,text:'Original'})
 const snapshot = f => f.evaluate('({state,history,future,current,selected})');
 const effect = {patch:{brightness:1.1}};
 
+test('same-panel and timeline routing preserve rejected caption drafts until corrected navigation', async () => {
+  try {
+    for (const route of ['same panel', 'timeline']) {
+      const f = await fixture('en');
+      vm.runInContext(`state.duration=120;state.clips=[{start:0,end:120}];
+        state.captions=Array.from({length:51},(_,i)=>({start:i,end:i+1,text:'Caption '+i}));
+        renderPanel();history=[];future=['redo sentinel'];globalThis.routeSaves=0;scheduleSave=()=>routeSaves++;`, f.context);
+      const field = f.query('[data-caption-text="0"]'), draft = 'x'.repeat(2001);
+      field.value = draft; field.onchange();
+      const before = f.evaluate('({state,history,future})');
+      f.context.captionRoute = {target:{closest:()=>({dataset:{captionIndex:'50',captionTime:'50',captionKey:'50:0'}})}};
+      const navigate = () => vm.runInContext(route === 'same panel' ? "switchPanel('captions')" : 'navigateCaption(captionRoute)', f.context);
+      navigate();
+      assert.equal(f.query('[data-caption-text="0"]'), field, route);
+      assert.equal(field.value, draft);
+      assert.deepEqual(f.evaluate('({state,history,future})'), before);
+      assert.equal(f.evaluate('routeSaves'), 0);
+      assert.doesNotMatch(f.panel.innerHTML, /data-caption-text="50"/);
+
+      field.value = 'Corrected caption'; field.onchange();
+      navigate();
+      assert.equal(f.evaluate('state.captions[0].text'), 'Corrected caption');
+      assert.equal(f.evaluate('history.length'), 1);
+      assert.equal(f.evaluate('routeSaves'), 1);
+      if (route === 'timeline') assert.match(f.panel.innerHTML, /data-caption-text="50"/);
+      else assert.equal(f.query('[data-caption-text="0"]').value, 'Corrected caption');
+    }
+  } finally { initLocale(); }
+});
+
 async function transformFixture(action, text = '오류 문장') {
   const caption = {start:0,end:3,text,basis:'timeline',speaker:'1',keywords:'유지'};
   const f = await fixture('ko', caption);

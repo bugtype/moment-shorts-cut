@@ -33,6 +33,12 @@ export function bindPreviewDrag(canvas, { getProject, blocked, pause, selection,
             drag = null;
             return;
         }
+        if (blocked()) {
+            // Export/restore may start after pointerdown. Keep accepted movement,
+            // but retire the gesture before it can change the locked project.
+            endDrag(e);
+            return;
+        }
         const r = canvas.getBoundingClientRect();
         let width = r.width, height = r.height;
         if (drag.mode === 'video' && videoRegion) {

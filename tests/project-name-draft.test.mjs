@@ -36,16 +36,36 @@ test('same-project status and trim-selection refreshes retain name drafts, but t
  assert.equal(input.value,'Authoritative model name');assert.equal(f.evaluate('history.length'),0);
 });
 
+test('normalizing an unchanged project name preserves Redo without a history entry or save',async()=>{
+ for(const blank of [false,true]){
+  const f=await createAppFixture();
+  if(blank)vm.runInContext("state.name=t('shell.untitled');renderInspector()",f.context);
+  assert.equal((await f.context.window.moment.execute('effects.update',{patch:{brightness:1.1}})).ok,true);
+  f.element('#undoButton').onclick();
+  vm.runInContext('globalThis.nameSaves=0;scheduleSave=()=>nameSaves++',f.context);
+  const before=stateOf(f),input=draft(f,blank?'   ':'  '+before.state.name+'  ');
+  assert.equal(before.future.length,1);
+  input.onchange({target:input});
+  assert.equal(input.value,before.state.name);
+  assert.deepEqual(stateOf(f),before);
+  assert.equal(f.evaluate('nameSaves'),0);
+  assert.equal(f.element('#redoButton').disabled,false);
+  f.element('#redoButton').onclick();
+  assert.equal(f.evaluate('state.effects.brightness'),1.1);
+ }
+});
+
 test('accepted name changes retain trimming, localized empty-name fallback and one undoable commit',async()=>{
  try{
   for(const locale of ['ko','en','zh-CN']){
    const f=await createAppFixture();vm.runInContext(`setLocale('${locale}',{persist:false});history=[];future=[]`,f.context);
    const original=f.evaluate('state.name'),input=draft(f,'  '+original+'  ');
-   input.onchange({target:input});assert.equal(input.value,original);assert.equal(f.evaluate('state.name'),original);assert.equal(f.evaluate('history.length'),1);
+   input.onchange({target:input});assert.equal(input.value,original);assert.equal(f.evaluate('state.name'),original);assert.equal(f.evaluate('history.length'),0);
    draft(f,'  Renamed 🎬  ');input.onchange({target:input});assert.equal(input.value,'Renamed 🎬');assert.equal(f.evaluate('state.name'),'Renamed 🎬');
    draft(f,' \n ');input.onchange({target:input});assert.equal(input.value,translateFor(locale,'shell.untitled'));
-   assert.equal(f.evaluate('state.name'),input.value);assert.equal(f.evaluate('history.length'),3);
+   assert.equal(f.evaluate('state.name'),input.value);assert.equal(f.evaluate('history.length'),2);
    draft(f,'   ');input.onchange({target:input});assert.equal(input.value,translateFor(locale,'shell.untitled'),'unchanged fallback must still normalize');
+   assert.equal(f.evaluate('history.length'),2);
   }
  }finally{initLocale();}
 });

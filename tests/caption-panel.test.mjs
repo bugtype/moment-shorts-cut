@@ -24,6 +24,7 @@ function fixture({ blocked = false } = {}) {
   function queryAll(selector) {
     const field = fields.find(name => selector === `[data-caption-${name}]`);
     if (field) {
+      if (!project.captions.length) return [];
       const control = query(selector);
       control.dataset['caption' + field[0].toUpperCase() + field.slice(1)] = '0';
       return [control];
@@ -51,11 +52,12 @@ function fixture({ blocked = false } = {}) {
     refresh: () => log.push('refresh'), toast: message => log.push(['toast', formatError(message)]),
   });
   const target = { querySelector: () => ({ open: true }), innerHTML: '' };
-  panel.render(target, { transcribing: false, hasAudio: false, transcriptionStatus: '' }, {
+  const render = () => panel.render(target, { transcribing: false, hasAudio: false, transcriptionStatus: '' }, {
     design: () => log.push('design'), generate: () => log.push('generate'),
     download: format => log.push(['download', format]),
   });
-  return { panel, query, target, log, commands, project: () => project, replace: value => { project = value; } };
+  render();
+  return { panel, query, target, log, commands, render, project: () => project, replace: value => { project = value; } };
 }
 
 test('caption row handlers read the current project and preserve field metadata', () => {
@@ -114,6 +116,7 @@ test('caption delete/add retain focus scrolling and route existing actions', () 
   assert.deepEqual(f.log.slice(-2).map(event => event.slice(0, 2)), [
     ['focus', '#addCaption'], ['scroll', '#addCaption'],
   ]);
+  f.render(); // Successful commands rebuild the row controls in the actual app.
   f.query('#addCaption').onclick();
   assert.deepEqual(f.project().captions[0], { start: 2, end: 5, text: '새로운 자막을 입력하세요' });
   assert.deepEqual(f.log.at(-2), ['focus', '[data-caption-text="0"]', { preventScroll: true }]);
@@ -313,6 +316,7 @@ test('search recomputes edited text, missing results and deletion immediately be
 test('caption add and delete dispatch shared commands with source timing and focus only on success', () => {
   const f = fixture();
   f.project().captions = [];
+  f.render();
   f.query('#addCaption').onclick();
   assert.deepEqual(f.commands, [['captions.insert', {
     captionIndex: 0, caption: { start: 2, end: 5, text: '새로운 자막을 입력하세요' },

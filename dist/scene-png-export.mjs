@@ -77,9 +77,11 @@ export function createScenePngExport(app, {
             canvas.width = width;
             canvas.height = height;
             const context = canvas.getContext('2d');
-            if (!context || typeof canvas.toBlob !== 'function') throw new Error('PNG encoding unavailable');
+            if (!context || context.isContextLost?.() || typeof canvas.toBlob !== 'function') throw new Error('PNG encoding unavailable');
             app.playback.paint(context, width, height);
             if (!current()) { release(); return false; }
+            // Lost 2D contexts may silently ignore drawing rather than throw.
+            if (context.isContextLost?.()) throw new Error('PNG render context lost');
             canvas.toBlob(blob => {
                 if (released) return;
                 try {

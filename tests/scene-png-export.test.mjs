@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { createScenePngExport } from '../dist/scene-png-export.mjs';
 import { createDemoProject } from '../dist/core/project.mjs';
 
-function fixture({ failCanvas = false, nullContext = false, noEncoder = false } = {}) {
+function fixture({ failCanvas = false, nullContext = false, noEncoder = false, contextLost = false } = {}) {
   const canvases = [], paints = [], downloads = [], toasts = [];
   const native = () => ({ paused: true, seeking: false, readyState: 2, error: null,
     src: 'blob:source', currentSrc: 'blob:source', currentTime: 1, videoWidth: 1920, videoHeight: 1080 });
@@ -24,7 +24,7 @@ function fixture({ failCanvas = false, nullContext = false, noEncoder = false } 
     fontsLoaded: () => fonts,
     createCanvas: () => {
       if (failCanvas) throw new Error('create canvas');
-      const canvas = { width: 0, height: 0, context: {},
+      const canvas = { width: 0, height: 0, context: contextLost ? { isContextLost: () => true } : {},
         getContext() { return nullContext ? null : this.context; },
         toBlob(callback, type) { this.callback = callback; this.type = type; },
       };
@@ -33,9 +33,37 @@ function fixture({ failCanvas = false, nullContext = false, noEncoder = false } 
       return canvas;
     },
   });
-  return { app, factory, canvases, paints, downloads, toasts, setFonts: value => { fonts = value; } };
+  return { app, factory, canvases, paints, downloads, toasts,
+    setFonts: value => { fonts = value; }, setContextLost: value => { contextLost = value; } };
 }
 const png = () => new Blob(['png'], { type: 'image/png' });
+
+test('lost render contexts reject before painting or encoding and leave retry available', () => {
+  for (const phase of ['before paint', 'during paint']) {
+    const f = fixture({ contextLost: phase === 'before paint' });
+    const paint = f.app.playback.paint;
+    if (phase === 'during paint') f.app.playback.paint = (...args) => {
+      paint(...args);
+      args[0].isContextLost = () => true;
+    };
+    const before = structuredClone(f.app.state);
+    assert.equal(f.factory.save(1080), false, phase);
+    assert.equal(f.paints.length, phase === 'before paint' ? 0 : 1);
+    assert.equal(f.canvases[0].callback, undefined);
+    assert.equal(f.downloads.length, 0);
+    assert.equal(f.toasts.length, 1);
+    assert.deepEqual([f.canvases[0].width, f.canvases[0].height], [0, 0]);
+    assert.deepEqual(f.app.state, before);
+
+    f.app.playback.paint = paint;
+    f.setContextLost(false);
+    // New surfaces may recover independently of the failed private canvas.
+    assert.equal(f.factory.save(720), true);
+    f.canvases[1].callback(png());
+    assert.equal(f.downloads.length, 1);
+    assert.equal(f.toasts.length, 1);
+  }
+});
 
 test('pauses then repaints private export geometry, preserving project/history and native clocks', () => {
   for (const [ratio, quality, width, height] of [['9:16', 1080, 1080, 1920], ['4:5', 720, 720, 900], ['1:1', 1080, 1080, 1080], ['16:9', 720, 1280, 720]]) {

@@ -22,10 +22,12 @@ export function createCaptionPanel({
         replaceRange: options => replaceRange?.({...options,index:options.index ?? page * CAPTION_PAGE_SIZE})});
     // Recognition may finish without a blur/change event. A current row draft
     // belongs to the user, not to the asynchronously generated replacement.
-    function hasPendingEdits() {
+    function hasPendingEdits(ignoredCaptionIndex = -1) {
         if (composing) return true;
         const captions = getProject().captions;
         return renderedRows.some(({ input, field, index, displayed, model }) => {
+            // Explicit row deletion may discard that row, but no other draft.
+            if (index === ignoredCaptionIndex) return false;
             const caption = captions[index];
             if (!caption) return true;
             // Parsed controls can normalize authored CR/LF. An untouched display
@@ -36,8 +38,8 @@ export function createCaptionPanel({
                 : input.value !== String(caption[field] ?? '');
         });
     }
-    function canTransformRows() {
-        if (!hasPendingEdits()) return true;
+    function canTransformRows(ignoredCaptionIndex) {
+        if (!hasPendingEdits(ignoredCaptionIndex)) return true;
         toast(message('errors.captionDraftConflict'));
         return false;
     }
@@ -139,7 +141,7 @@ export function createCaptionPanel({
             $('#' + id).onclick = () => {
                 if (composing) return;
                 const next = Math.max(0, Math.min(lastPage(), page + delta));
-                if (next === page) return;
+                if (next === page || !canTransformRows()) return;
                 page = next;
                 refreshForNavigation();
                 const preferred = $('#' + id);
@@ -213,6 +215,7 @@ export function createCaptionPanel({
                 toast(message('panels.captionLimit'));
                 return;
             }
+            if (!canTransformRows()) return;
             const project = getProject(), captionIndex = project.captions.length;
             const captionTime = Math.min(sourceTime(), Math.max(0, project.duration - .1));
             const caption = { start: captionTime, end: Math.min(project.duration, captionTime + 3), text: '새로운 자막을 입력하세요' };
@@ -280,6 +283,7 @@ export function createCaptionPanel({
         $$('[data-delete-caption]').forEach(b => b.onclick = () => {
             if (composing) return;
             const index = +b.dataset.deleteCaption;
+            if (!canTransformRows(index)) return;
             if (execute('captions.remove', { captionIndex: index }))
                 focusCaption(Math.min(index, getProject().captions.length - 1));
         });
@@ -325,6 +329,8 @@ export function createCaptionPanel({
         index = Math.min(index, getProject().captions.length - 1);
         const next = index < 0 ? 0 : Math.floor(index / CAPTION_PAGE_SIZE);
         if (next !== page) {
+            // A rejected blur edit still belongs to its mounted row.
+            if (!canTransformRows()) return false;
             page = next;
             refreshForNavigation();
         }

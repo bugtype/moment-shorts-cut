@@ -88,12 +88,18 @@ export function createCaptionSearch({query:$, getProject, focusCaption, edit, ex
             targetStart = direction > 0 ? firstStart : lastStart;
         }
         const caption = project.captions[targetIndex];
+        const previousSelected = selected, previousAnchor = anchor;
         selected = caption ? {caption, index: targetIndex, start: targetStart, text: caption.text} : null;
         anchor = null;
         update();
         if (!selected) return;
         const match=selected;
-        focusCaption(match.index);
+        if (focusCaption(match.index) === false) {
+            // Refused page changes must not advance past a match never shown.
+            selected = previousSelected; anchor = previousAnchor;
+            update();
+            return;
+        }
         selectText(match.index,match.text,match.start,match.start+query.length);
     }
     function replaceMatch() {

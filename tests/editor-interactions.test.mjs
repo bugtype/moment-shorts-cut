@@ -16,7 +16,7 @@ function fixture(mode = 'video', videoRegion) {
     preview: () => events.push('preview'), commit: () => events.push('commit'),
   });
   return { canvas, events, history, get project() { return project; },
-    replace: value => { project = value; }, block: () => { blocked = true; } };
+    replace: value => { project = value; }, block: () => { blocked = true; }, unblock: () => { blocked = false; } };
 }
 const pointer = (x, y) => ({ clientX: x, clientY: y, pointerId: 7, button: 0 });
 
@@ -46,6 +46,32 @@ test('blocked, disabled and replaced targets never apply stale gesture mutations
   assert.deepEqual(replacement, before);assert.ok(!f.events.includes('commit'));
   f.block();f.canvas.onpointerdown(pointer(0, 0));f.canvas.onpointermove(pointer(20, 20));
   assert.deepEqual(replacement, before);
+});
+
+test('a newly blocked drag retires without changing its accepted position and can start afresh', () => {
+  for (const moved of [false, true]) {
+    const f = fixture();
+    f.canvas.onpointerdown(pointer(0, 0));
+    if (moved) f.canvas.onpointermove(pointer(10, 20));
+    const accepted = structuredClone(f.project), depth = f.history.length;
+    f.block();
+    f.canvas.onpointermove(pointer(30, 60));
+    assert.deepEqual(f.project, accepted, 'Export/restore locks must also cover an existing gesture');
+    assert.equal(f.history.length, depth);
+    f.unblock();
+    f.canvas.onpointermove(pointer(50, 100));
+    f.canvas.onpointerup(pointer(50, 100));
+    f.canvas.onlostpointercapture(pointer(50, 100));
+    assert.deepEqual(f.project, accepted, 'Unlocking must not revive the retired gesture');
+    assert.equal(f.events.filter(event => event === 'commit').length, Number(moved));
+
+    f.canvas.onpointerdown(pointer(0, 0));
+    f.canvas.onpointermove(pointer(10, 20));
+    f.canvas.onpointerup(pointer(10, 20));
+    assert.equal(f.project.panX, accepted.panX + .1);
+    assert.equal(f.history.length, depth + 1);
+    assert.equal(f.events.filter(event => event === 'commit').length, Number(moved) + 1);
+  }
 });
 
 test('keyboard controller retains native form/button Space behavior and global shortcut order', () => {

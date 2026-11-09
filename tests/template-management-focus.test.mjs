@@ -27,6 +27,7 @@ function fixture({id = 'custom-source', name = 'Saved source'} = {}) {
                 .map(([key,value]) => [key.slice(5).replace(/-([a-z])/g, (_,letter) => letter.toUpperCase()),value])),
             name:attributes.id || attributes.class || 'control',
             classList:{toggle() {}, add() {}, remove() {}},
+            style:{removeProperty(name) { delete this[name]; }},
             setAttribute(key,value) { this.attributes[key] = String(value); },
             getAttribute(key) { return this.attributes[key] ?? null; },
             removeAttribute(key) { delete this.attributes[key]; },
@@ -107,7 +108,9 @@ function fixture({id = 'custom-source', name = 'Saved source'} = {}) {
         const button = query('#'+{rename:'confirmRenameTemplate',update:'confirmUpdateTemplate',duplicate:'confirmDuplicateTemplate',remove:'confirmRemoveTemplate',save:'saveCustomTemplate'}[action]);
         result.userFocus(button); button.onclick();
     };
-    render(); return result;
+    render();
+    assert.equal(query('#templateThumbnailStatus').hidden, true);
+    return result;
 }
 
 for (const action of ['rename','update','duplicate','remove','save']) {

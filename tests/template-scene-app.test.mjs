@@ -252,7 +252,7 @@ test('stale sample playback shows stopped status after delayed raster load and c
 });
 
 
-async function galleryFixture({custom = false, thumbnails = false} = {}) {
+async function galleryFixture({custom = false, thumbnails = false, thumbnailContext} = {}) {
     const mounts = [];
     let buttons = [], favorites = [], canvases = [], nodes, markup = '', generation = 0, cardGeneration = 0;
     let modalNodes = new Map(), modalMarkup = '', modalGeneration = 0, invoker;
@@ -307,7 +307,12 @@ async function galleryFixture({custom = false, thumbnails = false} = {}) {
                         buttons = [...value.matchAll(/<button class="([^"]+)" data-preview-template="([^"]+)"/g)].map(([, cls, id], i) =>
                             Object.assign(connected(`gallery-${generation}-${cardGeneration}-preview-${i}`), {className:cls, dataset:{previewTemplate:id}}));
                         canvases = thumbnails ? [...value.matchAll(/data-template-canvas="([^"]+)"/g)].map(([, id], i) =>
-                            Object.assign(connected(`gallery-${generation}-${cardGeneration}-canvas-${i}`), {dataset:{templateCanvas:id}})) : [];
+                            {
+                                const canvas = Object.assign(connected(`gallery-${generation}-${cardGeneration}-canvas-${i}`), {dataset:{templateCanvas:id}});
+                                const getContext = canvas.getContext.bind(canvas);
+                                if (thumbnailContext) canvas.getContext = () => thumbnailContext(id,getContext());
+                                return canvas;
+                            }) : [];
                         favorites = [...value.matchAll(/data-favorite="([^"]+)"/g)].map(([, id], i) =>
                             Object.assign(connected(`gallery-${generation}-${cardGeneration}-favorite-${i}`), {dataset:{favorite:id}}));
                     },
@@ -606,4 +611,57 @@ test('gallery raster failures preserve template navigation and favorites without
     assert.equal(f.doc.activeElement, search);
     f.preview('clean').onclick();
     assert.equal(f.element('#templateSceneStatus').textContent, '');
+});
+
+
+test('lost comparison output releases its healthy source and preserves style selection until retry', async () => {
+    for (const during of [false,true]) for (const selected of [false,true]) {
+        const f = await fixture(), frames = trackFrames(f);
+        f.open(); f.current();
+        if (selected) f.element('#templateCurrentStyle').onclick({});
+        const frame = frames[0], count = f.context.draws.length;
+        const controls = [f.element('#templateCurrentStyle'),f.element('#templateSelectedStyle')];
+        const pressed = controls.map(button => button.getAttribute('aria-pressed'));
+        const button = controls[Number(selected)]; button.focus();
+        const before = f.evaluate('({state,history,future,current,selected,timer:persistence.saveTimer})');
+        const context = {isContextLost:() => !during || f.context.draws.length > count};
+        f.element('#templateDemo').getContext = () => context;
+        assert.doesNotThrow(() => button.onclick({}));
+        assert.equal(f.context.draws.length, count + (during ? 1 : 0));
+        assert.equal(f.element('#templateSceneStatus').getAttribute('data-i18n'), 'templates.sceneUnavailable');
+        assert.deepEqual(controls.map(control => control.getAttribute('aria-pressed')), pressed);
+        assert.deepEqual([frame.width,frame.height,frame.events.size], [0,0,0]);
+        assert.equal(f.doc.activeElement, button); assert.equal(frames.length, 1);
+        assert.deepEqual(f.evaluate('({state,history,future,current,selected,timer:persistence.saveTimer})'), before);
+        context.isContextLost = () => false; button.onclick({});
+        assert.equal(frames.length, 2); assert.equal(f.context.draws.at(-1)[4].source, frames[1]);
+        assert.equal(f.element('#templateSceneStatus').textContent, '');
+        assert.deepEqual(controls.map(control => control.getAttribute('aria-pressed')), [String(!selected),String(selected)]);
+        assert.deepEqual(f.evaluate('({state,history,future,current,selected,timer:persistence.saveTimer})'), before);
+        f.element('#modal').close(); f.element('#modal').onclose();
+        assert.deepEqual([frames[1].width,frames[1].height,frames[1].events.size], [0,0,0]);
+    }
+});
+
+test('gallery treats a lost output canvas as unavailable while healthy thumbnails stay usable', async () => {
+    let lost = true;
+    const first = TEMPLATES[0].id;
+    const f = await galleryFixture({thumbnails:true,thumbnailContext:(id,context) => id === first
+        ? new Proxy(context,{get(target,key) { return key === 'isContextLost' ? () => lost : Reflect.get(target,key); }}) : context});
+    const root = f.element('#panelContent'), status = root.querySelector('#templateThumbnailStatus');
+    assert.equal(status.hidden, false);
+    assert.equal(status.getAttribute('data-i18n'), 'templates.thumbnailUnavailable');
+    const canvases = root.querySelectorAll('[data-template-canvas]');
+    assert.equal(canvases.find(canvas => canvas.dataset.templateCanvas === first).style.visibility, 'hidden');
+    assert.ok(canvases.filter(canvas => canvas.dataset.templateCanvas !== first).every(canvas => !canvas.style.visibility));
+    const before = f.evaluate('({state,history,future,current,selected,timer:persistence.saveTimer})');
+    f.preview(first).onclick(); assert.equal(f.element('#modal').open, true);
+    f.element('#modal').close(); f.element('#modal').onclose();
+    const writes = []; f.context.localStorage.setItem = (...args) => writes.push(args);
+    f.favorite(first).onclick(); assert.deepEqual(writes, [['moment-favorites-v1',JSON.stringify([first])]]);
+    assert.deepEqual(f.evaluate('({state,history,future,current,selected,timer:persistence.saveTimer})'), before);
+    lost = false;
+    const search = root.querySelector('#templateSearch'); search.value = ''; search.oninput({target:search});
+    assert.equal(status.hidden, true); assert.equal(status.textContent, '');
+    assert.ok(root.querySelectorAll('[data-template-canvas]').every(canvas => !canvas.style.visibility));
 });

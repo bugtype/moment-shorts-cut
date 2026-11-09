@@ -10,6 +10,13 @@ export function createTemplatePreview({ composition, getMedia, modal, openModal:
 } = {}) {
     const demos = new WeakMap();
     let generation = 0, disposePrevious = () => {};
+    function paint(target, project, media) {
+        const context = target.getContext('2d');
+        // Native destination loss can silently ignore drawing before its event runs.
+        if (!context || context.isContextLost?.()) throw new Error('Template rendering context unavailable');
+        composition.draw(context, target.width, target.height, project, media);
+        if (context.isContextLost?.()) throw new Error('Template rendering context lost');
+    }
     function templateProject(template) {
         if (demos.has(template))
             return demos.get(template);
@@ -25,7 +32,7 @@ export function createTemplatePreview({ composition, getMedia, modal, openModal:
     function draw(target, template, fraction = template.hook ? 0 : .4) {
         const { source, ready } = getMedia();
         const p = templateProject(template), t = Math.max(0, Math.min(.999, fraction)) * 12;
-        composition.draw(target.getContext('2d'), target.width, target.height, p, {
+        paint(target, p, {
             source,
             sw: 540,
             sh: 960,
@@ -149,7 +156,7 @@ export function createTemplatePreview({ composition, getMedia, modal, openModal:
                 const project = selected ? styled : snapshot.project, [w, h] = project.ratio.split(':').map(Number);
                 canvas.width = Math.round(432 * w / Math.max(w, h)); canvas.height = Math.round(432 * h / Math.max(w, h));
                 canvas.style.aspectRatio = `${w} / ${h}`;
-                composition.draw(canvas.getContext('2d'), canvas.width, canvas.height, project, snapshot.media);
+                paint(canvas, project, snapshot.media);
                 $('#templateCurrentStyle').setAttribute('aria-pressed', String(!selected));
                 $('#templateSelectedStyle').setAttribute('aria-pressed', String(selected));
             } catch { snapshot?.release(); snapshot = styled = null; setText($('#templateSceneStatus'), 'templates.sceneUnavailable'); }

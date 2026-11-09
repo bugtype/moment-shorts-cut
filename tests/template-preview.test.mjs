@@ -182,3 +182,34 @@ test('returning to a failed sample preserves mode controls and close ownership',
   mode.onchange(); f.query('#toggleTemplateDemo').onclick();
   assert.equal(f.draws.length, count); assert.equal(f.frames.size, 0);
 });
+
+
+test('public template drawing rejects destination loss before and during composition', () => {
+  for (const during of [false,true]) {
+    const f = fixture(), target = f.query('#canvas');
+    const context = {isContextLost:() => !during || f.draws.length > 0};
+    target.getContext = () => context;
+    assert.throws(() => f.preview.draw(target,TEMPLATES[0]), /context/i);
+    assert.equal(f.draws.length, during ? 1 : 0);
+    context.isContextLost = () => false;
+    assert.doesNotThrow(() => f.preview.draw(target,TEMPLATES[0]));
+    assert.equal(f.draws.length, during ? 2 : 1);
+  }
+});
+
+test('lost sample destination stops animation and an explicit restored Play recovers', () => {
+  for (const during of [false,true]) {
+    const f = fixture(); f.preview.open(TEMPLATES[0]);
+    const play = f.query('#toggleTemplateDemo'), status = f.query('#templateSceneStatus');
+    const count = f.draws.length, context = {isContextLost:() => !during || f.draws.length > count};
+    f.query('#templateDemo').getContext = () => context;
+    play.onclick(); assert.doesNotThrow(() => f.tick(100));
+    assert.equal(f.draws.length, count + (during ? 1 : 0));
+    assert.equal(f.frames.size, 0);
+    assert.equal(play.getAttribute('data-i18n'), 'templates.play');
+    assert.equal(status.getAttribute('data-i18n'), 'templates.sampleUnavailable');
+    context.isContextLost = () => false; play.onclick(); f.tick(200);
+    assert.equal(f.frames.size, 1); assert.equal(status.textContent, '');
+    f.modal.open = false; f.modal.onclose(); assert.equal(f.frames.size, 0);
+  }
+});

@@ -1,8 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { mountTemplateGallery } from '../dist/template-gallery.mjs';
-import { saveCustomTemplate } from '../dist/template-catalog.mjs';
+import { TEMPLATES, saveCustomTemplate } from '../dist/template-catalog.mjs';
 import { createDemoProject } from '../dist/core/project.mjs';
+import { setLocale, initLocale, translateFor } from '../dist/i18n.mjs';
 
 test('gallery imports selected files, resets the picker and exports only custom cards', async () => {
   const item = saveCustomTemplate('<내 스타일>', createDemoProject());
@@ -77,4 +78,48 @@ test('collection export is disabled when empty and ignores detached or composing
   assert.equal(exports,0);
   query('#exportTemplateCollection').onclick();
   assert.equal(exports,1);
+});
+
+
+test('one failed thumbnail does not disable other previews or custom template controls', () => {
+  try { for (const locale of ['ko', 'en', 'zh-CN']) {
+    setLocale(locale, {persist:false});
+    const custom = saveCustomTemplate('Custom', createDemoProject()), items = [TEMPLATES[0], TEMPLATES[1], custom];
+    const nodes = new Map(), events = [], attempts = [];
+    const query = key => {
+      if (!nodes.has(key)) {
+        const attrs = new Map();
+        nodes.set(key, {textContent:'', value:'',
+          setAttribute:(name,value)=>attrs.set(name,String(value)),
+          getAttribute:name=>attrs.get(name)??null, removeAttribute:name=>attrs.delete(name)});
+      }
+      return nodes.get(key);
+    };
+    const canvases = items.map(item => ({dataset:{templateCanvas:item.id},style:{removeProperty(name) {delete this[name];}}}));
+    const previews = items.map(item => ({dataset:{previewTemplate:item.id}}));
+    const controls = new Map(['update','duplicate','rename','export','remove'].map(action =>
+      ['[data-' + action + '-template]', [{dataset:{[action + 'Template']:custom.id}}]]));
+    const root = {innerHTML:'',querySelector:query,querySelectorAll:selector =>
+      selector === '[data-template-canvas]' ? canvases : selector === '[data-preview-template]' ? previews : controls.get(selector) || []};
+    let failing = true;
+    const api = {ui:{query:'',category:'전체'},custom:[custom],favorites:[],
+      thumbnail(canvas, item) { attempts.push(item.id); if (failing && item.id === items[0].id) throw Error('unavailable canvas'); },
+      preview:item=>events.push(['preview',item.id])};
+    for (const action of ['update','duplicate','rename','export','remove']) api[action] = id => events.push([action,id]);
+    assert.doesNotThrow(() => mountTemplateGallery(root,api));
+    assert.deepEqual(attempts, items.map(item=>item.id));
+    const status = query('#templateThumbnailStatus');
+    assert.equal(status.hidden, false);
+    assert.equal(status.textContent, translateFor(locale,'templates.thumbnailUnavailable'));
+    assert.equal(canvases[0].style.visibility, 'hidden');
+    assert.ok(canvases.slice(1).every(canvas => !canvas.style.visibility));
+    for (const preview of previews) preview.onclick();
+    for (const [selector, [control]] of controls) control.onclick();
+    assert.deepEqual(events, [...items.map(item=>['preview',item.id]), ...['update','duplicate','rename','export','remove'].map(action=>[action,custom.id])]);
+    failing = false;
+    query('#templateSearch').oninput({target:{value:''}});
+    assert.equal(status.hidden,true); assert.equal(status.textContent,'');
+    assert.equal(status.getAttribute('data-i18n'),null);
+    assert.ok(canvases.every(canvas=>!canvas.style.visibility));
+  }} finally { initLocale(); }
 });

@@ -52,6 +52,7 @@ export function mountTemplateGallery(root, api) {
     `<div class="gallery-summary panel-actions"><span id="templateCount"></span>` +
       `<button class="text-button" id="exportTemplateCollection" ${api.custom.length ? '' : 'disabled'}>` +
         `${text('templates.exportCollection')}</button></div>\n    ` +
+    `<p class="notice" id="templateThumbnailStatus" role="status" hidden></p>` +
     `<div class="template-grid" id="templateGrid"></div>`;
 
   const grid = root.querySelector('#templateGrid');
@@ -104,9 +105,24 @@ export function mountTemplateGallery(root, api) {
       `</article>`
     ).join('') || `<div class="empty-text">${text('templates.empty')}</div>`;
 
-    root.querySelectorAll('[data-template-canvas]').forEach(canvas =>
-      api.thumbnail(canvas, all.find(item => item.id === canvas.dataset.templateCanvas))
-    );
+    let thumbnailFailed = false;
+    root.querySelectorAll('[data-template-canvas]').forEach(canvas => {
+      try {
+        api.thumbnail(canvas, all.find(item => item.id === canvas.dataset.templateCanvas));
+        canvas.style.removeProperty('visibility');
+      } catch {
+        // A partial image is not a usable preview; keep its card controls available.
+        canvas.style.visibility = 'hidden';
+        thumbnailFailed = true;
+      }
+    });
+    const thumbnailStatus = root.querySelector('#templateThumbnailStatus');
+    thumbnailStatus.hidden = !thumbnailFailed;
+    if (thumbnailFailed) setText(thumbnailStatus, 'templates.thumbnailUnavailable');
+    else {
+      thumbnailStatus.textContent = '';
+      thumbnailStatus.removeAttribute('data-i18n');
+    }
     root.querySelectorAll('[data-preview-template]').forEach(button => button.onclick = () =>
       api.preview(all.find(item => item.id === button.dataset.previewTemplate))
     );

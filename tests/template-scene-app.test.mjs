@@ -252,9 +252,9 @@ test('stale sample playback shows stopped status after delayed raster load and c
 });
 
 
-async function galleryFixture({custom = false} = {}) {
+async function galleryFixture({custom = false, thumbnails = false} = {}) {
     const mounts = [];
-    let buttons = [], favorites = [], nodes, markup = '', generation = 0, cardGeneration = 0;
+    let buttons = [], favorites = [], canvases = [], nodes, markup = '', generation = 0, cardGeneration = 0;
     let modalNodes = new Map(), modalMarkup = '', modalGeneration = 0, invoker;
     const f = await createAppFixture({beforeInit({context, doc, element}) {
         const root = element('#panelContent'), modal = element('#modal');
@@ -295,7 +295,7 @@ async function galleryFixture({custom = false} = {}) {
             invoker = null;
         };
         Object.defineProperty(root, 'innerHTML', {get: () => markup, set(value) {
-            detach([...buttons, ...favorites, ...(nodes?.values() || [])]);
+            detach([...buttons, ...favorites, ...canvases, ...(nodes?.values() || [])]);
             markup = value; nodes = new Map(); generation++;
         }});
         root.querySelector = selector => {
@@ -303,9 +303,11 @@ async function galleryFixture({custom = false} = {}) {
                 const node = connected(`gallery-${generation}-${selector}`);
                 if (selector === '#templateGrid') Object.defineProperty(node, 'innerHTML', {
                     get: () => node.markup || '', set(value) {
-                        detach([...buttons, ...favorites]); node.markup = value; cardGeneration++;
+                        detach([...buttons, ...favorites, ...canvases]); node.markup = value; cardGeneration++;
                         buttons = [...value.matchAll(/<button class="([^"]+)" data-preview-template="([^"]+)"/g)].map(([, cls, id], i) =>
                             Object.assign(connected(`gallery-${generation}-${cardGeneration}-preview-${i}`), {className:cls, dataset:{previewTemplate:id}}));
+                        canvases = thumbnails ? [...value.matchAll(/data-template-canvas="([^"]+)"/g)].map(([, id], i) =>
+                            Object.assign(connected(`gallery-${generation}-${cardGeneration}-canvas-${i}`), {dataset:{templateCanvas:id}})) : [];
                         favorites = [...value.matchAll(/data-favorite="([^"]+)"/g)].map(([, id], i) =>
                             Object.assign(connected(`gallery-${generation}-${cardGeneration}-favorite-${i}`), {dataset:{favorite:id}}));
                     },
@@ -316,7 +318,8 @@ async function galleryFixture({custom = false} = {}) {
         };
         root.querySelectorAll = selector => selector === '[data-preview-template]' ? buttons :
             selector === '.template-name' ? buttons.filter(b => b.className === 'template-name') :
-            selector === '[data-favorite]' ? favorites : [];
+            selector === '[data-favorite]' ? favorites :
+            selector === '[data-template-canvas]' ? canvases : [];
         const mount = context.mountTemplateGallery;
         context.mountTemplateGallery = (target, options) => {
             const view = mount(target, options);
@@ -566,4 +569,41 @@ test('real text-raster allocation failure leaves template sample recovery usable
     f.element('#applyTemplateStyle').onclick({});
     assert.deepEqual(f.evaluate('state'), expected); assert.equal(f.evaluate('history.length'), 1);
     assert.equal(f.element('#modal').open, false);
+});
+
+
+test('gallery raster failures preserve template navigation and favorites without editing the project', async () => {
+    const f = await galleryFixture({thumbnails:true}), root = f.element('#panelContent');
+    const create = f.doc.createElement, failed = [];
+    f.doc.createElement = tag => {
+        const element = create(tag);
+        if (tag === 'canvas') { element.getContext = () => null; failed.push(element); }
+        return element;
+    };
+    const before = f.evaluate('({state,history,future,current,selected,timer:persistence.saveTimer})');
+    assert.doesNotThrow(() => vm.runInContext('composition.clear();renderPanel();', f.context));
+    assert.ok(failed.length > 0);
+    const status = root.querySelector('#templateThumbnailStatus');
+    assert.equal(status.hidden, false);
+    assert.equal(status.getAttribute('data-i18n'), 'templates.thumbnailUnavailable');
+    assert.ok(root.querySelectorAll('[data-template-canvas]').every(canvas => canvas.style.visibility === 'hidden'));
+    assert.deepEqual(f.evaluate('({state,history,future,current,selected,timer:persistence.saveTimer})'), before);
+    f.preview('clean').onclick();
+    assert.equal(f.element('#modal').open, true);
+    assert.equal(f.element('#templateSceneStatus').getAttribute('data-i18n'), 'templates.sampleUnavailable');
+    f.element('#modal').close(); f.element('#modal').onclose();
+    const writes = []; f.context.localStorage.setItem = (...args) => writes.push(args);
+    assert.doesNotThrow(() => f.favorite('clean').onclick());
+    assert.deepEqual(writes, [['moment-favorites-v1', JSON.stringify(['clean'])]]);
+    const favorite = f.favorite('clean'); assert.equal(f.doc.activeElement, favorite);
+    assert.deepEqual(f.evaluate('({state,history,future,current,selected,timer:persistence.saveTimer})'), before);
+    f.doc.createElement = create;
+    const search = root.querySelector('#templateSearch'); search.value = ''; search.focus();
+    search.oninput({target:search});
+    assert.equal(status.hidden, true); assert.equal(status.textContent, '');
+    assert.equal(status.getAttribute('data-i18n'), null);
+    assert.ok(root.querySelectorAll('[data-template-canvas]').every(canvas => !canvas.style.visibility));
+    assert.equal(f.doc.activeElement, search);
+    f.preview('clean').onclick();
+    assert.equal(f.element('#templateSceneStatus').textContent, '');
 });

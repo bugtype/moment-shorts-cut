@@ -20,6 +20,7 @@ export const messages = {
     "templates.sceneStale": "장면이 변경되었습니다. 미리보기를 다시 여세요.",
     "templates.sceneUnavailable": "현재 장면을 불러올 수 없습니다. 샘플을 이용하세요.",
     "templates.sampleUnavailable": "샘플을 표시할 수 없습니다. 재생을 눌러 다시 시도하세요.",
+    "templates.thumbnailUnavailable": "일부 미리보기를 표시하지 못했습니다. 템플릿 이름을 눌러 다시 시도하세요.",
 
     "templates.heading": "템플릿",
     "templates.import": "불러오기",
@@ -112,6 +113,7 @@ export const messages = {
     "templates.sceneStale": "The scene changed. Reopen the preview.",
     "templates.sceneUnavailable": "Current scene is unavailable. Use the sample instead.",
     "templates.sampleUnavailable": "The sample could not be displayed. Press Play to try again.",
+    "templates.thumbnailUnavailable": "Some previews could not be displayed. Select a template name to try again.",
 
     "templates.heading": "Templates",
     "templates.import": "Import",
@@ -204,6 +206,7 @@ export const messages = {
     "templates.sceneStale": "场景已更改。请重新打开预览。",
     "templates.sceneUnavailable": "当前场景不可用。请使用示例。",
     "templates.sampleUnavailable": "无法显示示例。请点击播放重试。",
+    "templates.thumbnailUnavailable": "部分预览无法显示。请选择模板名称重试。",
 
     "templates.heading": "模板",
     "templates.import": "导入",

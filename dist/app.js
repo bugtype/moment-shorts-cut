@@ -258,6 +258,9 @@ const app = {
     composition, templateWorkspace,
     videoRegion: (project, rect) => videoFrame(project.design, rect.width, rect.height),
     get captionPanel() { return captionWorkspace; },
+    hasPendingProjectInput: () => captionWorkspace.hasPendingRowEdits() ||
+        inspectorView.hasPendingName(state) || workspacePanels.hasPendingTrim() ||
+        workspacePanels.hasPendingAudio() || designWorkspace.hasPendingInput(),
     sources, persistence, videoExport, captionGeneration, audioRecording,
     inspectorView, timelineView, inputHistory,
     initial, icons, visualSettings,

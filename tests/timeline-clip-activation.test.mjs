@@ -268,3 +268,57 @@ test('thumbnail string memo preserves markup-owner repair and throwing or reentr
   assert.match(f.track.innerHTML, /Nested name/);
   f.assertNoWrites();
 });
+
+
+// DOM semantics only; these checks do not simulate screen-reader announcements.
+function assertPressedSelection(f) {
+  const selected = f.evaluate('selected');
+  assert.deepEqual(f.track.children.map(node => node.getAttribute('aria-pressed')),
+    f.track.children.map((_, index) => String(index === selected)));
+  assert.deepEqual(f.track.children.map(node => node.classList.contains('active')),
+    f.track.children.map((_, index) => index === selected));
+}
+
+test('clip selection exposes pressed state after keyboard and pointer activation without remounting', async () => {
+  const f = await setup(), originalLocale = f.context.getLocale();
+  try {
+    for (const locale of ['ko', 'en', 'zh-CN']) {
+      f.context.setLocale(locale, {persist: false});
+      vm.runInContext('renderTimeline()', f.context);
+      const before = f.unchangedState(), nodes = [...f.track.children], writes = f.track.writes;
+      assertPressedSelection(f);
+      for (const [index, detail] of [[1, 0], [2, 1], [2, 0], [0, 0]]) {
+        nodes[index].focus();
+        const focusCount = f.focusEvents.length;
+        f.activate(index, {detail, clientX: 250});
+        assertPressedSelection(f);
+        vm.runInContext('renderTimeline();renderTimeline()', f.context);
+        assertPressedSelection(f);
+        assertNodes(f.track, nodes);
+        assert.equal(f.track.writes, writes);
+        assert.equal(f.doc.activeElement, nodes[index]);
+        assert.equal(f.focusEvents.length, focusCount);
+        assert.deepEqual(f.unchangedState(), before);
+      }
+      f.assertNoWrites();
+    }
+  } finally { f.context.setLocale(originalLocale, {persist: false}); }
+});
+
+test('clip pressed state follows rebuilt controls after deletion, Undo and Redo', async () => {
+  const f = await setup();
+  f.activate(2, {detail: 0});
+  const before = f.evaluate('state'), oldNodes = [...f.track.children];
+  f.element('#deleteButton').onclick();
+  assert.equal(f.evaluate('state.clips.length'), 2);
+  assert.equal(f.evaluate('selected'), 1);
+  assert.ok(oldNodes.every(node => !node.isConnected));
+  assertPressedSelection(f);
+  const after = f.evaluate('state');
+  f.element('#undoButton').onclick();
+  assert.deepEqual(f.evaluate('state'), before);
+  assertPressedSelection(f);
+  f.element('#redoButton').onclick();
+  assert.deepEqual(f.evaluate('state'), after);
+  assertPressedSelection(f);
+});

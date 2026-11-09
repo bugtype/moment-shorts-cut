@@ -1,3 +1,4 @@
+import {mountLeaveGuard} from './fixtures/leave-guard.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
@@ -117,6 +118,56 @@ async function transformFixture(action, text = '오류 문장') {
     : action === 'replace-all' ? '#replaceAllCaptions' : '#shiftCaptionTiming';
   return {...f, actionButton: () => f.query(selector), toolInput: input};
 }
+
+// Exercise current mounted controls, including the dialog apply path on the
+// unfixed app. Opening is blocked after the fix, before the modal owns focus.
+for (const [action, opener, prefix, confirm, options] of [
+  ['remove', 'removeCaptionRange', 'captionRange', 'confirmCaptionRange', {}],
+  ['shift', 'shiftCaptionRange', 'shiftRange', 'confirmShiftRange', {shiftRangeBasis:'timeline',shiftRangeDelta:'0.5'}],
+  ['speaker', 'assignSpeakerRange', 'speakerRange', 'confirmSpeakerRange', {speakerRangeValue:'0'}],
+  ['split', 'splitCaptionRange', 'splitRange', 'confirmSplitRange', {splitRangeLimit:'12'}],
+  ['replace', 'replaceCaptionRange', 'replaceRange', 'confirmReplaceRange', {}],
+]) test(`bulk ${action} preserves another row's rejected draft until corrected retry`, async () => {
+  try {
+    const f = await transformFixture('replace-all');
+    vm.runInContext("state.captions[1].text='오류 문장 '.repeat(8);renderPanel();", f.context);
+    assert.equal((await f.context.window.moment.execute('effects.update', effect)).ok, true);
+    vm.runInContext('undo();globalThis.rangeSaves=0;scheduleSave=()=>rangeSaves++;', f.context);
+    const field = f.query('[data-caption-text="0"]'), draft = '한'.repeat(2001);
+    const before = snapshot(f), markup = f.panel.innerHTML;
+    field.value = draft; field.focus(); field.setSelectionRange(2,4); field.onchange();
+    assert.equal(f.element('#toast').textContent, t('errors.cueLength'));
+    const applyOtherRow = () => {
+      f.query('#' + prefix + 'First').value = '2';
+      f.query('#' + prefix + 'Last').value = '2';
+      for (const [id,value] of Object.entries(options)) f.query('#' + id).value = value;
+      f.query('#' + confirm).onclick({});
+    };
+    for (let retry = 0; retry < 2; retry++) {
+      f.query('#' + opener).onclick({});
+      if (f.evaluate('!!modal.open')) applyOtherRow();
+      assert.equal(f.query('[data-caption-text="0"]').value, draft);
+      assert.equal(f.query('[data-caption-text="0"]'), field);
+      assert.deepEqual(snapshot(f), before); assert.equal(f.evaluate('rangeSaves'), 0);
+      assert.equal(f.panel.innerHTML, markup); assert.equal(f.doc.activeElement, field);
+      assert.deepEqual([field.selectionStart,field.selectionEnd], [2,4]);
+      assert.equal(f.evaluate('!!modal.open'), false);
+      assert.equal(f.element('#toast').textContent, t('errors.captionDraftConflict'));
+    }
+    field.value = 'Corrected caption'; field.onchange();
+    const corrected = f.evaluate('state');
+    f.query('#' + opener).onclick({});
+    assert.equal(f.evaluate('modal.open'), true);
+    applyOtherRow();
+    const after = f.evaluate('state');
+    assert.deepEqual(after.captions[0], corrected.captions[0]);
+    assert.notDeepEqual(after.captions, corrected.captions);
+    assert.equal(f.evaluate('history.length'), 2); assert.equal(f.evaluate('rangeSaves'), 2);
+    assert.equal(f.evaluate('future.length'), 0); assert.equal(f.evaluate('modal.open'), false);
+    vm.runInContext('undo()', f.context); assert.deepEqual(f.evaluate('state'), corrected);
+    vm.runInContext('undo(true)', f.context); assert.deepEqual(f.evaluate('state'), after);
+  } finally { initLocale(); }
+});
 
 test('targeted caption transforms preserve another row draft and require explicit corrected retry', async () => {
   try {
@@ -878,4 +929,27 @@ test('parsed NUL correction and split keep failed-valid sessions memory-only', a
     await vm.runInContext('saveProject(true);scheduleSave();undo();',f.context);
     assert.deepEqual(f.evaluate('state'),before);assert.deepEqual(writes,[]);
   }
+});
+
+
+test('leave guard protects rejected caption rows but ignores search drafts and released rows', async () => {
+  const f = await fixture('en');
+  const leaves = await mountLeaveGuard(f);
+  assert.equal(leaves(), false);
+  const field = f.query('[data-caption-text="0"]');
+  field.value = 'x'.repeat(2001); field.onchange();
+  assert.equal(f.evaluate('state.captions[0].text'), 'Original');
+  assert.equal(leaves(), true);
+  field.value = 'Corrected'; field.onchange();
+  assert.equal(leaves(), true);
+  await vm.runInContext('saveProject()', f.context);
+  assert.equal(leaves(), false);
+  const search = f.query('#captionFind'); search.value = 'search only';
+  f.panel.oncompositionstart({target:search});
+  assert.equal(leaves(), false, 'search composition is not authored project input');
+  f.panel.oncompositionend({target:search});
+  field.value = 'another unsaved draft';
+  assert.equal(leaves(), true);
+  vm.runInContext("switchPanel('media')", f.context);
+  assert.equal(leaves(), false, 'released row no longer owns a draft');
 });

@@ -19,11 +19,14 @@ export function createCaptionPanel({
         execute: (name, args) => canTransformRows() && execute(name, args),
         edit: (change, refresh) => { if (canTransformRows()) return edit(change, refresh); },
         blocked: () => composing || blocked(),
-        replaceRange: options => replaceRange?.({...options,index:options.index ?? page * CAPTION_PAGE_SIZE})});
+        replaceRange: options => canTransformRows() && replaceRange?.({...options,index:options.index ?? page * CAPTION_PAGE_SIZE})});
     // Recognition may finish without a blur/change event. A current row draft
     // belongs to the user, not to the asynchronously generated replacement.
     function hasPendingEdits(ignoredCaptionIndex = -1) {
-        if (composing) return true;
+        return composing || hasPendingRowEdits(ignoredCaptionIndex);
+    }
+    // Search/tool composition is not an unsaved project draft on page exit.
+    function hasPendingRowEdits(ignoredCaptionIndex = -1) {
         const captions = getProject().captions;
         return renderedRows.some(({ input, field, index, displayed, model }) => {
             // Explicit row deletion may discard that row, but no other draft.
@@ -176,7 +179,7 @@ export function createCaptionPanel({
         };
         $('#goCaptionPage').onclick = jumpPage;
         $('#removeCaptionRange').onclick = event => {
-            if (!composing && !event?.isComposing && event?.keyCode !== 229) removeRange?.(page * CAPTION_PAGE_SIZE);
+            if (!composing && !event?.isComposing && event?.keyCode !== 229 && canTransformRows()) removeRange?.(page * CAPTION_PAGE_SIZE);
         };
         target.oncompositionstart = () => { if (generation === renderGeneration) composing = true; };
         target.oncompositionend = () => { if (generation === renderGeneration) composing = false; };
@@ -191,10 +194,10 @@ export function createCaptionPanel({
         }
         $('#shiftCaptionTiming').onclick = shiftTiming;
         $('#shiftCaptionRange').onclick = event => {
-            if (!composing && !event?.isComposing && event?.keyCode !== 229) shiftRange?.(page * CAPTION_PAGE_SIZE);
+            if (!composing && !event?.isComposing && event?.keyCode !== 229 && canTransformRows()) shiftRange?.(page * CAPTION_PAGE_SIZE);
         };
         $('#assignSpeakerRange').onclick = event => {
-            if (!composing && !event?.isComposing && event?.keyCode !== 229) speakerRange?.(page * CAPTION_PAGE_SIZE);
+            if (!composing && !event?.isComposing && event?.keyCode !== 229 && canTransformRows()) speakerRange?.(page * CAPTION_PAGE_SIZE);
         };
         $('#captionDesignShortcut').onclick = actions.design;
         $('#inspectCaptionOverlaps').onclick = event => { if (!composing && !event?.isComposing && event?.keyCode !== 229) overlaps(); };
@@ -203,7 +206,7 @@ export function createCaptionPanel({
         const splitRangeButton = $('#splitCaptionRange');
         splitRangeButton.onclick = event => {
             if (!composing && !blocked() && !event?.isComposing && event?.keyCode !== 229 &&
-                $('#splitCaptionRange') === splitRangeButton)
+                $('#splitCaptionRange') === splitRangeButton && canTransformRows())
                 splitRange?.(page * CAPTION_PAGE_SIZE, Number($('#captionChunkSize').value));
         };
         $$('[data-caption-keywords]').forEach(el => el.onchange = () => edit(() => getProject().captions[+el.dataset.captionKeywords].keywords = el.value));
@@ -345,5 +348,5 @@ export function createCaptionPanel({
         // Preserve a live project's search cursor, but never root a replaced project.
         search.sync();
     }
-    return { render, releaseView, focus: focusCaption, hasPendingEdits, refreshAfterRecognition, refreshForNavigation };
+    return { render, releaseView, focus: focusCaption, hasPendingEdits, hasPendingRowEdits, refreshAfterRecognition, refreshForNavigation };
 }

@@ -88,7 +88,8 @@ export function drawSceneCards(c, w, h, project, time, total, typography) {
     c.fillStyle = '#ffffff35';
     c.fillRect(w * .07, y, w * .78, 3 * u);
     c.fillStyle = project.effects.progressColor;
-    c.fillRect(w * .07, y, w * .78 * clamp(time / Math.max(.1, total), 0, 1), 3 * u);
+    // Valid short edits still span the full bar; only an empty duration needs a guard.
+    c.fillRect(w * .07, y, w * .78 * clamp(total > 0 ? time / total : 0, 0, 1), 3 * u);
   }
 }
 export function migrateSceneLayers(project) {

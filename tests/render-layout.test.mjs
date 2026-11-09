@@ -43,6 +43,7 @@ module.exports = {
     const context = new Proxy({}, {
       get(target, key) {
         if (key in target) return target[key];
+        if (key === 'isContextLost') return () => false;
         if (key === 'measureText') return text => ({width:String(text).length * 10});
         if (key === 'createRadialGradient') return () => ({addColorStop(){}});
         return (...args) => events.push([key, ...args.map(arg => arg?.id ? {id:arg.id, width:arg.width, height:arg.height} : arg)]);

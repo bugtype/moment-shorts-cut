@@ -210,3 +210,18 @@ test('restoring does not compare against an unrelated old saved baseline', async
   reading.resolve(); await restoring;
   assert.equal(f.dirty(), false);
 });
+
+
+test('actual leave guard includes name and desktop trim drafts without committing them', async () => {
+  const f = await appFixture(); f.run('renderInspector()'); await f.run('saveProject()');
+  assert.equal(f.leaves().prevented, false);
+  const name = f.element('#projectName'), original = name.value;
+  name.value = 'Uncommitted name'; assert.equal(f.leaves().prevented, true);
+  name.value = original; assert.equal(f.leaves().prevented, false);
+  const start = f.element('#trimStart'); start.value = '0.500';
+  assert.equal(f.leaves().prevented, true);
+  start.value = '0.000'; assert.equal(f.leaves().prevented, false);
+  start.value = '0.5'; f.element('#trimButton').onclick();
+  assert.equal(f.leaves().prevented, true);
+  await f.run('saveProject()'); assert.equal(f.leaves().prevented, false);
+});

@@ -1,4 +1,4 @@
-// Only clip-button identity, classes and native-style removal are modeled here.
+// Only clip-button identity, attributes, classes and native-style removal are modeled here.
 // This is not browser layout, keyboard dispatch, scrolling or assistive-technology QA.
 export function installClipTrackDom(track, document, focusEvents = []) {
   let html = '', children = [], writes = 0;
@@ -15,9 +15,13 @@ export function installClipTrackDom(track, document, focusEvents = []) {
         writes++;
         children = [...value.matchAll(/<button class="([^"]*\bclip\b[^"]*)" data-clip="(\d+)"[^>]*>[\s\S]*?<\/button>/g)].map(match => {
           const classes = new Set(match[1].split(/\s+/).filter(Boolean));
+          const opening = match[0].slice(0, match[0].indexOf('>') + 1);
+          const attributes = new Map([...opening.matchAll(/([\w-]+)="([^"]*)"/g)].map(([, name, value]) => [name, value]));
           const node = {
             dataset: { clip: match[2] }, isConnected: true, parentNode: track,
             rect: { left: 100, width: 400 },
+            getAttribute(name) { return attributes.get(name) ?? null; },
+            setAttribute(name, value) { attributes.set(name, String(value)); },
             classList: {
               contains: name => classes.has(name),
               toggle(name, force) {

@@ -1,11 +1,18 @@
+import {createMediaStorageFixture} from './fixtures/media-storage.mjs';
+import {mountLeaveGuard} from './fixtures/leave-guard.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
 import {createAppFixture} from './fixtures/app.mjs';
 import {initLocale,t} from '../dist/i18n.mjs';
 
-async function fixture({locale='en',speed=1,offset=2}={}) {
- const f=await createAppFixture(),root=f.element('#panelContent'),query=f.doc.querySelector;
+async function fixture({locale='en',speed=1,offset=2,storeFactory}={}) {
+ const f=await createAppFixture({beforeInit:({context})=>{
+  if(storeFactory){
+   const create=context.createProjectStore;
+   context.createProjectStore=()=>create(storeFactory);
+  }
+ }}),root=f.element('#panelContent'),query=f.doc.querySelector;
  initLocale({languages:[locale],storage:null,document:f.doc});
  let html=root.innerHTML,input=null,generation=0;
  // Model actual emitted numeric markup and replacement, not native typing or IME ordering.
@@ -86,4 +93,17 @@ test('retired controls and panel or media replacements do not leave a draft lock
  const f=await fixture(),old=f.input();vm.runInContext('renderPanel()',f.context);
  const current=f.input();current.oncompositionstart();old.oncompositionend();old.oncompositionstart();
  assert.equal((await edit(f)).error.code,'CONFLICT');current.oncompositionend();assert.equal((await edit(f)).ok,true);
+});
+
+
+test('leave guard includes audio drafts, accepts equivalent values and releases old panels',async()=>{
+ const f=await fixture({storeFactory:createMediaStorageFixture().factory});
+ // Confirm the fixture's synthetic media so this test isolates authored input.
+ await vm.runInContext('projectStore.setMedia(null,sources.audioFile)',f.context);
+ const leaves=await mountLeaveGuard(f);
+ assert.equal(leaves(),false);
+ f.input().value='3.5';assert.equal(leaves(),true);
+ f.input().value='2.000';assert.equal(leaves(),false);
+ f.input().value='3.5';vm.runInContext("switchPanel('media')",f.context);
+ assert.equal(leaves(),false);
 });

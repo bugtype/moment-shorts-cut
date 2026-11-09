@@ -269,9 +269,12 @@ export function createTimelineView($, clock = () => performance.now()) {
         }
         const videoTrack = $('#videoTrack');
         updateTimelineMarkup(videoTrack, clips);
-        // Selection alone must not replace the button receiving native activation.
-        for (const button of videoTrack.querySelectorAll('[data-clip]'))
-            button.classList.toggle('active', +button.dataset.clip === selected);
+        // Keep visual and accessible selection on the same surviving button.
+        for (const button of videoTrack.querySelectorAll('[data-clip]')) {
+            const active = +button.dataset.clip === selected;
+            button.classList.toggle('active', active);
+            button.setAttribute('aria-pressed', String(active));
+        }
         renderCaptions(state, len);
         const total = len / state.speed;
         renderRuler(total);

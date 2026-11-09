@@ -1,3 +1,4 @@
+import {mountLeaveGuard} from './fixtures/leave-guard.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
@@ -180,4 +181,14 @@ for (const locale of ['ko', 'en', 'zh-CN']) test(`cancelled IME preserves import
    vm.runInContext('undo(true)', f.context); assert.equal(f.evaluate(expression), displayed + '글');
   }
  } finally { initLocale(); }
+});
+
+
+test('leave guard includes design drafts and releases replaced controls',async()=>{
+ const f=await fixture();open(f,'title');const leaves=await mountLeaveGuard(f);
+ assert.equal(leaves(),false);
+ const input=control(f,'title');const original=input.value;
+ input.value='Uncommitted title';assert.equal(leaves(),true);
+ input.value=original;assert.equal(leaves(),false);
+ input.value='Another title';f.open('media');assert.equal(leaves(),false);
 });

@@ -117,7 +117,7 @@ export function bindUi(app) {
         app.renderInspector();
         app.scheduleSave();
     });
-    app.bindTrimDrafts({ start: '#trimStart', end: '#trimEnd',
+    const hasPendingDesktopTrim = app.bindTrimDrafts({ start: '#trimStart', end: '#trimEnd',
         startButton: '#trimStartPlayhead', endButton: '#trimEndPlayhead',
         current: () => app.inspectorView.hasTrimTarget(app.state.clips[app.selected]),
     });
@@ -302,7 +302,8 @@ export function bindUi(app) {
         }
     });
     app.window.addEventListener('beforeunload', event => {
-        if (app.exporting || app.audioRecording.current || app.persistence.hasUnsavedChanges()) {
+        if (app.exporting || app.audioRecording.current || app.persistence.hasUnsavedChanges() ||
+            app.hasPendingProjectInput() || hasPendingDesktopTrim()) {
             event.preventDefault();
             event.returnValue = true;
         }

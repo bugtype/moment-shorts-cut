@@ -107,6 +107,28 @@ test('dialog instructions and notices, including template overrides, retain read
     assert.ok(contrast(text,background) >= 4.5, `${name}: ${contrast(text,background)}`);
 });
 
+test('design and effects tab text and selected underline retain contrast on normal and hover surfaces', async () => {
+  const [shell, design] = await Promise.all(['shell-library', 'design']
+    .map(name => readFile(new URL(`../dist/styles/${name}.css`, import.meta.url), 'utf8')));
+  const surfaces = [declaration(shell, ':root', 'background'), declaration(shell, 'button:hover', 'background')]
+    .map(value => color(value, shell));
+  const pairs = ['.layer-tabs button', '.layer-tabs button.active'].flatMap(selector =>
+    surfaces.map(background => ({selector, background,
+      ratio: contrast(color(declaration(design, selector, 'color'), shell), background)})));
+  assert.deepEqual(pairs.map(pair => pair.ratio >= 4.5), pairs.map(() => true),
+    `Enabled tab text must meet normal-text contrast: ${JSON.stringify(pairs)}`);
+  const underline = color(declaration(design, '.layer-tabs button.active', 'border-bottom-color'), shell);
+  for (const background of surfaces)
+    assert.ok(contrast(underline, background) >= 3, `Selected tab underline on ${background}: ${contrast(underline, background)}`);
+  // Color stays presentation-only; retain the existing selected-weight cue and shared tab owner.
+  assert.equal(declaration(design, '.layer-tabs button.active', 'font-weight'), '700');
+  for (const owner of ['design-panel', 'effects-panel']) {
+    const source = await readFile(new URL(`../dist/${owner}.mjs`, import.meta.url), 'utf8');
+    assert.match(source, /class="layer-tabs" role="tablist"/);
+    assert.match(source, /role="tab" aria-selected=/);
+  }
+});
+
 test('preview serves modules with correct MIME types and never serves repository files', async t => {
   const server = createPreviewServer();
   server.listen(0, '127.0.0.1');

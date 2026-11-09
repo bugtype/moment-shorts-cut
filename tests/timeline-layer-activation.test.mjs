@@ -220,7 +220,7 @@ test('raw authored CR/NUL and unexpected child shapes retain the legacy markup f
     }
 });
 
-test('invalid and unchanged recommits keep their existing project and save behavior', async () => {
+test('invalid and unchanged recommits preserve project, history and save state', async () => {
     for (const kind of ['title', 'credit', 'card']) {
         const f = await setup();
         f.open(kind);
@@ -231,9 +231,7 @@ test('invalid and unchanged recommits keep their existing project and save behav
         const original = kind === 'title' ? .25 : .5;
         f.edit(kind, 'start', original);
         assertStable(f.track, before);
-        assert.deepEqual(f.evaluate('state'), state.state);
-        assert.equal(f.evaluate('history.length'), 1);
-        assert.equal(f.evaluate('layerSaves'), 1);
+        assert.deepEqual(f.snapshot(), state);
     }
 });
 

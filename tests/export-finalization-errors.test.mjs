@@ -88,6 +88,90 @@ async function start(f, includeAudio = true, focusStart = false) {
 const finalData = () => ({ data: new Blob(['synthetic complete recording']) });
 const snapshot = f => f.evaluate('({state,history,future})');
 
+function observeExportSurfaces(f) {
+  const surfaces = [], create = f.doc.createElement;
+  f.doc.createElement = tag => {
+    const surface = create(tag);
+    if (tag === 'canvas') {
+      const events = new Map(), context = surface.getContext('2d');
+      surface.lost = false;
+      surface.getContext = () => new Proxy(context, {get: (target, key) =>
+        key === 'isContextLost' ? () => surface.lost : Reflect.get(target, key)});
+      surface.addEventListener = (type, callback) => events.set(type, callback);
+      surface.removeEventListener = (type, callback) => { if (events.get(type) === callback) events.delete(type); };
+      surface.events = events;
+      surface.lose = () => { surface.lost = true; events.get('contextlost')?.(); };
+      surfaces.push(surface);
+    }
+    return surface;
+  };
+  return surfaces;
+}
+
+test('rendering context loss during recording or a cut hold cancels corrupt output and permits retry', async () => {
+  for (const held of [false, true]) {
+    const f = await fixture(), surfaces = observeExportSurfaces(f), before = snapshot(f);
+    const old = await start(f), surface = vm.runInContext('videoExport.canvas', f.context);
+    assert.ok(surfaces.includes(surface));
+    if (held) {
+      old.recorder.pause = () => { old.recorder.state = 'paused'; };
+      assert.equal(vm.runInContext('videoExport.pauseCapture(videoExport.request)', f.context), true);
+    }
+    old.data(finalData());
+    const lateLoss = surface.events.get('contextlost');
+    surface.lose();
+    assert.equal(f.evaluate('exporting'), false, 'a known broken surface cannot complete an export');
+    assert.equal(f.evaluate('playing'), false);
+    assert.equal(f.evaluate('modal.open'), false);
+    assert.equal(f.evaluate('videoExport.canvas'), null);
+    assert.equal(f.pendingFrames.size, 0);
+    assert.equal(old.recorder.stops, 1);
+    assert.ok(old.recorder.stream.getTracks().every(track => track.stops === 1));
+    assert.equal(f.sourceTrack.stops, 0);
+    assert.equal(surface.events.has('contextlost'), false);
+    assert.equal(f.element('#toast').getAttribute('data-i18n'), 'shell.exportError');
+    old.stop();
+    assert.equal(f.downloads.length, 0);
+    assert.deepEqual(snapshot(f), before);
+
+    const retry = await start(f), fresh = vm.runInContext('videoExport.canvas', f.context);
+    lateLoss(); old.stop(); old.error();
+    assert.equal(f.evaluate('exporting'), true);
+    assert.equal(retry.recorder.stops, 0);
+    vm.runInContext('stopExport(false)', f.context);
+    // Once native recording has stopped, later surface loss cannot corrupt its bytes.
+    fresh.lose();
+    retry.data(finalData()); retry.stop();
+    assert.equal(f.downloads.length, 1);
+    assert.equal(fresh.events.has('contextlost'), false);
+    assert.deepEqual(snapshot(f), before);
+  }
+});
+
+test('a lost export context is rejected before or after painting even before its event arrives', async () => {
+  for (const duringPaint of [false, true]) {
+    const f = await fixture(), surfaces = observeExportSurfaces(f), before = snapshot(f);
+    const old = await start(f), surface = vm.runInContext('videoExport.canvas', f.context);
+    assert.ok(surfaces.includes(surface));
+    if (duringPaint) {
+      f.context.loseExportContext = () => { surface.lost = true; };
+      vm.runInContext('const originalPaint=composition.draw;composition.draw=(...args)=>{originalPaint(...args);loseExportContext();};', f.context);
+    } else surface.lost = true;
+    const [id, callback] = f.pendingFrames.entries().next().value;
+    f.pendingFrames.delete(id);
+    assert.doesNotThrow(() => callback(f.evaluate('lastTick') + 40));
+    assert.equal(f.evaluate('exporting'), false);
+    assert.equal(f.evaluate('playing'), false);
+    assert.equal(f.pendingFrames.size, 0);
+    assert.equal(old.recorder.stops, 1);
+    assert.equal(f.element('#toast').getAttribute('data-i18n'), 'shell.playError');
+    old.data(finalData()); old.stop();
+    assert.equal(f.downloads.length, 0);
+    assert.equal(surface.events.has('contextlost'), false);
+    assert.deepEqual(snapshot(f), before);
+  }
+});
+
 for (const locale of ['ko', 'en', 'zh-CN']) {
   for (const failure of ['empty', 'url', 'click', 'detach']) {
     test(`${locale}: ${failure} finalization failure releases recording and permits explicit retry`, async () => {

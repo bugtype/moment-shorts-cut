@@ -12,6 +12,9 @@ async function fixture(kind, { basis = 'source', speed = 4 } = {}) {
             : kind === 'card' ? `[data-card="${side}"]` : `[data-design="design.${kind}.${side}"]`;
         const input = kind === 'caption' ? f.element(selector) : target.querySelector(selector);
         input.type = 'number';
+        Object.defineProperty(input, 'valueAsNumber', {configurable: true, get() {
+            return String(this.value).trim() === '' ? NaN : Number(this.value);
+        }});
         if (kind === 'caption') input.dataset[side === 'start' ? 'captionStart' : 'captionEnd'] = '0';
         else input.dataset[kind === 'card' ? 'card' : 'design'] = kind === 'card' ? side : `design.${kind}.${side}`;
         input.reportValidity = () => { input.validityReports = (input.validityReports || 0) + 1; };
@@ -98,6 +101,50 @@ test('existing nonfinite, negative and reversed-interval errors never create Und
             assert.deepEqual(f.snapshot(), before);
             f.assertWarning(side);
         }
+    }
+});
+
+test('correcting layer timing back to its saved value clears validation without discarding Redo', async () => {
+    for (const kind of ['title', 'credit', 'card']) for (const side of ['start', 'end']) {
+        const f = await fixture(kind);
+        for (const key of ['start', 'end']) f.input(key).value = String(f.value(key));
+        vm.runInContext('renderInspector()', f.context);
+        const edit = await f.context.window.moment.execute('effects.update', {patch: {brightness: 1.1}});
+        assert.equal(edit.ok, true, JSON.stringify(edit));
+        f.element('#undoButton').onclick();
+        const before = f.snapshot();
+        assert.equal(before.future.length, 1, 'a real undone edit is available');
+        f.change(side, side === 'start' ? '-1' : String(f.value('start')));
+        assert.deepEqual(f.snapshot(), before);
+        assert.ok(f.input(side).validationMessage);
+        f.change(side, String(f.value(side)) + '0');
+        assert.equal(f.input(side).validationMessage, '');
+        assert.deepEqual(f.snapshot(), before, `${kind}.${side} normalization is not a project edit`);
+        assert.equal(f.element('#redoButton').disabled, false);
+        f.element('#redoButton').onclick();
+        assert.equal(f.evaluate('state.effects.brightness'), 1.1);
+    }
+});
+
+test('restoring an already open-ended title or credit keeps null and preserves Redo', async () => {
+    for (const kind of ['title', 'credit']) {
+        const f = await fixture(kind);
+        vm.runInContext(`state.design.${kind}.end=null;renderPanel()`, f.context);
+        f.input('start').value = String(f.value('start'));
+        f.input('end').value = '';
+        vm.runInContext('renderInspector()', f.context);
+        const edit = await f.context.window.moment.execute('effects.update', {patch: {brightness: 1.1}});
+        assert.equal(edit.ok, true, JSON.stringify(edit));
+        f.element('#undoButton').onclick();
+        const before = f.snapshot();
+        f.change('end', String(f.value('start')));
+        assert.ok(f.input('end').validationMessage);
+        f.change('end', '');
+        assert.equal(f.value('end'), null);
+        assert.equal(f.input('end').validationMessage, '');
+        assert.deepEqual(f.snapshot(), before);
+        f.element('#redoButton').onclick();
+        assert.equal(f.evaluate('state.effects.brightness'), 1.1);
     }
 });
 

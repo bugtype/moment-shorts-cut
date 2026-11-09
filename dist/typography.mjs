@@ -122,9 +122,11 @@ function keywordSegments(line, keywords) {
 }
 
 // Observe only this sprite; a retained old surface must not retain its renderer.
-function observeSpriteRestoration(item) {
+function observeSpriteInvalidation(item) {
   try {
-    item.surface.addEventListener?.('contextrestored', () => { item.invalid = true; });
+    const invalidate = () => { item.invalid = true; };
+    item.surface.addEventListener?.('contextlost', invalidate);
+    item.surface.addEventListener?.('contextrestored', invalidate);
   } catch { /* Event observation is optional for non-browser Canvas ports. */ }
 }
 
@@ -138,11 +140,12 @@ export function createTypographyRenderer(makeCanvas = () => document.createEleme
     if (cache.has(key)) {
       const hit = cache.get(key);
       cache.delete(key);
-      if (!hit.invalid) { cache.set(key, hit); return hit; }
+      if (!hit.invalid && !hit.context.isContextLost?.()) { cache.set(key, hit); return hit; }
       pixels -= hit.pixels;
     }
     const surface = makeCanvas();
     const context = surface.getContext('2d');
+    if (!context || context.isContextLost?.()) throw new Error('Text rendering context unavailable');
     const font = size => `${options.italic ? 'italic ' : ''}${options.weight || 900} ${size}px "Noto Sans KR", sans-serif`;
     let size = options.size;
     const lineHeight=options.lineHeight||1.34;
@@ -189,12 +192,14 @@ export function createTypographyRenderer(makeCanvas = () => document.createEleme
         context.textAlign = 'center';
       }
     });
-    const item = { surface, pixels: surface.width * surface.height };
+    // Silent native loss must not publish an empty sprite as successful text.
+    if (context.isContextLost?.()) throw new Error('Text rendering context lost');
+    const item = { surface, context, pixels: surface.width * surface.height };
     while (cache.size && (pixels + item.pixels > maxPixels || cache.size >= 48)) {
       const first = cache.keys().next().value; pixels -= cache.get(first).pixels; cache.delete(first);
     }
     if (item.pixels <= maxPixels) {
-      observeSpriteRestoration(item);
+      observeSpriteInvalidation(item);
       cache.set(key, item); pixels += item.pixels;
     }
     return item;

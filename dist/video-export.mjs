@@ -3,6 +3,7 @@ import { outputDimensions } from './core/aspect-ratio.mjs';
 // Owns export generations and native resources; preparation, playback and UI stay in the app.
 export function createVideoExport({ createCanvas, createRecorder, onRelease }) {
     let request = 0, canvas = null, context = null, stream = null, recorder = null, pausedCapture = null;
+    let releaseContextListener = null;
     let renderOptions = Object.freeze({ includeCaptions: true, includeAudio: true });
     const owns = token => token === request;
 
@@ -31,6 +32,15 @@ export function createVideoExport({ createCanvas, createRecorder, onRelease }) {
             videoBitsPerSecond: quality === 1080 ? 8000000 : 4500000,
             audioBitsPerSecond: 128000,
         });
+        releaseContextListener?.();
+        const surface = canvas;
+        const lost = () => {
+            // Recording can silently stop receiving frames, including during a cut hold.
+            if (owns(token) && recorder === active && ['recording', 'paused'].includes(active.state))
+                onError();
+        };
+        releaseContextListener = () => surface.removeEventListener?.('contextlost', lost);
+        surface.addEventListener?.('contextlost', lost);
         active.ondataavailable = event => {
             if (owns(token) && event.data.size)
                 chunks.push(event.data);
@@ -72,6 +82,8 @@ export function createVideoExport({ createCanvas, createRecorder, onRelease }) {
             return;
         ++request;
         renderOptions = Object.freeze({ includeCaptions: true, includeAudio: true });
+        releaseContextListener?.();
+        releaseContextListener = null;
         onRelease();
         if (recorder)
             recorder.ondataavailable = recorder.onerror = recorder.onstop = null;

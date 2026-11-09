@@ -93,6 +93,62 @@ async function load(f, duration, options = {}) {
 }
 
 for (const withVideo of [false, true]) {
+  test(`a post-import preview failure cannot pair new project metadata with the old ${withVideo ? 'video' : 'demo'} source`, async () => {
+    const f = await fixture(withVideo), create = f.doc.createElement;
+    let canvases = 0, failed = false;
+    vm.runInContext('composition.clear()', f.context);
+    f.doc.createElement = tag => {
+      const canvas = create(tag);
+      // Let the validated media thumbnail succeed, then fail actual typography allocation.
+      if (tag === 'canvas' && ++canvases === 2) {
+        failed = true;
+        canvas.getContext = () => null;
+      }
+      return canvas;
+    };
+    await load(f, 24);
+    assert.equal(failed, true, 'the post-commit renderer reached an unavailable native context');
+    assert.equal(f.evaluate('state.fileName'), 'candidate.mp4');
+    assert.equal(f.evaluate('sources.videoFile.name'), 'candidate.mp4');
+    assert.equal(f.urls.get(f.video.src).name, 'candidate.mp4');
+    assert.equal(f.video.duration, 24);
+    assert.equal(f.revoked.includes(f.video.src), false);
+    assert.equal(f.evaluate('sources.audioFile'), null);
+    assert.equal(f.evaluate('state.audioName'), '');
+    assert.deepEqual(f.evaluate('({history,future})'), {history: [], future: []});
+    assert.equal(f.evaluate('loadingMedia'), false);
+    assert.equal(f.element('#videoInput').value, '');
+    assert.equal(f.element('#toast').getAttribute('data-i18n'), 'shell.changeAppliedViewFailed');
+    await vm.runInContext('saveProject()', f.context);
+    assert.deepEqual(JSON.parse(f.raw()), f.evaluate('state'));
+    assert.equal(f.storage.records.get('video').name, 'candidate.mp4');
+    assert.equal(f.storage.records.has('audio'), false);
+    assert.equal(f.storage.attempts.length, 1, 'the accepted replacement is stored only once');
+    assert.equal((await f.context.window.moment.execute('project.update', {patch: {name: 'Still editable'}})).ok, true);
+  });
+}
+
+test('an early view failure after video adoption still schedules the accepted metadata for saving', async () => {
+  const f = await fixture(true), render = vm.runInContext('renderTimeline', f.context);
+  vm.runInContext('renderTimeline=()=>{throw new Error("Timeline view unavailable")}', f.context);
+  await load(f, 24);
+  assert.equal(f.evaluate('sources.videoFile.name'), 'candidate.mp4');
+  assert.equal(f.urls.get(f.video.src).name, 'candidate.mp4');
+  const saves = [...f.timers].filter(timer => timer.delay === 500);
+  assert.equal(saves.length, 1);
+  await saves[0].callback();
+  assert.deepEqual(JSON.parse(f.raw()), f.evaluate('state'));
+  assert.equal(f.storage.records.get('video').name, 'candidate.mp4');
+  assert.equal(f.evaluate('loadingMedia'), false);
+  f.context.restoreTimelineRender = render;
+  vm.runInContext('renderTimeline=restoreTimelineRender;renderPanel();resizePreview()', f.context);
+  await load(f, 6, {name: 'next.mp4'});
+  assert.equal(f.evaluate('state.fileName'), 'next.mp4');
+  assert.equal(f.evaluate('sources.videoFile.name'), 'next.mp4');
+  assert.equal(f.video.duration, 6);
+});
+
+for (const withVideo of [false, true]) {
   for (const duration of [.0005, 86401]) {
     test(`invalid duration ${duration} preserves ${withVideo ? 'video' : 'demo'} project, audio and saved data`, async () => {
       const f = await fixture(withVideo), before = snapshot(f), stored = f.raw();

@@ -111,6 +111,36 @@ for(const ending of [false,true])test(`export paint failure ${ending?'at end':'m
   vm.runInContext('stopExport(true)',f.context);
 });
 
+test('a lost text raster aborts an otherwise healthy export instead of publishing missing titles', async () => {
+  const f = await fixture(), before = snapshot(f), media = sources(f), recorder = await start(f);
+  const late = {data: recorder.ondataavailable, stop: recorder.onstop};
+  const create = f.doc.createElement; let delivered = false;
+  f.doc.createElement = tag => {
+    const canvas = create(tag);
+    if (tag === 'canvas' && !delivered) {
+      delivered = true;
+      const context = canvas.getContext('2d');
+      canvas.getContext = () => new Proxy(context, {get: (target, key) =>
+        key === 'isContextLost' ? () => true : Reflect.get(target, key)});
+    }
+    return canvas;
+  };
+  vm.runInContext('composition.clear()', f.context);
+  assert.doesNotThrow(() => frame(f));
+  assert.equal(delivered, true, 'real typography creation encounters the lost raster');
+  assert.equal(f.evaluate('exporting'), false);
+  assert.equal(recorder.stops, 1);
+  assert.equal(f.pendingFrames.size, 0);
+  assert.ok(recorder.stream.getTracks().every(track => track.stops === 1));
+  assert.equal(f.sourceTrack.stops, 0);
+  late.data({data: new Blob(['incomplete output'])}); late.stop();
+  assert.equal(f.downloads.length, 0);
+  errorShown(f); unchanged(f, before, media);
+  const retry = await start(f);
+  assert.equal(retry.state, 'recording');
+  vm.runInContext('stopExport(true)', f.context);
+});
+
 test('a replaced playback owner is not stopped or deprived of its new frame by an old paint failure',async()=>{
   for(const changeProject of [false,true]) {
     const f=await fixture();await vm.runInContext('play()',f.context);

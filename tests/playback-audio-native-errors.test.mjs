@@ -7,6 +7,9 @@ const settle = async () => { for (let i = 0; i < 20; i++) await Promise.resolve(
 // Production playback/export/UI owners; native timing, media and encoded chunks are synthetic.
 async function fixture({ kind = 'demo', offset = 0, length = 12, speed = 1, current = 0 } = {}) {
   const f = await createAppFixture(), tracks = [], recorders = [], downloads = [];
+  // This fixture advances RAF explicitly; wall-clock fractions can leave the final
+  // synthetic frame infinitesimally short of the authored endpoint.
+  f.context.performance = { now: () => 0 };
   const track = () => {
     const value = { stops: 0, clone: track, stop() { this.stops++; } };
     tracks.push(value); return value;

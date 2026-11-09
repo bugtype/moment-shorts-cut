@@ -309,6 +309,8 @@ export function mountEffectsPanel(root, api) {
             }
           }
           setValidity(input, '');
+          // Clear an old validation error without consuming the user's Redo.
+          if (input.type === 'number' && value === card[key]) return;
           if (!continuous) api.snapshot();
           api.update(p => p.overlays.find(item => item.id === card.id)[key] = value);
           const item = [...target.querySelectorAll('[data-scene-select]')]

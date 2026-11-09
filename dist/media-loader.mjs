@@ -62,10 +62,17 @@ export function createMediaLoader(app, {
             app.future = [];
             app.inputHistory.reset();
             app.persistMedia();
-            app.changed();
-            app.renderPanel();
-            app.resizePreview();
-            app.toast(msg('errors.videoLoaded'));
+            try {
+                app.changed();
+                app.renderPanel();
+                app.resizePreview();
+                app.toast(msg('errors.videoLoaded'));
+            } catch {
+                // The validated video is already adopted. View failure must not
+                // restore old media underneath the new metadata and saved files.
+                try { app.scheduleSave(); } catch { /* Keep the accepted source and project together. */ }
+                try { app.toast(msg('shell.changeAppliedViewFailed')); } catch { /* Preserve the committed outcome. */ }
+            }
         }
         catch (e) {
             app.sources.videoFile = old;

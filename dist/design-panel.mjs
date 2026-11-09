@@ -228,6 +228,8 @@ export function mountDesignPanel(root, api) {
         }
       }
       setValidity(input, '');
+      // Restoring a rejected numeric draft is not an edit when the model agrees.
+      if (input.type === 'number' && value === read()) return;
       if (!continuous) api.snapshot();
       api.update(project => {
         const keys = path.split('.');

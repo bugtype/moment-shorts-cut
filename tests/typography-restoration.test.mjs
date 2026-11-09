@@ -12,11 +12,12 @@ function fixture(mode = 'events') {
     return new Proxy({}, {
       get(target, key) {
         if (key in target) return target[key];
+        if (key === 'isContextLost') return () => surface?.lost === true;
         if (key === 'measureText') return value => {
           if (failure) throw failure;
           return { width: String(value).length * 10 };
         };
-        if (key === 'fillText') return value => surface.texts.push(value);
+        if (key === 'fillText') return value => { if (!surface.lost) surface.texts.push(value); };
         if (key === 'drawImage') return source => draws.push({ surface: source, texts: [...source.texts] });
         return () => {};
       },
@@ -47,11 +48,51 @@ function fixture(mode = 'events') {
   }
   return { surfaces, draws, makeCanvas, output: context(null),
     failMeasurement: error => { failure = error; },
-    restore(surface) { surface.texts = []; surface.dispatchEvent(new Event('contextrestored')); },
+    lose(surface, notify = true) { surface.lost = true; surface.texts = []; if (notify) surface.dispatchEvent(new Event('contextlost')); },
+    restore(surface) { surface.lost = false; surface.texts = []; surface.dispatchEvent(new Event('contextrestored')); },
   };
 }
 
 const labelOptions = { size: 20, maxWidth: 300, maxHeight: 200, color: '#ffffff' };
+
+test('lost cached text is rebuilt without waiting for restoration or reusing blank glyphs', () => {
+  for (const notify of [false, true]) {
+    const f = fixture(), renderer = createTypographyRenderer(f.makeCanvas);
+    const draw = value => { renderer.label(f.output, value, 10, 20, labelOptions); return f.draws.at(-1).surface; };
+    const title = draw('TITLE'), credit = draw('CREDIT'), before = renderer.cacheInfo();
+    f.lose(title, notify);
+    const rebuilt = draw('TITLE');
+    assert.deepEqual(f.draws.at(-1).texts, ['TITLE']);
+    assert.notEqual(rebuilt, title);
+    assert.equal(draw('CREDIT'), credit, 'unaffected glyphs stay cached');
+    assert.deepEqual(renderer.cacheInfo(), before);
+    f.restore(title);
+    assert.equal(draw('TITLE'), rebuilt, 'late restoration belongs only to the retired sprite');
+  }
+});
+
+test('text raster loss before or during painting cannot be cached or copied, and healthy retry works', () => {
+  for (const duringPaint of [false, true]) {
+    const f = fixture(); let fail = true;
+    const renderer = createTypographyRenderer(() => {
+      const surface = f.makeCanvas();
+      if (fail) {
+        if (duringPaint) {
+          const context = surface.getContext('2d'), fill = context.fillText;
+          context.fillText = value => { fill(value); f.lose(surface, false); };
+        } else f.lose(surface, false);
+      }
+      return surface;
+    });
+    assert.throws(() => renderer.label(f.output, 'VISIBLE TEXT', 0, 0, labelOptions), /context/i);
+    assert.deepEqual(renderer.cacheInfo(), {entries: 0, pixels: 0});
+    assert.equal(f.draws.length, 0);
+    fail = false;
+    renderer.label(f.output, 'VISIBLE TEXT', 0, 0, labelOptions);
+    assert.deepEqual(f.draws.at(-1).texts, ['VISIBLE TEXT']);
+    assert.equal(renderer.cacheInfo().entries, 1);
+  }
+});
 
 test('a restored cached glyph surface rebuilds on the next composition without replacing unaffected text', () => {
   const f = fixture(), renderer = createCompositionRenderer(f.makeCanvas), project = createDemoProject();

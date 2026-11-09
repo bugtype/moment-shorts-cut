@@ -47,7 +47,11 @@ export function createPlayback(app, {
 
     function draw() {
         if (app.exporting && app.videoExport.context) {
-            paint(app.videoExport.context, app.videoExport.canvas.width, app.videoExport.canvas.height, app.videoExport.renderOptions);
+            const context = app.videoExport.context;
+            // Loss can precede its event; drawing to a lost context may silently do nothing.
+            if (context.isContextLost?.()) throw new Error('Video rendering context lost');
+            paint(context, app.videoExport.canvas.width, app.videoExport.canvas.height, app.videoExport.renderOptions);
+            if (context.isContextLost?.()) throw new Error('Video rendering context lost');
             // Copy the complete alpha-capable frame, not a layer over the last preview.
             if (app.state.design.background.length === 9) app.ctx.clearRect(0, 0, app.canvas.width, app.canvas.height);
             app.ctx.drawImage(app.videoExport.canvas, 0, 0, app.canvas.width, app.canvas.height);

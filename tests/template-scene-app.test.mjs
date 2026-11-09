@@ -531,3 +531,39 @@ test('Apply focus return yields to newer focus, gallery and dialog owners', asyn
         assert.equal(f.evaluate('history.length'), 1);
     }
 });
+
+
+test('real text-raster allocation failure leaves template sample recovery usable without editing the project', async () => {
+    const f = await createAppFixture(), create = f.doc.createElement;
+    const failed = [];
+    f.doc.createElement = tag => {
+        const element = create(tag);
+        if (tag === 'canvas') { element.getContext = () => null; failed.push(element); }
+        return element;
+    };
+    const before = f.evaluate('({state,history,future,current,selected,timer:persistence.saveTimer})');
+    assert.doesNotThrow(() => vm.runInContext('composition.clear();templatePreview.open(TEMPLATES[0]);', f.context));
+    assert.ok(failed.length > 0, 'actual typography requested a required raster surface');
+    const status = f.element('#templateSceneStatus'), play = f.element('#toggleTemplateDemo');
+    assert.equal(status.getAttribute('data-i18n'), 'templates.sampleUnavailable');
+    assert.equal(play.getAttribute('data-i18n'), 'templates.play');
+    assert.equal(f.pendingFrames.size, 0);
+    assert.deepEqual(f.evaluate('({state,history,future,current,selected,timer:persistence.saveTimer})'), before);
+    try {
+        for (const locale of ['ko', 'en', 'zh-CN']) {
+            setLocale(locale, {persist:false});
+            assert.equal(status.textContent, translateFor(locale, 'templates.sampleUnavailable'));
+        }
+    } finally { initLocale(); }
+    f.doc.createElement = create;
+    play.focus(); play.onclick({});
+    const [id, callback] = [...f.pendingFrames][0];
+    f.pendingFrames.delete(id); assert.doesNotThrow(() => callback(performance.now()));
+    assert.equal(status.textContent, ''); assert.equal(f.doc.activeElement, play);
+    assert.equal(f.pendingFrames.size, 1);
+    assert.deepEqual(f.evaluate('({state,history,future,current,selected,timer:persistence.saveTimer})'), before);
+    const expected = structuredClone(before.state); applyTemplate(expected, TEMPLATES[0], false);
+    f.element('#applyTemplateStyle').onclick({});
+    assert.deepEqual(f.evaluate('state'), expected); assert.equal(f.evaluate('history.length'), 1);
+    assert.equal(f.element('#modal').open, false);
+});

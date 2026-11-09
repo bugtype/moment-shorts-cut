@@ -7,6 +7,7 @@ import { message } from '../dist/i18n.mjs';
 
 function fixture(scene) {
   const controls = new Map(), frames = new Map(), draws = [], dialogs = [], applications = [];
+  let failure;
   let frame = 0, time = 100, media = { source: { name: 'sample' }, ready: true };
   const query = selector => {
     if (!controls.has(selector)) {
@@ -20,7 +21,7 @@ function fixture(scene) {
   };
   const modal = { open: true, classList: { add() {} } };
   const preview = createTemplatePreview({
-    composition: { draw: (...args) => draws.push(args) },
+    composition: { draw: (...args) => { if (failure) throw failure; draws.push(args); } },
     getMedia: () => media, modal, query, scene,
     openModal: (...args) => { dialogs.push(args); modal.open = true; },
     onApply: (template, withContent) => applications.push([template, withContent]),
@@ -30,6 +31,7 @@ function fixture(scene) {
   });
   return { preview, controls, query, frames, draws, dialogs, modal, applications,
     setMedia: value => { media = value; },
+    failDraw: value => { failure = value; },
     tick(now) { time = now; const [id, callback] = frames.entries().next().value; frames.delete(id); callback(now); },
   };
 }
@@ -119,4 +121,64 @@ test('hook gallery thumbnails and modal samples open on the first frame while ol
     f.query('#toggleTemplateDemo').onclick(); f.tick(100);
     assert.equal(f.draws.at(-1)[4].time, 0, 'Playback begins at the opening frame');
   }
+});
+
+
+test('sample draw failure during open leaves controls usable and retries explicitly', () => {
+  const f = fixture(), template = TEMPLATES[0], before = structuredClone(template);
+  f.failDraw(new Error('Text rendering context unavailable'));
+  assert.doesNotThrow(() => f.preview.open(template));
+  const play = f.query('#toggleTemplateDemo'), status = f.query('#templateSceneStatus');
+  assert.equal(status.getAttribute('data-i18n'), 'templates.sampleUnavailable');
+  assert.equal(play.getAttribute('data-i18n'), 'templates.play');
+  assert.equal(f.frames.size, 0);
+  assert.equal(typeof f.query('#templatePreviewMode').onchange, 'function');
+  f.query('#applyTemplateStyle').onclick();
+  assert.deepEqual(f.applications, [[template, false]]);
+  f.failDraw(null); play.onclick(); f.tick(100);
+  assert.equal(status.textContent, ''); assert.equal(status.getAttribute('data-i18n'), null);
+  assert.equal(play.getAttribute('data-i18n'), 'templates.pause');
+  assert.equal(f.frames.size, 1);
+  f.modal.open = false; f.modal.onclose();
+  assert.equal(f.frames.size, 0);
+  assert.deepEqual(template, before);
+});
+
+test('sample animation failure stops truthfully and a later Play retries rendering', () => {
+  const f = fixture(); f.preview.open(TEMPLATES[0]);
+  const play = f.query('#toggleTemplateDemo'), status = f.query('#templateSceneStatus');
+  play.onclick(); f.failDraw(new Error('Text rendering context lost'));
+  assert.doesNotThrow(() => f.tick(100));
+  assert.equal(f.frames.size, 0);
+  assert.equal(play.getAttribute('data-i18n'), 'templates.play');
+  assert.equal(status.getAttribute('data-i18n'), 'templates.sampleUnavailable');
+  play.onclick(); assert.doesNotThrow(() => f.tick(200));
+  assert.equal(f.frames.size, 0, 'continued failure never creates an automatic retry loop');
+  f.failDraw(null); play.onclick(); f.tick(300);
+  assert.equal(f.frames.size, 1); assert.equal(status.textContent, '');
+  const retired = [...f.frames.values()][0];
+  f.preview.open(TEMPLATES[1]);
+  const count = f.draws.length;
+  retired(500);
+  assert.equal(f.draws.length, count); assert.equal(f.frames.size, 0);
+  f.query('#applyTemplateStructure').onclick();
+  assert.deepEqual(f.applications, [[TEMPLATES[1], true]]);
+});
+
+test('returning to a failed sample preserves mode controls and close ownership', () => {
+  const f = fixture(); f.preview.open(TEMPLATES[0]);
+  const mode = f.query('#templatePreviewMode'), status = f.query('#templateSceneStatus');
+  mode.value = 'current'; mode.onchange();
+  assert.equal(status.getAttribute('data-i18n'), 'templates.sceneUnavailable');
+  f.failDraw(new Error('sample failed')); mode.value = 'sample';
+  assert.doesNotThrow(() => mode.onchange());
+  assert.equal(status.getAttribute('data-i18n'), 'templates.sampleUnavailable');
+  assert.equal(f.query('#toggleTemplateDemo').hidden, false);
+  assert.equal(f.frames.size, 0);
+  f.failDraw(null); mode.onchange();
+  assert.equal(status.textContent, ''); assert.equal(status.getAttribute('data-i18n'), null);
+  f.modal.open = false; f.modal.onclose();
+  const count = f.draws.length;
+  mode.onchange(); f.query('#toggleTemplateDemo').onclick();
+  assert.equal(f.draws.length, count); assert.equal(f.frames.size, 0);
 });

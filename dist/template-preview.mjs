@@ -56,14 +56,32 @@ export function createTemplatePreview({ composition, getMedia, modal, openModal:
         const valid = () => current() && JSON.stringify(template) === templateSignature && (!context || context.valid());
         modeInput.value = 'sample';
         modeInput.options && (modeInput.options[1].disabled = !context?.canCapture());
-        const showSample = () => { canvas.width = 432; canvas.height = 768; canvas.style.aspectRatio = '9 / 16'; draw(canvas, template); };
-        showSample();
         let started = 0, running = false, lastPreview = -Infinity;
         const stop = () => {
             running = false;
             if (frame)
                 cancelFrame(frame);
             frame = 0;
+        };
+        const drawSample = fraction => {
+            const status = $('#templateSceneStatus');
+            try {
+                draw(canvas, template, fraction);
+                if (status.getAttribute('data-i18n') === 'templates.sampleUnavailable') {
+                    status.textContent = '';
+                    status.removeAttribute('data-i18n');
+                }
+                return true;
+            } catch {
+                stop();
+                setText($('#toggleTemplateDemo'), 'templates.play');
+                setText(status, 'templates.sampleUnavailable');
+                return false;
+            }
+        };
+        const showSample = () => {
+            canvas.width = 432; canvas.height = 768; canvas.style.aspectRatio = '9 / 16';
+            drawSample();
         };
         const animate = now => {
             const validScene = valid();
@@ -76,7 +94,7 @@ export function createTemplatePreview({ composition, getMedia, modal, openModal:
                 return;
             }
             if (now - lastPreview >= 1000 / 30) {
-                draw($('#templateDemo'), template, ((now - started) % 12000) / 12000);
+                if (!drawSample(((now - started) % 12000) / 12000)) return;
                 lastPreview = now;
             }
             frame = requestFrame(animate);
@@ -156,6 +174,8 @@ export function createTemplatePreview({ composition, getMedia, modal, openModal:
         };
         $('#applyTemplateStyle').onclick = event => apply(false, event);
         $('#applyTemplateStructure').onclick = event => apply(true, event);
+        // A failed first frame must leave the dialog's controls and cleanup usable.
+        showSample();
     }
     return { draw, open };
 }
